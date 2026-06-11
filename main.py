@@ -56,6 +56,7 @@ app.add_middleware(
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+Path("static").mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ─── Arka Plan Tarayıcı ──────────────────────────────────────────────────────
@@ -766,6 +767,21 @@ async def leader_summary():
         "ai_yorum": ai[:400] if ai else "",
         "tarih": rapor.get("tarih", ""),
     }
+
+@app.post("/api/leader/chat")
+async def leader_chat(req: Request):
+    """Lider Agent ile sohbet — tüm bot verileri ve analizleri bilir."""
+    data = await req.json()
+    soru = data.get("soru", "").strip()
+    if not soru:
+        return {"cevap": "Soru boş."}
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    from leader_agent import rapor_uret as _rapor_uret, backtest_sinyal_analizi, research_analizi
+    backtest = backtest_sinyal_analizi()
+    research = research_analizi()
+    saglik   = {}
+    cevap = await ai_yorum_uret(backtest, research, saglik, api_key, soru)
+    return {"cevap": cevap}
 
 @app.get("/live", response_class=HTMLResponse)
 async def live_page():
