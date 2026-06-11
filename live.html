@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAR Premium — Live Agent</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#080c14;--surface:#0f1623;--surface2:#161f30;--border:#1e2d45;
+--gold:#f59e0b;--green:#10b981;--red:#ef4444;--purple:#8b5cf6;
+--text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;}
+
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);
+display:flex;align-items:center;gap:14px;padding:0 18px;height:50px;flex-shrink:0;}
+.logo{font-weight:800;color:var(--gold);font-size:1rem;}
+.nav-link{color:var(--muted2);text-decoration:none;font-size:.82rem;padding:5px 12px;border-radius:6px;border:1px solid transparent;}
+.nav-link:hover{border-color:var(--border);color:var(--text);}
+.nav-link.active{background:var(--surface2);border-color:var(--purple);color:var(--text);}
+.sym-tabs{display:flex;gap:4px;margin-left:auto;}
+.sym-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+color:var(--muted);padding:5px 14px;font-size:.8rem;font-weight:700;cursor:pointer;}
+.sym-btn.active{border-color:var(--gold);color:var(--gold);}
+.tf-btn{background:none;border:1px solid var(--border);border-radius:5px;color:var(--muted);
+padding:4px 9px;font-size:.7rem;cursor:pointer;}
+.tf-btn.active{border-color:var(--purple);color:var(--text);}
+
+#main{display:flex;flex:1;overflow:hidden;}
+#charts-col{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px;gap:10px;}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+overflow:hidden;display:flex;flex-direction:column;}
+.chart-head{display:flex;align-items:center;justify-content:space-between;
+padding:8px 14px;border-bottom:1px solid var(--border);}
+.chart-title{font-size:.78rem;font-weight:700;}
+#price-chart-wrap{flex:3;min-height:0;}
+#cvd-chart-wrap{flex:1.2;min-height:0;}
+#price-chart,#cvd-chart{flex:1;min-height:0;}
+.walls-legend{display:flex;gap:12px;font-size:.68rem;}
+.wl{display:flex;align-items:center;gap:4px;}
+.wl-dot{width:8px;height:3px;border-radius:1px;}
+
+#sidebar{width:300px;flex-shrink:0;background:var(--surface);
+border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.side-head{padding:12px 14px;border-bottom:1px solid var(--border);
+display:flex;align-items:center;justify-content:space-between;}
+.side-title{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;}
+.icon-mini{background:var(--surface2);border:1px solid var(--border);border-radius:5px;
+color:var(--muted);cursor:pointer;padding:3px 8px;font-size:.72rem;}
+.icon-mini:hover{border-color:var(--purple);color:var(--text);}
+#signals-area{flex:1;overflow-y:auto;padding:8px;}
+#signals-area::-webkit-scrollbar{width:4px;}
+#signals-area::-webkit-scrollbar-thumb{background:var(--border);}
+
+.bot-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+padding:9px 11px;margin-bottom:7px;}
+.bot-name{font-size:.8rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;}
+.bot-status{font-size:.6rem;padding:1px 6px;border-radius:8px;}
+.bot-status.ok{background:#10b98120;color:var(--green);}
+.bot-status.err{background:#ef444420;color:var(--red);}
+.bot-meta{font-size:.66rem;color:var(--muted);margin-top:3px;line-height:1.6;}
+.wr{font-weight:800;}
+.wr.good{color:var(--green);}
+.wr.bad{color:var(--red);}
+.wr.mid{color:var(--gold);}
+
+.sig-item{display:flex;justify-content:space-between;align-items:center;
+padding:5px 8px;border-bottom:1px solid #131c2c;font-size:.72rem;}
+.sig-dir{font-weight:800;font-size:.65rem;padding:1px 7px;border-radius:4px;}
+.sig-dir.long{background:#10b98122;color:var(--green);}
+.sig-dir.short{background:#ef444422;color:var(--red);}
+.sig-out{font-size:.62rem;font-weight:700;}
+.sig-out.win{color:var(--green);}
+.sig-out.loss{color:var(--red);}
+.sig-out.wait{color:var(--muted);}
+
+.add-form{padding:10px;border-top:1px solid var(--border);}
+.add-form input{width:100%;background:var(--bg);border:1px solid var(--border);
+border-radius:6px;padding:7px 10px;color:var(--text);font-size:.75rem;outline:none;margin-bottom:6px;}
+.add-form input:focus{border-color:var(--purple);}
+.add-btn{width:100%;background:linear-gradient(135deg,#1d4ed8,var(--purple));
+border:none;border-radius:7px;color:#fff;padding:8px;font-size:.78rem;font-weight:700;cursor:pointer;}
+.empty-msg{padding:18px 14px;text-align:center;color:var(--muted);font-size:.74rem;line-height:1.7;}
+.sec-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;
+color:var(--muted);padding:8px 8px 4px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="logo">⚡ OAR Premium</span>
+  <a href="/" class="nav-link">💬 Sohbet</a>
+  <a href="/live" class="nav-link active">📡 Live Agent</a>
+  <div id="vercel-panel" style="margin-left:8px"></div>
+  <div class="sym-tabs">
+    <button class="sym-btn active" id="sym-btc" onclick="switchSymbol('BTC')">BTC</button>
+    <button class="sym-btn" id="sym-eth" onclick="switchSymbol('ETH')">ETH</button>
+    <button class="tf-btn active" data-tf="1h" onclick="switchTf('1h',this)">1S</button>
+    <button class="tf-btn" data-tf="4h" onclick="switchTf('4h',this)">4S</button>
+    <button class="tf-btn" data-tf="1d" onclick="switchTf('1d',this)">1G</button>
+  </div>
+</div>
+
+<div id="main">
+  <!-- GRAFİKLER -->
+  <div id="charts-col">
+    <div class="chart-box" id="price-chart-wrap">
+      <div class="chart-head">
+        <span class="chart-title" id="price-title">BTC/USDT</span>
+        <div class="walls-legend">
+          <span class="wl"><span class="wl-dot" style="background:var(--red)"></span>PW <b id="pw-val">—</b></span>
+          <span class="wl"><span class="wl-dot" style="background:var(--green)"></span>CW <b id="cw-val">—</b></span>
+          <span class="wl"><span class="wl-dot" style="background:var(--gold)"></span>ZG <b id="zg-val">—</b></span>
+        </div>
+      </div>
+      <div id="price-chart"></div>
+    </div>
+    <div class="chart-box" id="cvd-chart-wrap">
+      <div class="chart-head">
+        <span class="chart-title">CVD — Kümülatif Hacim Deltası</span>
+        <span style="font-size:.65rem;color:var(--muted)" id="cvd-src"></span>
+      </div>
+      <div id="cvd-chart"></div>
+    </div>
+  </div>
+
+  <!-- SİNYAL KUTUSU -->
+  <div id="sidebar">
+
+    <!-- LİDER AGENT PANELİ -->
+    <div class="side-head" style="margin-bottom:0">
+      <span class="side-title">🧠 Lider Agent</span>
+      <button class="icon-mini" onclick="loadLeaderReport(true)" title="Rapor üret">⚡ Çalıştır</button>
+    </div>
+    <div id="leader-panel" style="padding:8px;border-bottom:1px solid #1e2d45;font-size:.72rem;color:var(--muted)">
+      Yükleniyor...
+    </div>
+
+    <!-- BOT SİNYALLERİ -->
+    <div class="side-head" style="margin-top:8px;margin-bottom:0">
+      <span class="side-title">🤖 Bot Sinyalleri</span>
+      <button class="icon-mini" onclick="pollBots()" title="Şimdi tara">🔄 Tara</button>
+    </div>
+    <div id="signals-area">
+      <div class="empty-msg">Henüz bot kaynağı yok.<br>Aşağıdan botunun sinyal URL'ini ekle<br>(Vercel API, Render endpoint, GitHub raw JSON)</div>
+    </div>
+    <div class="add-form">
+      <input id="bot-name" placeholder="Bot adı (örn: UTBot, MA Scanner)">
+      <input id="bot-url" placeholder="https://xxx.onrender.com/health">
+      <div style="font-size:.62rem;color:var(--muted);margin:-2px 0 6px;line-height:1.5">
+        Render: /health | Vercel: /api/signals | GitHub: raw URL
+      </div>
+      <button class="add-btn" onclick="addBot()">➕ Bot Ekle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let SYM='BTC', TF='1h';
+let priceChart, candleSeries, cvdChart, cvdSeries;
+let wallLines=[];
+
+function initCharts(){
+  const opts={
+    layout:{background:{color:'#0f1623'},textColor:'#94a3b8'},
+    grid:{vertLines:{color:'#1a2235'},horzLines:{color:'#1a2235'}},
+    timeScale:{borderColor:'#1e2d45',timeVisible:true},
+    rightPriceScale:{borderColor:'#1e2d45'},
+  };
+  priceChart=LightweightCharts.createChart(document.getElementById('price-chart'),opts);
+  candleSeries=priceChart.addCandlestickSeries({
+    upColor:'#10b981',downColor:'#ef4444',
+    borderUpColor:'#10b981',borderDownColor:'#ef4444',
+    wickUpColor:'#10b981',wickDownColor:'#ef4444',
+  });
+  cvdChart=LightweightCharts.createChart(document.getElementById('cvd-chart'),opts);
+  cvdSeries=cvdChart.addLineSeries({color:'#8b5cf6',lineWidth:2});
+
+  // Boyutlandırma
+  const resize=()=>{ 
+    const pc=document.getElementById('price-chart');
+    const cc=document.getElementById('cvd-chart');
+    priceChart.applyOptions({width:pc.clientWidth,height:pc.clientHeight});
+    cvdChart.applyOptions({width:cc.clientWidth,height:cc.clientHeight});
+  };
+  new ResizeObserver(resize).observe(document.getElementById('price-chart'));
+  new ResizeObserver(resize).observe(document.getElementById('cvd-chart'));
+  setTimeout(resize,100);
+}
+
+async function loadChart(){
+  const symbol=SYM+'USDT';
+  document.getElementById('price-title').textContent=`${SYM}/USDT · ${TF.toUpperCase()}`;
+
+  const d=await (await fetch(`/api/ohlcv?symbol=${symbol}&interval=${TF}&limit=300`)).json();
+  const candles=(d.candles||[]).map(c=>({
+    time:Math.floor(c.ts/1000), open:c.open, high:c.high, low:c.low, close:c.close
+  }));
+  candleSeries.setData(candles);
+
+  // Duvarlar — önce Vercel (options-desk), olmazsa yerel
+  wallLines.forEach(l=>candleSeries.removePriceLine(l));
+  wallLines=[];
+  let w = await loadVercelWalls();
+  let wallSrc = 'Vercel';
+  if(!w){
+    try{
+      const wr = await fetch(`/api/walls?currency=${SYM}`);
+      w = await wr.json();
+      wallSrc = 'Yerel';
+    }catch(e){ w={}; wallSrc='Hata'; }
+  }
+  const addLine=(price,color,title)=>{
+    if(!price) return;
+    wallLines.push(candleSeries.createPriceLine({
+      price, color, lineWidth:2, lineStyle:LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible:true, title
+    }));
+  };
+  addLine(w.pw,'#ef4444','PW');
+  addLine(w.cw,'#10b981','CW');
+  addLine(w.zg,'#f59e0b','ZG');
+  document.getElementById('pw-val').textContent=w.pw?'$'+Number(w.pw).toLocaleString():'—';
+  document.getElementById('cw-val').textContent=w.cw?'$'+Number(w.cw).toLocaleString():'—';
+  document.getElementById('zg-val').textContent=w.zg?'$'+Number(w.zg).toLocaleString():'—';
+
+  // CVD — önce Vercel opsiyon CVD, olmazsa Binance taker CVD
+  let cvdData = null;
+  if(VERCEL_URL) cvdData = await loadVercelCVD();
+  if(cvdData){
+    cvdSeries.setData(cvdData);
+    document.getElementById('cvd-src').textContent=`Kaynak: Vercel (Opsiyon CVD)`;
+  } else {
+    try{
+      const cv=await (await fetch(`/api/cvd?symbol=${symbol}&interval=${TF}&limit=300`)).json();
+      cvdSeries.setData((cv.data||[]).map(x=>({time:Math.floor(x.ts/1000),value:x.cvd})));
+      document.getElementById('cvd-src').textContent=cv.source?('Kaynak: '+cv.source+' (Spot CVD)'):'Veri yok';
+    }catch(e){}
+  }
+
+  priceChart.timeScale().fitContent();
+  cvdChart.timeScale().fitContent();
+}
+
+function switchSymbol(s){
+  SYM=s;
+  document.getElementById('sym-btc').classList.toggle('active',s==='BTC');
+  document.getElementById('sym-eth').classList.toggle('active',s==='ETH');
+  loadChart();
+}
+function switchTf(tf,btn){
+  TF=tf;
+  document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadChart();
+}
+
+// ── Bot Sinyalleri ─────────────────────────────────────────────────────────
+async function loadBots(){
+  const d=await (await fetch('/api/bots')).json();
+  renderBots(d);
+}
+
+async function pollBots(){
+  const area=document.getElementById('signals-area');
+  area.innerHTML='<div class="empty-msg">⏳ Botlar taranıyor...</div>';
+  const d=await (await fetch('/api/bots/poll',{method:'POST'})).json();
+  renderBots(d);
+}
+
+function renderBots(d){
+  const area=document.getElementById('signals-area');
+  const sources=d.sources||[];
+  const stats=d.stats||{};
+  const recent=d.recent||[];
+
+  if(!sources.length){
+    area.innerHTML='<div class="empty-msg">Henüz bot kaynağı yok.<br>Aşağıdan botunun sinyal URL\'ini ekle<br>(Vercel API, Render endpoint, GitHub raw JSON)</div>';
+    return;
+  }
+
+  let html='<div class="sec-label">Botlar & Başarı Oranı</div>';
+  sources.forEach(s=>{
+    const st=stats[s.name]||{};
+    const wr=st.win_rate, wwr=st.week_win_rate;
+    const wrCls=v=>v==null?'':(v>=60?'good':v>=45?'mid':'bad');
+    html+=`
+      <div class="bot-card">
+        <div class="bot-name">
+          ${s.name}
+          <span style="display:flex;gap:5px;align-items:center;">
+            <span class="bot-status ${s.last_status==='ok'?'ok':'err'}">${s.last_status||'?'}</span>
+            <button class="icon-mini" onclick="diagBot(${s.id})" title="Bağlantı testi">🔍</button>
+            <button class="icon-mini" onclick="delBot(${s.id})" style="padding:1px 6px;">🗑️</button>
+          </span>
+        </div>
+        <div class="bot-meta">
+          Toplam sinyal: ${st.total||0} · Değerlendirilen: ${st.evaluated||0}<br>
+          Genel başarı: <span class="wr ${wrCls(wr)}">${wr!=null?wr+'%':'—'}</span> ·
+          Bu hafta: <span class="wr ${wrCls(wwr)}">${wwr!=null?wwr+'%':'—'}</span>
+          (${st.week_total||0} sinyal)
+        </div>
+      </div>`;
+  });
+
+  if(recent.length){
+    html+='<div class="sec-label">Son Sinyaller</div>';
+    recent.slice(0,25).forEach(s=>{
+      const out=s.evaluated?(s.outcome==='WIN'?'win':'loss'):'wait';
+      const outTxt=s.evaluated?`${s.outcome} ${s.change_pct>0?'+':''}${s.change_pct}%`:'bekliyor';
+      html+=`
+        <div class="sig-item">
+          <span style="color:var(--muted2)">${s.bot}</span>
+          <span>${s.symbol.replace('USDT','')}</span>
+          <span class="sig-dir ${s.direction==='LONG'?'long':'short'}">${s.direction}</span>
+          <span class="sig-out ${out}">${outTxt}</span>
+        </div>`;
+    });
+  }
+  area.innerHTML=html;
+}
+
+async function addBot(){
+  const name=document.getElementById('bot-name').value.trim();
+  const url=document.getElementById('bot-url').value.trim();
+  if(!name||!url){alert('Bot adı ve URL gerekli');return;}
+  const fd=new FormData();
+  fd.append('name',name);fd.append('url',url);
+  await fetch('/api/bots',{method:'POST',body:fd});
+  document.getElementById('bot-name').value='';
+  document.getElementById('bot-url').value='';
+  pollBots();
+}
+
+async function delBot(id){
+  if(!confirm('Bot kaynağı silinsin mi? (Sinyal geçmişi korunur)'))return;
+  await fetch(`/api/bots/${id}`,{method:'DELETE'});
+  loadBots();
+}
+
+async function diagBot(id){
+  const area=document.getElementById('signals-area');
+  const prev=area.innerHTML;
+  area.innerHTML='<div class="empty-msg">⏳ Test ediliyor... Render için 30sn bekle</div>';
+  try{
+    const d=await(await fetch(`/api/bots/diagnose/${id}`)).json();
+    const sample=d.sample?`<pre style="font-size:.6rem;overflow:auto;max-height:70px;background:#0a111d;padding:6px;border-radius:4px">${d.sample}</pre>`:'';
+    const col=(d.http_status||0)===200?'var(--green)':'var(--red)';
+    area.innerHTML=`<div style="padding:12px;font-size:.72rem">
+      <b>🔍 Bağlantı Testi</b><br><br>
+      <code style="font-size:.6rem;word-break:break-all">${d.url}</code><br><br>
+      HTTP: <b style="color:${col}">${d.http_status||'—'}</b> &nbsp;
+      JSON: <b>${d.is_json?'✅':'❌'}</b><br><br>
+      <b>${d.hint||d.error||'—'}</b>${sample}<br>
+      <button class="icon-mini" onclick="loadBots()" style="margin-top:8px">← Geri</button>
+    </div>`;
+  }catch(e){area.innerHTML=prev;}
+}
+
+// ── Vercel Entegrasyonu ───────────────────────────────────────────────────
+// options-desk projenin Vercel URL'i buraya yaz:
+let VERCEL_URL = localStorage.getItem('vercel_url') || '';
+
+async function loadVercelWalls(){
+  if(!VERCEL_URL) return null;
+  try{
+    const r = await fetch(`${VERCEL_URL}/api/alarm-levels`, {signal: AbortSignal.timeout(25000)});
+    if(!r.ok) return null;
+    const d = await r.json();
+    const sev = d?.seviyeler?.genel;
+    if(!sev) return null;
+    return {pw: sev.put_wall, cw: sev.call_wall, zg: sev.zero_gamma, spot: d.spot};
+  }catch(e){ console.log('Vercel walls:', e.message); return null; }
+}
+
+async function loadVercelCVD(){
+  if(!VERCEL_URL) return null;
+  try{
+    const cur = SYM;
+    const r = await fetch(`${VERCEL_URL}/api/opsiyon-cvd?currency=${cur}`,
+                         {signal: AbortSignal.timeout(20000)});
+    if(!r.ok) return null;
+    const d = await r.json();
+    if(!d.seri || !d.seri.length) return null;
+    return d.seri.map(x=>({time: Math.floor(x.t/1000), value: x.cvd}));
+  }catch(e){ console.log('Vercel CVD:', e.message); return null; }
+}
+
+function showVercelPanel(){
+  const panel = document.getElementById('vercel-panel');
+  if(VERCEL_URL){
+    panel.innerHTML = `<span style="color:var(--green);font-size:.7rem">✅ Vercel: ${VERCEL_URL.replace('https://','')}</span>`;
+  } else {
+    panel.innerHTML = `<button class="icon-mini" onclick="setVercelUrl()" title="Vercel URL ekle">⚡ Vercel Bağla</button>`;
+  }
+}
+
+function setVercelUrl(){
+  const url = prompt('Vercel URL girin (örn: https://project-vtcqr.vercel.app):','https://');
+  if(url && url.startsWith('http')){
+    VERCEL_URL = url.replace(/\/$/,'');
+    localStorage.setItem('vercel_url', VERCEL_URL);
+    showVercelPanel();
+    loadChart();
+  }
+}
+
+// ── Lider Agent ──────────────────────────────────────────────────────────────
+async function loadLeaderReport(force=false){
+  const panel = document.getElementById('leader-panel');
+  
+  if(force){
+    panel.innerHTML = '<span style="color:#f59e0b">⏳ Rapor üretiliyor...</span>';
+    try{
+      await fetch('/api/leader/report', {method:'POST'});
+    } catch(e){}
+  }
+
+  try{
+    const r = await fetch('/api/leader/summary');
+    const d = await r.json();
+
+    if(d.durum === 'henuz_rapor_yok'){
+      panel.innerHTML = `
+        <div style="color:var(--muted);font-size:.7rem;line-height:1.7">
+          Henüz rapor yok.<br>
+          <button class="icon-mini" style="margin-top:4px" onclick="loadLeaderReport(true)">⚡ İlk Raporu Üret</button>
+        </div>`;
+      return;
+    }
+
+    const wr = d.genel_win_rate || 0;
+    const wrColor = wr >= 60 ? '#10b981' : wr >= 45 ? '#f59e0b' : '#ef4444';
+    const oneriler = (d.oneriler || []).slice(0,2);
+    
+    let html = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+        <div style="background:#0d1526;border-radius:6px;padding:6px;text-align:center">
+          <div style="font-size:1.1rem;font-weight:700;color:${wrColor}">${wr}%</div>
+          <div style="color:var(--muted);font-size:.65rem">Genel Win Rate</div>
+        </div>
+        <div style="background:#0d1526;border-radius:6px;padding:6px;text-align:center">
+          <div style="font-size:1.1rem;font-weight:700;color:#60a5fa">${d.toplam_sinyal||0}</div>
+          <div style="color:var(--muted);font-size:.65rem">Değerlendirilen</div>
+        </div>
+      </div>`;
+
+    if(d.en_iyi_bot && d.en_iyi_bot !== '—'){
+      html += `<div style="margin-bottom:6px;padding:5px 8px;background:#0d1526;border-radius:6px;border-left:3px solid #10b981">
+        <span style="color:var(--muted);font-size:.65rem">EN İYİ BOT</span><br>
+        <span style="color:#e2e8f0;font-weight:600">${d.en_iyi_bot}</span>
+        <span style="color:#10b981;font-size:.7rem;float:right;margin-top:2px">${d.en_iyi_bot_win_rate||0}%</span>
+      </div>`;
+    }
+
+    if(oneriler.length){
+      html += `<div style="margin-bottom:6px">`;
+      oneriler.forEach(o=>{
+        html += `<div style="padding:4px 6px;background:#1a1f35;border-radius:4px;color:#93c5fd;font-size:.65rem;margin-bottom:4px;line-height:1.4">💡 ${o}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    if(d.ai_yorum){
+      html += `<details style="margin-top:4px">
+        <summary style="cursor:pointer;color:#8b5cf6;font-size:.7rem">🤖 AI Yorum</summary>
+        <div style="margin-top:6px;padding:6px;background:#0d1526;border-radius:4px;color:#cbd5e1;font-size:.68rem;line-height:1.6;white-space:pre-wrap">${d.ai_yorum.slice(0,400)}</div>
+      </details>`;
+    }
+
+    const tarih = d.tarih ? new Date(d.tarih).toLocaleString('tr-TR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '';
+    html += `<div style="color:var(--muted);font-size:.62rem;margin-top:6px;text-align:right">${tarih}</div>`;
+
+    panel.innerHTML = html;
+
+  } catch(e){
+    panel.innerHTML = `<span style="color:#ef4444;font-size:.7rem">Bağlantı hatası</span>`;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+initCharts();
+loadChart();
+loadBots();
+showVercelPanel();
+loadLeaderReport();                  // Lider Agent paneli
+setInterval(loadChart, 60000);       // Grafik her dakika
+setInterval(pollBots, 300000);       // Botları her 5dk tara
+setInterval(loadLeaderReport, 600000); // Lider raporu her 10dk güncelle
+</script>
+</body>
+</html>
