@@ -131,6 +131,25 @@ color:var(--muted2);font-size:.6rem;padding:3px 8px;cursor:pointer;}
       <span class="col-title" style="color:var(--purple)">🧠 Lider Agent</span>
       <button class="icon-mini" onclick="raporUret()">⚡ Rapor</button>
     </div>
+    <div style="padding:10px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:.66rem;font-weight:800;color:var(--gold);text-transform:uppercase;margin-bottom:6px">⏮ Tarihsel Backtest</div>
+      <select id="hbt-strateji" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px;font-size:.68rem;margin-bottom:4px">
+        <option value="ASIA_EKSTREM">Asia Ekstrem (fib temas)</option>
+        <option value="CVD_OI_KOMBO">CVD+OI Kombo (max 30g)</option>
+        <option value="MA_TEMAS">MA50 Temas (günlük)</option>
+      </select>
+      <div style="display:flex;gap:4px;margin-bottom:5px">
+        <select id="hbt-sembol" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px;font-size:.68rem">
+          <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option>
+        </select>
+        <select id="hbt-gun" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px;font-size:.68rem">
+          <option value="30">30 gün</option><option value="90" selected>90 gün</option>
+          <option value="180">180 gün</option><option value="365">365 gün</option>
+        </select>
+      </div>
+      <button class="icon-mini" style="width:100%;padding:6px;background:var(--gold);color:#000;font-weight:800;border:none" onclick="hbtCalistir()">▶ Geçmişi Tara</button>
+      <div id="hbt-sonuc" style="margin-top:6px"></div>
+    </div>
     <div class="scroll-area" id="leader-area">
       <div class="empty-sm">Yükleniyor...</div>
     </div>
@@ -564,6 +583,30 @@ async function loadAgentRaporlari(){
     if(raporlar.length)sonRaporTarihi=raporlar[raporlar.length-1].tarih;
     msgs.scrollTop=msgs.scrollHeight;
   }catch(e){}
+}
+
+// ── TARİHSEL BACKTEST ─────────────────────────────────────────────────────────
+async function hbtCalistir(){
+  const strateji=document.getElementById('hbt-strateji').value;
+  const sembol=document.getElementById('hbt-sembol').value;
+  const gun=document.getElementById('hbt-gun').value;
+  const alan=document.getElementById('hbt-sonuc');
+  alan.innerHTML='<div style="color:var(--gold);font-size:.66rem">⏳ Geçmiş taranıyor... (30-90 sn sürebilir)</div>';
+  try{
+    const r=await fetch('/api/leader/tarihsel-backtest',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({strateji,sembol,gun:parseInt(gun)})});
+    const d=await r.json();
+    if(d.hata){alan.innerHTML=`<div style="color:var(--red);font-size:.66rem">${d.hata}</div>`;return;}
+    const wrC=d.win_rate>=60?'var(--green)':d.win_rate>=45?'var(--gold)':'var(--red)';
+    alan.innerHTML=`<div style="background:var(--surface2);border-radius:6px;padding:7px;font-size:.65rem;line-height:1.7">
+      <div style="font-weight:800;color:${wrC};font-size:.85rem">${d.win_rate}% Win Rate</div>
+      <div>${d.toplam_sinyal} sinyal · ${d.win}W / ${d.loss}L / ${d.flat}F</div>
+      <div>Ort PnL: <b style="color:${d.ort_pnl_pct>0?'var(--green)':'var(--red)'}">${d.ort_pnl_pct>0?'+':''}${d.ort_pnl_pct}%</b> · Toplam: ${d.toplam_pnl_pct>0?'+':''}${d.toplam_pnl_pct}%</div>
+      <div>LONG: %${d.long_wr} (${d.long_n}) · SHORT: %${d.short_wr} (${d.short_n})</div>
+      ${d.en_iyi_saat_utc!==null?`<div>En iyi saat: ${d.en_iyi_saat_utc}:00 UTC</div>`:''}
+    </div>`;
+  }catch(e){alan.innerHTML='<div style="color:var(--red);font-size:.66rem">Hata — tekrar dene</div>';}
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
