@@ -728,8 +728,11 @@ _leader_task = None
 async def startup_event():
     global _leader_task
     api_key = os.environ.get("GEMINI_API_KEY", "")
+    from leader_agent import sinyal_toplayici_loop, sinyal_degerlendirici_loop
     _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
-    print("[LiderAgent] ✅ Sabah raporu görevi başlatıldı")
+    asyncio.create_task(sinyal_toplayici_loop())
+    asyncio.create_task(sinyal_degerlendirici_loop())
+    print("[LiderAgent] ✅ Sabah raporu + sinyal toplayıcı + değerlendirici başlatıldı")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
 @app.get("/api/leader/report")
@@ -768,6 +771,85 @@ async def leader_summary():
         "ai_yorum": ai[:400] if ai else "",
         "tarih": rapor.get("tarih", ""),
     }
+
+# ── Sunucu Tarafı Config (kalıcı — /var/data'da saklanır) ─────────────────────
+CONFIG_FILE = DATA_DIR / "config.json"
+
+def _config_oku() -> dict:
+    try:
+        if CONFIG_FILE.exists():
+            return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+def _config_yaz(cfg: dict):
+    CONFIG_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+@app.get("/api/config")
+async def config_get():
+    cfg = _config_oku()
+    return {
+        "vercel_url": cfg.get("vercel_url", os.environ.get("VERCEL_URL", "https://project-vtcqr.vercel.app")),
+        "bot_url": cfg.get("bot_url", os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")),
+    }
+
+@app.post("/api/config")
+async def config_set(req: Request):
+    data = await req.json()
+    cfg = _config_oku()
+    if "vercel_url" in data:
+        cfg["vercel_url"] = data["vercel_url"].rstrip("/")
+    if "bot_url" in data:
+        cfg["bot_url"] = data["bot_url"].rstrip("/")
+    _config_yaz(cfg)
+    return {"ok": True, "config": cfg}
+
+
+# ── Vercel Proxy (CORS çözümü — backend üzerinden çek) ────────────────────────
+async def _vercel_get(path: str):
+    cfg = _config_oku()
+    base = cfg.get("vercel_url", os.environ.get("VERCEL_URL", "https://project-vtcqr.vercel.app"))
+    try:
+        async with httpx.AsyncClient(timeout=20) as cl:
+            r = await cl.get(f"{base}{path}")
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        return {"error": str(e)[:100]}
+    return {"error": f"Vercel {r.status_code}"}
+
+@app.get("/api/vercel/alarm-levels")
+async def vercel_alarm_levels():
+    return await _vercel_get("/api/alarm-levels")
+
+@app.get("/api/vercel/opsiyon-cvd")
+async def vercel_opsiyon_cvd(currency: str = "BTC"):
+    return await _vercel_get(f"/api/opsiyon-cvd?currency={currency}")
+
+@app.get("/api/vercel/orderflow")
+async def vercel_orderflow(currency: str = "BTC"):
+    return await _vercel_get(f"/api/orderflow?currency={currency}")
+
+@app.get("/api/vercel/macro")
+async def vercel_macro():
+    return await _vercel_get("/api/macro")
+
+
+# ── Sinyal Listesi (UI için — sunucu diskinden) ───────────────────────────────
+@app.get("/api/leader/signals")
+async def leader_signals(limit: int = 200):
+    """OAR diskindeki toplanmış+değerlendirilmiş sinyalleri döndür."""
+    sig_file = DATA_DIR / "oar_signals_log.json"
+    try:
+        if sig_file.exists():
+            data = json.loads(sig_file.read_text(encoding="utf-8"))
+            sinyaller = data.get("signals", []) if isinstance(data, dict) else data
+            return {"signals": sinyaller[-limit:], "total": len(sinyaller)}
+    except Exception as e:
+        return {"signals": [], "total": 0, "error": str(e)[:80]}
+    return {"signals": [], "total": 0}
+
 
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
