@@ -608,6 +608,141 @@ def bot_katalog_al() -> dict:
     return BOT_KATALOG
 
 
+# ── Sinyal Toplayıcı — bot servisinden sinyalleri çek, OAR diskine yaz ─────────
+async def sinyal_toplayici_loop():
+    """
+    Her 5 dakikada bir bot servisinin /signals endpoint'inden sinyalleri çeker,
+    OAR'ın kendi diskindeki SIGLOG_FILE'a merge eder.
+    İki servis ayrı disklerde olduğu için bu köprü zorunlu.
+    """
+    bot_url = os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")
+    await asyncio.sleep(15)  # başlangıçta bekle
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=15) as cl:
+                r = await cl.get(f"{bot_url}/signals?limit=200")
+                if r.status_code == 200:
+                    gelen = r.json().get("signals", [])
+                    if gelen:
+                        mevcut = _load(SIGLOG_FILE, {"signals": []})
+                        sinyaller = mevcut.get("signals", []) if isinstance(mevcut, dict) else mevcut
+
+                        # Merge: bot+symbol+time anahtar — tekrar ekleme
+                        mevcut_keys = {(s.get("bot"), s.get("symbol"), s.get("time")) for s in sinyaller}
+                        yeni_sayisi = 0
+                        for g in gelen:
+                            key = (g.get("bot"), g.get("symbol"), g.get("time"))
+                            if key not in mevcut_keys:
+                                sinyaller.append(g)
+                                mevcut_keys.add(key)
+                                yeni_sayisi += 1
+
+                        sinyaller = sinyaller[-1000:]  # son 1000 sinyal tut
+                        _save(SIGLOG_FILE, {"signals": sinyaller})
+                        if yeni_sayisi:
+                            print(f"[SinyalToplayici] +{yeni_sayisi} yeni sinyal (toplam {len(sinyaller)})")
+        except Exception as e:
+            print(f"[SinyalToplayici] Hata: {str(e)[:80]}")
+        await asyncio.sleep(300)  # 5 dakika
+
+
+# ── Sinyal Değerlendirici — WIN/LOSS işaretle ──────────────────────────────────
+DEGERLENDIRME_SAAT  = 4      # sinyalden 4 saat sonra değerlendir
+WIN_ESIK_PCT        = 0.5    # yönünde %0.5+ hareket = WIN
+
+async def _binance_fiyat(symbol: str, ts_iso: str = None) -> float:
+    """Anlık veya geçmiş fiyat (1m kline ile)."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as cl:
+            if ts_iso:
+                # Geçmiş fiyat: o zamana en yakın 1m kline
+                t = datetime.fromisoformat(ts_iso)
+                if t.tzinfo is None:
+                    t = t.replace(tzinfo=timezone.utc)
+                ms = int(t.timestamp() * 1000)
+                r = await cl.get("https://api.binance.com/api/v3/klines",
+                                 params={"symbol": symbol, "interval": "1m",
+                                         "startTime": ms, "limit": 1})
+                d = r.json()
+                if isinstance(d, list) and d:
+                    return float(d[0][4])
+            r = await cl.get("https://api.binance.com/api/v3/ticker/price",
+                             params={"symbol": symbol})
+            return float(r.json()["price"])
+    except Exception:
+        return 0.0
+
+
+async def sinyal_degerlendirici_loop():
+    """
+    outcome=None olan sinyalleri DEGERLENDIRME_SAAT geçince değerlendirir:
+      LONG  → fiyat %WIN_ESIK üstüne çıktıysa WIN, altına indiyse LOSS
+      SHORT → tersine
+      Diğer tipler (AKUMULASYON, HACIM_PATLAMA vs) → LONG gibi değerlendirilir
+    """
+    await asyncio.sleep(60)
+    while True:
+        try:
+            mevcut = _load(SIGLOG_FILE, {"signals": []})
+            sinyaller = mevcut.get("signals", []) if isinstance(mevcut, dict) else mevcut
+            degisti = False
+            now = datetime.now(timezone.utc)
+
+            for s in sinyaller:
+                if s.get("outcome") is not None:
+                    continue
+                t_str = s.get("time", s.get("logged_at", ""))
+                try:
+                    t = datetime.fromisoformat(t_str)
+                    if t.tzinfo is None:
+                        t = t.replace(tzinfo=timezone.utc)
+                except Exception:
+                    continue
+                gecen_saat = (now - t).total_seconds() / 3600
+                if gecen_saat < DEGERLENDIRME_SAAT:
+                    continue
+
+                sym = (s.get("symbol") or "BTCUSDT").upper().replace(".P", "")
+                if not sym.endswith("USDT"):
+                    sym += "USDT"
+                giris = float(s.get("price") or 0)
+                if giris <= 0:
+                    giris = await _binance_fiyat(sym, t_str)
+                if giris <= 0:
+                    s["outcome"] = "SKIP"
+                    degisti = True
+                    continue
+
+                guncel = await _binance_fiyat(sym)
+                if guncel <= 0:
+                    continue
+
+                degisim_pct = (guncel - giris) / giris * 100
+                yon = (s.get("direction") or "LONG").upper()
+                if yon in ("SHORT", "SATIS"):
+                    degisim_pct = -degisim_pct
+
+                if degisim_pct >= WIN_ESIK_PCT:
+                    s["outcome"] = "WIN"
+                elif degisim_pct <= -WIN_ESIK_PCT:
+                    s["outcome"] = "LOSS"
+                else:
+                    s["outcome"] = "FLAT"
+                s["change_pct"] = round(degisim_pct, 2)
+                s["evaluated_at"] = _now()
+                degisti = True
+                await asyncio.sleep(0.3)  # rate limit
+
+            if degisti:
+                _save(SIGLOG_FILE, {"signals": sinyaller})
+                won  = sum(1 for x in sinyaller if x.get("outcome") == "WIN")
+                lost = sum(1 for x in sinyaller if x.get("outcome") == "LOSS")
+                print(f"[Degerlendirici] Güncel durum: {won}W / {lost}L")
+        except Exception as e:
+            print(f"[Degerlendirici] Hata: {str(e)[:80]}")
+        await asyncio.sleep(600)  # 10 dakika
+
+
 # ── Otomatik Sabah Raporu ──────────────────────────────────────────────────────
 async def sabah_raporu_loop(api_key: str = ""):
     while True:
