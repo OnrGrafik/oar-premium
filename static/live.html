@@ -484,13 +484,61 @@ function setDot(ad,durum){
   if(el)el.className='dot '+durum;
 }
 
+// ── AGENT SAATLİK RAPORLARI (chat'te görünür) ─────────────────────────────────
+let sonRaporTarihi = '';
+
+async function loadAgentRaporlari(){
+  try{
+    const r=await fetch('/api/leader/rapor-gecmisi?limit=6');
+    const d=await r.json();
+    const raporlar=d.raporlar||[];
+    if(!raporlar.length)return;
+    
+    const msgs=document.getElementById('chat-msgs');
+    const renkler={lider:'var(--purple)',backtest:'var(--gold)',research:'var(--cyan)'};
+    const adlar={lider:'🧠 Lider Agent',backtest:'🧪 Backtest Agent',research:'🔍 Research Agent'};
+    
+    raporlar.forEach(rp=>{
+      if(rp.tarih<=sonRaporTarihi)return;  // sadece yenileri ekle
+      const zaman=new Date(rp.tarih).toLocaleString('tr-TR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
+      const metin=(rp.icerik?.metin||'').replace(/\n/g,'<br>');
+      let ekstra='';
+      
+      // Lider: servis durumları
+      if(rp.tip==='lider'&&rp.icerik?.servis_detay){
+        ekstra='<div style="margin-top:4px;font-size:.6rem;color:var(--muted)">'+rp.icerik.servis_detay.join(' · ')+'</div>';
+      }
+      // Backtest: yeni kombolar
+      if(rp.tip==='backtest'&&rp.icerik?.yeni_kombolar?.length){
+        ekstra='<div style="margin-top:4px">'+rp.icerik.yeni_kombolar.map(k=>
+          `<div style="font-size:.62rem;color:var(--gold)">⚡ ${k.sembol} ${k.yon} — ${k.detay}</div>`).join('')+'</div>';
+      }
+      // Research: bulgular
+      if(rp.tip==='research'&&rp.icerik?.bulgular?.length){
+        ekstra='<div style="margin-top:4px">'+rp.icerik.bulgular.map(b=>
+          `<div style="font-size:.62rem;color:var(--muted2)">• ${b.bulgu||''}</div>`).join('')+'</div>';
+      }
+      
+      msgs.innerHTML+=`<div class="msg agent" style="border-left:3px solid ${renkler[rp.tip]||'var(--border)'}">
+        <div style="font-weight:800;font-size:.64rem;color:${renkler[rp.tip]};margin-bottom:3px">${adlar[rp.tip]||rp.tip} · ${zaman}</div>
+        <div>${metin}</div>${ekstra}
+      </div>`;
+    });
+    
+    if(raporlar.length)sonRaporTarihi=raporlar[raporlar.length-1].tarih;
+    msgs.scrollTop=msgs.scrollHeight;
+  }catch(e){}
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadSignals();
 loadLeader();
 loadOpsiyon();
-setInterval(loadSignals,120000);   // 2 dk
-setInterval(loadLeader,300000);    // 5 dk
-setInterval(loadOpsiyon,300000);   // 5 dk
+loadAgentRaporlari();
+setInterval(loadSignals,120000);       // 2 dk
+setInterval(loadLeader,300000);        // 5 dk
+setInterval(loadOpsiyon,300000);       // 5 dk
+setInterval(loadAgentRaporlari,300000);// 5 dk — yeni saatlik raporlar otomatik düşer
 </script>
 </body>
 </html>
