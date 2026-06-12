@@ -863,20 +863,155 @@ async def leader_rapor_gecmisi(tip: str = None, limit: int = 24):
     from leader_agent import rapor_gecmisi_al
     return {"raporlar": rapor_gecmisi_al(tip, limit)}
 
+@app.post("/api/leader/tarihsel-backtest")
+async def tarihsel_backtest_calistir(req: Request):
+    """Strateji kurallarını geçmiş veriye uygula.
+    Body: {strateji: ASIA_EKSTREM|CVD_OI_KOMBO|MA_TEMAS, sembol, gun}"""
+    from historical_backtest import calistir
+    data = await req.json()
+    return await calistir(
+        data.get("strateji", "ASIA_EKSTREM"),
+        data.get("sembol", "BTCUSDT"),
+        int(data.get("gun", 90))
+    )
+
+@app.get("/api/leader/tarihsel-backtest")
+async def tarihsel_backtest_gecmis():
+    from historical_backtest import gecmis_testler
+    return {"testler": gecmis_testler()}
+
+async def _lider_baglam_topla() -> str:
+    """Lider Agent'ın ZEKASI: her soruda tüm canlı + tarihsel bağlamı topla."""
+    parcalar = []
+
+    # 1. Canlı fiyatlar
+    try:
+        async with httpx.AsyncClient(timeout=8) as cl:
+            r = await cl.get("https://api.binance.com/api/v3/ticker/24hr",
+                             params={"symbols": '["BTCUSDT","ETHUSDT","SOLUSDT"]'})
+            for t in r.json():
+                parcalar.append(f"{t['symbol']}: ${float(t['lastPrice']):,.0f} ({float(t['priceChangePercent']):+.1f}% 24h)")
+    except Exception:
+        pass
+
+    # 2. Opsiyon seviyeleri (Vercel)
+    try:
+        levels = await _vercel_get("/api/alarm-levels")
+        if isinstance(levels, dict) and not levels.get("error"):
+            g = levels.get("genel", levels)
+            cw, pw, zg = g.get("call_wall") or g.get("CW"), g.get("put_wall") or g.get("PW"), g.get("zero_gamma") or g.get("ZG")
+            if cw: parcalar.append(f"Opsiyon: CW=${cw:,.0f} PW=${pw:,.0f} ZG=${zg:,.0f}" if pw and zg else f"CW=${cw:,.0f}")
+    except Exception:
+        pass
+
+    # 3. Son sinyaller + bilgi botu bildirimleri
+    try:
+        sig_file = DATA_DIR / "oar_signals_log.json"
+        if sig_file.exists():
+            sigs = json.loads(sig_file.read_text()).get("signals", [])[-15:]
+            if sigs:
+                ozet = "; ".join(f"{s.get('bot','?')}: {s.get('symbol','?')} {s.get('direction','?')} [{s.get('outcome') or 'bekliyor'}]" for s in sigs[-8:])
+                parcalar.append(f"Son sinyaller: {ozet}")
+    except Exception:
+        pass
+
+    # 4. Kullanıcının öğrettiği bilgiler (knowledge bankası)
+    try:
+        kb_file = DATA_DIR / "knowledge.json"
+        if kb_file.exists():
+            kb = json.loads(kb_file.read_text())
+            notlar = kb.get("notes", [])[-5:]
+            if notlar:
+                parcalar.append("Kullanıcının öğrettikleri: " + " | ".join(n.get("text", "")[:100] for n in notlar))
+            docs = kb.get("documents", [])
+            if docs:
+                parcalar.append("Yüklü dokümanlar: " + ", ".join(d.get("name", "?") for d in docs[-5:]))
+    except Exception:
+        pass
+
+    # 5. Son saatlik raporlar
+    try:
+        from leader_agent import rapor_gecmisi_al
+        for r in rapor_gecmisi_al(limit=3):
+            parcalar.append(f"[{r['tip']} raporu] {r['icerik'].get('metin','')[:150]}")
+    except Exception:
+        pass
+
+    # 6. Tarihsel backtest sonuçları
+    try:
+        from historical_backtest import gecmis_testler
+        for t in gecmis_testler(limit=3):
+            parcalar.append(f"Tarihsel test: {t['strateji']} {t['sembol']} {t['gun']}g → WR %{t['win_rate']} ({t['toplam_sinyal']} sinyal, ort {t['ort_pnl_pct']:+.1f}%)")
+    except Exception:
+        pass
+
+    # 7. Korku endeksi
+    try:
+        async with httpx.AsyncClient(timeout=6) as cl:
+            r = await cl.get("https://api.alternative.me/fng/")
+            d = r.json()["data"][0]
+            parcalar.append(f"Korku Endeksi: {d['value']} ({d['value_classification']})")
+    except Exception:
+        pass
+
+    return "\n".join(parcalar)
+
+
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
-    """Lider Agent ile sohbet — tüm bot verileri ve analizleri bilir."""
+    """Lider Agent ile sohbet — canlı veri + tüm sistem bağlamıyla cevap verir."""
     data = await req.json()
     soru = data.get("soru", "").strip()
     if not soru:
         return {"cevap": "Soru boş."}
     api_key = os.environ.get("GEMINI_API_KEY", "")
-    from leader_agent import rapor_uret as _rapor_uret, backtest_sinyal_analizi, research_analizi
+
+    from leader_agent import backtest_sinyal_analizi, research_analizi, BOT_KATALOG
     backtest = backtest_sinyal_analizi()
     research = research_analizi()
-    saglik   = {}
-    cevap = await ai_yorum_uret(backtest, research, saglik, api_key, soru)
-    return {"cevap": cevap}
+    canli_baglam = await _lider_baglam_topla()
+
+    prompt = f"""Sen OAR Premium'un LİDER AGENT'ısın. Kripto trading sistemini yönetiyorsun.
+Altındaki agentlar: Research Agent (analiz) ve Backtest Agent (test).
+Yönettiğin botlar: {", ".join(BOT_KATALOG.keys())}
+
+══ CANLI VERİLER (şu an) ══
+{canli_baglam}
+
+══ BACKTEST DURUMU ══
+{json.dumps(backtest, ensure_ascii=False)[:1200]}
+
+══ RESEARCH BULGULARI ══
+{json.dumps({"bulgular": research.get("bulgular", []), "oneriler": research.get("oneriler", [])[:3]}, ensure_ascii=False)[:800]}
+
+══ KULLANICI SORUSU ══
+{soru}
+
+Kurallar:
+- Kesin rakamlarla, matematiksel konuş. Tahmin yapma.
+- Canlı verileri kullan (fiyat, opsiyon seviyeleri, korku endeksi).
+- Veri yoksa "henüz veri birikmedi" de, uydurma.
+- Türkçe, net, madde gerektiren yerde madde kullan."""
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                   "generationConfig": {"temperature": 0.2, "maxOutputTokens": 900}}
+        async with httpx.AsyncClient(timeout=40) as cl:
+            r = await cl.post(url, json=payload)
+            if r.status_code == 200:
+                return {"cevap": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
+            groq_key = os.environ.get("GROQ_API_KEY", "")
+            if groq_key:
+                gr = await cl.post("https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {groq_key}"},
+                    json={"model": "llama-3.3-70b-versatile",
+                          "messages": [{"role": "user", "content": prompt}], "max_tokens": 900})
+                if gr.status_code == 200:
+                    return {"cevap": gr.json()["choices"][0]["message"]["content"]}
+    except Exception as e:
+        return {"cevap": f"AI bağlantı hatası: {str(e)[:80]}"}
+    return {"cevap": "AI yanıt veremedi — API key kontrolü gerekli."}
 
 @app.get("/live", response_class=HTMLResponse)
 async def live_page():
