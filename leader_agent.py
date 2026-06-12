@@ -90,10 +90,10 @@ BOT_KATALOG = {
         "kritik_parametreler": {"esik_btc": 1000, "tarama_aralik_sn": 5},
     },
     "Volume Bot": {
-        "tip": "bilgi",
+        "tip": "sinyal",
         "sembol": "Top 100 futures",
         "strateji": "Hacim 1h ≥%5 + OI 1h ≥%5 + fiyat VWAP/MA20 üstü + whale long filtresi.",
-        "sinyal_tipi": ["HACIM_PATLAMA"],
+        "sinyal_tipi": ["LONG"],  # tüm koşullar LONG yönlü
         "veriler": ["Binance 1h klines", "openInterestHist", "analiz_bot"],
         "zaman_dilimleri": ["1h"],
         "kritik_parametreler": {"hacim_min_pct": 5, "oi_min_pct": 5, "tarama_aralik_dk": 15},
@@ -786,6 +786,32 @@ async def sabah_raporu_loop(api_key: str = ""):
 RAPOR_GECMISI_FILE = DATA_DIR / "rapor_gecmisi.json"   # tüm saatlik raporlar
 KOMBO_SINYAL_FILE  = DATA_DIR / "kombo_sinyaller.json" # OAR'ın kendi ürettiği sinyaller
 
+async def _hizli_ai(prompt: str, max_tok: int = 300) -> str:
+    """Agent'ların saatlik düşünmesi için kompakt AI çağrısı."""
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return ""
+    try:
+        url = f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+        payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                   "generationConfig": {"temperature": 0.2, "maxOutputTokens": max_tok}}
+        async with httpx.AsyncClient(timeout=30) as cl:
+            r = await cl.post(url, json=payload)
+            if r.status_code == 200:
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            gk = os.environ.get("GROQ_API_KEY", "")
+            if gk:
+                gr = await cl.post("https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {gk}"},
+                    json={"model": "llama-3.3-70b-versatile",
+                          "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tok})
+                if gr.status_code == 200:
+                    return gr.json()["choices"][0]["message"]["content"]
+    except Exception:
+        pass
+    return ""
+
+
 def rapor_gecmisi_ekle(tip: str, icerik: dict):
     """Rapor geçmişine ekle — ASLA silinmez, sadece eklenir."""
     gecmis = _load(RAPOR_GECMISI_FILE, {"raporlar": []})
@@ -1098,6 +1124,17 @@ Win Rate: %{backtest.get('genel_win_rate',0)}
                 "win_rate": backtest.get("genel_win_rate", 0),
                 "sinyal_sayisi": backtest.get("toplam_sinyal", 0),
             }
+            # AI DÜŞÜNCESİ — Lider gerçekten analiz eder
+            ai = await _hizli_ai(
+                f"Sen kripto trading sisteminin Lider Agent'ısın. Saatlik durum:\n"
+                f"Sistem: {denetim['ozet']}\nSinyal: {backtest.get('toplam_sinyal',0)} "
+                f"({backtest.get('degerlendirilmis',0)} değerlendirildi, WR %{backtest.get('genel_win_rate',0)})\n"
+                f"Bot stats: {json.dumps(backtest.get('bot_stats',{}), ensure_ascii=False)[:600]}\n"
+                f"Çakışma: {len(cakisma)}\n"
+                f"2-3 cümlede: en önemli gözlem + varsa aksiyon önerisi. Veri azsa onu söyle, uydurma. Türkçe.")
+            if ai:
+                icerik["ai_dusunce"] = ai
+                icerik["metin"] += f"\n\n🤖 {ai}"
             rapor_gecmisi_ekle("lider", icerik)
             print(f"[LiderSaatlik] ✅ {denetim['ozet']}")
         except Exception as e:
@@ -1118,6 +1155,14 @@ async def saatlik_backtest_loop():
                 "yeni_kombolar": [{"sembol": k["symbol"], "yon": k["direction"], "pattern": k["pattern"], "detay": k["detail"]} for k in kombolar],
                 "bot_stats": backtest.get("bot_stats", {}),
             }
+            ai = await _hizli_ai(
+                f"Sen Backtest Agent'sın. Bu saat {len(kombolar)} kombo sinyal üretildi: "
+                f"{json.dumps([{'s':k['symbol'],'y':k['direction'],'p':k['pattern']} for k in kombolar], ensure_ascii=False)[:300]}\n"
+                f"Bot performansları: {json.dumps(backtest.get('bot_stats',{}), ensure_ascii=False)[:500]}\n"
+                f"2 cümlede: sinyal kalitesi yorumu + dikkat edilecek nokta. Türkçe, rakamlarla.")
+            if ai:
+                icerik["ai_dusunce"] = ai
+                icerik["metin"] += f"\n\n🤖 {ai}"
             rapor_gecmisi_ekle("backtest", icerik)
             print(f"[BacktestSaatlik] ✅ {len(kombolar)} kombo")
         except Exception as e:
@@ -1142,6 +1187,14 @@ async def saatlik_research_loop():
                 "bulgular": research.get("bulgular", [])[:3],
                 "hipotezler": research.get("hipotezler", [])[:2],
             }
+            ai = await _hizli_ai(
+                f"Sen Research Agent'sın. Piyasa: {json.dumps(yenilik, ensure_ascii=False)[:400]}\n"
+                f"Bulgular: {json.dumps(research.get('bulgular',[])[:2], ensure_ascii=False)[:300]}\n"
+                f"2-3 cümlede: piyasa rejimi yorumu (trend coinler + korku endeksi + dominans birlikte ne anlatıyor) "
+                f"ve botlarımız için 1 somut öneri. Türkçe.")
+            if ai:
+                icerik["ai_dusunce"] = ai
+                icerik["metin"] += f"\n\n🤖 {ai}"
             rapor_gecmisi_ekle("research", icerik)
             print("[ResearchSaatlik] ✅")
         except Exception as e:
