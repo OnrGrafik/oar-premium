@@ -181,15 +181,18 @@ color:var(--muted2);font-size:.6rem;padding:3px 8px;cursor:pointer;}
 <script>
 // ── BOT KATALOĞU ──────────────────────────────────────────────────────────────
 const BOTLAR = {
-  "UTBot":        {emoji:"🤖",renk:"#10b981",desc:"ETH/USDT · xATR+STC+RSI · Bybit"},
-  "MA Scanner":   {emoji:"📈",renk:"#f59e0b",desc:"Top100 · MA temas · whale filtre"},
-  "CVD Scanner":  {emoji:"🌊",renk:"#8b5cf6",desc:"Top100 · CVD+OI skor ≥65"},
-  "Asia Ekstrem": {emoji:"🌏",renk:"#3b82f6",desc:"Top20 · Asia fib ekstrem"},
-  "Balina Bot":   {emoji:"🐋",renk:"#06b6d4",desc:"BTC · 1000+ BTC tek işlem"},
-  "Volume Bot":   {emoji:"📊",renk:"#ec4899",desc:"Top100 · Hacim+OI %5+"},
-  "Korelasyon":   {emoji:"🔗",renk:"#84cc16",desc:"BTC vs Nasdaq/DXY/Altın"},
-  "Whale Tracker":{emoji:"🏦",renk:"#f97316",desc:"BlackRock/MSTR cüzdanları"},
-  "Makro Alarm":  {emoji:"⚠️",renk:"#a855f7",desc:"CW/PW/ZG vade dilimli"},
+  // SİNYAL BOTLARI — yön verir, win rate ölçülür
+  "OAR Kombo":    {emoji:"⚡",renk:"#f43f5e",desc:"CVD+OI+Funding kombo · akıllı",tip:"sinyal"},
+  "UTBot":        {emoji:"🤖",renk:"#10b981",desc:"ETH/USDT · xATR+STC+RSI · Bybit",tip:"sinyal"},
+  "MA Scanner":   {emoji:"📈",renk:"#f59e0b",desc:"Top100 · MA temas · whale filtre",tip:"sinyal"},
+  "CVD Scanner":  {emoji:"🌊",renk:"#8b5cf6",desc:"Top100 · CVD+OI skor ≥65",tip:"sinyal"},
+  "Asia Ekstrem": {emoji:"🌏",renk:"#3b82f6",desc:"Top20 · Asia fib ekstrem",tip:"sinyal"},
+  // BİLGİ BOTLARI — alarm/izleme, win rate YOK
+  "Balina Bot":   {emoji:"🐋",renk:"#06b6d4",desc:"Whale akışı · 1000+ BTC izleme",tip:"bilgi"},
+  "Volume Bot":   {emoji:"📊",renk:"#ec4899",desc:"Hacim+OI patlama taraması",tip:"bilgi"},
+  "Korelasyon":   {emoji:"🔗",renk:"#84cc16",desc:"BTC vs NQ/SP500/DXY rejim",tip:"bilgi"},
+  "Whale Tracker":{emoji:"🏦",renk:"#f97316",desc:"ETF cüzdan izleme (IBIT/ETHA)",tip:"bilgi"},
+  "Makro Alarm":  {emoji:"📐",renk:"#a855f7",desc:"Opsiyon seviyeleri CW/PW/ZG",tip:"bilgi"},
 };
 
 let allSignals=[];
@@ -219,8 +222,14 @@ function renderBots(){
   });
 
   let html='';
-  // Önce katalogdaki botlar (sinyal olsun olmasın hep görünür)
-  Object.entries(BOTLAR).forEach(([ad,info])=>{
+  // Sinyal botları önce
+  html+='<div style="grid-column:1/-1;font-size:.66rem;font-weight:800;color:var(--green);text-transform:uppercase;padding:2px 4px">📡 Sinyal Botları — yön verir, performans ölçülür</div>';
+  Object.entries(BOTLAR).filter(([a,i])=>i.tip==='sinyal').forEach(([ad,info])=>{
+    html+=botKart(ad,info,botSig[ad]||[]);
+    delete botSig[ad];
+  });
+  html+='<div style="grid-column:1/-1;font-size:.66rem;font-weight:800;color:var(--cyan);text-transform:uppercase;padding:8px 4px 2px">📰 Bilgi & İzleme Botları — bağlam sağlar, kombo motorunu besler</div>';
+  Object.entries(BOTLAR).filter(([a,i])=>i.tip==='bilgi').forEach(([ad,info])=>{
     html+=botKart(ad,info,botSig[ad]||[]);
     delete botSig[ad];
   });
@@ -233,23 +242,54 @@ function renderBots(){
 
 function botKart(ad,info,sigs){
   const son=sigs.slice(-15).reverse();
+  const bilgiBotu=info.tip==='bilgi';
   const degerli=sigs.filter(s=>['WIN','LOSS'].includes(s.outcome));
   const wins=degerli.filter(s=>s.outcome==='WIN').length;
   const wr=degerli.length>0?Math.round(wins/degerli.length*100):null;
   const wrC=wr===null?'var(--muted)':wr>=60?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
   const bekleyen=sigs.filter(s=>!s.outcome).length;
   const dotCls=sigs.length>0?'ok':'warn';
+  
+  // Bilgi botları: son aktivite zamanı
+  let sonAktivite='—';
+  if(sigs.length){
+    const sonSig=sigs[sigs.length-1];
+    sonAktivite=fmtZaman(sonSig.time);
+  }
+  
+  // KPI satırı tipe göre
+  const kpiHtml=bilgiBotu
+    ? `<div class="bot-kpis">
+        <div class="bot-kpi"><div class="bot-kpi-num" style="color:var(--cyan)">${sigs.length}</div><div class="bot-kpi-lbl">BİLDİRİM</div></div>
+        <div class="bot-kpi" style="grid-column:span 2"><div class="bot-kpi-num" style="font-size:.68rem;color:var(--muted2)">${sonAktivite}</div><div class="bot-kpi-lbl">SON AKTİVİTE</div></div>
+      </div>`
+    : `<div class="bot-kpis">
+        <div class="bot-kpi"><div class="bot-kpi-num" style="color:${wrC}">${wr===null?'—':wr+'%'}</div><div class="bot-kpi-lbl">WIN RATE</div></div>
+        <div class="bot-kpi"><div class="bot-kpi-num">${sigs.length}</div><div class="bot-kpi-lbl">SİNYAL</div></div>
+        <div class="bot-kpi"><div class="bot-kpi-num" style="color:var(--gold)">${bekleyen}</div><div class="bot-kpi-lbl">BEKLEYEN</div></div>
+      </div>`;
 
   const sigHtml=son.slice(0,10).map(s=>{
     const dir=(s.direction||'?').toUpperCase();
     const dirCls=['LONG','ALIS'].includes(dir)?'long':['SHORT','SATIS'].includes(dir)?'short':'other';
+    const zaman=fmtZaman(s.time);
+    if(bilgiBotu){
+      // Bilgi botu: bildirim formatı — outcome yok
+      const detay=(s.detail||'').slice(0,60);
+      return `<div class="sig-row">
+        <span class="sig-dir ${dirCls}">${dir}</span>
+        <span style="color:var(--text);font-weight:600">${s.symbol||''}</span>
+        <span style="color:var(--muted2);font-size:.6rem;flex:1">${detay}</span>
+        <span style="color:var(--muted);font-size:.58rem">${zaman}</span>
+      </div>`;
+    }
     const out=s.outcome;
     const outCls=out==='WIN'?'win':out==='LOSS'?'loss':out==='FLAT'?'flat':'pending';
     const outTxt=out==='WIN'?'✓ WIN':out==='LOSS'?'✗ LOSS':out==='FLAT'?'— FLAT':'⏳';
     const chg=s.change_pct!=null?` ${s.change_pct>0?'+':''}${s.change_pct}%`:'';
-    const zaman=fmtZaman(s.time);
+    const guven=s.guven==='YUKSEK'?' 🔥':s.guven==='DUSUK'?' ⚠':'';
     return `<div class="sig-row">
-      <span class="sig-dir ${dirCls}">${dir}</span>
+      <span class="sig-dir ${dirCls}">${dir}${guven}</span>
       <span style="color:var(--text);font-weight:600">${s.symbol||''}</span>
       <span style="color:var(--muted);font-size:.6rem">${zaman}</span>
       <span class="sig-out ${outCls}">${outTxt}${chg}</span>
@@ -265,11 +305,7 @@ function botKart(ad,info,sigs){
       </div>
       <span class="bot-dot" style="background:var(--${dotCls==='ok'?'green':'gold'})"></span>
     </div>
-    <div class="bot-kpis">
-      <div class="bot-kpi"><div class="bot-kpi-num" style="color:${wrC}">${wr===null?'—':wr+'%'}</div><div class="bot-kpi-lbl">WIN RATE</div></div>
-      <div class="bot-kpi"><div class="bot-kpi-num">${sigs.length}</div><div class="bot-kpi-lbl">SİNYAL</div></div>
-      <div class="bot-kpi"><div class="bot-kpi-num" style="color:var(--gold)">${bekleyen}</div><div class="bot-kpi-lbl">BEKLEYEN</div></div>
-    </div>
+    ${kpiHtml}
     <div class="bot-sigs">${sigHtml||'<div class="empty-sm">Sinyal bekleniyor</div>'}</div>
   </div>`;
 }
