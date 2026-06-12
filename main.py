@@ -121,7 +121,7 @@ async def _gemini_request(api_key: str, model: str, contents: list,
     url = f"{GEMINI_BASE}/models/{model}:generateContent?key={api_key}"
     payload = {
         "contents": contents,
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048, "topP": 0.95}
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 8192, "topP": 0.95, "thinkingConfig": {"thinkingBudget": 512}}
     }
     if system_instruction:
         payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
@@ -159,7 +159,7 @@ async def _groq_request(api_key: str, contents: list, system_instruction: str = 
             headers={"Authorization": f"Bearer {api_key}",
                      "Content-Type": "application/json"},
             json={"model": GROQ_MODEL, "messages": messages,
-                  "temperature": 0.4, "max_tokens": 2048})
+                  "temperature": 0.4, "max_tokens": 4096})
         if r.status_code != 200:
             try:
                 err = r.json().get('error', {}).get('message', r.text)
@@ -174,7 +174,7 @@ async def _gemini_stream(api_key: str, model: str, contents: list,
     url = f"{GEMINI_BASE}/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
     payload = {
         "contents": contents,
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048, "topP": 0.95}
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 8192, "topP": 0.95, "thinkingConfig": {"thinkingBudget": 512}}
     }
     if system_instruction:
         payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
@@ -573,7 +573,15 @@ def detect_deribit_currency(text: str) -> str:
     return "BTC"
 
 # ─── System Prompt ───────────────────────────────────────────────────────────
+async def canli_sistem_baglami() -> str:
+    """Ana sohbet için Live Agent verilerini topla (görev 2: sayfalar iletişimde)."""
+    try:
+        return await _lider_baglam_topla()
+    except Exception:
+        return ""
+
 SYSTEM_PROMPT = """Sen uzman bir kripto para, trading bot geliştirici ve opsiyon piyasası yapay zeka asistanısın. Her zaman Türkçe yanıt veriyorsun.
+Ayrıca OAR Premium sisteminin parçasısın: /live sayfasındaki Lider Agent, bot sinyalleri, saatlik raporlar ve tarihsel backtest verilerine erişimin var. Bu veriler her mesajda sana CANLI SİSTEM VERİLERİ olarak iletilir — soruları cevaplarken bunları kullan.
 
 KİMLİĞİN:
 - Kripto spot ve türev piyasalarında derin bilgiye sahipsin
@@ -738,6 +746,9 @@ async def startup_event():
     asyncio.create_task(saatlik_lider_raporu_loop(api_key))
     asyncio.create_task(saatlik_backtest_loop())
     asyncio.create_task(saatlik_research_loop())
+    from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
+    asyncio.create_task(zenginlestirici_loop())
+    asyncio.create_task(pattern_sinyal_loop())
     print("[LiderAgent] ✅ Tüm agent görevleri başlatıldı (toplayıcı + değerlendirici + 3 saatlik rapor)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
@@ -957,6 +968,25 @@ async def _lider_baglam_topla() -> str:
     return "\n".join(parcalar)
 
 
+@app.get("/api/leader/kazanan-profil")
+async def kazanan_profil():
+    """Feature Engine'in öğrendiği WIN/LOSS ayırt edici profil."""
+    from feature_engine import kazanan_profil_al, profil_ogren
+    return profil_ogren()
+
+@app.get("/api/teori")
+async def teori_liste():
+    """Theory Lab: tüm teoriler ve durumları."""
+    from theory_lab import teori_listesi
+    return {"teoriler": teori_listesi()}
+
+@app.post("/api/teori/test")
+async def teori_test(req: Request):
+    """Teoriyi geçmiş veride test et. Body: {teori_id, sembol, gun}"""
+    from theory_lab import teori_backtest
+    d = await req.json()
+    return await teori_backtest(d.get("teori_id","OAR-001"), d.get("sembol","BTCUSDT"), int(d.get("gun",365)))
+
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
     """Lider Agent ile sohbet — canlı veri + tüm sistem bağlamıyla cevap verir."""
@@ -996,7 +1026,7 @@ Kurallar:
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                   "generationConfig": {"temperature": 0.2, "maxOutputTokens": 900}}
+                   "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096, "thinkingConfig": {"thinkingBudget": 256}}}
         async with httpx.AsyncClient(timeout=40) as cl:
             r = await cl.post(url, json=payload)
             if r.status_code == 200:
@@ -1006,7 +1036,7 @@ Kurallar:
                 gr = await cl.post("https://api.groq.com/openai/v1/chat/completions",
                     headers={"Authorization": f"Bearer {groq_key}"},
                     json={"model": "llama-3.3-70b-versatile",
-                          "messages": [{"role": "user", "content": prompt}], "max_tokens": 900})
+                          "messages": [{"role": "user", "content": prompt}], "max_tokens": 2048})
                 if gr.status_code == 200:
                     return {"cevap": gr.json()["choices"][0]["message"]["content"]}
     except Exception as e:
@@ -1315,9 +1345,20 @@ async def chat(
             file_label = f"\n[📸 Grafik/Resim yüklendi: {file.filename}]"
 
         elif fname.endswith(".pdf"):
-            b64 = base64.standard_b64encode(raw).decode()
-            file_parts = [{"inline_data": {"mime_type": "application/pdf", "data": b64}}]
-            file_label = f"\n[📄 PDF yüklendi: {file.filename}]"
+            # ÇİFT YÖNTEM: metin çıkar (her durumda çalışır) + küçükse görüntü olarak da gönder
+            pdf_text = extract_pdf_text(raw)
+            if len(raw) < 4_000_000:  # 4MB altı: Gemini'ye görüntü olarak da ver
+                b64 = base64.standard_b64encode(raw).decode()
+                file_parts = [{"inline_data": {"mime_type": "application/pdf", "data": b64}}]
+            if pdf_text.strip():
+                kisaltma = pdf_text[:30000]
+                file_label = (f"\n[📄 PDF yüklendi: {file.filename} — metin içeriği aşağıda]\n"
+                              f"--- PDF METNİ BAŞLANGIÇ ---\n{kisaltma}\n--- PDF METNİ SON ---")
+            elif file_parts:
+                file_label = f"\n[📄 PDF yüklendi (taranmış/görsel): {file.filename}]"
+            else:
+                file_label = (f"\n[⚠️ PDF okunamadı: {file.filename} — hem metin çıkarma hem boyut "
+                              f"({len(raw)//1024//1024}MB > 4MB) başarısız. Kullanıcıya bunu açıkla.]")
 
         elif ext in CODE_EXTENSIONS:
             lang_key, lang_label = CODE_EXTENSIONS[ext]
@@ -1543,7 +1584,9 @@ async def chat(
             full_reply = []
             yield json.dumps(meta, ensure_ascii=False) + "\n"
             try:
-                async for chunk in stream_ai(api_key, contents, SYSTEM_PROMPT):
+                _baglam = await canli_sistem_baglami()
+                _sp = SYSTEM_PROMPT + (f"\n\n══ CANLI SİSTEM VERİLERİ ══\n{_baglam}" if _baglam else "")
+                async for chunk in stream_ai(api_key, contents, _sp):
                     full_reply.append(chunk)
                     yield json.dumps({"type": "delta", "text": chunk}, ensure_ascii=False) + "\n"
                 final = "".join(full_reply)
@@ -1560,7 +1603,9 @@ async def chat(
         return StreamingResponse(event_gen(), media_type="application/x-ndjson")
 
     # ── NORMAL MOD (backtest vb. için) ──
-    reply = await call_gemini(api_key, contents, SYSTEM_PROMPT)
+    _baglam2 = await canli_sistem_baglami()
+    _sp2 = SYSTEM_PROMPT + (f"\n\n══ CANLI SİSTEM VERİLERİ ══\n{_baglam2}" if _baglam2 else "")
+    reply = await call_gemini(api_key, contents, _sp2)
 
     # ── OTOMATİK KALICI KAYIT — her yazışma sonsuza dek hafızada ──
     try:
