@@ -10,7 +10,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # ─── Veri Dizinleri ──────────────────────────────────────────────────────────
-DATA_DIR  = Path("data")
+import os as _os_k
+DATA_DIR  = Path(_os_k.environ.get("DATA_DIR", "data"))
 KB_DIR    = DATA_DIR / "knowledge"
 KB_FILE   = DATA_DIR / "knowledge.json"
 DATA_DIR.mkdir(exist_ok=True)
