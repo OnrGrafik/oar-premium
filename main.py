@@ -751,7 +751,7 @@ async def leader_backtest():
 @app.get("/api/leader/patterns")
 async def leader_patterns():
     """Pattern ve öneri analizini döndür."""
-    return pattern_analizi()
+    return research_analizi()
 
 @app.get("/api/leader/summary")
 async def leader_summary():
