@@ -728,11 +728,17 @@ _leader_task = None
 async def startup_event():
     global _leader_task
     api_key = os.environ.get("GEMINI_API_KEY", "")
-    from leader_agent import sinyal_toplayici_loop, sinyal_degerlendirici_loop
+    from leader_agent import (
+        sinyal_toplayici_loop, sinyal_degerlendirici_loop,
+        saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop
+    )
     _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
     asyncio.create_task(sinyal_toplayici_loop())
     asyncio.create_task(sinyal_degerlendirici_loop())
-    print("[LiderAgent] ✅ Sabah raporu + sinyal toplayıcı + değerlendirici başlatıldı")
+    asyncio.create_task(saatlik_lider_raporu_loop(api_key))
+    asyncio.create_task(saatlik_backtest_loop())
+    asyncio.create_task(saatlik_research_loop())
+    print("[LiderAgent] ✅ Tüm agent görevleri başlatıldı (toplayıcı + değerlendirici + 3 saatlik rapor)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
 @app.get("/api/leader/report")
@@ -850,6 +856,12 @@ async def leader_signals(limit: int = 200):
         return {"signals": [], "total": 0, "error": str(e)[:80]}
     return {"signals": [], "total": 0}
 
+
+@app.get("/api/leader/rapor-gecmisi")
+async def leader_rapor_gecmisi(tip: str = None, limit: int = 24):
+    """Saatlik rapor geçmişi — silinmez, tip: lider|backtest|research."""
+    from leader_agent import rapor_gecmisi_al
+    return {"raporlar": rapor_gecmisi_al(tip, limit)}
 
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
