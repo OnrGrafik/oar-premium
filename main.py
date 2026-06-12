@@ -24,8 +24,9 @@ from brain import (
     SIGNALS_FILE, BACKTEST_FILE, ALERTS_FILE, MEMORY_FILE
 )
 from leader_agent import (
-    rapor_uret, son_rapor, son_pattern,
-    backtest_sinyal_analizi, pattern_analizi,
+    rapor_uret, son_rapor,
+    backtest_sinyal_analizi, research_analizi,
+    ai_yorum_uret, bot_katalog_al,
     sabah_raporu_loop
 )
 from bots import (
