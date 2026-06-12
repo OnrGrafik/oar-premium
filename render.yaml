@@ -2,21 +2,18 @@ services:
   - type: web
     name: oar-premium
     env: python
-    plan: starter          # 512MB RAM — OAR için yeterli
+    plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
     healthCheckPath: /health
-    # Disk: konuşma geçmişi + bilgi bankası kalıcı olsun
     disk:
       name: oar-data
       mountPath: /var/data
       sizeGB: 1
     envVars:
       - key: GEMINI_API_KEY
-        sync: false        # Render dashboard'dan elle gir
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: DATA_DIR
         value: /var/data
-      - key: PORT
-        value: "8000"
