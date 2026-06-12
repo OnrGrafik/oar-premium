@@ -40,6 +40,7 @@ GEMINI_MODEL = "gemini-2.5-flash"
 # ── Bot Kataloğu ───────────────────────────────────────────────────────────────
 BOT_KATALOG = {
     "UTBot": {
+        "tip": "sinyal",
         "sembol": "ETHUSDT",
         "strateji": "xATR Trailing Stop + STC osilatör + RSI filtresi. BTC yön teyidi gerektirir.",
         "sinyal_tipi": ["LONG", "SHORT"],
@@ -48,6 +49,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"leverage": 100, "daily_tp": 10, "daily_sl": 10},
     },
     "MA Scanner": {
+        "tip": "sinyal",
         "sembol": "Top 100 futures",
         "strateji": "MA temas (±%0.50 tolerans) + Whale/Retail filtresi (7 günlük).",
         "sinyal_tipi": ["LONG", "SHORT"],
@@ -56,6 +58,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"temas_tolerans_pct": 0.50, "tarama_aralik_saat": 1},
     },
     "CVD Scanner": {
+        "tip": "sinyal",
         "sembol": "Top 100 futures",
         "strateji": "CVD (10m/1H/24H) + OI artış + hacim patlaması. Skor ≥65 sinyal.",
         "sinyal_tipi": ["AKUMULASYON", "GUCLU_PUMP", "ZAYIF_PUMP", "DAGITIM"],
@@ -64,6 +67,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"min_skor": 65, "tarama_aralik_dk": 10},
     },
     "Asia Ekstrem": {
+        "tip": "sinyal",
         "sembol": "Top 20 market cap",
         "strateji": "Asia Range (03:00-07:00 TR) fib ekstrem temas. BTC range ≥%1 günde aktif.",
         "sinyal_tipi": ["LONG", "SHORT"],
@@ -77,6 +81,7 @@ BOT_KATALOG = {
         },
     },
     "Balina Bot": {
+        "tip": "bilgi",
         "sembol": "BTCUSDT",
         "strateji": "Tek aggTrade ≥1000 BTC taker alış/satış tespiti.",
         "sinyal_tipi": ["ALIS", "SATIS"],
@@ -85,6 +90,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"esik_btc": 1000, "tarama_aralik_sn": 5},
     },
     "Volume Bot": {
+        "tip": "bilgi",
         "sembol": "Top 100 futures",
         "strateji": "Hacim 1h ≥%5 + OI 1h ≥%5 + fiyat VWAP/MA20 üstü + whale long filtresi.",
         "sinyal_tipi": ["HACIM_PATLAMA"],
@@ -93,6 +99,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"hacim_min_pct": 5, "oi_min_pct": 5, "tarama_aralik_dk": 15},
     },
     "Korelasyon": {
+        "tip": "bilgi",
         "sembol": "BTC + QQQ/DXY/GLD/TNX",
         "strateji": "14/30 günlük Pearson korelasyon + beta. Rejim: risk-on/risk-off.",
         "sinyal_tipi": ["RISK_ON", "RISK_OFF"],
@@ -101,6 +108,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"pencereler": [14, 30], "gonderim_saati": "09:00 TR"},
     },
     "Whale Tracker": {
+        "tip": "bilgi",
         "sembol": "BTC/ETH on-chain",
         "strateji": "BlackRock/MicroStrategy cüzdan hareketi + ETF akış takibi.",
         "sinyal_tipi": ["KURUMSAL_HAREKET"],
@@ -109,6 +117,7 @@ BOT_KATALOG = {
         "kritik_parametreler": {"min_btc": 50, "min_eth": 500},
     },
     "Makro Alarm": {
+        "tip": "bilgi",
         "sembol": "BTC opsiyonları",
         "strateji": "CW/PW/ZG seviyeleri vade dilimlerine göre (0-7g/8-45g/45g+). 4 saatte güncellenir.",
         "sinyal_tipi": ["CW_TEMAS", "PW_TEMAS", "ZG_GECIS"],
@@ -168,7 +177,16 @@ def backtest_sinyal_analizi() -> dict:
     else:
         sinyaller = log.get("signals", [])
 
-    degerlendirilmis = [s for s in sinyaller if s.get("outcome") in ["WIN", "LOSS"]]
+    # Sadece SİNYAL botları değerlendirilir — bilgi botlarının (Balina, Volume,
+    # Korelasyon, Whale Tracker, Makro Alarm) win rate'i anlamsızdır
+    BILGI_BOTLARI = {b for b, i in BOT_KATALOG.items() if i.get("tip") == "bilgi"}
+    def _bilgi_botu_mu(bot_adi):
+        if not bot_adi:
+            return False
+        return any(bb.lower() in bot_adi.lower() or bot_adi.lower() in bb.lower() for bb in BILGI_BOTLARI)
+
+    degerlendirilmis = [s for s in sinyaller
+                        if s.get("outcome") in ["WIN", "LOSS"] and not _bilgi_botu_mu(s.get("bot"))]
 
     if not degerlendirilmis:
         return {
@@ -909,15 +927,51 @@ async def kombo_sinyal_tara() -> list:
                 
                 fiyat = float(klines[-1][4])
                 
+                # ── BİLGİ BOTU TEYİDİ — akıllı bağlam ──────────────────
+                # Son 2 saatte Balina ALIS bildirimi var mı? (BTC için)
+                balina_alis = balina_satis = False
+                korelasyon_riskoff = False
+                try:
+                    ana_log = _load(SIGLOG_FILE, {"signals": []})
+                    ana_s = ana_log.get("signals", []) if isinstance(ana_log, dict) else ana_log
+                    simdi_dt = datetime.now(timezone.utc)
+                    for es in ana_s[-100:]:
+                        bot_adi = (es.get("bot") or "").lower()
+                        try:
+                            et = datetime.fromisoformat(es.get("time", "").replace(" ", "T"))
+                            if et.tzinfo is None:
+                                et = et.replace(tzinfo=timezone.utc)
+                            if (simdi_dt - et).total_seconds() > 7200:
+                                continue
+                        except Exception:
+                            continue
+                        if "balina" in bot_adi and sym == "BTCUSDT":
+                            d = (es.get("direction") or "").upper()
+                            if d in ("ALIS", "LONG"): balina_alis = True
+                            if d in ("SATIS", "SHORT"): balina_satis = True
+                        if "korelasyon" in bot_adi and "RISK_OFF" in str(es.get("detail", "")).upper():
+                            korelasyon_riskoff = True
+                except Exception:
+                    pass
+
                 # ── PATTERN 1: CVD + OI birlikte yükseliyor → LONG
                 if cvd_egim > 0 and oi_degisim_pct > 0.5:
+                    guven = "NORMAL"
+                    teyitler = []
+                    if balina_alis:
+                        guven = "YUKSEK"
+                        teyitler.append("Balina ALIS teyidi")
+                    if korelasyon_riskoff:
+                        guven = "DUSUK"
+                        teyitler.append("⚠ Risk-off rejim (dikkat)")
                     yeni_sinyaller.append({
                         "bot": "OAR Kombo",
                         "symbol": sym,
                         "direction": "LONG",
                         "price": fiyat,
-                        "detail": f"CVD↑ + OI +%{oi_degisim_pct:.1f} (agresif alım + para girişi)",
+                        "detail": f"CVD↑ + OI +%{oi_degisim_pct:.1f}" + (f" | {' · '.join(teyitler)}" if teyitler else ""),
                         "pattern": "CVD_OI_YUKSELIS",
+                        "guven": guven,
                         "time": _now(),
                         "outcome": None
                     })
