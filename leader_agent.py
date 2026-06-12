@@ -760,3 +760,336 @@ async def sabah_raporu_loop(api_key: str = ""):
         except Exception as e:
             print(f"[LiderAgent] Rapor hatası: {e}")
             await asyncio.sleep(3600)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# SAATLİK RAPOR SİSTEMİ — rapor geçmişi SİLİNMEZ
+# ═══════════════════════════════════════════════════════════════════
+RAPOR_GECMISI_FILE = DATA_DIR / "rapor_gecmisi.json"   # tüm saatlik raporlar
+KOMBO_SINYAL_FILE  = DATA_DIR / "kombo_sinyaller.json" # OAR'ın kendi ürettiği sinyaller
+
+def rapor_gecmisi_ekle(tip: str, icerik: dict):
+    """Rapor geçmişine ekle — ASLA silinmez, sadece eklenir."""
+    gecmis = _load(RAPOR_GECMISI_FILE, {"raporlar": []})
+    gecmis["raporlar"].append({
+        "tip": tip,           # "lider" | "backtest" | "research"
+        "tarih": _now(),
+        "icerik": icerik
+    })
+    # 90 günden eski raporları arşivle (silme değil, ayrı dosya)
+    if len(gecmis["raporlar"]) > 2160:  # 90 gün x 24 saat
+        arsiv_file = DATA_DIR / "rapor_arsiv.json"
+        arsiv = _load(arsiv_file, {"raporlar": []})
+        arsiv["raporlar"].extend(gecmis["raporlar"][:500])
+        _save(arsiv_file, arsiv)
+        gecmis["raporlar"] = gecmis["raporlar"][500:]
+    _save(RAPOR_GECMISI_FILE, gecmis)
+
+def rapor_gecmisi_al(tip: str = None, limit: int = 24) -> list:
+    gecmis = _load(RAPOR_GECMISI_FILE, {"raporlar": []})
+    raporlar = gecmis["raporlar"]
+    if tip:
+        raporlar = [r for r in raporlar if r["tip"] == tip]
+    return raporlar[-limit:]
+
+
+# ── Sistem Denetimi (GitHub + Render + Vercel) ─────────────────────────────────
+async def sistem_denetimi() -> dict:
+    """Tüm dış bağlantıları tek tek kontrol et."""
+    sonuc = {"tarih": _now(), "servisler": {}}
+    
+    kontroller = [
+        ("render_bot",     os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com") + "/"),
+        ("render_bot_signals", os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com") + "/signals?limit=1"),
+        ("vercel_levels",  None),  # config'den okunacak
+        ("vercel_macro",   None),
+        ("binance",        "https://api.binance.com/api/v3/ping"),
+        ("deribit",        "https://www.deribit.com/api/v2/public/test"),
+    ]
+    
+    # Vercel URL'ini config'den al
+    cfg_file = DATA_DIR / "config.json"
+    cfg = _load(cfg_file, {})
+    vercel = cfg.get("vercel_url", os.environ.get("VERCEL_URL", "https://project-vtcqr.vercel.app"))
+    
+    kontroller[2] = ("vercel_levels", f"{vercel}/api/alarm-levels")
+    kontroller[3] = ("vercel_macro",  f"{vercel}/api/macro")
+    
+    async with httpx.AsyncClient(timeout=12) as cl:
+        for ad, url in kontroller:
+            try:
+                r = await cl.get(url)
+                sonuc["servisler"][ad] = {
+                    "durum": "ok" if r.status_code == 200 else "hata",
+                    "kod": r.status_code
+                }
+            except Exception as e:
+                sonuc["servisler"][ad] = {"durum": "erisilemez", "hata": str(e)[:60]}
+    
+    aktif = sum(1 for s in sonuc["servisler"].values() if s["durum"] == "ok")
+    sonuc["ozet"] = f"{aktif}/{len(kontroller)} servis aktif"
+    return sonuc
+
+
+# ── Çakışan Bot Analizi ────────────────────────────────────────────────────────
+def cakisan_bot_analizi() -> list:
+    """Aynı sembol + zıt yön sinyali veren botları bul (±2 saat)."""
+    log = _load(SIGLOG_FILE, {"signals": []})
+    sinyaller = log.get("signals", []) if isinstance(log, dict) else log
+    cakismalar = []
+    
+    sirali = sorted(sinyaller, key=lambda x: x.get("time", ""))
+    for i, s1 in enumerate(sirali):
+        for s2 in sirali[i+1:]:
+            try:
+                t1 = datetime.fromisoformat(s1.get("time", "").replace(" ", "T"))
+                t2 = datetime.fromisoformat(s2.get("time", "").replace(" ", "T"))
+                if (t2 - t1).total_seconds() > 7200:
+                    break
+                d1 = (s1.get("direction") or "").upper()
+                d2 = (s2.get("direction") or "").upper()
+                zit = (d1 in ("LONG","ALIS") and d2 in ("SHORT","SATIS")) or \
+                      (d1 in ("SHORT","SATIS") and d2 in ("LONG","ALIS"))
+                if s1.get("symbol") == s2.get("symbol") and zit and s1.get("bot") != s2.get("bot"):
+                    cakismalar.append({
+                        "sembol": s1.get("symbol"),
+                        "bot1": s1.get("bot"), "yon1": d1,
+                        "bot2": s2.get("bot"), "yon2": d2,
+                        "zaman": s1.get("time")
+                    })
+            except Exception:
+                pass
+    return cakismalar[-10:]
+
+
+# ── AKILLI KOMBO SİNYAL MOTORU (Backtest Agent'ın öğrenen kısmı) ──────────────
+async def kombo_sinyal_tara() -> list:
+    """
+    Canlı verilerden kombo pattern tara:
+      1. CVD + OI birlikte yükseliyor → LONG kombo sinyali
+      2. CVD düşüyor + OI yükseliyor → DAGITIM uyarısı (SHORT)
+      3. Funding negatif + fiyat yatay + OI artıyor → squeeze hazırlığı
+    Sinyaller KOMBO_SINYAL_FILE'a kaydedilir ve değerlendirici WIN/LOSS işaretler.
+    """
+    yeni_sinyaller = []
+    semboller = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+    
+    async with httpx.AsyncClient(timeout=15) as cl:
+        for sym in semboller:
+            try:
+                # CVD: son 12 x 5m mum (1 saat)
+                kr = await cl.get("https://fapi.binance.com/fapi/v1/klines",
+                                  params={"symbol": sym, "interval": "5m", "limit": 12})
+                klines = kr.json()
+                if not isinstance(klines, list) or len(klines) < 12:
+                    continue
+                
+                cvd = 0
+                cvd_seri = []
+                for k in klines:
+                    vol = float(k[5]); tbv = float(k[9])
+                    cvd += tbv - (vol - tbv)
+                    cvd_seri.append(cvd)
+                cvd_egim = cvd_seri[-1] - cvd_seri[-6]  # son 30dk eğim
+                
+                # OI: son 2 x 30dk
+                oir = await cl.get("https://fapi.binance.com/futures/data/openInterestHist",
+                                   params={"symbol": sym, "period": "30m", "limit": 2})
+                oid = oir.json()
+                if not isinstance(oid, list) or len(oid) < 2:
+                    continue
+                oi_onceki = float(oid[0]["sumOpenInterestValue"])
+                oi_simdi  = float(oid[1]["sumOpenInterestValue"])
+                oi_degisim_pct = (oi_simdi - oi_onceki) / oi_onceki * 100 if oi_onceki else 0
+                
+                # Funding
+                fr = await cl.get("https://fapi.binance.com/fapi/v1/premiumIndex",
+                                  params={"symbol": sym})
+                funding = float(fr.json().get("lastFundingRate", 0)) * 100
+                
+                fiyat = float(klines[-1][4])
+                
+                # ── PATTERN 1: CVD + OI birlikte yükseliyor → LONG
+                if cvd_egim > 0 and oi_degisim_pct > 0.5:
+                    yeni_sinyaller.append({
+                        "bot": "OAR Kombo",
+                        "symbol": sym,
+                        "direction": "LONG",
+                        "price": fiyat,
+                        "detail": f"CVD↑ + OI +%{oi_degisim_pct:.1f} (agresif alım + para girişi)",
+                        "pattern": "CVD_OI_YUKSELIS",
+                        "time": _now(),
+                        "outcome": None
+                    })
+                
+                # ── PATTERN 2: CVD düşüyor + OI yükseliyor → DAGITIM (SHORT)
+                elif cvd_egim < 0 and oi_degisim_pct > 0.5:
+                    yeni_sinyaller.append({
+                        "bot": "OAR Kombo",
+                        "symbol": sym,
+                        "direction": "SHORT",
+                        "price": fiyat,
+                        "detail": f"CVD↓ + OI +%{oi_degisim_pct:.1f} (dağıtım: short pozisyon birikiyor)",
+                        "pattern": "DAGITIM",
+                        "time": _now(),
+                        "outcome": None
+                    })
+                
+                # ── PATTERN 3: Funding negatif + OI artıyor → short squeeze hazırlığı
+                if funding < -0.01 and oi_degisim_pct > 1.0:
+                    yeni_sinyaller.append({
+                        "bot": "OAR Kombo",
+                        "symbol": sym,
+                        "direction": "LONG",
+                        "price": fiyat,
+                        "detail": f"Funding %{funding:.3f} + OI +%{oi_degisim_pct:.1f} (short squeeze riski)",
+                        "pattern": "SQUEEZE_HAZIRLIK",
+                        "time": _now(),
+                        "outcome": None
+                    })
+                
+                await asyncio.sleep(0.3)
+            except Exception as e:
+                print(f"[Kombo] {sym} hata: {str(e)[:60]}")
+    
+    # Dedup: aynı sembol+pattern son 1 saatte verilmişse tekrar verme
+    if yeni_sinyaller:
+        mevcut = _load(KOMBO_SINYAL_FILE, {"signals": []})
+        eski = mevcut.get("signals", [])
+        simdi = datetime.now(timezone.utc)
+        filtreli = []
+        for ys in yeni_sinyaller:
+            tekrar = False
+            for es in eski[-50:]:
+                if es.get("symbol") == ys["symbol"] and es.get("pattern") == ys["pattern"]:
+                    try:
+                        et = datetime.fromisoformat(es["time"])
+                        if (simdi - et).total_seconds() < 3600:
+                            tekrar = True
+                            break
+                    except Exception:
+                        pass
+            if not tekrar:
+                filtreli.append(ys)
+        
+        if filtreli:
+            eski.extend(filtreli)
+            _save(KOMBO_SINYAL_FILE, {"signals": eski[-500:]})
+            # Ana sinyal dosyasına da ekle (backtest değerlendirsin)
+            ana = _load(SIGLOG_FILE, {"signals": []})
+            ana_s = ana.get("signals", []) if isinstance(ana, dict) else ana
+            ana_s.extend(filtreli)
+            _save(SIGLOG_FILE, {"signals": ana_s[-1000:]})
+            print(f"[Kombo] {len(filtreli)} yeni kombo sinyal üretildi")
+    
+    return yeni_sinyaller
+
+
+# ── Research: Piyasa Yenilikleri ───────────────────────────────────────────────
+async def piyasa_yenilikleri() -> dict:
+    """Trend coinler + korku endeksi + piyasa durumu."""
+    sonuc = {"tarih": _now()}
+    async with httpx.AsyncClient(timeout=15) as cl:
+        try:
+            r = await cl.get("https://api.coingecko.com/api/v3/search/trending")
+            if r.status_code == 200:
+                coins = r.json().get("coins", [])[:5]
+                sonuc["trend_coinler"] = [c["item"]["symbol"].upper() for c in coins]
+        except Exception:
+            pass
+        try:
+            r = await cl.get("https://api.alternative.me/fng/")
+            if r.status_code == 200:
+                d = r.json()["data"][0]
+                sonuc["korku_endeksi"] = {"deger": d["value"], "durum": d["value_classification"]}
+        except Exception:
+            pass
+        try:
+            r = await cl.get("https://api.coingecko.com/api/v3/global")
+            if r.status_code == 200:
+                g = r.json()["data"]
+                sonuc["btc_dominans"] = round(g["market_cap_percentage"]["btc"], 1)
+                sonuc["piyasa_degisim_24h"] = round(g["market_cap_change_percentage_24h_usd"], 2)
+        except Exception:
+            pass
+    return sonuc
+
+
+# ── SAATLİK RAPOR LOOP'LARI ────────────────────────────────────────────────────
+async def saatlik_lider_raporu_loop(api_key: str = ""):
+    """Her saat başı: sistem denetimi + bot sağlığı + çakışma + özet rapor."""
+    await asyncio.sleep(120)
+    while True:
+        try:
+            denetim   = await sistem_denetimi()
+            backtest  = backtest_sinyal_analizi()
+            cakisma   = cakisan_bot_analizi()
+            
+            rapor_metni = f"""📋 LİDER SAATLİK RAPOR
+Sistem: {denetim['ozet']}
+Sinyal: {backtest.get('toplam_sinyal',0)} toplam, {backtest.get('degerlendirilmis',0)} değerlendirildi
+Win Rate: %{backtest.get('genel_win_rate',0)}
+Çakışan sinyal: {len(cakisma)}"""
+            
+            servis_detay = []
+            for ad, s in denetim["servisler"].items():
+                emoji = "✅" if s["durum"] == "ok" else "❌"
+                servis_detay.append(f"{emoji} {ad}")
+            
+            icerik = {
+                "metin": rapor_metni,
+                "denetim": denetim,
+                "cakismalar": cakisma,
+                "servis_detay": servis_detay,
+                "win_rate": backtest.get("genel_win_rate", 0),
+                "sinyal_sayisi": backtest.get("toplam_sinyal", 0),
+            }
+            rapor_gecmisi_ekle("lider", icerik)
+            print(f"[LiderSaatlik] ✅ {denetim['ozet']}")
+        except Exception as e:
+            print(f"[LiderSaatlik] Hata: {str(e)[:80]}")
+        await asyncio.sleep(3600)
+
+
+async def saatlik_backtest_loop():
+    """Her saat: kombo sinyal tara + sinyal analizini güncelle."""
+    await asyncio.sleep(180)
+    while True:
+        try:
+            kombolar = await kombo_sinyal_tara()
+            backtest = backtest_sinyal_analizi()
+            
+            icerik = {
+                "metin": f"🧪 BACKTEST SAATLİK\nYeni kombo sinyal: {len(kombolar)}\nGenel WR: %{backtest.get('genel_win_rate',0)}",
+                "yeni_kombolar": [{"sembol": k["symbol"], "yon": k["direction"], "pattern": k["pattern"], "detay": k["detail"]} for k in kombolar],
+                "bot_stats": backtest.get("bot_stats", {}),
+            }
+            rapor_gecmisi_ekle("backtest", icerik)
+            print(f"[BacktestSaatlik] ✅ {len(kombolar)} kombo")
+        except Exception as e:
+            print(f"[BacktestSaatlik] Hata: {str(e)[:80]}")
+        await asyncio.sleep(3600)
+
+
+async def saatlik_research_loop():
+    """Her saat: piyasa yenilikleri + research analizi."""
+    await asyncio.sleep(240)
+    while True:
+        try:
+            yenilik  = await piyasa_yenilikleri()
+            research = research_analizi()
+            
+            trend = ", ".join(yenilik.get("trend_coinler", [])[:5]) or "—"
+            fg = yenilik.get("korku_endeksi", {})
+            
+            icerik = {
+                "metin": f"🔍 RESEARCH SAATLİK\nTrend: {trend}\nKorku Endeksi: {fg.get('deger','—')} ({fg.get('durum','—')})\nBTC Dominans: %{yenilik.get('btc_dominans','—')}",
+                "yenilikler": yenilik,
+                "bulgular": research.get("bulgular", [])[:3],
+                "hipotezler": research.get("hipotezler", [])[:2],
+            }
+            rapor_gecmisi_ekle("research", icerik)
+            print("[ResearchSaatlik] ✅")
+        except Exception as e:
+            print(f"[ResearchSaatlik] Hata: {str(e)[:80]}")
+        await asyncio.sleep(3600)
