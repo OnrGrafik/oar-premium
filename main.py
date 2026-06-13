@@ -1021,6 +1021,22 @@ async def devops_durum():
     from devops_monitor import devops_ozet
     return await devops_ozet()
 
+@app.post("/api/theory/advanced")
+async def theory_advanced(req: Request):
+    """Gelişmiş Theory Lab backtest: coin/gün/fib/asia-saat seçimli.
+    Body: {sembol, gun, fib, asia_baslangic, asia_bitis}"""
+    from theory_engine import gelismis_backtest
+    d = await req.json()
+    return await gelismis_backtest(
+        d.get("sembol","BTCUSDT"), int(d.get("gun",180)),
+        float(d.get("fib",0.618)),
+        int(d.get("asia_baslangic",0)), int(d.get("asia_bitis",4)))
+
+@app.get("/api/theory/advanced")
+async def theory_advanced_history():
+    from theory_engine import gecmis_sonuclar
+    return {"testler": gecmis_sonuclar()}
+
 @app.get("/api/oar-fib")
 async def oar_fib(symbol: str = "BTCUSDT"):
     """Bugünkü Asia Range (TR 03-07 = UTC 00-04) fib seviyeleri."""
