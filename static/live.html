@@ -1,623 +1,621 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OAR Premium — Live Agent</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OAR Premium — Multi-Agent Quant OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#080c14;--surface:#0f1623;--surface2:#161f30;--border:#1e2d45;
---gold:#f59e0b;--green:#10b981;--red:#ef4444;--purple:#8b5cf6;--blue:#3b82f6;--cyan:#06b6d4;
---text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;}
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;
-display:flex;flex-direction:column;overflow:hidden;}
-
-/* TOPBAR */
-#topbar{background:var(--surface);border-bottom:1px solid var(--border);
-display:flex;align-items:center;gap:12px;padding:0 16px;height:48px;flex-shrink:0;}
-.logo{font-weight:800;color:var(--gold);font-size:.95rem;}
-.nav-link{color:var(--muted2);text-decoration:none;font-size:.8rem;padding:5px 11px;border-radius:6px;border:1px solid transparent;}
-.nav-link:hover{border-color:var(--border);color:var(--text);}
-.nav-link.active{background:var(--surface2);border-color:var(--purple);color:var(--text);}
-#status-pills{display:flex;gap:8px;margin-left:auto;align-items:center;}
-.pill{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);
-border-radius:14px;padding:4px 11px;font-size:.68rem;color:var(--muted2);}
-.pill .dot{width:7px;height:7px;border-radius:50%;}
-.dot.ok{background:var(--green);}.dot.err{background:var(--red);}.dot.warn{background:var(--gold);}
-
-/* LAYOUT: 3 sütun */
-#main{display:flex;flex:1;overflow:hidden;gap:0;}
-
-/* SOL: LİDER AGENT + ÖZET */
-#col-left{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
-display:flex;flex-direction:column;overflow:hidden;}
-.col-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;
-align-items:center;justify-content:space-between;flex-shrink:0;}
-.col-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
-.scroll-area{flex:1;overflow-y:auto;padding:10px;}
-
-/* ORTA: BOT KUTULARI */
-#col-mid{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
-#bots-grid{flex:1;overflow-y:auto;padding:12px;display:grid;
-grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;align-content:start;}
-
-/* SAĞ: OPSİYON + SOHBET */
-#col-right{width:320px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);
-display:flex;flex-direction:column;overflow:hidden;}
-
-/* KARTLAR */
-.mini-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px;margin-bottom:8px;}
-.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
-.kpi{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px;text-align:center;}
-.kpi-num{font-size:1.1rem;font-weight:800;}
-.kpi-lbl{color:var(--muted);font-size:.6rem;margin-top:2px;}
-.icon-mini{background:var(--surface2);border:1px solid var(--border);border-radius:5px;
-color:var(--muted);cursor:pointer;padding:3px 8px;font-size:.68rem;}
-.icon-mini:hover{color:var(--text);border-color:var(--muted2);}
-.bulgu-item{background:var(--surface2);border-radius:6px;padding:7px 9px;margin-bottom:5px;
-border-left:3px solid var(--muted);font-size:.68rem;}
-.bulgu-item.yuksek{border-left-color:var(--gold);}
-.bulgu-item.kritik{border-left-color:var(--red);}
-.bulgu-item.orta{border-left-color:var(--blue);}
-.sec-title{font-size:.66rem;font-weight:800;text-transform:uppercase;margin:10px 0 6px;letter-spacing:.04em;}
-
-/* BOT KUTUSU */
-.bot-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
-overflow:hidden;display:flex;flex-direction:column;}
-.bot-card-head{display:flex;align-items:center;gap:7px;padding:9px 11px;border-bottom:1px solid var(--border);}
-.bot-emoji{font-size:1rem;}
-.bot-card-name{font-size:.78rem;font-weight:800;}
-.bot-card-desc{font-size:.6rem;color:var(--muted);}
-.bot-dot{width:8px;height:8px;border-radius:50%;margin-left:auto;flex-shrink:0;}
-.bot-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);}
-.bot-kpi{background:var(--surface);padding:7px 4px;text-align:center;}
-.bot-kpi-num{font-size:.85rem;font-weight:800;}
-.bot-kpi-lbl{font-size:.56rem;color:var(--muted);}
-.bot-sigs{max-height:148px;overflow-y:auto;padding:6px 10px;}
-.sig-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--surface2);font-size:.66rem;}
-.sig-dir{font-weight:800;padding:1px 6px;border-radius:4px;font-size:.6rem;flex-shrink:0;}
-.sig-dir.long{background:#10b98122;color:var(--green);}
-.sig-dir.short{background:#ef444422;color:var(--red);}
-.sig-dir.other{background:#8b5cf622;color:var(--purple);}
-.sig-out{margin-left:auto;font-weight:700;font-size:.62rem;flex-shrink:0;}
-.sig-out.win{color:var(--green);}.sig-out.loss{color:var(--red);}
-.sig-out.flat{color:var(--gold);}.sig-out.pending{color:var(--muted);}
-.empty-sm{color:var(--muted);font-size:.66rem;text-align:center;padding:12px;}
-
-/* OPSİYON PANELİ */
-.ops-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--surface2);font-size:.7rem;}
-.ops-lbl{color:var(--muted2);}
-.ops-val{font-weight:700;}
-
-/* SOHBET */
-#chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--border);}
-#chat-msgs{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:6px;}
-.msg{max-width:92%;padding:7px 10px;border-radius:8px;font-size:.7rem;line-height:1.6;}
-.msg.user{background:var(--purple);align-self:flex-end;}
-.msg.agent{background:var(--surface2);align-self:flex-start;border:1px solid var(--border);}
-.msg.system{background:transparent;align-self:center;color:var(--muted);font-size:.62rem;}
-#chat-input-row{display:flex;gap:6px;padding:8px;border-top:1px solid var(--border);flex-shrink:0;}
-#chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;
-color:var(--text);padding:7px 10px;font-size:.71rem;}
-#chat-send{background:var(--purple);border:none;border-radius:6px;color:#fff;
-padding:7px 13px;font-size:.71rem;font-weight:700;cursor:pointer;}
-.qcmds{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;flex-shrink:0;border-top:1px solid var(--border);}
-.qcmd{background:var(--surface2);border:1px solid var(--border);border-radius:11px;
-color:var(--muted2);font-size:.6rem;padding:3px 8px;cursor:pointer;}
-.qcmd:hover{border-color:var(--purple);color:var(--text);}
-
-::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:#07090a;color:#cdd9d8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#1c2625;border-radius:5px}
+::-webkit-scrollbar-track{background:#0a0d0e}
+@keyframes oarblink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes oarticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes oarfeedin{0%{opacity:0;transform:translateY(-7px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes oarpulse{0%,100%{opacity:.5}50%{opacity:1}}
+.sg{font-family:'Space Grotesk',sans-serif}
+.navbtn{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:7px;border:1px solid transparent;background:none;color:#8a9c99;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;width:100%;transition:.15s}
+.navbtn:hover{filter:brightness(1.3)}
+.navbtn.active{background:#10171680;border-color:#1c302a;color:#eaf4f2}
+.card{background:#0c1112;border:1px solid #18211f;border-radius:9px}
+input,button{font-family:'JetBrains Mono',monospace}
+a{color:inherit;text-decoration:none}
 </style>
 </head>
 <body>
-<div id="topbar">
-  <span class="logo">⚡ OAR Premium</span>
-  <a href="/" class="nav-link">💬 Sohbet</a>
-  <a href="/live" class="nav-link active">📡 Live Agent</a>
-  <div id="status-pills">
-    <div class="pill"><span class="dot warn" id="dot-bot"></span><span id="pill-bot">Bot</span></div>
-    <div class="pill"><span class="dot warn" id="dot-vercel"></span><span id="pill-vercel">Opsiyon</span></div>
-    <div class="pill"><span class="dot warn" id="dot-leader"></span><span id="pill-leader">Lider</span></div>
-  </div>
-</div>
+<div style="display:flex;height:100vh;width:100vw;overflow:hidden;background:#07090a">
 
-<div id="main">
-
-  <!-- SOL: LİDER AGENT -->
-  <div id="col-left">
-    <div class="col-head">
-      <span class="col-title" style="color:var(--purple)">🧠 Lider Agent</span>
-      <button class="icon-mini" onclick="raporUret()">⚡ Rapor</button>
-    </div>
-    <div style="padding:10px;border-bottom:1px solid var(--border);flex-shrink:0">
-      <div style="font-size:.66rem;font-weight:800;color:var(--gold);text-transform:uppercase;margin-bottom:6px">⏮ Tarihsel Backtest</div>
-      <select id="hbt-strateji" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px;font-size:.68rem;margin-bottom:4px">
-        <option value="ASIA_EKSTREM">Asia Ekstrem (fib temas)</option>
-        <option value="CVD_OI_KOMBO">CVD+OI Kombo (max 30g)</option>
-        <option value="MA_TEMAS">MA50 Temas (günlük)</option>
-      </select>
-      <div style="display:flex;gap:4px;margin-bottom:5px">
-        <select id="hbt-sembol" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px;font-size:.68rem">
-          <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option>
-        </select>
-        <select id="hbt-gun" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px;font-size:.68rem">
-          <option value="30">30 gün</option><option value="90" selected>90 gün</option>
-          <option value="180">180 gün</option><option value="365">365 gün</option>
-        </select>
-      </div>
-      <button class="icon-mini" style="width:100%;padding:6px;background:var(--gold);color:#000;font-weight:800;border:none" onclick="hbtCalistir()">▶ Geçmişi Tara</button>
-      <div id="hbt-sonuc" style="margin-top:6px"></div>
-    </div>
-    <div class="scroll-area" id="leader-area">
-      <div class="empty-sm">Yükleniyor...</div>
-    </div>
-  </div>
-
-  <!-- ORTA: BOT KUTULARI -->
-  <div id="col-mid">
-    <div class="col-head" style="border-bottom:1px solid var(--border)">
-      <span class="col-title" style="color:var(--gold)">🤖 Botlar & Sinyaller</span>
-      <span id="sinyal-sayac" style="font-size:.64rem;color:var(--muted)"></span>
-    </div>
-    <div id="bots-grid">
-      <div class="empty-sm">Sinyaller yükleniyor...</div>
-    </div>
-  </div>
-
-  <!-- SAĞ: OPSİYON + SOHBET -->
-  <div id="col-right">
-    <div class="col-head">
-      <span class="col-title" style="color:var(--cyan)">📊 Opsiyon Verileri</span>
-      <button class="icon-mini" onclick="loadOpsiyon()">🔄</button>
-    </div>
-    <div style="padding:10px;max-height:300px;overflow-y:auto;flex-shrink:0" id="ops-area">
-      <div class="empty-sm">Opsiyon verileri yükleniyor...</div>
-    </div>
-
-    <div class="col-head" style="border-top:1px solid var(--border)">
-      <span class="col-title" style="color:var(--purple)">💬 Lider ile Konuş</span>
-    </div>
-    <div id="chat-area">
-      <div id="chat-msgs">
-        <div class="msg system">Lider Agent tüm botları, sinyalleri ve analizleri bilir.</div>
-      </div>
-      <div class="qcmds">
-        <span class="qcmd" onclick="hizliSor('Genel performans nasıl?')">📊 Performans</span>
-        <span class="qcmd" onclick="hizliSor('Hangi bot en başarılı?')">🏆 En iyi</span>
-        <span class="qcmd" onclick="hizliSor('Research bulgularını özetle')">🔍 Bulgular</span>
-        <span class="qcmd" onclick="hizliSor('Opsiyon verilerine göre piyasa durumu nedir?')">📈 Piyasa</span>
-      </div>
-      <div id="chat-input-row">
-        <input id="chat-input" placeholder="Lider Agent'a sor..." onkeydown="if(event.key==='Enter')sendMsg()">
-        <button id="chat-send" onclick="sendMsg()">→</button>
+  <!-- SIDEBAR -->
+  <aside style="width:230px;flex-shrink:0;background:#090c0d;border-right:1px solid #161e1d;display:flex;flex-direction:column">
+    <div style="padding:17px 17px 15px;border-bottom:1px solid #141b1a;display:flex;align-items:center;gap:11px">
+      <div class="sg" style="width:31px;height:31px;border-radius:8px;background:linear-gradient(140deg,#1ff0ad,#0a8f66);display:flex;align-items:center;justify-content:center;font-weight:700;color:#04130d;font-size:15px;box-shadow:0 0 16px rgba(21,224,160,.25)">◆</div>
+      <div>
+        <div class="sg" style="font-weight:700;font-size:15px;letter-spacing:.03em;color:#eaf4f2;line-height:1">OAR<span style="color:#1ff0ad"> PREMIUM</span></div>
+        <div style="font-size:8.5px;letter-spacing:.16em;color:#4a5b59;margin-top:5px">MULTI-AGENT QUANT OS</div>
       </div>
     </div>
+    <nav id="nav" style="padding:11px 9px;display:flex;flex-direction:column;gap:3px"></nav>
+    <div style="margin-top:auto;padding:12px 13px 13px;border-top:1px solid #141b1a">
+      <div class="sg" style="font-size:9px;letter-spacing:.16em;color:#4a5b59;margin-bottom:9px;display:flex;justify-content:space-between">
+        <span>AKTİF BOTLAR</span><span style="color:#1ff0ad" id="botcount">— / 10</span>
+      </div>
+      <div id="botrail" style="display:flex;flex-direction:column;gap:5px"></div>
+      <div style="margin-top:11px;padding-top:10px;border-top:1px solid #141b1a;display:flex;align-items:center;gap:7px;font-size:9.5px;color:#5e716f">
+        <span style="width:6px;height:6px;border-radius:50%;background:#56a8ff"></span>
+        <span>Gemini 2.5 → Groq fallback</span>
+      </div>
+    </div>
+  </aside>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <!-- HEADER TICKER -->
+    <header style="height:46px;flex-shrink:0;border-bottom:1px solid #161e1d;background:#090c0d;display:flex;align-items:center;overflow:hidden">
+      <div style="flex:1;overflow:hidden;height:100%;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)">
+        <div id="ticker" style="display:flex;width:max-content;animation:oarticker 55s linear infinite"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:15px;padding:0 18px;border-left:1px solid #161e1d;height:100%;flex-shrink:0">
+        <span style="font-size:10.5px;color:#6f8180">F&amp;G <span id="fng" style="color:#ffb13c;font-weight:600">—</span></span>
+        <span style="font-size:11px;color:#6f8180">TR <span id="clock" style="color:#cdd9d8">—</span></span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1ff0ad"><span style="width:7px;height:7px;border-radius:50%;background:#1ff0ad;animation:oarblink 1.6s infinite"></span>CANLI</span>
+      </div>
+    </header>
+
+    <main id="screen" style="flex:1;overflow-y:auto;padding:18px 20px 28px"></main>
   </div>
 </div>
 
 <script>
-// ── BOT KATALOĞU ──────────────────────────────────────────────────────────────
-const BOTLAR = {
-  // SİNYAL BOTLARI — yön verir, win rate ölçülür
-  "OAR Kombo":    {emoji:"⚡",renk:"#f43f5e",desc:"CVD+OI+Funding kombo · akıllı",tip:"sinyal"},
-  "UTBot":        {emoji:"🤖",renk:"#10b981",desc:"ETH/USDT · xATR+STC+RSI · Bybit",tip:"sinyal"},
-  "MA Scanner":   {emoji:"📈",renk:"#f59e0b",desc:"Top100 · MA temas · whale filtre",tip:"sinyal"},
-  "CVD Scanner":  {emoji:"🌊",renk:"#8b5cf6",desc:"Top100 · CVD+OI skor ≥65",tip:"sinyal"},
-  "Asia Ekstrem": {emoji:"🌏",renk:"#3b82f6",desc:"Top20 · Asia fib ekstrem",tip:"sinyal"},
-  // BİLGİ BOTLARI — alarm/izleme, win rate YOK
-  "Balina Bot":   {emoji:"🐋",renk:"#06b6d4",desc:"Whale akışı · 1000+ BTC izleme",tip:"bilgi"},
-  "Volume Bot":   {emoji:"📊",renk:"#ec4899",desc:"Hacim+OI+VWAP LONG taraması",tip:"sinyal"},
-  "Korelasyon":   {emoji:"🔗",renk:"#84cc16",desc:"BTC vs NQ/SP500/DXY rejim",tip:"bilgi"},
-  "Whale Tracker":{emoji:"🏦",renk:"#f97316",desc:"ETF cüzdan izleme (IBIT/ETHA)",tip:"bilgi"},
-  "Makro Alarm":  {emoji:"📐",renk:"#a855f7",desc:"Opsiyon seviyeleri CW/PW/ZG",tip:"bilgi"},
-};
+// ════════════ STATE ════════════
+const ST = {tab:'leader', clock:'', chat:[], feed:[], signals:[], report:{}, ctx:{}, theories:[], selTheory:null, kbQuery:''};
+const API = '';
 
-let allSignals=[];
+const NAV = [
+  {id:'leader',  icon:'◆', label:'Komuta Merkezi'},
+  {id:'agents',  icon:'⬡', label:'Agentlar & Botlar'},
+  {id:'theory',  icon:'⚗', label:'Theory Lab'},
+  {id:'options', icon:'∑', label:'Options & GEX'},
+  {id:'knowledge',icon:'⛁', label:'Bilgi / Hafıza'},
+  {id:'live',    icon:'◈', label:'Canlı Panel'},
+];
 
-// ── SİNYALLER (sunucu diskinden) ──────────────────────────────────────────────
-async function loadSignals(){
-  try{
-    const r=await fetch('/api/leader/signals?limit=300');
-    const d=await r.json();
-    allSignals=d.signals||[];
-    document.getElementById('sinyal-sayac').textContent=`${d.total||0} sinyal toplandı`;
-    setDot('bot', allSignals.length>0?'ok':'warn');
-    renderBots();
-  }catch(e){setDot('bot','err');}
+const BOTS = [
+  {name:'OAR Kombo',    tf:'5m',  dot:'#f43f5e', tip:'sinyal'},
+  {name:'OAR Pattern',  tf:'15m', dot:'#1ff0ad', tip:'sinyal'},
+  {name:'UTBot',        tf:'5m',  dot:'#1ff0ad', tip:'sinyal'},
+  {name:'MA Scanner',   tf:'1d',  dot:'#ffb13c', tip:'sinyal'},
+  {name:'CVD Scanner',  tf:'10m', dot:'#8b5cf6', tip:'sinyal'},
+  {name:'Asia Ekstrem', tf:'15m', dot:'#56a8ff', tip:'sinyal'},
+  {name:'Volume Bot',   tf:'1h',  dot:'#ec4899', tip:'sinyal'},
+  {name:'Balina Bot',   tf:'tick',dot:'#06b6d4', tip:'bilgi'},
+  {name:'Korelasyon',   tf:'1d',  dot:'#84cc16', tip:'bilgi'},
+  {name:'Whale Tracker',tf:'tick',dot:'#f97316', tip:'bilgi'},
+  {name:'Makro Alarm',  tf:'4h',  dot:'#a855f7', tip:'bilgi'},
+];
+
+// ════════════ HELPERS ════════════
+const $ = id => document.getElementById(id);
+async function jget(u){try{const r=await fetch(API+u);return await r.json();}catch(e){return null;}}
+async function jpost(u,b){try{const r=await fetch(API+u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});return await r.json();}catch(e){return null;}}
+function esc(s){return (s||'').replace(/</g,'&lt;');}
+function fmtNum(n){return Number(n).toLocaleString('en-US');}
+
+// Sparkline SVG
+function spark(vals,color,w,hh){
+  if(!vals||vals.length<2)return '';
+  const min=Math.min(...vals),max=Math.max(...vals),rng=(max-min)||1;
+  const pts=vals.map((v,i)=>[(i/(vals.length-1))*w,hh-2-((v-min)/rng)*(hh-4)]);
+  const line='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L ');
+  const id='sp'+Math.round(Math.random()*1e6);
+  return `<svg width="100%" height="${hh}" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" style="display:block">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${line} L ${w} ${hh} L 0 ${hh} Z" fill="url(#${id})"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 }
 
-function renderBots(){
-  const grid=document.getElementById('bots-grid');
-  const botSig={};
-  allSignals.forEach(s=>{
-    // Bot adı eşleştirme — kısmi eşleşme destekle
-    let botAdi=s.bot||'Diğer';
-    const bilinen=Object.keys(BOTLAR).find(b=>botAdi.toLowerCase().includes(b.toLowerCase())||b.toLowerCase().includes(botAdi.toLowerCase()));
-    if(bilinen)botAdi=bilinen;
-    if(!botSig[botAdi])botSig[botAdi]=[];
-    botSig[botAdi].push(s);
-  });
-
-  let html='';
-  // Sinyal botları önce
-  html+='<div style="grid-column:1/-1;font-size:.66rem;font-weight:800;color:var(--green);text-transform:uppercase;padding:2px 4px">📡 Sinyal Botları — yön verir, performans ölçülür</div>';
-  Object.entries(BOTLAR).filter(([a,i])=>i.tip==='sinyal').forEach(([ad,info])=>{
-    html+=botKart(ad,info,botSig[ad]||[]);
-    delete botSig[ad];
-  });
-  html+='<div style="grid-column:1/-1;font-size:.66rem;font-weight:800;color:var(--cyan);text-transform:uppercase;padding:8px 4px 2px">📰 Bilgi & İzleme Botları — bağlam sağlar, kombo motorunu besler</div>';
-  Object.entries(BOTLAR).filter(([a,i])=>i.tip==='bilgi').forEach(([ad,info])=>{
-    html+=botKart(ad,info,botSig[ad]||[]);
-    delete botSig[ad];
-  });
-  // Katalog dışı botlar (varsa)
-  Object.entries(botSig).forEach(([ad,sigs])=>{
-    html+=botKart(ad,{emoji:'🤖',renk:'var(--muted2)',desc:'Harici bot'},sigs);
-  });
-  grid.innerHTML=html;
+// ════════════ NAV + RAIL ════════════
+function renderNav(){
+  $('nav').innerHTML = NAV.map(n=>`
+    <button class="navbtn ${ST.tab===n.id?'active':''}" onclick="go('${n.id}')">
+      <span style="width:17px;display:flex;justify-content:center;flex-shrink:0">${n.icon}</span>
+      <span style="flex:1;text-align:left">${n.label}</span>
+    </button>`).join('');
 }
+function renderRail(){
+  const aktif = BOTS.filter(b=>(ST.signals||[]).some(s=>(s.bot||'').toLowerCase().includes(b.name.toLowerCase().split(' ')[0].toLowerCase())));
+  $('botcount').textContent = `${BOTS.length} / 10`;
+  $('botrail').innerHTML = BOTS.map(b=>`
+    <div style="display:flex;align-items:center;gap:8px;font-size:10px">
+      <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${b.dot};box-shadow:0 0 6px ${b.dot};animation:oarpulse 2.4s infinite"></span>
+      <span style="flex:1;color:#8a9c99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</span>
+      <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
+    </div>`).join('');
+}
+function go(tab){ST.tab=tab;renderNav();render();}
 
-function botKart(ad,info,sigs){
-  const son=sigs.slice(-15).reverse();
-  const bilgiBotu=info.tip==='bilgi';
-  const degerli=sigs.filter(s=>['WIN','LOSS'].includes(s.outcome));
-  const wins=degerli.filter(s=>s.outcome==='WIN').length;
-  const wr=degerli.length>0?Math.round(wins/degerli.length*100):null;
-  const wrC=wr===null?'var(--muted)':wr>=60?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
-  const bekleyen=sigs.filter(s=>!s.outcome).length;
-  const dotCls=sigs.length>0?'ok':'warn';
-  
-  // Bilgi botları: son aktivite zamanı
-  let sonAktivite='—';
-  if(sigs.length){
-    const sonSig=sigs[sigs.length-1];
-    sonAktivite=fmtZaman(sonSig.time);
+// ════════════ TICKER ════════════
+async function loadTicker(){
+  const d = await jget('/api/market');
+  let items = [];
+  if(d && d.coins){
+    items = d.coins.slice(0,8).map(c=>({sym:c.symbol||c.name,price:'$'+fmtNum(Math.round(c.price||c.current_price||0)),chg:((c.change24h||c.price_change_percentage_24h||0)).toFixed(1)+'%',col:(c.change24h||c.price_change_percentage_24h||0)>=0?'#1ff0ad':'#ff5d6c'}));
   }
-  
-  // KPI satırı tipe göre
-  const kpiHtml=bilgiBotu
-    ? `<div class="bot-kpis">
-        <div class="bot-kpi"><div class="bot-kpi-num" style="color:var(--cyan)">${sigs.length}</div><div class="bot-kpi-lbl">BİLDİRİM</div></div>
-        <div class="bot-kpi" style="grid-column:span 2"><div class="bot-kpi-num" style="font-size:.68rem;color:var(--muted2)">${sonAktivite}</div><div class="bot-kpi-lbl">SON AKTİVİTE</div></div>
-      </div>`
-    : `<div class="bot-kpis">
-        <div class="bot-kpi"><div class="bot-kpi-num" style="color:${wrC}">${wr===null?'—':wr+'%'}</div><div class="bot-kpi-lbl">WIN RATE</div></div>
-        <div class="bot-kpi"><div class="bot-kpi-num">${sigs.length}</div><div class="bot-kpi-lbl">SİNYAL</div></div>
-        <div class="bot-kpi"><div class="bot-kpi-num" style="color:var(--gold)">${bekleyen}</div><div class="bot-kpi-lbl">BEKLEYEN</div></div>
-      </div>`;
+  if(!items.length){
+    // Binance fallback
+    const r = await jget('/api/market');
+    items=[{sym:'BTC',price:'—',chg:'',col:'#9fb0ad'}];
+  }
+  const html = items.map(t=>`<span style="display:inline-flex;align-items:center;gap:7px;padding:0 15px;border-right:1px solid #131918;height:46px">
+    <span style="color:#9fb0ad;font-weight:600">${t.sym}</span><span style="color:#cdd9d8">${t.price}</span><span style="color:${t.col};font-size:11px">${t.chg}</span></span>`).join('');
+  $('ticker').innerHTML = html+html;
+}
 
-  const sigHtml=son.slice(0,10).map(s=>{
-    const dir=(s.direction||'?').toUpperCase();
-    const dirCls=['LONG','ALIS'].includes(dir)?'long':['SHORT','SATIS'].includes(dir)?'short':'other';
-    const zaman=fmtZaman(s.time);
-    if(bilgiBotu){
-      // Bilgi botu: bildirim formatı — outcome yok
-      const detay=(s.detail||'').slice(0,60);
-      return `<div class="sig-row">
-        <span class="sig-dir ${dirCls}">${dir}</span>
-        <span style="color:var(--text);font-weight:600">${s.symbol||''}</span>
-        <span style="color:var(--muted2);font-size:.6rem;flex:1">${detay}</span>
-        <span style="color:var(--muted);font-size:.58rem">${zaman}</span>
-      </div>`;
-    }
-    const out=s.outcome;
-    const outCls=out==='WIN'?'win':out==='LOSS'?'loss':out==='FLAT'?'flat':'pending';
-    const outTxt=out==='WIN'?'✓ WIN':out==='LOSS'?'✗ LOSS':out==='FLAT'?'— FLAT':'⏳';
-    const chg=s.change_pct!=null?` ${s.change_pct>0?'+':''}${s.change_pct}%`:'';
-    const guven=s.guven==='YUKSEK'?' 🔥':s.guven==='DUSUK'?' ⚠':'';
-    return `<div class="sig-row">
-      <span class="sig-dir ${dirCls}">${dir}${guven}</span>
-      <span style="color:var(--text);font-weight:600">${s.symbol||''}</span>
-      <span style="color:var(--muted);font-size:.6rem">${zaman}</span>
-      <span class="sig-out ${outCls}">${outTxt}${chg}</span>
-    </div>`;
-  }).join('');
+function tickClock(){
+  const now=new Date();
+  const tr=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Istanbul'}));
+  ST.clock=tr.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if($('clock'))$('clock').textContent=ST.clock;
+}
 
-  return `<div class="bot-card">
-    <div class="bot-card-head">
-      <span class="bot-emoji">${info.emoji}</span>
-      <div>
-        <div class="bot-card-name" style="color:${info.renk}">${ad}</div>
-        <div class="bot-card-desc">${info.desc}</div>
+// ════════════ SCREENS ════════════
+function render(){
+  const m=$('screen');
+  if(ST.tab==='leader')m.innerHTML=scrLeader();
+  else if(ST.tab==='agents')m.innerHTML=scrAgents();
+  else if(ST.tab==='theory')m.innerHTML=scrTheory();
+  else if(ST.tab==='options')m.innerHTML=scrOptions();
+  else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
+  else if(ST.tab==='live')m.innerHTML=scrLive();
+}
+
+// ─── KOMUTA MERKEZİ ───
+function scrLeader(){
+  const ctx=ST.ctx||{}, reg=ctx.regime||{}, ms=ctx.move_source||{}, score=ctx.oar_score||{};
+  const rep=ST.report||{}, bt=rep.backtest||{}, ozet=rep.ozet||{}, research=rep.research||{};
+  const regColor = reg.rejim==='TREND'?'#1ff0ad':reg.rejim==='RANGE'?'#ffb13c':reg.rejim==='EXPANSION'?'#56a8ff':reg.rejim==='REVERSAL'?'#ff5d6c':'#9fb0ad';
+  const wr=ozet.genel_win_rate||bt.genel_win_rate||0;
+
+  const stats=[
+    {label:'GENEL WIN RATE',value:wr+'%',sub:`${bt.degerlendirilmis||0} işlem`,col:wr>=60?'#1ff0ad':wr>=45?'#ffb13c':'#ff5d6c'},
+    {label:'OAR SCORE',value:(score.skor||'—'),sub:'/100 '+(score.kalite||''),col:(score.skor>=75)?'#1ff0ad':(score.skor>=55)?'#ffb13c':'#ff5d6c'},
+    {label:'TOPLAM SİNYAL',value:bt.toplam_sinyal||0,sub:'kayıt',col:'#cdd9d8'},
+    {label:'MOVE SOURCE',value:(ms.spot_pct!=null?ms.spot_pct+'%':'—'),sub:'spot',col:ms.kaynak==='SPOT-DRIVEN'?'#1ff0ad':'#ffb13c'},
+  ];
+
+  const botStats=bt.bot_stats||{};
+  const confirm = Object.entries(botStats).slice(0,3).map(([b,s])=>({sym:b.slice(0,10),dir:(s.LONG&&s.LONG.w>=(s.SHORT?s.SHORT.w:0))?'LONG':'SHORT',wr:(s.win_rate||0)+'%'}));
+
+  const briefing = [];
+  (research.oneriler||ozet.oneriler||[]).slice(0,3).forEach(o=>briefing.push({icon:'▸',col:'#1ff0ad',txt:o}));
+  if(rep.ai_yorum)briefing.unshift({icon:'🤖',col:'#56a8ff',txt:rep.ai_yorum.slice(0,200)});
+  if(!briefing.length)briefing.push({icon:'·',col:'#5e716f',txt:'Rapor üretmek için "Rapor Üret" butonuna basın veya saatlik raporu bekleyin.'});
+
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Komuta Merkezi</h1>
+    <span style="font-size:11px;color:#5e716f">Lider Agent · 3 katmanlı orkestrasyon</span>
+    <button onclick="raporUret()" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:7px 14px;font-weight:600;font-size:11px;cursor:pointer">⚡ Rapor Üret</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.4fr 1.1fr 1.5fr;gap:13px;margin-bottom:13px">
+    <div class="card" style="padding:17px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:13px">
+        <span class="sg" style="font-size:9.5px;letter-spacing:.16em;color:#5e716f">PİYASA REJİMİ</span>
+        <span style="font-size:9px;color:#5e716f">Market Context · 1d ATR</span>
       </div>
-      <span class="bot-dot" style="background:var(--${dotCls==='ok'?'green':'gold'})"></span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="sg" style="font-weight:700;font-size:30px;line-height:1;color:${regColor}">${reg.rejim||'—'}</div>
+        ${reg.atr_durum?`<span style="font-size:10px;color:#ff8a3c;border:1px solid #4a2a22;background:#1a100c;padding:3px 8px;border-radius:5px">ATR ${reg.atr_durum}</span>`:''}
+      </div>
+      <div style="font-size:10.5px;color:#7d908d;line-height:1.5;margin-top:12px">${reg.aciklama||'Veri yükleniyor...'}</div>
+      ${reg.gunluk_range_pct?`<div style="margin-top:10px;font-size:10px;color:#5e716f">Günlük range: <span style="color:#cdd9d8">%${reg.gunluk_range_pct}</span> · Trend: <span style="color:#cdd9d8">${reg.trend_yon}</span></div>`:''}
     </div>
-    ${kpiHtml}
-    <div class="bot-sigs">${sigHtml||'<div class="empty-sm">Sinyal bekleniyor</div>'}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:13px">
+      ${stats.map(s=>`<div class="card" style="padding:13px 14px;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="font-size:9px;letter-spacing:.06em;color:#5e716f;line-height:1.3">${s.label}</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:8px">
+          <span class="sg" style="font-weight:700;font-size:23px;line-height:1;color:${s.col}">${s.value}</span>
+          <span style="font-size:9.5px;color:#5e716f">${s.sub}</span>
+        </div></div>`).join('')}
+    </div>
+
+    <div class="card" style="padding:14px 15px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.16em;color:#5e716f;margin-bottom:10px">OAR SCORE DETAYI · 100 PUAN</div>
+      ${score.detay?Object.entries(score.detay).map(([k,v])=>`
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+          <span style="font-size:10px;color:#8a9c99;width:110px;flex-shrink:0">${k}</span>
+          <div style="flex:1;height:6px;border-radius:3px;background:#141d1b;overflow:hidden">
+            <div style="width:${v.puan/v.max*100}%;height:100%;background:linear-gradient(90deg,#1ff0ad,#0a8f66)"></div>
+          </div>
+          <span style="font-size:10px;color:#9fb0ad;width:38px;text-align:right">${v.puan}/${v.max}</span>
+        </div>`).join(''):'<div style="font-size:10px;color:#5e716f">Skor hesaplanıyor...</div>'}
+    </div>
+  </div>
+
+  <!-- AGENT İLETİŞİM AĞI -->
+  <div class="card" style="background:#0b1010;padding:16px 17px;margin-bottom:13px">
+    <div class="sg" style="font-size:9.5px;letter-spacing:.16em;color:#5e716f;margin-bottom:15px">AGENT İLETİŞİM AĞI — ORTAK HAFIZA ÜZERİNDEN</div>
+    <div style="display:flex;justify-content:center;margin-bottom:14px">
+      <div style="background:linear-gradient(140deg,#11201b,#0c1814);border:1px solid #1ff0ad;border-radius:9px;padding:11px 22px;text-align:center;box-shadow:0 0 22px rgba(31,240,173,.12)">
+        <div class="sg" style="font-weight:700;font-size:13px;color:#7af0c4">◆ LİDER AGENT</div>
+        <div style="font-size:9.5px;color:#5e716f;margin-top:3px">orkestrasyon · rapor · sohbet · görev dağıtımı</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:13px">
+      <div style="background:#0a0f0f;border:1px solid #1e2a27;border-radius:8px;padding:12px 13px">
+        <div class="sg" style="font-weight:600;font-size:11.5px;color:#56a8ff;display:flex;align-items:center;gap:7px"><span style="width:7px;height:7px;border-radius:50%;background:#56a8ff;box-shadow:0 0 7px #56a8ff"></span>Research Agent</div>
+        <div style="font-size:10px;color:#7d908d;line-height:1.45;margin-top:7px">Matematiksel pattern analizi → hipotez üretir.</div>
+      </div>
+      <div style="background:linear-gradient(140deg,#101a17,#0a1311);border:1px solid #274039;border-radius:8px;padding:12px 13px;text-align:center">
+        <div class="sg" style="font-weight:700;font-size:12px;color:#1ff0ad">⛁ SHARED MEMORY</div>
+        <div style="font-size:9.5px;color:#7d908d;margin-top:5px">agent_memory.json — ortak bilgi bankası</div>
+      </div>
+      <div style="background:#0a0f0f;border:1px solid #1e2a27;border-radius:8px;padding:12px 13px">
+        <div class="sg" style="font-weight:600;font-size:11.5px;color:#ffb13c;display:flex;align-items:center;gap:7px"><span style="width:7px;height:7px;border-radius:50%;background:#ffb13c;box-shadow:0 0 7px #ffb13c"></span>Backtest Agent</div>
+        <div style="font-size:10px;color:#7d908d;line-height:1.45;margin-top:7px">WIN/LOSS değerlendirir, kombo sinyal üretir.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1.15fr;gap:13px">
+    <div class="card" style="padding:15px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4;margin-bottom:12px">⬡ BOT PERFORMANSI</div>
+      ${confirm.length?confirm.map(c=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #131918">
+        <span style="font-weight:600;color:#cdd9d8;font-size:11px;width:80px;flex-shrink:0">${c.sym}</span>
+        <span style="font-size:9.5px;font-weight:600;color:${c.dir==='LONG'?'#1ff0ad':'#ff5d6c'};border:1px solid #1a2422;padding:2px 7px;border-radius:4px">${c.dir}</span>
+        <span class="sg" style="margin-left:auto;font-weight:700;font-size:13px;color:#1ff0ad">${c.wr}</span></div>`).join(''):'<div style="font-size:10px;color:#5e716f">Henüz değerlendirilmiş sinyal yok.</div>'}
+    </div>
+    <div class="card" style="padding:15px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">LİDER RAPORU</span>
+        <span style="font-size:9px;color:#56a8ff">🤖 Gemini 2.5</span>
+      </div>
+      ${briefing.map(b=>`<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+        <span style="font-size:12px;flex-shrink:0;color:${b.col}">${b.icon}</span>
+        <span style="font-size:10.5px;color:#a8b8b5;line-height:1.45">${esc(b.txt)}</span></div>`).join('')}
+    </div>
   </div>`;
 }
 
-function fmtZaman(t){
-  if(!t)return'';
-  try{
-    const d=new Date(t.includes('T')?t:t.replace(' ','T'));
-    return d.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  }catch(e){return t.slice(5,16);}
-}
+// ─── AGENTLAR & BOTLAR ───
+function scrAgents(){
+  const bt=(ST.report||{}).backtest||{}, botStats=bt.bot_stats||{};
+  const sigByBot={};
+  (ST.signals||[]).forEach(s=>{
+    let bn=s.bot||'Diğer';
+    const known=BOTS.find(b=>bn.toLowerCase().includes(b.name.toLowerCase().split(' ')[0].toLowerCase()));
+    if(known)bn=known.name;
+    (sigByBot[bn]=sigByBot[bn]||[]).push(s);
+  });
 
-// ── LİDER AGENT ───────────────────────────────────────────────────────────────
-async function loadLeader(){
-  try{
-    const r=await fetch('/api/leader/report');
-    const d=await r.json();
-    if(d.durum==='henuz_rapor_yok'){
-      document.getElementById('leader-area').innerHTML=
-        `<div class="empty-sm">Henüz rapor üretilmedi.<br><br><button class="icon-mini" onclick="raporUret()">⚡ İlk Raporu Üret</button></div>`;
-      setDot('leader','warn');
-      return;
-    }
-    setDot('leader','ok');
-    renderLeader(d);
-  }catch(e){setDot('leader','err');}
-}
-
-function renderLeader(d){
-  const b=d.backtest||{};
-  const ozet=d.ozet||{};
-  const research=d.research||{};
-  const wr=ozet.genel_win_rate||b.genel_win_rate||0;
-  const wrC=wr>=60?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
-
-  let html=`<div class="kpi-grid">
-    <div class="kpi"><div class="kpi-num" style="color:${wrC}">${wr}%</div><div class="kpi-lbl">GENEL WIN RATE</div></div>
-    <div class="kpi"><div class="kpi-num" style="color:var(--blue)">${b.degerlendirilmis||0}</div><div class="kpi-lbl">DEĞERLENDİRİLEN</div></div>
-    <div class="kpi"><div class="kpi-num">${b.toplam_sinyal||0}</div><div class="kpi-lbl">TOPLAM SİNYAL</div></div>
-    <div class="kpi"><div class="kpi-num" style="color:var(--purple)">${ozet.bekleyen_gorev||0}</div><div class="kpi-lbl">GÖREV</div></div>
-  </div>`;
-
-  // Bot bazında özet tablo
-  const botStats=b.bot_stats||{};
-  if(Object.keys(botStats).length){
-    html+=`<div class="sec-title" style="color:var(--gold)">BOT PERFORMANSI</div>`;
-    Object.entries(botStats).forEach(([bot,st])=>{
-      const bwr=st.win_rate||0;
-      const bC=bwr>=60?'var(--green)':bwr>=45?'var(--gold)':'var(--red)';
-      const son5=(st.son_5||[]).map(x=>x==='W'?'<span style="color:var(--green)">●</span>':'<span style="color:var(--red)">●</span>').join('');
-      html+=`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--surface2);font-size:.68rem">
-        <span style="font-weight:700">${bot}</span>
-        <span><span style="color:${bC};font-weight:800">${bwr}%</span> <span style="color:var(--muted);font-size:.58rem">(${st.total})</span> ${son5}</span>
+  const card=(b)=>{
+    const sigs=sigByBot[b.name]||[];
+    const stat=botStats[b.name]||{};
+    const son=sigs.slice(-8).reverse();
+    const bilgi=b.tip==='bilgi';
+    const wr=stat.win_rate!=null?stat.win_rate:null;
+    const wrC=wr==null?'#5e716f':wr>=60?'#1ff0ad':wr>=45?'#ffb13c':'#ff5d6c';
+    const sigHtml=son.length?son.map(s=>{
+      const dir=(s.direction||'?').toUpperCase();
+      const dc=['LONG','ALIS'].includes(dir)?'#1ff0ad':['SHORT','SATIS'].includes(dir)?'#ff5d6c':'#8b5cf6';
+      const o=s.outcome,oc=o==='WIN'?'#1ff0ad':o==='LOSS'?'#ff5d6c':o==='FLAT'?'#ffb13c':'#5e716f';
+      const ot=o==='WIN'?'✓':o==='LOSS'?'✗':o==='FLAT'?'—':'⏳';
+      return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #131918;font-size:10px">
+        <span style="font-weight:600;color:${dc};width:42px">${dir}</span>
+        <span style="color:#9fb0ad;flex:1">${s.symbol||''}</span>
+        ${bilgi?`<span style="color:#5e716f;font-size:9px">${(s.detail||'').slice(0,22)}</span>`:`<span style="color:${oc}">${ot}${s.change_pct!=null?' '+s.change_pct+'%':''}</span>`}
       </div>`;
-    });
-  }
+    }).join(''):'<div style="font-size:9.5px;color:#4a5b59;padding:8px 0">Sinyal bekleniyor</div>';
 
-  // Bulgular
-  const bulgular=research.bulgular||[];
-  if(bulgular.length){
-    html+=`<div class="sec-title" style="color:var(--red)">🔍 RESEARCH BULGULAR</div>`;
-    bulgular.slice(0,3).forEach(bl=>{
-      html+=`<div class="bulgu-item ${bl.etki||''}">
-        <div style="font-weight:700;color:var(--text)">${bl.bot}</div>
-        <div style="color:var(--muted2);margin-top:2px">${bl.bulgu}</div>
-        ${bl.oneri?`<div style="color:var(--blue);margin-top:3px;font-size:.62rem">→ ${bl.oneri}</div>`:''}
-      </div>`;
-    });
-  }
-
-  // Hipotezler
-  const hipotezler=research.hipotezler||[];
-  if(hipotezler.length){
-    html+=`<div class="sec-title" style="color:var(--blue)">🧪 TEST EDİLECEK HİPOTEZLER</div>`;
-    hipotezler.slice(0,2).forEach(h=>{
-      html+=`<div class="mini-card" style="font-size:.65rem">
-        <div style="font-weight:700">${h.hipotez}</div>
-        <div style="color:var(--muted);margin-top:3px">${h.test_yontemi}</div>
-      </div>`;
-    });
-  }
-
-  // Öneriler
-  const oneriler=research.oneriler||[];
-  if(oneriler.length){
-    html+=`<div class="sec-title" style="color:var(--green)">💡 ÖNERİLER</div>`;
-    oneriler.slice(0,3).forEach(o=>{
-      html+=`<div style="font-size:.65rem;color:#93c5fd;padding:3px 0">• ${o}</div>`;
-    });
-  }
-
-  // AI Yorum
-  if(d.ai_yorum){
-    html+=`<details style="margin-top:8px">
-      <summary style="cursor:pointer;color:var(--purple);font-size:.68rem;font-weight:700">🤖 AI Tam Rapor</summary>
-      <div style="margin-top:6px;padding:8px;background:var(--surface2);border-radius:6px;
-      font-size:.65rem;color:var(--muted2);line-height:1.7;white-space:pre-wrap">${d.ai_yorum}</div>
-    </details>`;
-  }
-
-  if(d.tarih){
-    html+=`<div style="color:var(--muted);font-size:.58rem;text-align:right;margin-top:8px">
-      ${new Date(d.tarih).toLocaleString('tr-TR')}</div>`;
-  }
-
-  document.getElementById('leader-area').innerHTML=html;
-}
-
-async function raporUret(){
-  document.getElementById('leader-area').innerHTML='<div class="empty-sm">⏳ Rapor üretiliyor...<br>(AI analizi 10-20 saniye sürebilir)</div>';
-  try{
-    await fetch('/api/leader/report',{method:'POST'});
-    await loadLeader();
-  }catch(e){
-    document.getElementById('leader-area').innerHTML='<div class="empty-sm" style="color:var(--red)">Rapor üretilemedi</div>';
-  }
-}
-
-// ── OPSİYON VERİLERİ (backend proxy üzerinden — CORS yok) ─────────────────────
-async function loadOpsiyon(){
-  const area=document.getElementById('ops-area');
-  try{
-    const [levelsR,macroR]=await Promise.all([
-      fetch('/api/vercel/alarm-levels'),
-      fetch('/api/vercel/macro')
-    ]);
-    const levels=await levelsR.json();
-    const macro=await macroR.json();
-
-    if(levels.error&&macro.error){
-      area.innerHTML=`<div class="empty-sm" style="color:var(--red)">Opsiyon API hatası:<br>${levels.error}</div>`;
-      setDot('vercel','err');
-      return;
-    }
-    setDot('vercel','ok');
-
-    let html='';
-
-    // Seviyeler — vade dilimli yapı varsa göster
-    const dilimler=levels.dilimler||levels;
-    const genel=levels.genel||dilimler.genel||dilimler;
-    if(genel&&(genel.call_wall||genel.CW)){
-      html+=`<div class="sec-title" style="color:var(--cyan);margin-top:0">SEVİYELER (GENEL)</div>`;
-      const cw=genel.call_wall||genel.CW, pw=genel.put_wall||genel.PW, zg=genel.zero_gamma||genel.ZG, mp=genel.max_pain||genel.maxPain;
-      if(cw)html+=`<div class="ops-row"><span class="ops-lbl">🔵 Call Wall</span><span class="ops-val" style="color:var(--blue)">$${Number(cw).toLocaleString()}</span></div>`;
-      if(pw)html+=`<div class="ops-row"><span class="ops-lbl">🟠 Put Wall</span><span class="ops-val" style="color:var(--gold)">$${Number(pw).toLocaleString()}</span></div>`;
-      if(zg)html+=`<div class="ops-row"><span class="ops-lbl">🟢 Zero Gamma</span><span class="ops-val" style="color:var(--green)">$${Number(zg).toLocaleString()}</span></div>`;
-      if(mp)html+=`<div class="ops-row"><span class="ops-lbl">🎯 Max Pain</span><span class="ops-val">$${Number(mp).toLocaleString()}</span></div>`;
-    }
-
-    // Vade dilimleri
-    ['kisa','orta','uzun'].forEach(dilim=>{
-      const d2=dilimler[dilim]||dilimler[dilim+'_vade'];
-      if(d2&&(d2.call_wall||d2.CW)){
-        const adlar={kisa:'0-7 GÜN',orta:'8-45 GÜN',uzun:'45+ GÜN'};
-        html+=`<div class="sec-title" style="color:var(--muted2)">${adlar[dilim]}</div>`;
-        const cw=d2.call_wall||d2.CW,pw=d2.put_wall||d2.PW;
-        if(cw)html+=`<div class="ops-row"><span class="ops-lbl">CW</span><span class="ops-val">$${Number(cw).toLocaleString()}</span></div>`;
-        if(pw)html+=`<div class="ops-row"><span class="ops-lbl">PW</span><span class="ops-val">$${Number(pw).toLocaleString()}</span></div>`;
-      }
-    });
-
-    // Makro
-    if(macro&&!macro.error){
-      const gostergeler=macro.gostergeler||macro.indicators||macro;
-      if(typeof gostergeler==='object'){
-        html+=`<div class="sec-title" style="color:var(--purple)">MAKRO</div>`;
-        let say=0;
-        Object.entries(gostergeler).forEach(([k,v])=>{
-          if(say>=6)return;
-          if(typeof v==='object'&&v!==null){
-            const val=v.deger||v.value||v.son||'';
-            if(val!==''){html+=`<div class="ops-row"><span class="ops-lbl">${k}</span><span class="ops-val">${val}</span></div>`;say++;}
-          }else if(typeof v==='number'||typeof v==='string'){
-            html+=`<div class="ops-row"><span class="ops-lbl">${k}</span><span class="ops-val">${v}</span></div>`;say++;
-          }
-        });
-      }
-    }
-
-    area.innerHTML=html||'<div class="empty-sm">Veri formatı tanınamadı</div>';
-  }catch(e){
-    area.innerHTML=`<div class="empty-sm" style="color:var(--red)">Bağlantı hatası</div>`;
-    setDot('vercel','err');
-  }
-}
-
-// ── SOHBET ────────────────────────────────────────────────────────────────────
-function hizliSor(q){document.getElementById('chat-input').value=q;sendMsg();}
-
-async function sendMsg(){
-  const inp=document.getElementById('chat-input');
-  const soru=inp.value.trim();
-  if(!soru)return;
-  inp.value='';
-  const msgs=document.getElementById('chat-msgs');
-  msgs.innerHTML+=`<div class="msg user">${soru}</div><div class="msg agent" id="typing">⏳ Analiz ediliyor...</div>`;
-  msgs.scrollTop=msgs.scrollHeight;
-  try{
-    const r=await fetch('/api/leader/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soru})});
-    const d=await r.json();
-    document.getElementById('typing').outerHTML=`<div class="msg agent">${(d.cevap||'Yanıt yok').replace(/\n/g,'<br>')}</div>`;
-  }catch(e){
-    document.getElementById('typing').outerHTML=`<div class="msg agent" style="color:var(--red)">Hata</div>`;
-  }
-  msgs.scrollTop=msgs.scrollHeight;
-}
-
-// ── DURUM PILL ────────────────────────────────────────────────────────────────
-function setDot(ad,durum){
-  const el=document.getElementById('dot-'+ad);
-  if(el)el.className='dot '+durum;
-}
-
-// ── AGENT SAATLİK RAPORLARI (chat'te görünür) ─────────────────────────────────
-let sonRaporTarihi = '';
-
-async function loadAgentRaporlari(){
-  try{
-    const r=await fetch('/api/leader/rapor-gecmisi?limit=6');
-    const d=await r.json();
-    const raporlar=d.raporlar||[];
-    if(!raporlar.length)return;
-    
-    const msgs=document.getElementById('chat-msgs');
-    const renkler={lider:'var(--purple)',backtest:'var(--gold)',research:'var(--cyan)'};
-    const adlar={lider:'🧠 Lider Agent',backtest:'🧪 Backtest Agent',research:'🔍 Research Agent'};
-    
-    raporlar.forEach(rp=>{
-      if(rp.tarih<=sonRaporTarihi)return;  // sadece yenileri ekle
-      const zaman=new Date(rp.tarih).toLocaleString('tr-TR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
-      const metin=(rp.icerik?.metin||'').replace(/\n/g,'<br>');
-      let ekstra='';
-      
-      // Lider: servis durumları
-      if(rp.tip==='lider'&&rp.icerik?.servis_detay){
-        ekstra='<div style="margin-top:4px;font-size:.6rem;color:var(--muted)">'+rp.icerik.servis_detay.join(' · ')+'</div>';
-      }
-      // Backtest: yeni kombolar
-      if(rp.tip==='backtest'&&rp.icerik?.yeni_kombolar?.length){
-        ekstra='<div style="margin-top:4px">'+rp.icerik.yeni_kombolar.map(k=>
-          `<div style="font-size:.62rem;color:var(--gold)">⚡ ${k.sembol} ${k.yon} — ${k.detay}</div>`).join('')+'</div>';
-      }
-      // Research: bulgular
-      if(rp.tip==='research'&&rp.icerik?.bulgular?.length){
-        ekstra='<div style="margin-top:4px">'+rp.icerik.bulgular.map(b=>
-          `<div style="font-size:.62rem;color:var(--muted2)">• ${b.bulgu||''}</div>`).join('')+'</div>';
-      }
-      
-      msgs.innerHTML+=`<div class="msg agent" style="border-left:3px solid ${renkler[rp.tip]||'var(--border)'}">
-        <div style="font-weight:800;font-size:.64rem;color:${renkler[rp.tip]};margin-bottom:3px">${adlar[rp.tip]||rp.tip} · ${zaman}</div>
-        <div>${metin}</div>${ekstra}
-      </div>`;
-    });
-    
-    if(raporlar.length)sonRaporTarihi=raporlar[raporlar.length-1].tarih;
-    msgs.scrollTop=msgs.scrollHeight;
-  }catch(e){}
-}
-
-// ── TARİHSEL BACKTEST ─────────────────────────────────────────────────────────
-async function hbtCalistir(){
-  const strateji=document.getElementById('hbt-strateji').value;
-  const sembol=document.getElementById('hbt-sembol').value;
-  const gun=document.getElementById('hbt-gun').value;
-  const alan=document.getElementById('hbt-sonuc');
-  alan.innerHTML='<div style="color:var(--gold);font-size:.66rem">⏳ Geçmiş taranıyor... (30-90 sn sürebilir)</div>';
-  try{
-    const r=await fetch('/api/leader/tarihsel-backtest',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({strateji,sembol,gun:parseInt(gun)})});
-    const d=await r.json();
-    if(d.hata){alan.innerHTML=`<div style="color:var(--red);font-size:.66rem">${d.hata}</div>`;return;}
-    const wrC=d.win_rate>=60?'var(--green)':d.win_rate>=45?'var(--gold)':'var(--red)';
-    alan.innerHTML=`<div style="background:var(--surface2);border-radius:6px;padding:7px;font-size:.65rem;line-height:1.7">
-      <div style="font-weight:800;color:${wrC};font-size:.85rem">${d.win_rate}% Win Rate</div>
-      <div>${d.toplam_sinyal} sinyal · ${d.win}W / ${d.loss}L / ${d.flat}F</div>
-      <div>Ort PnL: <b style="color:${d.ort_pnl_pct>0?'var(--green)':'var(--red)'}">${d.ort_pnl_pct>0?'+':''}${d.ort_pnl_pct}%</b> · Toplam: ${d.toplam_pnl_pct>0?'+':''}${d.toplam_pnl_pct}%</div>
-      <div>LONG: %${d.long_wr} (${d.long_n}) · SHORT: %${d.short_wr} (${d.short_n})</div>
-      ${d.en_iyi_saat_utc!==null?`<div>En iyi saat: ${d.en_iyi_saat_utc}:00 UTC</div>`:''}
+    return `<div class="card" style="overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid #18211f">
+        <span style="width:8px;height:8px;border-radius:50%;background:${b.dot};box-shadow:0 0 7px ${b.dot}"></span>
+        <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">${b.name}</span>
+        <span style="font-size:9px;color:#5e716f;margin-left:auto">${b.tf} · ${bilgi?'BİLGİ':'SİNYAL'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#18211f">
+        ${bilgi?`
+          <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:15px;color:#06b6d4">${sigs.length}</div><div style="font-size:8px;color:#5e716f">BİLDİRİM</div></div>
+          <div style="background:#0c1112;padding:8px;text-align:center;grid-column:span 2"><div class="sg" style="font-size:11px;color:#8a9c99">${son.length?(son[0].symbol||'aktif'):'—'}</div><div style="font-size:8px;color:#5e716f">SON</div></div>
+        `:`
+          <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:15px;color:${wrC}">${wr==null?'—':wr+'%'}</div><div style="font-size:8px;color:#5e716f">WIN</div></div>
+          <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:15px;color:#cdd9d8">${sigs.length}</div><div style="font-size:8px;color:#5e716f">SİNYAL</div></div>
+          <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:15px;color:#ffb13c">${sigs.filter(s=>!s.outcome).length}</div><div style="font-size:8px;color:#5e716f">BEKLEYEN</div></div>
+        `}
+      </div>
+      <div style="padding:6px 13px 10px;max-height:130px;overflow-y:auto">${sigHtml}</div>
     </div>`;
-  }catch(e){alan.innerHTML='<div style="color:var(--red);font-size:.66rem">Hata — tekrar dene</div>';}
+  };
+
+  const sinyal=BOTS.filter(b=>b.tip==='sinyal'), bilgi=BOTS.filter(b=>b.tip==='bilgi');
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:14px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Agentlar &amp; Botlar</h1>
+    <span style="font-size:11px;color:#5e716f">${BOTS.length} bot · ${ST.signals.length} sinyal toplandı</span>
+  </div>
+  <div class="sg" style="font-size:10px;letter-spacing:.1em;color:#1ff0ad;margin-bottom:9px">📡 SİNYAL BOTLARI — yön verir, win rate ölçülür</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px;margin-bottom:18px">${sinyal.map(card).join('')}</div>
+  <div class="sg" style="font-size:10px;letter-spacing:.1em;color:#06b6d4;margin-bottom:9px">📰 BİLGİ BOTLARI — bağlam sağlar, kombo motorunu besler</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px">${bilgi.map(card).join('')}</div>`;
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-loadSignals();
-loadLeader();
-loadOpsiyon();
-loadAgentRaporlari();
-setInterval(loadSignals,120000);       // 2 dk
-setInterval(loadLeader,300000);        // 5 dk
-setInterval(loadOpsiyon,300000);       // 5 dk
-setInterval(loadAgentRaporlari,300000);// 5 dk — yeni saatlik raporlar otomatik düşer
+// ─── THEORY LAB ───
+function scrTheory(){
+  const ths=ST.theories||[];
+  const sel=ST.selTheory||ths[0]||{};
+  const sc={Confirmed:['#1ff0ad','#18382c','#0c1c16'],Rejected:['#ff5d6c','#4a2226','#1a0d0e'],Testing:['#ffb13c','#4a3a22','#1a140c'],Draft:['#9fb0ad','#1a2422','#0c1112']};
+  const row=t=>{const s=t.testler&&t.testler.length?t.testler[t.testler.length-1]:{};const col=sc[t.durum]||sc.Draft;
+    return `<div onclick="selTheory('${t.id}')" style="display:grid;grid-template-columns:74px 1fr 92px 56px 52px;gap:10px;padding:10px 15px;border-bottom:1px solid #131918;cursor:pointer;${sel.id===t.id?'background:#0f1716':''}">
+      <span style="font-weight:600;color:#9fb0ad;font-size:11px">${t.id}</span>
+      <span style="font-size:10.5px;color:#c4d2cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.hipotez||'')}</span>
+      <span style="font-size:9px;font-weight:600;color:${col[0]};border:1px solid ${col[1]};background:${col[2]};padding:2px 0;border-radius:4px;text-align:center">${t.durum}</span>
+      <span style="text-align:right;font-weight:600;color:${(s.win_rate>=60)?'#1ff0ad':(s.win_rate>=45)?'#ffb13c':'#ff5d6c'};font-size:12px">${s.win_rate!=null?'%'+s.win_rate:'—'}</span>
+      <span style="text-align:right;color:#9fb0ad;font-size:12px">${s.profit_factor!=null?s.profit_factor:'—'}</span></div>`;
+  };
+  const selT=sel.testler&&sel.testler.length?sel.testler[sel.testler.length-1]:{};
+  const col=sc[sel.durum]||sc.Draft;
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:6px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Theory Lab</h1>
+    <span style="font-size:11px;color:#5e716f">Draft → Testing → Confirmed / Rejected</span>
+  </div>
+  <div style="font-size:10px;color:#5e716f;margin-bottom:14px">≥30 örnek · WR ≥%60 &amp; PF ≥1.5 → Confirmed · &lt;%45 → Rejected (saklanır)</div>
+  <div style="display:grid;grid-template-columns:1.55fr 1.15fr;gap:13px">
+    <div class="card" style="overflow:hidden">
+      <div class="sg" style="display:grid;grid-template-columns:74px 1fr 92px 56px 52px;gap:10px;padding:11px 15px;border-bottom:1px solid #18211f;font-size:9px;letter-spacing:.06em;color:#5e716f">
+        <span>ID</span><span>HİPOTEZ</span><span>DURUM</span><span style="text-align:right">WR</span><span style="text-align:right">PF</span>
+      </div>
+      ${ths.length?ths.map(row).join(''):'<div style="padding:20px;text-align:center;color:#5e716f;font-size:11px">Teoriler yükleniyor...</div>'}
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:13px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span class="sg" style="font-weight:700;font-size:17px;color:#eaf4f2">${sel.id||'—'}</span>
+          <span style="font-size:10px;font-weight:600;color:${col[0]};border:1px solid ${col[1]};background:${col[2]};padding:3px 9px;border-radius:5px">${sel.durum||''}</span>
+        </div>
+        <span style="font-size:10px;color:#5e716f">fib ${sel.fib!=null?sel.fib:'—'} · ${sel.yontem||''}</span>
+      </div>
+      <div style="font-size:12px;color:#c4d2cf;line-height:1.45">${esc(sel.hipotez||'Teori seçin')}</div>
+      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:8px;padding:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px">
+          <span class="sg" style="font-size:9px;letter-spacing:.12em;color:#5e716f">BACKTEST · BTCUSDT · 365 GÜN</span>
+          <span style="font-size:10px;color:#5e716f">${selT.ornek||0} örnek</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div><div style="font-size:9px;color:#5e716f">WIN RATE</div><div class="sg" style="font-weight:600;font-size:15px;color:${(selT.win_rate>=60)?'#1ff0ad':'#ffb13c'};margin-top:3px">${selT.win_rate!=null?'%'+selT.win_rate:'—'}</div></div>
+          <div><div style="font-size:9px;color:#5e716f">PROFIT FACTOR</div><div class="sg" style="font-weight:600;font-size:15px;color:#cdd9d8;margin-top:3px">${selT.profit_factor!=null?selT.profit_factor:'—'}</div></div>
+          <div><div style="font-size:9px;color:#5e716f">ORT PNL</div><div class="sg" style="font-weight:600;font-size:15px;color:${(selT.ort_pnl>0)?'#1ff0ad':'#ff5d6c'};margin-top:3px">${selT.ort_pnl!=null?selT.ort_pnl+'%':'—'}</div></div>
+        </div>
+      </div>
+      <button onclick="teoriTest('${sel.id}')" class="sg" style="background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:9px;font-weight:600;font-size:11px;cursor:pointer">↻ Yeniden Backtest (365g)</button>
+      <div id="teori-durum" style="font-size:10px;color:#5e716f"></div>
+    </div>
+  </div>`;
+}
+
+// ─── OPTIONS & GEX ───
+function scrOptions(){
+  const o=ST.options||{};
+  const levels=o.levels||{}, macro=o.macro||{};
+  const g=levels.genel||levels;
+  const lv=[];
+  const cw=g.call_wall||g.CW, pw=g.put_wall||g.PW, zg=g.zero_gamma||g.ZG, mp=g.max_pain||g.maxPain;
+  if(cw)lv.push({tag:'CW',l:'Call Wall',note:'max call gamma · direnç',v:fmtNum(cw),col:'#1ff0ad'});
+  if(zg)lv.push({tag:'ZG',l:'Zero Gamma',note:'gamma flip · rejim sınırı',v:fmtNum(zg),col:'#ffb13c'});
+  if(pw)lv.push({tag:'PW',l:'Put Wall',note:'max put gamma · destek',v:fmtNum(pw),col:'#ff5d6c'});
+  if(mp)lv.push({tag:'MP',l:'Max Pain',note:'opsiyon ağırlık merkezi',v:fmtNum(mp),col:'#56a8ff'});
+
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Opsiyon &amp; GEX Masası</h1>
+    <span style="font-size:11px;color:#5e716f">Deribit · Vercel options-desk · Makro Alarm botu besler</span>
+    <button onclick="loadOptions()" class="sg" style="margin-left:auto;background:#0a0f0f;border:1px solid #1a2422;color:#9fb0ad;border-radius:7px;padding:7px 12px;font-size:11px;cursor:pointer">🔄 Yenile</button>
+  </div>
+  ${lv.length?`<div style="display:grid;grid-template-columns:repeat(${lv.length},1fr);gap:11px;margin-bottom:13px">
+    ${lv.map(x=>`<div class="card" style="padding:14px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+        <span class="sg" style="font-size:10px;font-weight:700;color:${x.col};border:1px solid ${x.col}44;padding:2px 7px;border-radius:4px">${x.tag}</span>
+        <span style="font-size:10px;color:#8a9c99">${x.l}</span>
+      </div>
+      <div class="sg" style="font-weight:700;font-size:20px;color:#eaf4f2">$${x.v}</div>
+      <div style="font-size:9px;color:#5e716f;margin-top:5px">${x.note}</div>
+    </div>`).join('')}
+  </div>`:'<div class="card" style="padding:30px;text-align:center;color:#5e716f">Opsiyon verisi yükleniyor... (Vercel options-desk bağlantısı)</div>'}
+  <div class="card" style="padding:16px">
+    <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">MAKRO GÖSTERGELER</div>
+    <div id="macro-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:11px">
+      ${renderMacro(macro)}
+    </div>
+  </div>`;
+}
+function renderMacro(macro){
+  const g=macro.gostergeler||macro.indicators||macro;
+  if(!g||typeof g!=='object')return '<div style="font-size:10px;color:#5e716f">Makro veri bekleniyor</div>';
+  let out='',n=0;
+  for(const[k,v]of Object.entries(g)){
+    if(n>=9)break;
+    let val=(typeof v==='object'&&v)?(v.deger||v.value||v.son||''):v;
+    if(val==='')continue;
+    out+=`<div style="background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:10px">
+      <div style="font-size:9px;color:#5e716f">${esc(k)}</div>
+      <div class="sg" style="font-size:14px;color:#cdd9d8;margin-top:4px">${esc(String(val))}</div></div>`;n++;
+  }
+  return out||'<div style="font-size:10px;color:#5e716f">Makro veri bekleniyor</div>';
+}
+
+// ─── BİLGİ / HAFIZA ───
+function scrKnowledge(){
+  const kb=ST.knowledge||{};
+  const docs=kb.documents||[], notes=kb.recent_notes||[];
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Bilgi / Hafıza</h1>
+    <span style="font-size:11px;color:#5e716f">Kalıcı · /var/data · TF-IDF indeksli · silinmez</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px">
+    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">DOKÜMAN</div><div class="sg" style="font-size:22px;color:#56a8ff;margin-top:5px">${docs.length}</div></div>
+    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">NOT</div><div class="sg" style="font-size:22px;color:#ffb13c;margin-top:5px">${notes.length}</div></div>
+    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">SİNYAL HAFIZA</div><div class="sg" style="font-size:22px;color:#1ff0ad;margin-top:5px">${ST.signals.length}</div></div>
+    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">TEORİ</div><div class="sg" style="font-size:22px;color:#7af0c4;margin-top:5px">${ST.theories.length}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+    <div class="card" style="padding:15px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">YÜKLÜ DOKÜMANLAR</div>
+      ${docs.length?docs.slice(0,10).map(d=>`<div style="display:flex;gap:9px;padding:7px 0;border-bottom:1px solid #131918">
+        <span style="color:#56a8ff">▤</span>
+        <div style="min-width:0"><div style="font-size:10.5px;color:#c4d2cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.title||d.name||'?')}</div>
+        <div style="font-size:9px;color:#5e716f">${d.category||'genel'} · ${d.chunks||d.chunk_count||'?'} chunk</div></div>
+      </div>`).join(''):'<div style="font-size:10px;color:#5e716f">Henüz doküman yok. Ana sohbetten PDF yükleyin.</div>'}
+    </div>
+    <div class="card" style="padding:15px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">ÖĞRETİLEN NOTLAR</div>
+      ${notes.length?notes.slice(-10).reverse().map(n=>`<div style="padding:7px 0;border-bottom:1px solid #131918">
+        <div style="font-size:10.5px;color:#c4d2cf;line-height:1.4">${esc((n.text||n.content||'').slice(0,120))}</div>
+      </div>`).join(''):'<div style="font-size:10px;color:#5e716f">Henüz not yok.</div>'}
+    </div>
+  </div>`;
+}
+
+// ─── CANLI PANEL ───
+function scrLive(){
+  const ctx=ST.ctx||{}, ms=ctx.move_source||{}, reg=ctx.regime||{};
+  const ind=[
+    {l:'REJİM',v:reg.rejim||'—',d:reg.atr_durum||'',col:'#1ff0ad'},
+    {l:'OAR SCORE',v:(ctx.oar_score||{}).skor||'—',d:'/100',col:'#7af0c4'},
+    {l:'MOVE SRC',v:ms.kaynak?ms.kaynak.split('-')[0]:'—',d:ms.spot_pct?'%'+ms.spot_pct+' spot':'',col:'#56a8ff'},
+    {l:'F&G',v:ST.fng||'—',d:'',col:'#ffb13c'},
+    {l:'SİNYAL',v:ST.signals.length,d:'toplam',col:'#cdd9d8'},
+    {l:'TOPLULUK',v:'10',d:'aktif bot',col:'#9fb0ad'},
+  ];
+  const feedHtml=(ST.feed||[]).map(f=>`<div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #131918;animation:oarfeedin .4s ease">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:44px">
+      <span style="font-size:9.5px;color:#5e716f">${f.t}</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:${f.col};box-shadow:0 0 8px ${f.col}"></span>
+    </div>
+    <div style="min-width:0"><div class="sg" style="font-weight:600;font-size:11px;color:${f.col}">${f.a}</div>
+    <div style="font-size:11px;color:#b8c6c3;line-height:1.45;margin-top:3px;white-space:pre-wrap">${esc(f.txt)}</div></div>
+  </div>`).join('')||'<div style="font-size:10px;color:#5e716f;padding:14px">Agent feed yükleniyor — saatlik raporlar burada akacak.</div>';
+
+  const chatHtml=(ST.chat||[]).map(m=>{const u=m.role==='user';
+    return `<div style="display:flex;${u?'justify-content:flex-end':'justify-content:flex-start'}">
+      <div style="max-width:90%;border-radius:10px;padding:11px 13px;${u?'background:#11201b;border:1px solid #1c3a2e':'background:#0a0f0f;border:1px solid #18211f'}">
+        <div style="font-size:11.5px;line-height:1.5;color:${u?'#cfeede':'#c4d2cf'};white-space:pre-wrap">${esc(m.txt)}</div>
+      </div></div>`;}).join('')||'<div style="font-size:10px;color:#5e716f;text-align:center;padding:20px">Lider Agent\\'a tüm sistem bağlamıyla soru sorun.</div>';
+
+  const SUG=['Neden bu rejim?','OAR Score neyi gösteriyor?','Hangi botlar teyitli?','Move source ne anlatıyor?'];
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:14px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Canlı Agent Paneli</h1>
+    <span style="font-size:11px;color:#5e716f">Agent feed &amp; Lider sohbeti — tüm sistem bağlamıyla</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin-bottom:13px">
+    ${ind.map(i=>`<div class="card" style="padding:11px 12px">
+      <div style="font-size:9px;letter-spacing:.08em;color:#5e716f">${i.l}</div>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-top:6px">
+        <span class="sg" style="font-weight:600;font-size:15px;color:${i.col}">${i.v}</span>
+        <span style="font-size:10px;color:#5e716f">${i.d}</span></div></div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:13px;height:calc(100vh - 250px);min-height:420px">
+    <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:13px 15px;border-bottom:1px solid #18211f;display:flex;justify-content:space-between;flex-shrink:0">
+        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">AGENT FEED — ortak hafızaya canlı yazım</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#1ff0ad"><span style="width:6px;height:6px;border-radius:50%;background:#1ff0ad;animation:oarblink 1.6s infinite"></span>akıyor</span>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:6px 15px 15px">${feedHtml}</div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:13px 15px;border-bottom:1px solid #18211f;display:flex;align-items:center;gap:9px;flex-shrink:0">
+        <span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(140deg,#1ff0ad,#0a8f66);display:flex;align-items:center;justify-content:center;font-size:11px;color:#04130d;font-weight:700">◆</span>
+        <span class="sg" style="font-weight:600;font-size:12.5px;color:#dce8e5">Lider Agent</span>
+        <span style="font-size:9px;color:#5e716f;margin-left:auto">canlı veri + KB + backtest</span>
+      </div>
+      <div id="chatbox" style="flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:13px">${chatHtml}</div>
+      <div style="padding:12px 15px;border-top:1px solid #18211f;flex-shrink:0">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+          ${SUG.map(q=>`<button onclick="ask('${q}')" style="font-size:10px;color:#8a9c99;background:#0a0f0f;border:1px solid #1a2422;padding:5px 9px;border-radius:14px;cursor:pointer">${q}</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+          <input id="chatin" placeholder="Neden? Kaç kere oldu? İspatı ne?" onkeydown="if(event.key==='Enter')send()" style="flex:1;background:#0a0f0f;border:1px solid #1a2422;border-radius:7px;padding:10px 12px;color:#cdd9d8;font-size:11.5px;outline:none"/>
+          <button onclick="send()" class="sg" style="background:#1ff0ad;border:none;border-radius:7px;padding:0 16px;color:#04130d;font-weight:700;font-size:12px;cursor:pointer">Sor</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ════════════ ACTIONS ════════════
+function selTheory(id){ST.selTheory=ST.theories.find(t=>t.id===id);render();}
+async function teoriTest(id){
+  const el=$('teori-durum');if(el)el.textContent='⏳ '+id+' test ediliyor (1-2 dk)...';
+  const d=await jpost('/api/teori/test',{teori_id:id,sembol:'BTCUSDT',gun:365});
+  await loadTheories();
+  if(d&&!d.hata){ST.selTheory=ST.theories.find(t=>t.id===id);render();}
+  else if(el)el.textContent=(d&&d.hata)||'Hata';
+}
+async function raporUret(){
+  const m=$('screen');const h1=m.querySelector('h1');if(h1)h1.insertAdjacentHTML('afterend','<span id="rprog" style="font-size:11px;color:#ffb13c;margin-left:10px">⏳ üretiliyor...</span>');
+  await jpost('/api/leader/report',{});
+  await loadReport();render();
+}
+async function ask(q){$('chatin')&&($('chatin').value=q);send();}
+async function send(){
+  const inp=$('chatin');if(!inp)return;const q=inp.value.trim();if(!q)return;inp.value='';
+  ST.chat.push({role:'user',txt:q});ST.chat.push({role:'agent',txt:'⏳ Analiz ediliyor...'});render();
+  const d=await jpost('/api/leader/chat',{soru:q});
+  ST.chat.pop();ST.chat.push({role:'agent',txt:(d&&d.cevap)||'Yanıt alınamadı'});
+  // son agent mesajını güncelle (typing'i çıkar)
+  ST.chat.splice(ST.chat.length-2,1);
+  render();
+  setTimeout(()=>{const cb=$('chatbox');if(cb)cb.scrollTop=cb.scrollHeight;},50);
+}
+
+// ════════════ LOADERS ════════════
+async function loadReport(){const d=await jget('/api/leader/report');if(d&&!d.durum)ST.report=d;}
+async function loadSignals(){const d=await jget('/api/leader/signals?limit=300');if(d)ST.signals=d.signals||[];}
+async function loadContext(){const d=await jget('/api/market-context');if(d)ST.ctx=d;}
+async function loadTheories(){const d=await jget('/api/teori');if(d){ST.theories=d.teoriler||[];if(!ST.selTheory&&ST.theories.length)ST.selTheory=ST.theories[0];}}
+async function loadOptions(){
+  const[levels,macro]=await Promise.all([jget('/api/vercel/alarm-levels'),jget('/api/vercel/macro')]);
+  ST.options={levels:levels||{},macro:macro||{}};
+  if(ST.tab==='options')render();
+}
+async function loadKnowledge(){const d=await jget('/api/knowledge');if(d)ST.knowledge=d;}
+async function loadFeed(){
+  const d=await jget('/api/leader/rapor-gecmisi?limit=10');
+  if(d&&d.raporlar){
+    const renk={lider:'#1ff0ad',backtest:'#ffb13c',research:'#56a8ff'};
+    const ad={lider:'Lider Agent',backtest:'Backtest Agent',research:'Research Agent'};
+    ST.feed=d.raporlar.slice().reverse().map(r=>({
+      t:new Date(r.tarih).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),
+      a:ad[r.tip]||r.tip,col:renk[r.tip]||'#9fb0ad',
+      txt:(r.icerik&&r.icerik.metin)||''
+    }));
+  }
+}
+async function loadFng(){
+  const d=await jget('/api/market');
+  // F&G ayrı endpoint yok, market-context'te korku endeksi olabilir; fallback
+}
+
+// ════════════ INIT ════════════
+async function boot(){
+  renderNav();renderRail();render();
+  tickClock();setInterval(tickClock,1000);
+  await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge()]);
+  renderRail();render();
+  loadTicker();loadOptions();
+  setInterval(async()=>{await loadSignals();await loadContext();if(['leader','agents','live'].includes(ST.tab))render();},120000);
+  setInterval(async()=>{await loadReport();await loadFeed();if(['leader','live'].includes(ST.tab))render();},300000);
+  setInterval(loadTicker,60000);
+}
+boot();
 </script>
 </body>
 </html>
