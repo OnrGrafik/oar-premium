@@ -81,6 +81,7 @@ const NAV = [
   {id:'options', icon:'∑', label:'Options & GEX'},
   {id:'knowledge',icon:'⛁', label:'Bilgi / Hafıza'},
   {id:'live',    icon:'◈', label:'Canlı Panel'},
+  {id:'system',  icon:'⚙', label:'Sistem / DevOps'},
 ];
 
 const BOTS = [
@@ -137,7 +138,7 @@ function renderRail(){
       <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
     </div>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)loadDevops(true);if(tab==='options'&&!ST.options)loadOptions();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -172,6 +173,7 @@ function render(){
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
+  else if(ST.tab==='system')m.innerHTML=scrSystem();
 }
 
 // ─── KOMUTA MERKEZİ ───
@@ -507,7 +509,7 @@ function scrLive(){
     return `<div style="display:flex;${u?'justify-content:flex-end':'justify-content:flex-start'}">
       <div style="max-width:90%;border-radius:10px;padding:11px 13px;${u?'background:#11201b;border:1px solid #1c3a2e':'background:#0a0f0f;border:1px solid #18211f'}">
         <div style="font-size:11.5px;line-height:1.5;color:${u?'#cfeede':'#c4d2cf'};white-space:pre-wrap">${esc(m.txt)}</div>
-      </div></div>`;}).join('')||'<div style="font-size:10px;color:#5e716f;text-align:center;padding:20px">Lider Agent\\'a tüm sistem bağlamıyla soru sorun.</div>';
+      </div></div>`;}).join('')||"<div style=\"font-size:10px;color:#5e716f;text-align:center;padding:20px\">Lider Agenta tüm sistem bağlamıyla soru sorun.</div>";
 
   const SUG=['Neden bu rejim?','OAR Score neyi gösteriyor?','Hangi botlar teyitli?','Move source ne anlatıyor?'];
   return `
@@ -550,6 +552,77 @@ function scrLive(){
   </div>`;
 }
 
+// ─── SİSTEM / DEVOPS ───
+function scrSystem(){
+  const d=ST.devops||{};
+  const dep=d.render_deploys||{}, env=d.render_env||{}, gh=d.github_commits||{};
+
+  const durRenk=s=>({live:'#1ff0ad',succeeded:'#1ff0ad',build_in_progress:'#ffb13c',update_in_progress:'#ffb13c',deactivated:'#5e716f',build_failed:'#ff5d6c',canceled:'#ff5d6c',failed:'#ff5d6c'}[s]||'#9fb0ad');
+  const zf=t=>{if(!t)return'';try{return new Date(t).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return t.slice(0,16);}};
+
+  const baglantiUyari=(o,ad)=>`<div class="card" style="padding:16px;border-color:#3a2a1a">
+    <div style="font-size:11px;color:#ffb13c">⚠ ${ad} bağlı değil</div>
+    <div style="font-size:10px;color:#7d908d;margin-top:6px;line-height:1.6">${o.neden||''}</div>
+    <div style="font-size:9.5px;color:#5e716f;margin-top:8px;line-height:1.7">Render Dashboard → Environment'a şu değişkenleri ekle:<br>
+    <span style="color:#8a9c99">RENDER_API_KEY</span> · <span style="color:#8a9c99">RENDER_SERVICE_ID</span> · <span style="color:#8a9c99">GITHUB_TOKEN</span> · <span style="color:#8a9c99">GITHUB_REPO</span></div>
+  </div>`;
+
+  let depHtml;
+  if(!dep.bagli){depHtml=baglantiUyari(dep,'Render API');}
+  else{
+    depHtml=`<div class="card" style="overflow:hidden">
+      <div class="sg" style="padding:12px 15px;border-bottom:1px solid #18211f;font-size:9.5px;letter-spacing:.14em;color:#5e716f">SON DEPLOYLAR</div>
+      ${(dep.deploys||[]).map(x=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 15px;border-bottom:1px solid #131918">
+        <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${durRenk(x.durum)};box-shadow:0 0 7px ${durRenk(x.durum)}"></span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:10.5px;color:#c4d2cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.commit_msg||x.id)}</div>
+          <div style="font-size:9px;color:#5e716f;margin-top:2px">${x.commit_id} · ${zf(x.olusturma)}</div>
+        </div>
+        <span style="font-size:9px;font-weight:600;color:${durRenk(x.durum)};flex-shrink:0">${x.durum}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  let ghHtml;
+  if(!gh.bagli){ghHtml=baglantiUyari(gh,'GitHub API');}
+  else{
+    ghHtml=`<div class="card" style="overflow:hidden">
+      <div class="sg" style="padding:12px 15px;border-bottom:1px solid #18211f;font-size:9.5px;letter-spacing:.14em;color:#5e716f">SON COMMIT'LER</div>
+      ${(gh.commits||[]).map(x=>`<div style="display:flex;align-items:flex-start;gap:11px;padding:10px 15px;border-bottom:1px solid #131918">
+        <span style="font-size:9px;color:#56a8ff;font-weight:600;flex-shrink:0;margin-top:2px">${x.sha}</span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:10.5px;color:#c4d2cf;line-height:1.4">${esc(x.mesaj)}</div>
+          <div style="font-size:9px;color:#5e716f;margin-top:2px">${esc(x.yazar)} · ${zf(x.tarih)}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  let envHtml;
+  if(!env.bagli){envHtml='';}
+  else{
+    envHtml=`<div class="card" style="padding:15px;margin-top:13px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">ENVIRONMENT DEĞİŞKENLERİ <span style="color:#5e716f">(değerler gizli)</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">
+        ${(env.degiskenler||[]).map(e=>`<span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#9fb0ad;background:#0a0f0f;border:1px solid #1a2422;padding:5px 10px;border-radius:5px">
+          <span style="width:5px;height:5px;border-radius:50%;background:${e.dolu?'#1ff0ad':'#5e716f'}"></span>${esc(e.key)}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Sistem / DevOps</h1>
+    <span style="font-size:11px;color:#5e716f">Render deploylar · GitHub commit'ler · environment</span>
+    <button onclick="loadDevops(true)" class="sg" style="margin-left:auto;background:#0a0f0f;border:1px solid #1a2422;color:#9fb0ad;border-radius:7px;padding:7px 12px;font-size:11px;cursor:pointer">🔄 Yenile</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+    ${depHtml}
+    ${ghHtml}
+  </div>
+  ${envHtml}`;
+}
+
 // ════════════ ACTIONS ════════════
 function selTheory(id){ST.selTheory=ST.theories.find(t=>t.id===id);render();}
 async function teoriTest(id){
@@ -587,6 +660,7 @@ async function loadOptions(){
   if(ST.tab==='options')render();
 }
 async function loadKnowledge(){const d=await jget('/api/knowledge');if(d)ST.knowledge=d;}
+async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='system')render();}
 async function loadFeed(){
   const d=await jget('/api/leader/rapor-gecmisi?limit=10');
   if(d&&d.raporlar){
