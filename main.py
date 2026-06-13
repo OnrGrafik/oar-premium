@@ -1002,6 +1002,12 @@ async def devops_durum():
     from devops_monitor import devops_ozet
     return await devops_ozet()
 
+@app.get("/api/indicators")
+async def indicators_get(symbol: str = "BTCUSDT", interval: str = "5m"):
+    """Indicator Engine — ~30 indikatör + 5m skor + yorum. Sistemin temeli."""
+    from indicator_engine import analiz
+    return await analiz(symbol, interval)
+
 @app.get("/api/market-context")
 async def market_context_get(sembol: str = "BTCUSDT", refresh: bool = False):
     """Market Regime + OAR Score + Move Source."""
