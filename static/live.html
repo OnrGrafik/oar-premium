@@ -490,6 +490,92 @@ function scrTheory(){
       <button onclick="teoriTest('${sel.id}')" class="sg" style="background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:9px;font-weight:600;font-size:11px;cursor:pointer">↻ Yeniden Backtest (365g)</button>
       <div id="teori-durum" style="font-size:10px;color:#5e716f"></div>
     </div>
+  </div>
+  ${scrTheoryAdvanced()}`;
+}
+
+// ─── GELİŞMİŞ BACKTEST (indikatör skoru × fib seviyesi × dönem) ───
+function scrTheoryAdvanced(){
+  const r=ST.advTest||{};
+  let sonucHtml='';
+  if(r.hata){
+    sonucHtml=`<div style="padding:14px;color:#ff8a3c;font-size:11px">${r.hata}</div>`;
+  } else if(r.genel_win_rate!=null){
+    const wrC=r.genel_win_rate>=60?'#1ff0ad':r.genel_win_rate>=45?'#ffb13c':'#ff5d6c';
+    // Skor analiz tablosu
+    const skorRows=Object.entries(r.skor_analiz||{}).map(([ad,s])=>{
+      const c=s.win_rate>=60?'#1ff0ad':s.win_rate>=45?'#ffb13c':'#ff5d6c';
+      return `<div style="display:grid;grid-template-columns:1fr 60px 50px 56px;gap:8px;padding:7px 0;border-bottom:1px solid #131918;font-size:10px">
+        <span style="color:#c4d2cf">${ad}</span>
+        <span style="text-align:right;color:#8a9c99">${s.ornek} örnek</span>
+        <span style="text-align:right;font-weight:700;color:${c}">%${s.win_rate}</span>
+        <span style="text-align:right;color:${s.ort_pct>0?'#1ff0ad':'#ff5d6c'}">${s.ort_pct>0?'+':''}${s.ort_pct}%</span>
+      </div>`;}).join('');
+    // Dönemsel
+    const donemHtml=(obj,baslik)=>{
+      const e=Object.entries(obj||{});
+      if(!e.length)return'';
+      return `<div style="margin-bottom:10px"><div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:5px">${baslik}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${e.map(([k,v])=>`<span style="font-size:9px;background:#0a0f0f;border:1px solid #1a2422;padding:3px 7px;border-radius:4px;color:${v.win_rate>=55?'#1ff0ad':v.win_rate>=45?'#ffb13c':'#ff5d6c'}">${k}: %${v.win_rate} <span style="color:#5e716f">(${v.ornek})</span></span>`).join('')}
+        </div></div>`;};
+    sonucHtml=`
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0">
+        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">GENEL WR</div><div class="sg" style="font-size:18px;color:${wrC};margin-top:4px">%${r.genel_win_rate}</div></div>
+        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">PROFIT FACTOR</div><div class="sg" style="font-size:18px;color:#cdd9d8;margin-top:4px">${r.profit_factor}</div></div>
+        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">TEMAS</div><div class="sg" style="font-size:18px;color:#56a8ff;margin-top:4px">${r.toplam_temas}</div></div>
+        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">ORT PNL</div><div class="sg" style="font-size:18px;color:${r.ort_pct>0?'#1ff0ad':'#ff5d6c'};margin-top:4px">${r.ort_pct>0?'+':''}${r.ort_pct}%</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:13px">
+        <div class="card" style="padding:15px">
+          <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#1ff0ad;margin-bottom:10px">SKOR ARALIĞINA GÖRE TEPKİ — fib ${r.fib}</div>
+          <div style="display:grid;grid-template-columns:1fr 60px 50px 56px;gap:8px;padding-bottom:6px;border-bottom:1px solid #18211f;font-size:8.5px;color:#5e716f">
+            <span>İNDİKATÖR SKORU</span><span style="text-align:right">N</span><span style="text-align:right">WR</span><span style="text-align:right">PNL</span>
+          </div>
+          ${skorRows||'<div style="font-size:10px;color:#5e716f;padding:8px 0">Yeterli temas yok</div>'}
+        </div>
+        <div class="card" style="padding:15px">
+          <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff;margin-bottom:10px">DÖNEMSEL BAŞARI</div>
+          ${donemHtml(r.donemsel?.ceyreklik,'ÇEYREKLİK')}
+          ${donemHtml(r.donemsel?.aylik,'AYLIK')}
+        </div>
+      </div>
+      ${(r.oneriler||[]).length?`<div class="card" style="padding:15px;margin-top:13px;background:#0b1010">
+        <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4;margin-bottom:10px">🔬 RESEARCH AGENT BULGULARI</div>
+        ${r.oneriler.map(o=>`<div style="font-size:10.5px;color:#c4d2cf;line-height:1.5;padding:4px 0">${esc(o)}</div>`).join('')}
+      </div>`:''}`;
+  } else {
+    sonucHtml='<div style="padding:14px;color:#5e716f;font-size:11px">Parametreleri seç ve "Gelişmiş Backtest Çalıştır"a bas. Asia range fib seviyesine her temas anındaki indikatör skoru hesaplanır, hangi skorda hangi sonuç alındığı analiz edilir.</div>';
+  }
+
+  return `
+  <div style="margin-top:18px">
+    <div class="sg" style="font-size:13px;font-weight:600;color:#eaf4f2;margin-bottom:4px">⚗ Gelişmiş Backtest — İndikatör Skoru × Fib Seviyesi</div>
+    <div style="font-size:10px;color:#5e716f;margin-bottom:12px">Belge: "Gömülü indikatörlerin skoru kaç olduğunda hangi seviyelerden daha çok tepki/kayıp alındığını açıklar"</div>
+    <div class="card" style="padding:14px;margin-bottom:13px">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:10px;align-items:end">
+        <div><label style="font-size:9px;color:#5e716f">COIN</label>
+          <select id="adv-sym" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
+            <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select></div>
+        <div><label style="font-size:9px;color:#5e716f">GÜN</label>
+          <select id="adv-gun" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
+            <option value="90">90</option><option value="180" selected>180</option><option value="365">365</option></select></div>
+        <div><label style="font-size:9px;color:#5e716f">FİB SEVİYE</label>
+          <select id="adv-fib" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
+            <option value="0.236">0.236</option><option value="0.377">0.377</option>
+            <option value="0.5">0.5</option><option value="0.618" selected>0.618</option>
+            <option value="0.786">0.786</option><option value="-0.272">-0.272</option>
+            <option value="1.272">1.272</option><option value="1.618">1.618</option></select></div>
+        <div><label style="font-size:9px;color:#5e716f">ASIA BAŞ (UTC)</label>
+          <select id="adv-as" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
+            <option value="0" selected>00:00 (TR 03)</option><option value="23">23:00 (TR 02)</option><option value="1">01:00 (TR 04)</option></select></div>
+        <div><label style="font-size:9px;color:#5e716f">ASIA BİT (UTC)</label>
+          <select id="adv-ab" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
+            <option value="4" selected>04:00 (TR 07)</option><option value="3">03:00 (TR 06)</option><option value="5">05:00 (TR 08)</option></select></div>
+        <button onclick="advBacktest()" class="sg" style="background:#1ff0ad;border:none;border-radius:6px;padding:9px 16px;color:#04130d;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap">▶ Çalıştır</button>
+      </div>
+    </div>
+    ${sonucHtml}
   </div>`;
 }
 
@@ -716,6 +802,17 @@ function scrSystem(){
 
 // ════════════ ACTIONS ════════════
 function selTheory(id){ST.selTheory=ST.theories.find(t=>t.id===id);render();}
+async function advBacktest(){
+  const sym=$('adv-sym').value, gun=$('adv-gun').value, fib=$('adv-fib').value;
+  const ab=$('adv-as').value, abit=$('adv-ab').value;
+  ST.advTest={_yukleniyor:true};
+  // basit yükleniyor göstergesi
+  const m=$('screen');const btn=document.querySelector('[onclick="advBacktest()"]');
+  if(btn){btn.textContent='⏳ ...';btn.disabled=true;}
+  const d=await jpost('/api/theory/advanced',{sembol:sym,gun:parseInt(gun),fib:parseFloat(fib),asia_baslangic:parseInt(ab),asia_bitis:parseInt(abit)});
+  ST.advTest=d||{hata:'bağlantı hatası'};
+  if(ST.tab==='theory')render();
+}
 async function teoriTest(id){
   const el=$('teori-durum');if(el)el.textContent='⏳ '+id+' test ediliyor (1-2 dk)...';
   const d=await jpost('/api/teori/test',{teori_id:id,sembol:'BTCUSDT',gun:365});
