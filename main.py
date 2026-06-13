@@ -1039,50 +1039,33 @@ async def theory_advanced_history():
 
 @app.post("/api/knowledge/import")
 async def knowledge_import(req: Request):
-    """Toplu kitap indeksi yükle (kitap_hazirla.py çıktısı).
-    Büyük dosyalar için parça parça gönderilebilir (offset/limit)."""
-    from knowledge import load_kb, save_kb
+    """Toplu kitap yükleme — SQLite DB (RAM dostu, 502 yok)."""
+    from kitap_db import import_chunks
     data = await req.json()
     docs = data.get("documents", [])
     if not docs:
         return {"hata": "documents boş"}
-    kb = load_kb()
-    # Mevcut kitap başlıklarını bul (tekrar yükleme önle)
-    mevcut = {(d.get("title"), d.get("chunk_idx")) for d in kb["documents"] if d.get("source")=="kitap"}
-    eklenen = 0
-    for d in docs:
-        key = (d.get("title"), d.get("chunk_idx"))
-        if key in mevcut:
-            continue
-        d["id"] = kb["next_id"]
-        kb["next_id"] += 1
-        kb["documents"].append(d)
-        mevcut.add(key)
-        eklenen += 1
-    save_kb(kb)
-    # Özet: kaç kitap, kaç chunk
-    kitaplar = set(d.get("title") for d in kb["documents"] if d.get("source")=="kitap")
-    return {"status": "ok", "eklenen_chunk": eklenen,
-            "toplam_kitap": len(kitaplar),
-            "toplam_chunk": sum(1 for d in kb["documents"] if d.get("source")=="kitap")}
+    res = import_chunks(docs)
+    return {"status": "ok", "eklenen_chunk": res["eklenen"],
+            "toplam_kitap": res["toplam_kitap"], "toplam_chunk": res["toplam_chunk"]}
 
 @app.get("/api/knowledge/kitaplar")
 async def knowledge_kitaplar():
-    """Yüklü kitapların listesi + kategori dağılımı."""
-    from knowledge import load_kb
-    kb = load_kb()
-    kitaplar = {}
-    for d in kb["documents"]:
-        if d.get("source") != "kitap": continue
-        t = d.get("title", "?")
-        if t not in kitaplar:
-            kitaplar[t] = {"title": t, "category": d.get("category","genel"), "chunks": 0}
-        kitaplar[t]["chunks"] += 1
-    kategoriler = {}
-    for k in kitaplar.values():
-        kategoriler[k["category"]] = kategoriler.get(k["category"],0)+1
-    return {"kitap_sayisi": len(kitaplar), "kategoriler": kategoriler,
-            "kitaplar": sorted(kitaplar.values(), key=lambda x:x["title"])}
+    """Yüklü kitaplar — SQLite'tan."""
+    from kitap_db import istatistik
+    return istatistik()
+
+@app.post("/api/knowledge/kitap-temizle")
+async def knowledge_kitap_temizle():
+    """Tüm kitapları sil (yeniden yükleme için)."""
+    from kitap_db import temizle_hepsi
+    return temizle_hepsi()
+
+@app.get("/api/knowledge/kitap-ara")
+async def knowledge_kitap_ara(q: str, limit: int = 5):
+    """Kitaplarda tam metin arama (FTS5)."""
+    from kitap_db import ara
+    return {"sonuclar": ara(q, limit)}
 
 @app.get("/api/oar-fib")
 async def oar_fib(symbol: str = "BTCUSDT"):
@@ -1151,13 +1134,25 @@ async def leader_chat(req: Request):
     research = research_analizi()
     canli_baglam = await _lider_baglam_topla()
 
+    # Kitap bilgisi ara (240+ trading kitabı SQLite'tan)
+    kitap_baglam = ""
+    try:
+        from kitap_db import ara as kitap_ara
+        sonuclar = kitap_ara(soru, limit=4)
+        if sonuclar:
+            kitap_baglam = "\\n\\n══ İLGİLİ KİTAP BİLGİSİ (240+ trading kitabından) ══\\n"
+            for s in sonuclar:
+                kitap_baglam += f"\\n[{s['title']}]: {s['content'][:400]}\\n"
+    except Exception:
+        pass
+
     prompt = f"""Sen OAR Premium'un LİDER AGENT'ısın. Kripto trading sistemini yönetiyorsun.
 Altındaki agentlar: Research Agent (analiz) ve Backtest Agent (test).
 Yönettiğin botlar: {", ".join(BOT_KATALOG.keys())}
 
 ══ CANLI VERİLER (şu an) ══
 {canli_baglam}
-
+{kitap_baglam}
 ══ BACKTEST DURUMU ══
 {json.dumps(backtest, ensure_ascii=False)[:1200]}
 
@@ -1543,6 +1538,14 @@ async def chat(
 
     # ── Bilgi Bankası — ilgili içeriği otomatik getir ──
     kb_context = get_full_context(message, max_chars=4000)
+    # 240+ kitaptan ilgili bilgi (SQLite FTS5)
+    try:
+        from kitap_db import ara as _kitap_ara
+        _ks = _kitap_ara(message, limit=3)
+        if _ks:
+            kb_context += "\n\n[Kitap bilgisi]:\n" + "\n".join(f"({s['title']}): {s['content'][:300]}" for s in _ks)
+    except Exception:
+        pass
 
     # ── DÜZELTME ÖĞRENME: kullanıcı düzeltirse yüksek öncelikli kaydet ──
     correction_markers = ["yanlış", "hayır öyle değil", "düzelt", "hatalı", "doğrusu şu",
