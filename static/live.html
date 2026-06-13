@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
@@ -167,13 +168,101 @@ function tickClock(){
 // ════════════ SCREENS ════════════
 function render(){
   const m=$('screen');
-  if(ST.tab==='leader')m.innerHTML=scrLeader();
+  if(ST.tab==='leader'){m.innerHTML=scrLeader();setTimeout(renderLeaderChart,60);}
   else if(ST.tab==='agents')m.innerHTML=scrAgents();
   else if(ST.tab==='theory')m.innerHTML=scrTheory();
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
   else if(ST.tab==='system')m.innerHTML=scrSystem();
+}
+
+// ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
+function scrLeaderChart(){
+  const ind=ST.indicators||{}, sk=ind.skor||{}, opt=ST.optScore||{};
+  const skor=sk.skor!=null?sk.skor:'—';
+  const skRenk=sk.renk||'#9fb0ad';
+  const detay=(sk.detay||[]).slice(0,6);
+
+  // İndikatör katkı listesi
+  const detayHtml=detay.length?detay.map(d=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:10px">
+      <span style="width:90px;flex-shrink:0;color:#8a9c99;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.ind}</span>
+      <div style="flex:1;height:5px;border-radius:3px;background:#141d1b;position:relative;overflow:hidden">
+        <div style="position:absolute;left:50%;top:0;height:100%;width:${Math.min(Math.abs(d.katki)*2,50)}%;${d.katki>=0?'background:#1ff0ad':'background:#ff5d6c;transform:translateX(-100%)'}"></div>
+      </div>
+      <span style="width:34px;text-align:right;color:${d.katki>=0?'#1ff0ad':'#ff5d6c'}">${d.katki>=0?'+':''}${d.katki}</span>
+    </div>`).join(''):'<div style="font-size:10px;color:#5e716f">İndikatör verisi yükleniyor...</div>';
+
+  // Opsiyon skoru
+  const optGamma=opt.gamma_rejim||'—';
+  const optYorum=opt.yorum||'Opsiyon verisi yükleniyor...';
+
+  return `
+  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:13px;margin-bottom:13px">
+    <!-- SOL: GRAFİK + OPSİYON CVD -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:1px solid #18211f">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">BTC/USDT · 5m</span>
+          <span style="font-size:9px;color:#5e716f">OAR fib · 0-7g opsiyon seviyeleri</span>
+        </div>
+        <div style="display:flex;gap:11px;font-size:9px">
+          <span style="color:#1ff0ad">━ CW</span><span style="color:#ff5d6c">━ PW</span>
+          <span style="color:#ffb13c">┄ ZG</span><span style="color:#56a8ff">┄ OAR fib</span>
+        </div>
+      </div>
+      <div id="lchart" style="height:230px;width:100%"></div>
+      <div style="padding:8px 15px 4px;border-top:1px solid #18211f;display:flex;justify-content:space-between;align-items:center">
+        <span class="sg" style="font-size:9px;letter-spacing:.14em;color:#5e716f">OPSİYON CVD · 3 GÜN</span>
+        <span id="ocvd-yon" style="font-size:10px;color:#5e716f">—</span>
+      </div>
+      <div id="ocvdchart" style="height:80px;width:100%"></div>
+    </div>
+
+    <!-- SAĞ: İNDİKATÖR SKORU + OPSİYON SKORU -->
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <div class="card" style="padding:15px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">5M İNDİKATÖR SKORU</span>
+          <span style="font-size:9px;color:#5e716f">${ind.indikator_sayisi||0} indikatör</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="position:relative;width:74px;height:74px;flex-shrink:0">
+            <svg width="74" height="74" viewBox="0 0 74 74">
+              <circle cx="37" cy="37" r="32" fill="none" stroke="#141d1b" stroke-width="6"/>
+              <circle cx="37" cy="37" r="32" fill="none" stroke="${skRenk}" stroke-width="6"
+                stroke-dasharray="${Math.abs(skor==='—'?0:skor)/100*201} 201" stroke-linecap="round"
+                transform="rotate(-90 37 37)"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span class="sg" style="font-weight:700;font-size:18px;color:${skRenk};line-height:1">${skor}</span>
+              <span style="font-size:7px;color:#5e716f">/100</span>
+            </div>
+          </div>
+          <div style="min-width:0">
+            <div class="sg" style="font-weight:700;font-size:15px;color:${skRenk}">${sk.yon||'—'}</div>
+            <div style="font-size:9.5px;color:#7d908d;margin-top:4px;line-height:1.4">Net yön skoru, ağırlıklı ${ind.indikator_sayisi||0} indikatörden</div>
+          </div>
+        </div>
+        <div style="margin-top:13px;padding-top:11px;border-top:1px solid #141d1b">
+          <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:7px">EN ETKİLİ KATKILAR</div>
+          ${detayHtml}
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px 15px">
+        <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:9px">OPSİYON / GEX DURUMU</div>
+        <div class="sg" style="font-weight:600;font-size:13px;color:${optGamma.includes('POZİTİF')?'#1ff0ad':optGamma.includes('NEGATİF')?'#ff5d6c':'#ffb13c'}">${optGamma}</div>
+        <div style="font-size:9.5px;color:#7d908d;margin-top:6px;line-height:1.5">${optYorum}</div>
+        ${opt.call_wall?`<div style="display:flex;gap:13px;margin-top:9px;font-size:9.5px;color:#8a9c99">
+          <span>CW <b style="color:#1ff0ad">$${fmtNum(opt.call_wall)}</b></span>
+          <span>PW <b style="color:#ff5d6c">$${fmtNum(opt.put_wall)}</b></span>
+          <span>ZG <b style="color:#ffb13c">$${fmtNum(opt.zero_gamma)}</b></span>
+        </div>`:''}
+      </div>
+    </div>
+  </div>`;
 }
 
 // ─── KOMUTA MERKEZİ ───
@@ -204,6 +293,8 @@ function scrLeader(){
     <span style="font-size:11px;color:#5e716f">Lider Agent · 3 katmanlı orkestrasyon</span>
     <button onclick="raporUret()" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:7px 14px;font-weight:600;font-size:11px;cursor:pointer">⚡ Rapor Üret</button>
   </div>
+
+  ${scrLeaderChart()}
 
   <div style="display:grid;grid-template-columns:1.4fr 1.1fr 1.5fr;gap:13px;margin-bottom:13px">
     <div class="card" style="padding:17px">
@@ -653,6 +744,61 @@ async function send(){
 async function loadReport(){const d=await jget('/api/leader/report');if(d&&!d.durum)ST.report=d;}
 async function loadSignals(){const d=await jget('/api/leader/signals?limit=300');if(d)ST.signals=d.signals||[];}
 async function loadContext(){const d=await jget('/api/market-context');if(d)ST.ctx=d;}
+// ── Komuta Merkezi: indikatör + opsiyon skoru + grafik ──
+async function loadIndicators(){const d=await jget('/api/indicators?symbol=BTCUSDT&interval=5m');if(d&&!d.hata)ST.indicators=d;}
+async function loadOptScore(){const d=await jget('/api/options/gex?currency=BTC');if(d&&!d.error)ST.optScore=d;}
+let _lchart,_lcandle,_locvd,_locvdLine,_lpriceLines=[];
+async function renderLeaderChart(){
+  const el=document.getElementById('lchart');
+  if(!el||typeof LightweightCharts==='undefined')return;
+  // grafik bir kez kur
+  if(!_lchart){
+    _lchart=LightweightCharts.createChart(el,{
+      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
+      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
+      timeScale:{borderColor:'#18211f',timeVisible:true},
+      rightPriceScale:{borderColor:'#18211f'},
+      width:el.clientWidth,height:230});
+    _lcandle=_lchart.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
+      borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
+    const ocel=document.getElementById('ocvdchart');
+    _locvd=LightweightCharts.createChart(ocel,{
+      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
+      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
+      timeScale:{visible:false},rightPriceScale:{borderColor:'#18211f'},
+      width:ocel.clientWidth,height:80});
+    _locvdLine=_locvd.addLineSeries({color:'#8b5cf6',lineWidth:2});
+    new ResizeObserver(()=>{if(_lchart)_lchart.applyOptions({width:el.clientWidth});if(_locvd)_locvd.applyOptions({width:document.getElementById('ocvdchart').clientWidth});}).observe(el);
+  }
+  // mum verisi
+  const oh=await jget('/api/ohlcv?symbol=BTCUSDT&interval=5m&limit=200');
+  if(oh&&oh.candles){
+    _lcandle.setData(oh.candles.map(c=>({time:Math.floor(c.ts/1000),open:c.open,high:c.high,low:c.low,close:c.close})));
+  }
+  // opsiyon seviyeleri (0-7g) + OAR fib çizgileri
+  _lpriceLines.forEach(l=>_lcandle.removePriceLine(l));_lpriceLines=[];
+  const lv=await jget('/api/options/levels?currency=BTC');
+  if(lv&&lv.kisa){
+    const k=lv.kisa;
+    [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['zero_gamma','#ffb13c','ZG']].forEach(([key,col,t])=>{
+      if(k[key])_lpriceLines.push(_lcandle.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
+    });
+  }
+  // OAR fib (Asia range TR 03-07 → fib 0.377/0.618)
+  const fib=await jget('/api/oar-fib?symbol=BTCUSDT');
+  if(fib&&fib.seviyeler){
+    Object.entries(fib.seviyeler).forEach(([ad,fiyat])=>{
+      _lpriceLines.push(_lcandle.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+ad}));
+    });
+  }
+  // opsiyon CVD
+  const ocvd=await jget('/api/options/cvd?currency=BTC');
+  if(ocvd&&ocvd.data){
+    _locvdLine.setData(ocvd.data.map((p,i)=>({time:Math.floor(p.ts/1000),value:p.cvd})));
+    const yel=document.getElementById('ocvd-yon');
+    if(yel)yel.innerHTML=`${ocvd.yon==='YUKARI'?'<span style="color:#1ff0ad">▲ YUKARI</span>':'<span style="color:#ff5d6c">▼ AŞAĞI</span>'} · güncel ${ocvd.guncel}`;
+  }
+}
 async function loadTheories(){const d=await jget('/api/teori');if(d){ST.theories=d.teoriler||[];if(!ST.selTheory&&ST.theories.length)ST.selTheory=ST.theories[0];}}
 async function loadOptions(){
   const[levels,macro]=await Promise.all([jget('/api/vercel/alarm-levels'),jget('/api/vercel/macro')]);
@@ -682,10 +828,10 @@ async function loadFng(){
 async function boot(){
   renderNav();renderRail();render();
   tickClock();setInterval(tickClock,1000);
-  await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge()]);
+  await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge(),loadIndicators(),loadOptScore()]);
   renderRail();render();
   loadTicker();loadOptions();
-  setInterval(async()=>{await loadSignals();await loadContext();if(['leader','agents','live'].includes(ST.tab))render();},120000);
+  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();if(['leader','agents','live'].includes(ST.tab))render();},120000);
   setInterval(async()=>{await loadReport();await loadFeed();if(['leader','live'].includes(ST.tab))render();},300000);
   setInterval(loadTicker,60000);
 }
