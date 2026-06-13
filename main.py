@@ -645,6 +645,13 @@ FORMAT: ## başlık, **kalın**, - liste, fiyatlar $"""
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 async def root():
+    # Ana sayfa = Agent arayüzü (live.html). Eski sohbet /chat'te kaldı.
+    p = Path("static/live.html")
+    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>live.html eksik</h1>")
+
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_page():
+    # Eski sohbet arayüzü (silinmedi, yedek olarak burada)
     p = Path("static/index.html")
     return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>index.html eksik</h1>")
 
@@ -988,6 +995,12 @@ async def teori_test(req: Request):
     from theory_lab import teori_backtest
     d = await req.json()
     return await teori_backtest(d.get("teori_id","OAR-001"), d.get("sembol","BTCUSDT"), int(d.get("gun",365)))
+
+@app.get("/api/devops")
+async def devops_durum():
+    """Render deploylar + env + GitHub commit'leri (token gerekli)."""
+    from devops_monitor import devops_ozet
+    return await devops_ozet()
 
 @app.get("/api/market-context")
 async def market_context_get(sembol: str = "BTCUSDT", refresh: bool = False):
