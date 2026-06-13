@@ -1037,6 +1037,53 @@ async def theory_advanced_history():
     from theory_engine import gecmis_sonuclar
     return {"testler": gecmis_sonuclar()}
 
+@app.post("/api/knowledge/import")
+async def knowledge_import(req: Request):
+    """Toplu kitap indeksi yükle (kitap_hazirla.py çıktısı).
+    Büyük dosyalar için parça parça gönderilebilir (offset/limit)."""
+    from knowledge import load_kb, save_kb
+    data = await req.json()
+    docs = data.get("documents", [])
+    if not docs:
+        return {"hata": "documents boş"}
+    kb = load_kb()
+    # Mevcut kitap başlıklarını bul (tekrar yükleme önle)
+    mevcut = {(d.get("title"), d.get("chunk_idx")) for d in kb["documents"] if d.get("source")=="kitap"}
+    eklenen = 0
+    for d in docs:
+        key = (d.get("title"), d.get("chunk_idx"))
+        if key in mevcut:
+            continue
+        d["id"] = kb["next_id"]
+        kb["next_id"] += 1
+        kb["documents"].append(d)
+        mevcut.add(key)
+        eklenen += 1
+    save_kb(kb)
+    # Özet: kaç kitap, kaç chunk
+    kitaplar = set(d.get("title") for d in kb["documents"] if d.get("source")=="kitap")
+    return {"status": "ok", "eklenen_chunk": eklenen,
+            "toplam_kitap": len(kitaplar),
+            "toplam_chunk": sum(1 for d in kb["documents"] if d.get("source")=="kitap")}
+
+@app.get("/api/knowledge/kitaplar")
+async def knowledge_kitaplar():
+    """Yüklü kitapların listesi + kategori dağılımı."""
+    from knowledge import load_kb
+    kb = load_kb()
+    kitaplar = {}
+    for d in kb["documents"]:
+        if d.get("source") != "kitap": continue
+        t = d.get("title", "?")
+        if t not in kitaplar:
+            kitaplar[t] = {"title": t, "category": d.get("category","genel"), "chunks": 0}
+        kitaplar[t]["chunks"] += 1
+    kategoriler = {}
+    for k in kitaplar.values():
+        kategoriler[k["category"]] = kategoriler.get(k["category"],0)+1
+    return {"kitap_sayisi": len(kitaplar), "kategoriler": kategoriler,
+            "kitaplar": sorted(kitaplar.values(), key=lambda x:x["title"])}
+
 @app.get("/api/oar-fib")
 async def oar_fib(symbol: str = "BTCUSDT"):
     """Bugünkü Asia Range (TR 03-07 = UTC 00-04) fib seviyeleri."""
