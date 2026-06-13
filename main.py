@@ -1021,6 +1021,44 @@ async def devops_durum():
     from devops_monitor import devops_ozet
     return await devops_ozet()
 
+@app.get("/api/oar-fib")
+async def oar_fib(symbol: str = "BTCUSDT"):
+    """Bugünkü Asia Range (TR 03-07 = UTC 00-04) fib seviyeleri."""
+    import httpx
+    from datetime import datetime, timezone, timedelta
+    try:
+        async with httpx.AsyncClient(timeout=15) as cl:
+            r = await cl.get("https://fapi.binance.com/fapi/v1/klines",
+                params={"symbol": symbol, "interval": "15m", "limit": 100})
+            k = r.json()
+        if not isinstance(k, list): return {"error": "veri yok"}
+        now = datetime.now(timezone.utc)
+        bugun = now.date()
+        asia = []
+        for x in k:
+            t = datetime.fromtimestamp(x[0]/1000, tz=timezone.utc)
+            # UTC 00:00-04:00 = TR 03:00-07:00
+            if t.date() == bugun and 0 <= t.hour < 4:
+                asia.append((float(x[2]), float(x[3])))
+        if len(asia) < 4:
+            # dün veri olabilir, son 16 muma bak
+            asia = [(float(x[2]), float(x[3])) for x in k[-32:-16]]
+        if not asia: return {"error": "asia range yok"}
+        hi = max(a[0] for a in asia); lo = min(a[1] for a in asia)
+        rng = hi - lo
+        sev = {
+            "0.0 (low)": round(lo, 1),
+            "0.377": round(lo + rng*0.377, 1),
+            "0.618": round(lo + rng*0.618, 1),
+            "1.0 (high)": round(hi, 1),
+            "-0.272": round(lo - rng*0.272, 1),
+            "1.272": round(hi + rng*0.272, 1),
+        }
+        return {"symbol": symbol, "asia_high": round(hi,1), "asia_low": round(lo,1),
+                "range_pct": round(rng/lo*100,2), "seviyeler": sev}
+    except Exception as e:
+        return {"error": str(e)[:80]}
+
 @app.get("/api/indicators")
 async def indicators_get(symbol: str = "BTCUSDT", interval: str = "5m"):
     """Indicator Engine — ~30 indikatör + 5m skor + yorum. Sistemin temeli."""
