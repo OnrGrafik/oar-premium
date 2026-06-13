@@ -846,12 +846,31 @@ async def _vercel_get(path: str):
     return {"error": f"Vercel {r.status_code}"}
 
 @app.get("/api/vercel/alarm-levels")
-async def vercel_alarm_levels():
-    return await _vercel_get("/api/alarm-levels")
+async def vercel_alarm_levels(currency: str = "BTC"):
+    # ARTIK YERLİ — Deribit'ten doğrudan, Vercel'e gerek yok
+    from options_engine import alarm_levels
+    return await alarm_levels(currency)
 
 @app.get("/api/vercel/opsiyon-cvd")
 async def vercel_opsiyon_cvd(currency: str = "BTC"):
-    return await _vercel_get(f"/api/opsiyon-cvd?currency={currency}")
+    from options_engine import opsiyon_cvd
+    return await opsiyon_cvd(currency)
+
+@app.get("/api/options/levels")
+async def options_levels(currency: str = "BTC"):
+    """Yerli opsiyon motoru — CW/PW/ZG/MaxPain vade dilimli."""
+    from options_engine import alarm_levels
+    return await alarm_levels(currency)
+
+@app.get("/api/options/cvd")
+async def options_cvd_ep(currency: str = "BTC"):
+    from options_engine import opsiyon_cvd
+    return await opsiyon_cvd(currency)
+
+@app.get("/api/options/gex")
+async def options_gex(currency: str = "BTC"):
+    from options_engine import gex_ozet
+    return await gex_ozet(currency)
 
 @app.get("/api/vercel/orderflow")
 async def vercel_orderflow(currency: str = "BTC"):
