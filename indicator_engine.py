@@ -295,4 +295,3 @@ async def analiz(symbol="BTCUSDT", interval="5m"):
         "veri_yok":yok,  # tick/L2 gerektiren — ücretsiz API'de yok
         "indikator_sayisi":len(ind),
     }
-

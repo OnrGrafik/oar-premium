@@ -209,4 +209,3 @@ async def gex_ozet(currency="BTC"):
     return {"spot":spot,"call_wall":cw,"put_wall":pw,"zero_gamma":zg,
             "max_pain":genel.get("max_pain"),"gamma_rejim":konum,
             "yorum":f"Spot ${spot:,.0f} · ZG ${zg:,.0f} · {konum}" if zg else f"Spot ${spot:,.0f}"}
-
