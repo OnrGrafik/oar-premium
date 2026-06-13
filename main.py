@@ -749,6 +749,8 @@ async def startup_event():
     from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
     asyncio.create_task(zenginlestirici_loop())
     asyncio.create_task(pattern_sinyal_loop())
+    from market_context import baglam_loop
+    asyncio.create_task(baglam_loop())
     print("[LiderAgent] ✅ Tüm agent görevleri başlatıldı (toplayıcı + değerlendirici + 3 saatlik rapor)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
@@ -987,6 +989,15 @@ async def teori_test(req: Request):
     d = await req.json()
     return await teori_backtest(d.get("teori_id","OAR-001"), d.get("sembol","BTCUSDT"), int(d.get("gun",365)))
 
+@app.get("/api/market-context")
+async def market_context_get(sembol: str = "BTCUSDT", refresh: bool = False):
+    """Market Regime + OAR Score + Move Source."""
+    from market_context import son_baglam, baglam_guncelle
+    if refresh:
+        return await baglam_guncelle(sembol)
+    ctx = son_baglam()
+    return ctx if ctx else await baglam_guncelle(sembol)
+
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
     """Lider Agent ile sohbet — canlı veri + tüm sistem bağlamıyla cevap verir."""
@@ -1157,10 +1168,6 @@ async def conversations_recent(n: int = 30):
         {"user": e["user"], "assistant": e["assistant"], "timestamp": e.get("timestamp","")}
         for e in exchanges
     ], "total": len(conv.get("exchanges", []))}
-
-@app.get("/api/knowledge")
-async def knowledge_list():
-    return {"documents": get_knowledge_list()}
 
 @app.post("/api/notes")
 async def notes_add(title: str = Form(...), content: str = Form(...)):
