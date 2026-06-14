@@ -749,6 +749,20 @@ _leader_task = None
 async def startup_event():
     global _leader_task
     api_key = os.environ.get("GEMINI_API_KEY", "")
+    # ── KALICILIK KONTROLÜ — deployda veriler korunuyor mu? ──
+    try:
+        kalici = {}
+        for ad, dosya in [("sinyaller","oar_signals_log.json"),("hafıza","agent_memory.json"),
+                          ("raporlar","rapor_gecmisi.json"),("başarı","basari_skoru.json"),
+                          ("kitaplar","kitaplar.db"),("teoriler","otomatik_hipotezler.json")]:
+            f = DATA_DIR / dosya
+            if f.exists():
+                kalici[ad] = f"{f.stat().st_size//1024}KB"
+        print(f"[Kalıcılık] /var/data korunan veriler: {kalici}")
+        if not kalici:
+            print("[Kalıcılık] ⚠ Disk boş — ilk açılış veya disk mount sorunu olabilir")
+    except Exception as e:
+        print(f"[Kalıcılık] kontrol hatası: {str(e)[:60]}")
     # Her loop ayrı try/except — biri çökse bile uygulama ayakta kalır (502 önler)
     def guvenli_task(coro_fn, ad):
         try:
