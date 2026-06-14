@@ -1235,6 +1235,70 @@ Kitap bilgisi varsa referans ver."""
         except Exception: pass
     return {"veri": veri, "yorum": yorum}
 
+@app.get("/api/grafik-yorum")
+async def grafik_yorum(symbol: str = "BTCUSDT"):
+    """ASIA RANGE grafiği altı LIVE açıklama — indikatör+opsiyon+kitap, Lider gözlemi."""
+    import httpx
+    cur = "BTC" if "BTC" in symbol else "ETH"
+    veri = {}
+    try:
+        from indicator_engine import analiz
+        ind = await analiz(symbol, "5m")
+        veri["skor"] = ind.get("skor", {}).get("skor")
+        veri["yon"] = ind.get("skor", {}).get("yon")
+        veri["fiyat"] = ind.get("fiyat")
+        veri["detay"] = [{"ind": d.get("ind"), "katki": d.get("katki")} for d in ind.get("skor", {}).get("detay", [])[:5]]
+    except Exception: pass
+    try:
+        from options_engine import alarm_levels
+        lv = await alarm_levels(cur)
+        if not lv.get("error"):
+            veri["cw"] = lv.get("genel", {}).get("call_wall")
+            veri["pw"] = lv.get("genel", {}).get("put_wall")
+            veri["zg"] = lv.get("genel", {}).get("zero_gamma")
+    except Exception: pass
+    try:
+        from market_context import son_baglam
+        ctx = son_baglam()
+        if ctx:
+            veri["rejim"] = ctx.get("regime", {}).get("rejim")
+            veri["whale"] = ctx.get("move_source", {}).get("kaynak")
+    except Exception: pass
+
+    kitap_kaynaklar = []
+    kitap_notu = ""
+    try:
+        from kitap_db import ara
+        ks = ara("price action support resistance fibonacci volume CVD order flow asia session", limit=2)
+        if ks:
+            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:120]}" for s in ks)
+            kitap_kaynaklar = list(dict.fromkeys(s['title'] for s in ks))
+    except Exception: pass
+
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    yorum = ""
+    if api_key:
+        prompt = f"""Sen OAR Premium grafik analistisin. {cur} 5M ASIA RANGE grafiğini canlı yorumla.
+Lider Agent adına, ilgili agentların (indikatör, opsiyon, whale) bulgularını gözlemle.
+2-3 cümle, Türkçe, **önemli seviyeleri vurgula**, kitaplardan referans ver:
+
+İndikatör skoru: {veri.get('skor')} ({veri.get('yon')}) · Fiyat: {veri.get('fiyat')}
+Rejim: {veri.get('rejim')} · Whale/Move: {veri.get('whale')}
+Opsiyon CW/PW/ZG: {veri.get('cw')}/{veri.get('pw')}/{veri.get('zg')}
+En etkili indikatörler: {json.dumps(veri.get('detay', []), ensure_ascii=False)[:300]}
+Kitap: {kitap_notu[:300]}
+
+Fiyatın fib seviyelerine ve opsiyon duvarlarına göre konumunu, indikatör skorunu yorumla."""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=30) as cl:
+                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
+                    "generationConfig":{"temperature":0.35,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                if rr.status_code == 200:
+                    yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception: pass
+    return {"veri": veri, "yorum": yorum, "kitap_kaynaklar": kitap_kaynaklar}
+
 @app.get("/api/piyasa-durumu")
 async def piyasa_durumu():
     """Komuta Merkezi 'Piyasa Durumu' — opsiyon + makro + indikatör + kitap harmanı, AI yorumu."""
@@ -1272,44 +1336,50 @@ async def piyasa_durumu():
             d = r.json()["data"][0]
             veri["korku"] = f"{d['value']} ({d['value_classification']})"
     except Exception: pass
-    # Kitaplardan ilgili bilgi (mevcut duruma göre)
+    # Kitaplardan ilgili bilgi (mevcut duruma göre) — kaynak başlıklarını TUT
     kitap_notu = ""
+    kitap_kaynaklar = []
     try:
         from kitap_db import ara
-        sorgu = f"{veri.get('rejim','')} {veri.get('gamma_rejim','')} market regime gamma"
-        ks = ara(sorgu, limit=2)
+        sorgu = f"{veri.get('rejim','')} {veri.get('gamma_rejim','')} market regime technical analysis sentiment"
+        ks = ara(sorgu, limit=3)
         if ks:
             kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
+            kitap_kaynaklar = list(dict.fromkeys(s['title'] for s in ks))  # tekrarsız başlıklar
     except Exception: pass
 
-    # AI yorumu
+    # AI yorumu — 3 BAŞLIK (Teknik / Temel / Psikoloji) yapılandırılmış
     api_key = os.environ.get("GEMINI_API_KEY", "")
     yorum = ""
+    bolumler = {"teknik": "", "temel": "", "psikoloji": ""}
     if api_key:
-        prompt = f"""Sen OAR Premium piyasa analistisin. Aşağıdaki canlı verilerle BTC için
-genel piyasa durumu yorumu yaz (3-4 cümle, bilimsel, matematiksel, Türkçe):
+        prompt = f"""Sen OAR Premium piyasa analistisin. BTC için ÜÇ BAŞLIKTA piyasa durumu analizi yap.
+Bilimsel, matematiksel, Türkçe. Önemli rakam/seviyeleri **çift yıldız** ile vurgula.
 
+CANLI VERİLER:
 İndikatör skoru: {veri.get('indikator_skor')} ({veri.get('indikator_yon')})
-Piyasa rejimi: {veri.get('rejim')}
-Move source: {veri.get('move_source')}
-OAR Score: {veri.get('oar_score')}/100
-Gamma rejim: {veri.get('gamma_rejim')}
-CW/PW/ZG: {veri.get('call_wall')}/{veri.get('put_wall')}/{veri.get('zero_gamma')}
-Korku endeksi: {veri.get('korku')}
-Fiyat: {veri.get('fiyat')}
-İlgili kitap bilgisi: {kitap_notu[:400]}
+Piyasa rejimi: {veri.get('rejim')} · Move source: {veri.get('move_source')} · OAR Score: {veri.get('oar_score')}/100
+Gamma rejim: {veri.get('gamma_rejim')} · CW/PW/ZG: {veri.get('call_wall')}/{veri.get('put_wall')}/{veri.get('zero_gamma')}
+Korku endeksi: {veri.get('korku')} · Fiyat: {veri.get('fiyat')}
+Kitap bilgisi: {kitap_notu[:500]}
 
-Opsiyon konumunu, indikatör skorunu, rejimi ve korku endeksini birlikte değerlendir.
-Kitap bilgisi varsa referans ver. Pozisyon önerisi değil, durum tespiti yap."""
+SADECE şu JSON'u döndür (başka metin yok):
+{{"teknik":"İndikatör skoru, rejim, fib/seviye, move source açısından teknik durum (2-3 cümle, **vurgular**)","temel":"Opsiyon konumu (CW/PW/ZG dealer gamma), makro bağlam açısından yapısal durum (2-3 cümle)","psikoloji":"Korku/açgözlülük endeksi, funding, kalabalık davranışı, sentiment (2-3 cümle)"}}"""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
                 rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
                     "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
                 if rr.status_code == 200:
-                    yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    txt = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    txt = txt.replace("```json","").replace("```","").strip()
+                    try:
+                        bolumler = json.loads(txt)
+                    except Exception:
+                        yorum = txt  # JSON parse olmazsa düz metin
         except Exception: pass
-    return {"veri": veri, "yorum": yorum, "kitap_notu": kitap_notu[:300]}
+    return {"veri": veri, "bolumler": bolumler, "yorum": yorum,
+            "kitap_kaynaklar": kitap_kaynaklar, "kitap_notu": kitap_notu[:300]}
 
 @app.get("/api/theory/hipotezler")
 async def theory_hipotezler():
