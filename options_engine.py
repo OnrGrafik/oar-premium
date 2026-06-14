@@ -209,3 +209,141 @@ async def gex_ozet(currency="BTC"):
     return {"spot":spot,"call_wall":cw,"put_wall":pw,"zero_gamma":zg,
             "max_pain":genel.get("max_pain"),"gamma_rejim":konum,
             "yorum":f"Spot ${spot:,.0f} · ZG ${zg:,.0f} · {konum}" if zg else f"Spot ${spot:,.0f}"}
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  v3 GENİŞLETME — Strike topografyası, Greekler, IV skew, 3× CVD
+# ═══════════════════════════════════════════════════════════════════
+
+def _vanna(S,K,T,sig):
+    """Vanna = ∂²V/∂S∂σ — spot-vol çapraz duyarlılık."""
+    if T<=0 or sig<=0 or S<=0 or K<=0: return 0
+    d1=(math.log(S/K)+0.5*sig*sig*T)/(sig*math.sqrt(T))
+    d2=d1-sig*math.sqrt(T)
+    return -_npdf(d1)*d2/sig
+
+def _charm(S,K,T,sig):
+    """Charm = ∂Δ/∂t — delta'nın zaman bozunumu."""
+    if T<=0 or sig<=0 or S<=0 or K<=0: return 0
+    d1=(math.log(S/K)+0.5*sig*sig*T)/(sig*math.sqrt(T))
+    d2=d1-sig*math.sqrt(T)
+    return -_npdf(d1)*(2*0.5*sig*sig*T-d2*sig*math.sqrt(T))/(2*T*sig*math.sqrt(T))
+
+async def strike_topografya(currency="BTC", vade="all"):
+    """Strike bazında call/put OI + GEX dağılımı (görsel: Strike Topografyası)."""
+    async with httpx.AsyncClient(timeout=30) as cl:
+        spot=await _spot(cl,currency)
+        if not spot: return {"error":"spot yok"}
+        opts=await _tum_opsiyonlar(cl,spot,currency)
+    if not opts: return {"error":"opsiyon yok"}
+    strikes=_aggregate(opts,vade)
+    # Spot etrafında ±%15 filtrele (okunabilirlik)
+    lo,hi=spot*0.85,spot*1.15
+    strikes=[s for s in strikes if lo<=s["strike"]<=hi]
+    levels=_find_levels(_aggregate(opts,vade),spot,[o for o in opts if vade=="all" or o["expiryLabel"]==vade])
+    return {"spot":spot,"vade":vade,"strikes":strikes,"levels":levels,
+            "max_call_oi":max((s["callOI"] for s in strikes),default=0),
+            "max_put_oi":max((s["putOI"] for s in strikes),default=0)}
+
+async def toplu_greekler(currency="BTC"):
+    """Net Gamma, Net Vanna, Net Charm — dealer pozisyonu (USD)."""
+    async with httpx.AsyncClient(timeout=30) as cl:
+        spot=await _spot(cl,currency)
+        if not spot: return {"error":"spot yok"}
+        opts=await _tum_opsiyonlar(cl,spot,currency)
+    if not opts: return {"error":"opsiyon yok"}
+    now=int(time.time()*1000)
+    ng=nv=nc=0
+    for o in opts:
+        T=max((o["expiryTs"]-now)/(365.25*24*3600*1000),0.0001)
+        sgn=1 if o["type"]=="call" else -1
+        g=_gamma(spot,o["strike"],T,o["iv"])
+        v=_vanna(spot,o["strike"],T,o["iv"])
+        ch=_charm(spot,o["strike"],T,o["iv"])
+        ng+=o["oi"]*g*spot*spot*0.01*sgn
+        nv+=o["oi"]*v*spot*sgn
+        nc+=o["oi"]*ch*spot*sgn
+    return {"spot":spot,
+            "net_gamma":round(ng/1e6,2),"net_vanna":round(nv/1e6,2),"net_charm":round(nc/1e6,2),
+            "gamma_yorum":"Dealer net long gamma — volatiliteyi bastırır (mean-reversion)" if ng>0 else "Dealer net short gamma — volatiliteyi büyütür (momentum)",
+            "vanna_yorum":"Vol artışı dealer alımı getirir" if nv>0 else "Vol artışı dealer satışı getirir",
+            "charm_yorum":"Vade yaklaştıkça dealer alım baskısı" if nc>0 else "Vade yaklaştıkça dealer satış baskısı"}
+
+async def iv_skew(currency="BTC"):
+    """ATM IV vade yapısı + 25Δ Risk Reversal (3 vade dilimi)."""
+    async with httpx.AsyncClient(timeout=30) as cl:
+        spot=await _spot(cl,currency)
+        if not spot: return {"error":"spot yok"}
+        opts=await _tum_opsiyonlar(cl,spot,currency)
+    if not opts: return {"error":"opsiyon yok"}
+    now=int(time.time()*1000)
+    # Vadeye göre grupla
+    vadeler={}
+    for o in opts:
+        gun=(o["expiryTs"]-now)/(86400*1000)
+        vadeler.setdefault(o["expiryTs"],{"gun":gun,"opts":[]})
+        vadeler[o["expiryTs"]]["opts"].append(o)
+    atm_seri=[]; rr_seri=[]
+    for ts,v in sorted(vadeler.items()):
+        atm=min(v["opts"],key=lambda o:abs(o["strike"]-spot))
+        atm_seri.append({"gun":round(v["gun"]),"iv":round(atm["iv"]*100,1)})
+        # 25 delta yaklaşık: spot ±%10 call/put IV farkı
+        calls=[o for o in v["opts"] if o["type"]=="call" and o["strike"]>spot]
+        puts=[o for o in v["opts"] if o["type"]=="put" and o["strike"]<spot]
+        if calls and puts:
+            c25=min(calls,key=lambda o:abs(o["strike"]-spot*1.1))
+            p25=min(puts,key=lambda o:abs(o["strike"]-spot*0.9))
+            rr=(c25["iv"]-p25["iv"])*100
+            rr_seri.append({"gun":round(v["gun"]),"rr":round(rr,1)})
+    return {"spot":spot,"atm_vade":atm_seri[:12],"risk_reversal":rr_seri[:12],
+            "yapı":"Contango (uzun vade pahalı)" if len(atm_seri)>=2 and atm_seri[-1]["iv"]>atm_seri[0]["iv"] else "Backwardation"}
+
+async def cvd_uclu(currency="BTC"):
+    """3 CVD: Opsiyon CVD + Premium CVD (USD) + Whale CVD (≥50 BTC). Medyan çizgili."""
+    async with httpx.AsyncClient(timeout=20) as cl:
+        now=int(time.time()*1000); basla=now-3*86400*1000
+        trades=await _drb(cl,"get_last_trades_by_currency_and_time",
+            {"currency":currency,"kind":"option","start_timestamp":basla,"end_timestamp":now,"count":1000})
+    if not trades or "trades" not in trades:
+        return {"error":"trade yok"}
+    tl=sorted(trades["trades"],key=lambda x:x["timestamp"])
+    cvd=prem=whale=0
+    cseri=[];pseri=[];wseri=[]
+    for t in tl:
+        nm=t["instrument_name"]; tip="C" if nm.endswith("-C") else "P"
+        buy=t["direction"]=="buy"; amt=t["amount"]
+        usd=amt*t.get("price",0)*t.get("index_price",0)  # yaklaşık USD premium
+        yon=1 if (tip=="C" and buy) or (tip=="P" and not buy) else -1
+        cvd+=amt*yon; cseri.append({"ts":t["timestamp"],"v":round(cvd,2)})
+        prem+=usd*yon; pseri.append({"ts":t["timestamp"],"v":round(prem,0)})
+        if amt>=50: whale+=amt*yon; wseri.append({"ts":t["timestamp"],"v":round(whale,2)})
+    def medyan(seri):
+        vals=sorted(s["v"] for s in seri)
+        return round(vals[len(vals)//2],2) if vals else 0
+    return {
+        "opsiyon_cvd":{"seri":cseri[-200:],"guncel":round(cvd,2),"medyan":medyan(cseri),"yon":"YUKARI" if cvd>medyan(cseri) else "AŞAĞI"},
+        "premium_cvd":{"seri":pseri[-200:],"guncel":round(prem,0),"medyan":medyan(pseri),"yon":"YUKARI" if prem>medyan(pseri) else "AŞAĞI"},
+        "whale_cvd":{"seri":wseri[-200:],"guncel":round(whale,2),"medyan":medyan(wseri),"yon":"YUKARI" if whale>medyan(wseri) else "AŞAĞI"},
+    }
+
+async def islem_dagilimi(currency="BTC"):
+    """Son 1000 işlem: Calls Buy/Sell, Puts Buy/Sell, Block ayrımı."""
+    async with httpx.AsyncClient(timeout=20) as cl:
+        now=int(time.time()*1000); basla=now-2*86400*1000
+        trades=await _drb(cl,"get_last_trades_by_currency_and_time",
+            {"currency":currency,"kind":"option","start_timestamp":basla,"end_timestamp":now,"count":1000})
+    if not trades or "trades" not in trades: return {"error":"trade yok"}
+    d={"calls_buy":0,"calls_sell":0,"puts_buy":0,"puts_sell":0,
+       "calls_buy_block":0,"puts_buy_block":0,"calls_sell_block":0,"puts_sell_block":0}
+    BLOCK=25  # ≥25 kontrat = block
+    for t in trades["trades"]:
+        nm=t["instrument_name"]; tip="calls" if nm.endswith("-C") else "puts"
+        yon="buy" if t["direction"]=="buy" else "sell"
+        amt=t["amount"]
+        d[f"{tip}_{yon}"]+=amt
+        if amt>=BLOCK: d[f"{tip}_{yon}_block"]+=amt
+    for k in d: d[k]=round(d[k],1)
+    toplam_call=d["calls_buy"]+d["calls_sell"]
+    toplam_put=d["puts_buy"]+d["puts_sell"]
+    return {"dagilim":d,"call_toplam":round(toplam_call,1),"put_toplam":round(toplam_put,1),
+            "pcr":round(toplam_put/toplam_call,2) if toplam_call else 0}
