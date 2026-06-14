@@ -1268,6 +1268,52 @@ Kitap bilgisi varsa referans ver. Pozisyon önerisi değil, durum tespiti yap.""
         except Exception: pass
     return {"veri": veri, "yorum": yorum, "kitap_notu": kitap_notu[:300]}
 
+@app.get("/api/makro")
+async def makro_get(refresh: bool = False):
+    """Makro ekonomi — 9 gösterge + BTC etki yorumu (BLS/FRED/Treasury, ücretsiz)."""
+    from macro_engine import makro_veri
+    data = await makro_veri(refresh)
+    # Kitap destekli AI özet (opsiyonel, cache'li veride bir kez)
+    return data
+
+@app.get("/api/makro/ozet")
+async def makro_ozet():
+    """Makro AI özeti — kitaplardan destekli, Lider notu dahil."""
+    import httpx
+    from macro_engine import makro_veri
+    data = await makro_veri()
+    g = data.get("gostergeler", {})
+    yorum = data.get("btcYorum", {})
+    # Makro/ekonomi kitaplarından bilgi
+    kitap_notu = ""
+    try:
+        from kitap_db import ara
+        ks = ara("federal reserve interest rate inflation macro economy bitcoin liquidity", limit=2)
+        if ks:
+            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
+    except Exception: pass
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    ozet = yorum.get("sentez", "")
+    if api_key:
+        ozet_veri = {k: (v.get("guncel") if v else None) for k, v in g.items()}
+        prompt = f"""Sen makro ekonomi analistisin. Aşağıdaki ABD makro verilerini BTC açısından
+2-3 cümlede özetle (Türkçe, bilimsel). Yön belirleyici tetikleyicileri belirt:
+
+Veriler: {json.dumps(ozet_veri, ensure_ascii=False)}
+Eğilim: {yorum.get('egilim')}
+Kitaplardan: {kitap_notu[:300]}
+
+Range-bound mu, katalist mi gerekiyor? Bir sonraki önemli veri ne?"""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=30) as cl:
+                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
+                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                if rr.status_code == 200:
+                    ozet = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception: pass
+    return {"ozet": ozet, "egilim": yorum.get("egilim"), "guncellendi": data.get("guncellendi")}
+
 @app.get("/api/ticker")
 async def ticker_get():
     """Sadece: BTC, ETH, SP500, Nasdaq, Altın, Gümüş, VIX (belge kuralı)."""
