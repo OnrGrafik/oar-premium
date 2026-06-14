@@ -766,6 +766,8 @@ async def startup_event():
     asyncio.create_task(baglam_loop())
     from basari_skoru import skor_loop
     asyncio.create_task(skor_loop())
+    from theory_engine import hipotez_loop
+    asyncio.create_task(hipotez_loop())
     print("[LiderAgent] ✅ Tüm agent görevleri başlatıldı (toplayıcı + değerlendirici + 3 saatlik rapor)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
@@ -1273,6 +1275,56 @@ Kitap bilgisi varsa referans ver. Pozisyon önerisi değil, durum tespiti yap.""
                     yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
         except Exception: pass
     return {"veri": veri, "yorum": yorum, "kitap_notu": kitap_notu[:300]}
+
+@app.get("/api/theory/hipotezler")
+async def theory_hipotezler():
+    """Otomatik üretilen hipotezler (en son tarama)."""
+    from theory_engine import son_hipotezler
+    return son_hipotezler()
+
+@app.post("/api/theory/tara")
+async def theory_tara(req: Request):
+    """Manuel tetikleme: tüm enstrümanları otomatik tara."""
+    from theory_engine import tum_enstruman_tara
+    d = await req.json()
+    return await tum_enstruman_tara(int(d.get("gun", 365)))
+
+@app.get("/api/theory/yorum")
+async def theory_yorum():
+    """Research Agent + Lider bilimsel yorum (kitap destekli)."""
+    import httpx
+    from theory_engine import son_hipotezler
+    h = son_hipotezler()
+    en_iyi = h.get("en_iyi_hipotezler", [])
+    # Teori/strateji kitaplarından
+    kitap_notu = ""
+    try:
+        from kitap_db import ara
+        ks = ara("backtest strategy fibonacci asia range session trading edge win rate", limit=2)
+        if ks:
+            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
+    except Exception: pass
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    yorum = {"gunluk": "", "haftalik": "", "oneri": "", "lider": ""}
+    if api_key and en_iyi:
+        prompt = f"""Sen OAR Research Agent'sın. Otomatik backtest sonuçlarını bilimsel dille yorumla.
+En iyi hipotezler: {json.dumps(en_iyi[:5], ensure_ascii=False)[:1000]}
+Kitaplardan: {kitap_notu[:300]}
+
+JSON döndür (başka şey yazma):
+{{"gunluk":"günlük başarı analizi 1-2 cümle","haftalik":"haftalık bias 1-2 cümle","oneri":"OAR'a eklenecek/çıkarılacak özellik veya hangi saatte trade edilmeli önerisi 1-2 cümle","lider":"Lider Agent sistem geliştirme yorumu 2-3 cümle, mantık hatası/eksik tespit"}}"""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=30) as cl:
+                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
+                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                if rr.status_code == 200:
+                    txt = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    txt = txt.replace("```json","").replace("```","").strip()
+                    try: yorum = json.loads(txt)
+                    except Exception: yorum["lider"] = txt[:400]
+        except Exception: pass
+    return {"yorum": yorum, "en_iyi": en_iyi[:6], "tarih": h.get("tarih")}
 
 @app.get("/api/makro")
 async def makro_get(refresh: bool = False):
