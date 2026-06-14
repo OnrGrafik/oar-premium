@@ -44,9 +44,14 @@ def _stdev(v):
 # ─── Binance veri çekme ───────────────────────────────────────────
 async def _klines(cl, base, sym, interval, limit=100):
     ep = "/api/v3/klines" if "api.binance" in base else "/fapi/v1/klines"
-    r = await cl.get(f"{base}{ep}", params={"symbol":sym,"interval":interval,"limit":limit})
-    d = r.json()
-    return d if isinstance(d,list) else []
+    try:
+        r = await cl.get(f"{base}{ep}", params={"symbol":sym,"interval":interval,"limit":limit})
+        if r.status_code != 200:
+            return []
+        d = r.json()
+        return d if isinstance(d,list) else []
+    except Exception:
+        return []
 
 # ─── İNDİKATÖR HESAPLARI ──────────────────────────────────────────
 def hesapla_hacim_grubu(k):
@@ -277,7 +282,10 @@ async def analiz(symbol="BTCUSDT", interval="5m"):
     async with httpx.AsyncClient(timeout=20) as cl:
         k = await _klines(cl, FAPI, symbol, interval, 100)
         if len(k)<35:
-            return {"hata":"veri yetersiz","symbol":symbol}
+            # Futures boşsa spot dene
+            k = await _klines(cl, "https://api.binance.com", symbol, interval, 100)
+        if len(k)<35:
+            return {"hata":"veri yetersiz","symbol":symbol,"skor":{"skor":None,"yon":"—","detay":[]},"indikator_sayisi":0}
         ind={}
         ind.update(hesapla_hacim_grubu(k))
         ind.update(hesapla_vwap_grubu(k))
