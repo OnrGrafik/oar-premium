@@ -777,6 +777,20 @@ function scrKnowledge(){
 }
 
 // ─── CANLI PANEL ───
+function updateFeedOnly(){
+  const fc=document.getElementById('feed-container');
+  if(fc)fc.innerHTML=feedHtmlGen();
+}
+function feedHtmlGen(){
+  return (ST.feed||[]).map(f=>`<div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #131918;animation:oarfeedin .4s ease">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:44px">
+      <span style="font-size:9.5px;color:#5e716f">${f.t}</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:${f.col};box-shadow:0 0 8px ${f.col}"></span>
+    </div>
+    <div style="min-width:0"><div class="sg" style="font-weight:600;font-size:11px;color:${f.col}">${f.a}</div>
+    <div style="font-size:11px;color:#b8c6c3;line-height:1.45;margin-top:3px;white-space:pre-wrap">${esc(f.txt)}</div></div>
+  </div>`).join('')||'<div style="font-size:10px;color:#5e716f;padding:14px">Agent feed yükleniyor — saatlik raporlar burada akacak.</div>';
+}
 function scrLive(){
   const ctx=ST.ctx||{}, ms=ctx.move_source||{}, reg=ctx.regime||{};
   const ind=[
@@ -787,20 +801,9 @@ function scrLive(){
     {l:'SİNYAL',v:ST.signals.length,d:'toplam',col:'#cdd9d8'},
     {l:'TOPLULUK',v:'10',d:'aktif bot',col:'#9fb0ad'},
   ];
-  const feedHtml=(ST.feed||[]).map(f=>`<div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #131918;animation:oarfeedin .4s ease">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:44px">
-      <span style="font-size:9.5px;color:#5e716f">${f.t}</span>
-      <span style="width:8px;height:8px;border-radius:50%;background:${f.col};box-shadow:0 0 8px ${f.col}"></span>
-    </div>
-    <div style="min-width:0"><div class="sg" style="font-weight:600;font-size:11px;color:${f.col}">${f.a}</div>
-    <div style="font-size:11px;color:#b8c6c3;line-height:1.45;margin-top:3px;white-space:pre-wrap">${esc(f.txt)}</div></div>
-  </div>`).join('')||'<div style="font-size:10px;color:#5e716f;padding:14px">Agent feed yükleniyor — saatlik raporlar burada akacak.</div>';
+  const feedHtml=feedHtmlGen();
 
-  const chatHtml=(ST.chat||[]).map(m=>{const u=m.role==='user';
-    return `<div style="display:flex;${u?'justify-content:flex-end':'justify-content:flex-start'}">
-      <div style="max-width:90%;border-radius:10px;padding:11px 13px;${u?'background:#11201b;border:1px solid #1c3a2e':'background:#0a0f0f;border:1px solid #18211f'}">
-        <div style="font-size:11.5px;line-height:1.5;color:${u?'#cfeede':'#c4d2cf'};white-space:pre-wrap">${esc(m.txt)}</div>
-      </div></div>`;}).join('')||"<div style=\"font-size:10px;color:#5e716f;text-align:center;padding:20px\">Lider Agenta tüm sistem bağlamıyla soru sorun.</div>";
+  const chatHtml=chatHtmlGen();
 
   const SUG=['Neden bu rejim?','OAR Score neyi gösteriyor?','Hangi botlar teyitli?','Move source ne anlatıyor?'];
   return `
@@ -821,7 +824,7 @@ function scrLive(){
         <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">AGENT FEED — ortak hafızaya canlı yazım</span>
         <span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#1ff0ad"><span style="width:6px;height:6px;border-radius:50%;background:#1ff0ad;animation:oarblink 1.6s infinite"></span>akıyor</span>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:6px 15px 15px">${feedHtml}</div>
+      <div id="feed-container" style="flex:1;overflow-y:auto;padding:6px 15px 15px">${feedHtml}</div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
       <div style="padding:13px 15px;border-bottom:1px solid #18211f;display:flex;align-items:center;gap:9px;flex-shrink:0">
@@ -940,15 +943,26 @@ async function raporUret(){
   await loadReport();render();
 }
 async function ask(q){$('chatin')&&($('chatin').value=q);send();}
+function chatHtmlGen(){
+  return (ST.chat||[]).map(m=>{const u=m.role==='user';
+    return `<div style="display:flex;${u?'justify-content:flex-end':'justify-content:flex-start'}">
+      <div style="max-width:90%;border-radius:10px;padding:11px 13px;${u?'background:#11201b;border:1px solid #1c3a2e':'background:#0a0f0f;border:1px solid #18211f'}">
+        <div style="font-size:11.5px;line-height:1.5;color:${u?'#cfeede':'#c4d2cf'};white-space:pre-wrap">${esc(m.txt)}</div>
+      </div></div>`;}).join('')||'<div style="font-size:10px;color:#5e716f;text-align:center;padding:20px">Lider Agenta tüm sistem + kitap bağlamıyla soru sorun.</div>';
+}
+function updateChatOnly(){
+  const cb=$('chatbox');
+  if(cb){cb.innerHTML=chatHtmlGen();cb.scrollTop=cb.scrollHeight;}
+}
 async function send(){
   const inp=$('chatin');if(!inp)return;const q=inp.value.trim();if(!q)return;inp.value='';
-  ST.chat.push({role:'user',txt:q});ST.chat.push({role:'agent',txt:'⏳ Analiz ediliyor...'});render();
+  ST.chat.push({role:'user',txt:q});
+  ST.chat.push({role:'agent',txt:'⏳ Analiz ediliyor...'});
+  updateChatOnly();  // tüm ekranı değil, sadece sohbeti güncelle
   const d=await jpost('/api/leader/chat',{soru:q});
-  ST.chat.pop();ST.chat.push({role:'agent',txt:(d&&d.cevap)||'Yanıt alınamadı'});
-  // son agent mesajını güncelle (typing'i çıkar)
-  ST.chat.splice(ST.chat.length-2,1);
-  render();
-  setTimeout(()=>{const cb=$('chatbox');if(cb)cb.scrollTop=cb.scrollHeight;},50);
+  ST.chat.pop();  // typing mesajını çıkar
+  ST.chat.push({role:'agent',txt:(d&&d.cevap)||'Yanıt alınamadı'});
+  updateChatOnly();
 }
 
 // ════════════ LOADERS ════════════
@@ -1059,8 +1073,12 @@ async function boot(){
   await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge(),loadIndicators(),loadOptScore(),loadPiyasaDurumu(),loadOpsiyonYorum()]);
   renderRail();render();
   loadTicker();loadOptions();
-  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();if(['leader','agents','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();if(['leader','live'].includes(ST.tab))render();},300000);
+  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();
+    if(ST.tab==='live'){updateFeedOnly();}
+    else if(['leader','agents'].includes(ST.tab))render();},120000);
+  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();
+    if(ST.tab==='live'){updateFeedOnly();}
+    else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);
 }
 boot();
