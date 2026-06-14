@@ -21,13 +21,30 @@ from datetime import datetime, timezone
 DERIBIT = "https://www.deribit.com/api/v2/public"
 HDR = {"Accept": "application/json", "User-Agent": "OAR-Premium/2.0"}
 
-# ─── Black-Scholes (r=q=0, inverse) ───────────────────────────────
+# ─── Black-Scholes Greeks (Hull 11e · gex.js ile birebir) ─────────
 def _npdf(x): return math.exp(-0.5*x*x)/math.sqrt(2*math.pi)
 def _ncdf(x):
     s=-1 if x<0 else 1; x=abs(x)
     t=1/(1+0.2316419*x)
     p=t*(0.319381530+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))))
     return 0.5+s*(0.5-_npdf(x)*p)
+
+def _bs_greeks(S, K, T, sig, typ, r=0, q=0):
+    """Tam BS Greekleri — delta, gamma, vega, vanna, charm (Hull 11e)."""
+    if T<=0 or sig<=0 or S<=0 or K<=0:
+        return {"delta":0,"gamma":0,"vega":0,"vanna":0,"charm":0,"d1":0,"d2":0}
+    sqrtT=math.sqrt(T)
+    d1=(math.log(S/K)+(r-q+0.5*sig*sig)*T)/(sig*sqrtT)
+    d2=d1-sig*sqrtT
+    nd1=_npdf(d1); eqT=math.exp(-q*T)
+    delta = eqT*_ncdf(d1) if typ=="call" else eqT*(_ncdf(d1)-1)
+    gamma = nd1*eqT/(S*sig*sqrtT)
+    vega  = S*eqT*nd1*sqrtT
+    vanna = -eqT*nd1*d2/sig
+    core  = nd1*(2*(r-q)*T - d2*sig*sqrtT)/(2*T*sig*sqrtT)
+    charm = (-eqT*(core+q*_ncdf(d1))) if typ=="call" else (-eqT*(core-q*_ncdf(-d1)))
+    return {"delta":delta,"gamma":gamma,"vega":vega,"vanna":vanna,"charm":charm,"d1":d1,"d2":d2}
+
 def _gamma(S,K,T,sig):
     if T<=0 or sig<=0 or S<=0 or K<=0: return 0
     d1=(math.log(S/K)+0.5*sig*sig*T)/(sig*math.sqrt(T))
@@ -82,9 +99,20 @@ async def _tum_opsiyonlar(cl, spot, currency="BTC"):
             T=max((ts-now)/(365.25*24*3600*1000),0.0001)
             K=inst_data["strike"]
             typ="call" if inst_data["option_type"]=="call" else "put"
-            g=_gamma(spot,K,T,iv)
-            gex=oi*g*spot*spot*0.01*(1 if typ=="call" else -1)
-            opts.append({"strike":K,"type":typ,"oi":oi,"iv":iv,"gex":gex,
+            sgn=1 if typ=="call" else -1
+            # Deribit greeks varsa onları kullan (mark), yoksa BS hesapla
+            bs=_bs_greeks(spot,K,T,iv,typ)
+            drb_g=tk.get("greeks",{}) or {}
+            gamma=drb_g.get("gamma") if isinstance(drb_g.get("gamma"),(int,float)) else bs["gamma"]
+            delta=drb_g.get("delta") if isinstance(drb_g.get("delta"),(int,float)) else bs["delta"]
+            vanna=bs["vanna"]; charm=bs["charm"]
+            # gex.js ile birebir: exposure formülleri (contractSize=1)
+            gex = gamma*oi*spot*spot*0.01*sgn
+            vex = vanna*oi*spot*0.01*sgn
+            cex = charm*oi*spot*(1/365)*sgn
+            opts.append({"strike":K,"type":typ,"oi":oi,"iv":iv,
+                         "gex":gex,"vex":vex,"cex":cex,
+                         "gamma":gamma,"delta":delta,"vanna":vanna,"charm":charm,
                          "expiryTs":ts,"expiryLabel":_expiry_label(ts,now),"T":T})
         await asyncio.sleep(0.05)
     return opts
@@ -267,55 +295,72 @@ async def strike_topografya(currency="BTC", vade="all"):
             "max_put_oi":max((s["putOI"] for s in strikes),default=0)}
 
 async def toplu_greekler(currency="BTC"):
-    """Net Gamma, Net Vanna, Net Charm — dealer pozisyonu (USD)."""
+    """Net Gamma, Net Vanna, Net Charm — dealer pozisyonu (USD, gex.js formülü)."""
     async with httpx.AsyncClient(timeout=30) as cl:
         spot=await _spot(cl,currency)
         if not spot: return {"error":"spot yok"}
         opts=await _tum_opsiyonlar(cl,spot,currency)
     if not opts: return {"error":"opsiyon yok"}
-    now=int(time.time()*1000)
-    ng=nv=nc=0
-    for o in opts:
-        T=max((o["expiryTs"]-now)/(365.25*24*3600*1000),0.0001)
-        sgn=1 if o["type"]=="call" else -1
-        g=_gamma(spot,o["strike"],T,o["iv"])
-        v=_vanna(spot,o["strike"],T,o["iv"])
-        ch=_charm(spot,o["strike"],T,o["iv"])
-        ng+=o["oi"]*g*spot*spot*0.01*sgn
-        nv+=o["oi"]*v*spot*sgn
-        nc+=o["oi"]*ch*spot*sgn
+    # Her opsiyonda zaten gex/vex/cex hesaplı (gex.js ile birebir)
+    ng=sum(o.get("gex",0) for o in opts)
+    nv=sum(o.get("vex",0) for o in opts)
+    nc=sum(o.get("cex",0) for o in opts)
     return {"spot":spot,
             "net_gamma":round(ng/1e6,2),"net_vanna":round(nv/1e6,2),"net_charm":round(nc/1e6,2),
-            "gamma_yorum":"Dealer net long gamma — volatiliteyi bastırır (mean-reversion)" if ng>0 else "Dealer net short gamma — volatiliteyi büyütür (momentum)",
-            "vanna_yorum":"Vol artışı dealer alımı getirir" if nv>0 else "Vol artışı dealer satışı getirir",
-            "charm_yorum":"Vade yaklaştıkça dealer alım baskısı" if nc>0 else "Vade yaklaştıkça dealer satış baskısı"}
+            "gamma_yorum":"Dealer net LONG gamma — fiyat yükselince satıp düşünce alır, volatiliteyi bastırır (mean-reversion). Spot Call Wall'a yaklaştıkça delta-hedge baskısı artar." if ng>0 else "Dealer net SHORT gamma — fiyat hareketini güçlendirir (momentum). Volatilite genişleme eğiliminde.",
+            "vanna_yorum":"Net vanna pozitif — IV yükselişi dealer'ı net alıma iter, spot ile aynı yönde hareket eder." if nv>0 else "Net vanna negatif — IV yükselişi dealer satışı getirir, spot'a ters baskı.",
+            "charm_yorum":"Net charm pozitif — vade yaklaştıkça (özellikle haftalık expiry) dealer alım baskısı, pin riski yukarı." if nc>0 else "Net charm negatif — vade yaklaştıkça dealer satış baskısı, pin riski aşağı."}
 
 async def iv_skew(currency="BTC"):
-    """ATM IV vade yapısı + 25Δ Risk Reversal (3 vade dilimi)."""
+    """ATM IV vade yapısı (log-moneyness interp) + gerçek 25Δ Risk Reversal (Hull §20.3)."""
     async with httpx.AsyncClient(timeout=30) as cl:
         spot=await _spot(cl,currency)
         if not spot: return {"error":"spot yok"}
         opts=await _tum_opsiyonlar(cl,spot,currency)
     if not opts: return {"error":"opsiyon yok"}
     now=int(time.time()*1000)
-    # Vadeye göre grupla
     vadeler={}
     for o in opts:
         gun=(o["expiryTs"]-now)/(86400*1000)
-        vadeler.setdefault(o["expiryTs"],{"gun":gun,"opts":[]})
+        if gun<0: continue
+        vadeler.setdefault(o["expiryTs"],{"gun":gun,"T":o["T"],"opts":[]})
         vadeler[o["expiryTs"]]["opts"].append(o)
     atm_seri=[]; rr_seri=[]
     for ts,v in sorted(vadeler.items()):
-        atm=min(v["opts"],key=lambda o:abs(o["strike"]-spot))
-        atm_seri.append({"gun":round(v["gun"]),"iv":round(atm["iv"]*100,1)})
-        # 25 delta yaklaşık: spot ±%10 call/put IV farkı
-        calls=[o for o in v["opts"] if o["type"]=="call" and o["strike"]>spot]
-        puts=[o for o in v["opts"] if o["type"]=="put" and o["strike"]<spot]
-        if calls and puts:
-            c25=min(calls,key=lambda o:abs(o["strike"]-spot*1.1))
-            p25=min(puts,key=lambda o:abs(o["strike"]-spot*0.9))
-            rr=(c25["iv"]-p25["iv"])*100
-            rr_seri.append({"gun":round(v["gun"]),"rr":round(rr,1)})
+        opts_v=v["opts"]; gun=v["gun"]; T=v["T"]
+        # ── ATM IV: log-moneyness ağırlıklı interpolasyon (Gatheral) ──
+        calls=sorted([o for o in opts_v if o["type"]=="call" and o["iv"]>0],key=lambda o:o["strike"])
+        atmIV=None
+        if calls:
+            above=next((c for c in calls if c["strike"]>=spot),None)
+            below=next((c for c in reversed(calls) if c["strike"]<spot),None)
+            if above and below:
+                lm_a=abs(math.log(above["strike"]/spot)); lm_b=abs(math.log(below["strike"]/spot))
+                tot=lm_a+lm_b
+                atmIV=(below["iv"]*(lm_a/tot)+above["iv"]*(lm_b/tot)) if tot>0 else (above["iv"]+below["iv"])/2
+            elif above: atmIV=above["iv"]
+            elif below: atmIV=below["iv"]
+        if atmIV and 0.01<atmIV<5:
+            atm_seri.append({"gun":round(gun),"iv":round(atmIV*100,1)})
+        # ── 25Δ Risk Reversal: gerçek delta (N(d1)=0.25 call, N(d1)=0.75 put) ──
+        if T>0.001:
+            bestC=bestP=None; minCd=minPd=1e9
+            for o in opts_v:
+                if not o.get("iv") or o["iv"]<=0: continue
+                sqrtT=math.sqrt(o["T"])
+                d1=(math.log(spot/o["strike"])+0.5*o["iv"]*o["iv"]*o["T"])/(o["iv"]*sqrtT)
+                cdelta=_ncdf(d1); pdelta=cdelta-1
+                if o["type"]=="call":
+                    dist=abs(cdelta-0.25)
+                    if dist<minCd and dist<0.10: minCd=dist; bestC=o
+                else:
+                    dist=abs(pdelta+0.25)
+                    if dist<minPd and dist<0.10: minPd=dist; bestP=o
+            if bestC and bestP:
+                rr=(bestP["iv"]-bestC["iv"])*100
+                if abs(rr)<25:
+                    rr_seri.append({"gun":round(gun),"rr":round(rr,2),
+                        "put_iv":round(bestP["iv"]*100,1),"call_iv":round(bestC["iv"]*100,1)})
     return {"spot":spot,"atm_vade":atm_seri[:12],"risk_reversal":rr_seri[:12],
             "yapı":"Contango (uzun vade pahalı)" if len(atm_seri)>=2 and atm_seri[-1]["iv"]>atm_seri[0]["iv"] else "Backwardation"}
 
