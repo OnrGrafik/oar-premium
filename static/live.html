@@ -77,12 +77,12 @@ const API = '';
 
 const NAV = [
   {id:'leader',  icon:'◆', label:'Komuta Merkezi'},
+  {id:'options', icon:'∑', label:'Opsiyon & GEX'},
+  {id:'macro',   icon:'▦', label:'Makro Ekonomi'},
+  {id:'live',    icon:'◈', label:'Canlı Panel'},
   {id:'agents',  icon:'⬡', label:'Agentlar & Botlar'},
   {id:'theory',  icon:'⚗', label:'Theory Lab'},
-  {id:'options', icon:'∑', label:'Options & GEX'},
   {id:'knowledge',icon:'⛁', label:'Bilgi / Hafıza'},
-  {id:'live',    icon:'◈', label:'Canlı Panel'},
-  {id:'system',  icon:'⚙', label:'Sistem / DevOps'},
 ];
 
 const BOTS = [
@@ -143,16 +143,15 @@ function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)l
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
-  const d = await jget('/api/market');
+  const d = await jget('/api/ticker');
   let items = [];
-  if(d && d.coins){
-    items = d.coins.slice(0,8).map(c=>({sym:c.symbol||c.name,price:'$'+fmtNum(Math.round(c.price||c.current_price||0)),chg:((c.change24h||c.price_change_percentage_24h||0)).toFixed(1)+'%',col:(c.change24h||c.price_change_percentage_24h||0)>=0?'#1ff0ad':'#ff5d6c'}));
+  if(d && d.items){
+    items = d.items.map(c=>({sym:c.sym,
+      price: c.sym==='Altın'||c.sym==='Gümüş'||c.sym==='VIX'?('$'+fmtNum(c.price)):(c.price>100?('$'+fmtNum(Math.round(c.price))):('$'+c.price)),
+      chg:(c.chg>=0?'+':'')+c.chg+'%',
+      col:c.chg>=0?'#1ff0ad':'#ff5d6c'}));
   }
-  if(!items.length){
-    // Binance fallback
-    const r = await jget('/api/market');
-    items=[{sym:'BTC',price:'—',chg:'',col:'#9fb0ad'}];
-  }
+  if(!items.length)items=[{sym:'BTC',price:'—',chg:'',col:'#9fb0ad'}];
   const html = items.map(t=>`<span style="display:inline-flex;align-items:center;gap:7px;padding:0 15px;border-right:1px solid #131918;height:46px">
     <span style="color:#9fb0ad;font-weight:600">${t.sym}</span><span style="color:#cdd9d8">${t.price}</span><span style="color:${t.col};font-size:11px">${t.chg}</span></span>`).join('');
   $('ticker').innerHTML = html+html;
@@ -175,6 +174,7 @@ function render(){
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
   else if(ST.tab==='system')m.innerHTML=scrSystem();
+  else if(ST.tab==='macro')m.innerHTML='<div style="padding:40px;text-align:center;color:#5e716f"><h1 class="sg" style="color:#eaf4f2;font-weight:600">Makro Ekonomi</h1><div style="margin-top:12px">Bu sayfa Adım 3\'te kurulacak.</div></div>';
 }
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
