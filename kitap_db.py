@@ -79,10 +79,22 @@ def ara(sorgu: str, limit: int = 5) -> list:
             FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
             WHERE chunks_fts MATCH ?
             ORDER BY skor LIMIT ?""", (fts_q, limit)).fetchall()
+        if rows:
+            c.close()
+            return [{"title":r[0],"category":r[1],"content":r[2],"skor":round(r[3],2)} for r in rows]
+        # FTS boş döndü → LIKE fallback (kısmi eşleşme)
+        kelimeler = temiz.split()[:3]
+        if kelimeler:
+            like_q = " OR ".join(["content LIKE ?"]*len(kelimeler))
+            params = [f"%{k}%" for k in kelimeler] + [limit]
+            rows2 = c.execute(f"SELECT title,category,content FROM chunks WHERE {like_q} LIMIT ?", params).fetchall()
+            c.close()
+            return [{"title":r[0],"category":r[1],"content":r[2],"skor":0} for r in rows2]
         c.close()
-        return [{"title":r[0],"category":r[1],"content":r[2],"skor":round(r[3],2)} for r in rows]
-    except Exception as e:
-        c.close()
+        return []
+    except Exception:
+        try: c.close()
+        except Exception: pass
         return []
 
 def istatistik() -> dict:
