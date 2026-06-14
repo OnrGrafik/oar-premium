@@ -331,6 +331,10 @@ async def get_binance_ticker(symbol: str) -> dict:
     return {}
 
 # ─── CoinGecko ──────────────────────────────────────────────────────────────
+def _cg_headers():
+    k = os.environ.get("COINGECKO_API_KEY", "")
+    return {"x-cg-demo-api-key": k} if k else {}
+
 async def get_coingecko_markets(coins: int = 15) -> list:
     async with httpx.AsyncClient(timeout=12) as c:
         try:
@@ -338,7 +342,8 @@ async def get_coingecko_markets(coins: int = 15) -> list:
                 "https://api.coingecko.com/api/v3/coins/markets",
                 params={"vs_currency": "usd", "order": "market_cap_desc",
                         "per_page": coins, "page": 1,
-                        "price_change_percentage": "1h,24h,7d"}
+                        "price_change_percentage": "1h,24h,7d"},
+                headers=_cg_headers()
             )
             if r.status_code == 200:
                 return r.json()
@@ -352,7 +357,8 @@ async def get_coingecko_coin(coin_id: str) -> dict:
             r = await c.get(
                 f"https://api.coingecko.com/api/v3/coins/{coin_id}",
                 params={"localization": "false", "tickers": "false",
-                        "community_data": "false", "developer_data": "false"}
+                        "community_data": "false", "developer_data": "false"},
+                headers=_cg_headers()
             )
             if r.status_code == 200:
                 d = r.json()
@@ -1331,6 +1337,19 @@ async def ticker_get():
                                 "chg": round(float(t["priceChangePercent"]),2)})
                 except Exception: continue
     except Exception: pass
+    # Binance boş geldiyse CoinGecko yedeği
+    if not any(x["sym"] in ("BTC","ETH") for x in out):
+        try:
+            async with httpx.AsyncClient(timeout=10) as cl:
+                r = await cl.get("https://api.coingecko.com/api/v3/simple/price",
+                    params={"ids":"bitcoin,ethereum","vs_currencies":"usd","include_24hr_change":"true"},
+                    headers=_cg_headers())
+                d = r.json()
+                if "bitcoin" in d:
+                    out.append({"sym":"BTC","price":d["bitcoin"]["usd"],"chg":round(d["bitcoin"].get("usd_24h_change",0),2)})
+                if "ethereum" in d:
+                    out.append({"sym":"ETH","price":d["ethereum"]["usd"],"chg":round(d["ethereum"].get("usd_24h_change",0),2)})
+        except Exception: pass
     # Geleneksel — Yahoo Finance (ücretsiz, keysiz)
     yahoo = {"^GSPC":"SP500","^IXIC":"Nasdaq","GC=F":"Altın","SI=F":"Gümüş","^VIX":"VIX"}
     try:
