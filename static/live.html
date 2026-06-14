@@ -108,10 +108,11 @@ function fmtNum(n){return Number(n).toLocaleString('en-US');}
 
 // Sparkline SVG
 function spark(vals,color,w,hh){
-  if(!vals||vals.length<2)return '';
+  vals=(vals||[]).map(Number).filter(v=>isFinite(v));
+  if(vals.length<2)return '<div style="height:'+(hh||40)+'px;display:flex;align-items:center;justify-content:center;color:#5e716f;font-size:9px">yeterli veri yok</div>';
   const min=Math.min(...vals),max=Math.max(...vals),rng=(max-min)||1;
   const pts=vals.map((v,i)=>[(i/(vals.length-1))*w,hh-2-((v-min)/rng)*(hh-4)]);
-  const line='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L ');
+  const line='M'+pts.map(p=>(isFinite(p[0])?p[0]:0).toFixed(1)+' '+(isFinite(p[1])?p[1]:hh/2).toFixed(1)).join(' L ');
   const id='sp'+Math.round(Math.random()*1e6);
   return `<svg width="100%" height="${hh}" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" style="display:block">
     <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
@@ -648,10 +649,13 @@ function scrOptions(){
   // ── 3× CVD (medyan çizgili, hover) ──
   const cvdBox=(d,baslik,renk,birim,aciklama)=>{
     if(!d||!d.seri||!d.seri.length)return `<div class="card" style="padding:14px;margin-bottom:10px"><div class="sg" style="font-size:9px;color:#5e716f">${baslik}</div><div style="font-size:10px;color:#5e716f;padding:14px;text-align:center">Veri yükleniyor...</div></div>`;
-    const vals=d.seri.map(x=>x.v), mn=Math.min(...vals),mx=Math.max(...vals),rng=(mx-mn)||1;
+    const vals=d.seri.map(x=>Number(x.v)).filter(v=>isFinite(v));
+    if(vals.length<2)return `<div class="card" style="padding:14px;margin-bottom:10px"><div class="sg" style="font-size:9px;color:#5e716f">${baslik}</div><div style="font-size:10px;color:#5e716f;padding:14px;text-align:center">Yeterli veri yok</div></div>`;
+    const mn=Math.min(...vals),mx=Math.max(...vals),rng=(mx-mn)||1;
     const W=600,H=70;
     const pts=vals.map((v,i)=>`${(i/(vals.length-1)*W).toFixed(1)},${(H-(v-mn)/rng*H).toFixed(1)}`).join(' ');
-    const medY=(H-(d.medyan-mn)/rng*H).toFixed(1);
+    const medV=isFinite(d.medyan)?d.medyan:mn;
+    const medY=(H-(medV-mn)/rng*H).toFixed(1);
     return `<div class="card" style="padding:13px 15px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
         <span class="sg" style="font-size:9px;letter-spacing:.1em;color:#5e716f">${baslik}</span>
