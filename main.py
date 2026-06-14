@@ -749,26 +749,47 @@ _leader_task = None
 async def startup_event():
     global _leader_task
     api_key = os.environ.get("GEMINI_API_KEY", "")
-    from leader_agent import (
-        sinyal_toplayici_loop, sinyal_degerlendirici_loop,
-        saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop
-    )
-    _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
-    asyncio.create_task(sinyal_toplayici_loop())
-    asyncio.create_task(sinyal_degerlendirici_loop())
-    asyncio.create_task(saatlik_lider_raporu_loop(api_key))
-    asyncio.create_task(saatlik_backtest_loop())
-    asyncio.create_task(saatlik_research_loop())
-    from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
-    asyncio.create_task(zenginlestirici_loop())
-    asyncio.create_task(pattern_sinyal_loop())
-    from market_context import baglam_loop
-    asyncio.create_task(baglam_loop())
-    from basari_skoru import skor_loop
-    asyncio.create_task(skor_loop())
-    from theory_engine import hipotez_loop
-    asyncio.create_task(hipotez_loop())
-    print("[LiderAgent] ✅ Tüm agent görevleri başlatıldı (toplayıcı + değerlendirici + 3 saatlik rapor)")
+    # Her loop ayrı try/except — biri çökse bile uygulama ayakta kalır (502 önler)
+    def guvenli_task(coro_fn, ad):
+        try:
+            asyncio.create_task(coro_fn())
+        except Exception as e:
+            print(f"[Startup] {ad} başlatılamadı: {str(e)[:80]}")
+    try:
+        from leader_agent import (
+            sinyal_toplayici_loop, sinyal_degerlendirici_loop,
+            saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop
+        )
+        _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
+        asyncio.create_task(sinyal_toplayici_loop())
+        asyncio.create_task(sinyal_degerlendirici_loop())
+        asyncio.create_task(saatlik_lider_raporu_loop(api_key))
+        asyncio.create_task(saatlik_backtest_loop())
+        asyncio.create_task(saatlik_research_loop())
+    except Exception as e:
+        print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
+    try:
+        from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
+        asyncio.create_task(zenginlestirici_loop())
+        asyncio.create_task(pattern_sinyal_loop())
+    except Exception as e:
+        print(f"[Startup] feature_engine: {str(e)[:80]}")
+    try:
+        from market_context import baglam_loop
+        asyncio.create_task(baglam_loop())
+    except Exception as e:
+        print(f"[Startup] market_context: {str(e)[:80]}")
+    try:
+        from basari_skoru import skor_loop
+        asyncio.create_task(skor_loop())
+    except Exception as e:
+        print(f"[Startup] basari_skoru: {str(e)[:80]}")
+    try:
+        from theory_engine import hipotez_loop
+        asyncio.create_task(hipotez_loop())
+    except Exception as e:
+        print(f"[Startup] theory_engine: {str(e)[:80]}")
+    print("[LiderAgent] ✅ Startup tamamlandı (dayanıklı mod)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
 @app.get("/api/leader/report")
