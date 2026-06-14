@@ -139,7 +139,7 @@ function renderRail(){
       <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
     </div>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)loadDevops(true);if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -173,7 +173,6 @@ function render(){
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
-  else if(ST.tab==='system')m.innerHTML=scrSystem();
   else if(ST.tab==='macro')m.innerHTML=scrMacro();
 }
 
@@ -729,52 +728,83 @@ function scrMacro(){
 }
 
 // ─── BİLGİ / HAFIZA ───
+// ─── BİLGİ / HAFIZA (v3 — kitaplık + DevOps altta) ───
 function scrKnowledge(){
   const kb=ST.knowledge||{};
-  const docs=kb.documents||[], notes=kb.recent_notes||[];
+  const notes=kb.recent_notes||[];
+  const kitap=ST.kitapStat||{};
+  const sk=ST.basariSkoru||{};
+
+  // Kategori dağılımı (kitaplardan)
+  const kats=kitap.kategoriler||{};
+  const katBox=Object.entries(kats).map(([k,v])=>`
+    <div class="card" style="padding:13px 15px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:#56a8ff">▣</span>
+        <div><div style="font-size:11px;color:#c4d2cf">${k}</div>
+        <div style="font-size:9px;color:#5e716f">${v} kitap</div></div>
+      </div>
+    </div>`).join('')||'<div style="font-size:10px;color:#5e716f;grid-column:span 2">Kategori verisi yükleniyor...</div>';
+
+  // Shared memory akışı (feed'den)
+  const memAkis=(ST.feed||[]).slice(0,6).map(f=>`
+    <div style="display:flex;gap:9px;padding:7px 0;border-bottom:1px solid #131918">
+      <span style="font-size:9px;color:#5e716f;width:34px;flex-shrink:0">${f.t}</span>
+      <div style="min-width:0"><span class="sg" style="font-size:10px;color:${f.col}">${f.a}</span>
+      <div style="font-size:9.5px;color:#8a9c99;line-height:1.4">${esc((f.txt||'').slice(0,80))}</div></div>
+    </div>`).join('')||'<div style="font-size:10px;color:#5e716f">Akış yükleniyor...</div>';
+
   return `
   <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
-    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Bilgi / Hafıza</h1>
-    <span style="font-size:11px;color:#5e716f">Kalıcı · /var/data · TF-IDF indeksli · silinmez</span>
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Bilgi Bankası & Hafıza</h1>
+    <span style="font-size:11px;color:#5e716f">Kütüphane · RAG · kalıcı hafıza · SQLite</span>
   </div>
+
+  <!-- ÜST METRİKLER -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px">
-    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">DOKÜMAN</div><div class="sg" style="font-size:22px;color:#56a8ff;margin-top:5px">${docs.length}</div></div>
-    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">NOT</div><div class="sg" style="font-size:22px;color:#ffb13c;margin-top:5px">${notes.length}</div></div>
-    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">SİNYAL HAFIZA</div><div class="sg" style="font-size:22px;color:#1ff0ad;margin-top:5px">${ST.signals.length}</div></div>
-    <div class="card" style="padding:13px"><div style="font-size:9px;color:#5e716f">TEORİ</div><div class="sg" style="font-size:22px;color:#7af0c4;margin-top:5px">${ST.theories.length}</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:9px;color:#5e716f">KİTAP</div><div class="sg" style="font-size:22px;color:#1ff0ad;margin-top:5px">${kitap.kitap_sayisi||0}</div><div style="font-size:8px;color:#5e716f">kütüphane</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:9px;color:#5e716f">CHUNK</div><div class="sg" style="font-size:22px;color:#56a8ff;margin-top:5px">${kitap.toplam_chunk?(kitap.toplam_chunk>1000?(kitap.toplam_chunk/1000).toFixed(1)+'k':kitap.toplam_chunk):0}</div><div style="font-size:8px;color:#5e716f">aranabilir parça</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:9px;color:#5e716f">NOT</div><div class="sg" style="font-size:22px;color:#ffb13c;margin-top:5px">${notes.length}</div><div style="font-size:8px;color:#5e716f">öğretilen</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:9px;color:#5e716f">SİNYAL HAFIZA</div><div class="sg" style="font-size:22px;color:#7af0c4;margin-top:5px">${(ST.signals||[]).length}</div><div style="font-size:8px;color:#5e716f">kayıt</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
-    <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">YÜKLÜ DOKÜMANLAR</div>
-      ${docs.length?docs.slice(0,10).map(d=>`<div style="display:flex;gap:9px;padding:7px 0;border-bottom:1px solid #131918">
-        <span style="color:#56a8ff">▤</span>
-        <div style="min-width:0"><div style="font-size:10.5px;color:#c4d2cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.title||d.name||'?')}</div>
-        <div style="font-size:9px;color:#5e716f">${d.category||'genel'} · ${d.chunks||d.chunk_count||'?'} chunk</div></div>
-      </div>`).join(''):'<div style="font-size:10px;color:#5e716f">Henüz doküman yok. Ana sohbetten PDF yükleyin.</div>'}
+
+  <!-- ARAMA -->
+  <div class="card" style="padding:12px 15px;margin-bottom:13px">
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="color:#5e716f">🔍</span>
+      <input id="kb-search" placeholder="Kütüphanede ara — FTS5 (örn: asia range, gamma, premium)" onkeydown="if(event.key==='Enter')kbAra()" style="flex:1;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;padding:8px 11px;color:#cdd9d8;font-size:11px;outline:none"/>
+      <button onclick="kbAra()" class="sg" style="background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:6px;padding:8px 14px;font-size:11px;cursor:pointer">Ara</button>
     </div>
+    <div id="kb-sonuc" style="margin-top:10px"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:13px;margin-bottom:14px">
+    <!-- KATEGORİLER -->
     <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">ÖĞRETİLEN NOTLAR</div>
-      ${notes.length?notes.slice(-10).reverse().map(n=>`<div style="padding:7px 0;border-bottom:1px solid #131918">
-        <div style="font-size:10.5px;color:#c4d2cf;line-height:1.4">${esc((n.text||n.content||'').slice(0,120))}</div>
-      </div>`).join(''):'<div style="font-size:10px;color:#5e716f">Henüz not yok.</div>'}
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">KÜTÜPHANE KATEGORİLERİ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">${katBox}</div>
     </div>
-  </div>`;
+    <!-- SHARED MEMORY AKIŞI -->
+    <div class="card" style="padding:15px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">SHARED MEMORY YAZIM</div>
+      ${memAkis}
+    </div>
+  </div>
+
+  <!-- DEVOPS (ayrı sayfa yok, burada kutular) -->
+  <div class="sg" style="font-size:10px;letter-spacing:.14em;color:#5e716f;margin:18px 0 10px">⚙ SİSTEM / DEVOPS</div>
+  ${scrSystemKutular()}`;
 }
 
-// ─── CANLI PANEL ───
-function updateFeedOnly(){
-  const fc=document.getElementById('feed-container');
-  if(fc)fc.innerHTML=feedHtmlGen();
-}
-function feedHtmlGen(){
-  return (ST.feed||[]).map(f=>`<div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #131918;animation:oarfeedin .4s ease">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:44px">
-      <span style="font-size:9.5px;color:#5e716f">${f.t}</span>
-      <span style="width:8px;height:8px;border-radius:50%;background:${f.col};box-shadow:0 0 8px ${f.col}"></span>
-    </div>
-    <div style="min-width:0"><div class="sg" style="font-weight:600;font-size:11px;color:${f.col}">${f.a}</div>
-    <div style="font-size:11px;color:#b8c6c3;line-height:1.45;margin-top:3px;white-space:pre-wrap">${esc(f.txt)}</div></div>
-  </div>`).join('')||'<div style="font-size:10px;color:#5e716f;padding:14px">Agent feed yükleniyor — saatlik raporlar burada akacak.</div>';
+async function kbAra(){
+  const q=$('kb-search').value.trim();if(!q)return;
+  const el=$('kb-sonuc');el.innerHTML='<div style="font-size:10px;color:#ffb13c">⏳ aranıyor...</div>';
+  const d=await jget('/api/knowledge/kitap-ara?q='+encodeURIComponent(q)+'&limit=5');
+  if(d&&d.sonuclar&&d.sonuclar.length){
+    el.innerHTML=d.sonuclar.map(s=>`<div style="padding:9px 0;border-bottom:1px solid #131918">
+      <div style="font-size:10px;color:#56a8ff;margin-bottom:3px">${esc(s.title)} <span style="color:#5e716f">· ${s.category}</span></div>
+      <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(s.content.slice(0,260))}...</div></div>`).join('');
+  } else el.innerHTML='<div style="font-size:10px;color:#5e716f">Sonuç bulunamadı.</div>';
 }
 function scrLive(){
   const ctx=ST.ctx||{}, ms=ctx.move_source||{}, reg=ctx.regime||{};
@@ -832,7 +862,7 @@ function scrLive(){
 }
 
 // ─── SİSTEM / DEVOPS ───
-function scrSystem(){
+function scrSystemKutular(){
   const d=ST.devops||{};
   const dep=d.render_deploys||{}, env=d.render_env||{}, gh=d.github_commits||{};
 
@@ -890,10 +920,8 @@ function scrSystem(){
   }
 
   return `
-  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
-    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Sistem / DevOps</h1>
-    <span style="font-size:11px;color:#5e716f">Render deploylar · GitHub commit'ler · environment</span>
-    <button onclick="loadDevops(true)" class="sg" style="margin-left:auto;background:#0a0f0f;border:1px solid #1a2422;color:#9fb0ad;border-radius:7px;padding:7px 12px;font-size:11px;cursor:pointer">🔄 Yenile</button>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <button onclick="loadDevops(true)" class="sg" style="background:#0a0f0f;border:1px solid #1a2422;color:#9fb0ad;border-radius:7px;padding:6px 12px;font-size:10px;cursor:pointer">🔄 Yenile</button>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
     ${depHtml}
@@ -1036,10 +1064,15 @@ async function loadOptionsFull(){
   if(yorum)ST.opsiyonYorum=yorum;
   if(ST.tab==='options')render();
 }
-async function loadKnowledge(){const d=await jget('/api/knowledge');if(d)ST.knowledge=d;}
+async function loadKnowledge(){
+  const d=await jget('/api/knowledge');if(d)ST.knowledge=d;
+  const k=await jget('/api/knowledge/kitaplar');if(k)ST.kitapStat=k;
+  if(!ST.devops)await loadDevops(false);
+  if(ST.tab==='knowledge')render();
+}
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
 async function loadMakro(){const d=await jget('/api/makro');if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;if(ST.tab==='macro')render();}
-async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='system')render();}
+async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='knowledge')render();}
 async function loadFeed(){
   const d=await jget('/api/leader/rapor-gecmisi?limit=10');
   if(d&&d.raporlar){
