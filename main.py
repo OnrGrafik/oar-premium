@@ -1118,15 +1118,17 @@ async def ticker_get():
     """Sadece: BTC, ETH, SP500, Nasdaq, Altın, Gümüş, VIX (belge kuralı)."""
     import httpx
     out = []
-    # Kripto — Binance
+    # Kripto — Binance (tek tek, kesin sadece BTC/ETH)
     try:
         async with httpx.AsyncClient(timeout=10) as cl:
-            r = await cl.get("https://fapi.binance.com/fapi/v1/ticker/24hr",
-                params={"symbols": '["BTCUSDT","ETHUSDT"]'})
-            for t in r.json():
-                sym = t["symbol"].replace("USDT","")
-                out.append({"sym": sym, "price": float(t["lastPrice"]),
-                            "chg": round(float(t["priceChangePercent"]),2)})
+            for sym_b, ad in [("BTCUSDT","BTC"), ("ETHUSDT","ETH")]:
+                try:
+                    r = await cl.get("https://api.binance.com/api/v3/ticker/24hr",
+                        params={"symbol": sym_b})
+                    t = r.json()
+                    out.append({"sym": ad, "price": float(t["lastPrice"]),
+                                "chg": round(float(t["priceChangePercent"]),2)})
+                except Exception: continue
     except Exception: pass
     # Geleneksel — Yahoo Finance (ücretsiz, keysiz)
     yahoo = {"^GSPC":"SP500","^IXIC":"Nasdaq","GC=F":"Altın","SI=F":"Gümüş","^VIX":"VIX"}
