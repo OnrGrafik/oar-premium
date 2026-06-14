@@ -273,3 +273,88 @@ async def makro_veri(refresh=False):
            "kaynak_ozet": f"{9-fb}/9 canlı, {fb}/9 fallback"}
     _cache["data"] = out; _cache["ts"] = time.time()
     return out
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  CARRY TRADE RİSK MONİTÖRÜ (görsel 8 — Japonya carry trade)
+# ═══════════════════════════════════════════════════════════════════
+# USD/JPY, JGB 10Y, ABD 10Y, Nikkei, VIX, BoJ faizi → Yahoo Finance (ücretsiz)
+async def _yahoo(cl, sym):
+    try:
+        r = await cl.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+            params={"interval":"1d","range":"5d"}, headers={"User-Agent":"Mozilla/5.0"})
+        m = r.json()["chart"]["result"][0]["meta"]
+        fiyat = m.get("regularMarketPrice")
+        onc = m.get("chartPreviousClose") or m.get("previousClose")
+        chg = round((fiyat-onc)/onc*100, 2) if (fiyat and onc) else 0
+        return {"fiyat": fiyat, "chg": chg}
+    except Exception:
+        return None
+
+# Carry trade fallback (14 Haz 2026 — görsel 8 verileri)
+CARRY_FB = {
+    "usdjpy": {"fiyat": 160.19, "chg": 0.03},
+    "jgb10y": {"fiyat": 2.72, "chg": 1.87},
+    "us10y": {"fiyat": 4.49, "chg": 0.54},
+    "nikkei": {"fiyat": 66020, "chg": 2.81},
+    "vix": {"fiyat": 17.7, "chg": -9.05},
+    "boj": {"fiyat": 0.75, "chg": 0},
+}
+
+async def carry_trade():
+    """Japonya carry trade risk monitörü — 6 gösterge + değerlendirme."""
+    async with httpx.AsyncClient(timeout=15) as cl:
+        sonuc = await asyncio.gather(
+            _yahoo(cl, "JPY=X"),       # USD/JPY
+            _yahoo(cl, "^TNX"),        # ABD 10Y (x10)
+            _yahoo(cl, "^N225"),       # Nikkei 225
+            _yahoo(cl, "^VIX"),        # VIX
+            return_exceptions=True)
+    usdjpy = sonuc[0] if not isinstance(sonuc[0], Exception) and sonuc[0] else CARRY_FB["usdjpy"]
+    us10y_raw = sonuc[1] if not isinstance(sonuc[1], Exception) and sonuc[1] else None
+    us10y = {"fiyat": round(us10y_raw["fiyat"]/10, 2) if us10y_raw and us10y_raw["fiyat"]>20 else (us10y_raw["fiyat"] if us10y_raw else CARRY_FB["us10y"]["fiyat"]),
+             "chg": us10y_raw["chg"] if us10y_raw else CARRY_FB["us10y"]["chg"]}
+    nikkei = sonuc[2] if not isinstance(sonuc[2], Exception) and sonuc[2] else CARRY_FB["nikkei"]
+    vix = sonuc[3] if not isinstance(sonuc[3], Exception) and sonuc[3] else CARRY_FB["vix"]
+    # JGB ve BoJ — Yahoo'da güvenilir değil, fallback
+    jgb = CARRY_FB["jgb10y"]; boj = CARRY_FB["boj"]
+
+    # Spread hesapları
+    politika_spread = round(us10y["fiyat"] - boj["fiyat"], 2)  # ABD 10Y - BoJ
+    piyasa_spread = round(us10y["fiyat"] - jgb["fiyat"], 2)    # ABD 10Y - JGB 10Y
+
+    # Risk değerlendirmesi (kaç gösterge unwind yönünde)
+    unwind_sinyalleri = 0
+    if usdjpy["chg"] < -0.5: unwind_sinyalleri += 1   # JPY güçleniyor
+    if jgb["chg"] > 1: unwind_sinyalleri += 1          # JGB yükseliyor
+    if nikkei["chg"] < -1: unwind_sinyalleri += 1      # Nikkei düşüyor
+    if vix["fiyat"] > 25: unwind_sinyalleri += 1       # VIX yüksek
+    if boj["chg"] > 0: unwind_sinyalleri += 1          # BoJ faiz artışı
+
+    risk = "YÜKSEK" if unwind_sinyalleri >= 4 else "ORTA" if unwind_sinyalleri >= 2 else "DÜŞÜK"
+
+    gostergeler = {
+        "usdjpy": {**usdjpy, "ad": "USD/JPY", "alt": "Yen paritesi · carry termometresi",
+            "btc": "JPY zayıf/sabit → carry pozisyonları korunuyor → BTC için baskı yok → NÖTR-POZİTİF zemin." if usdjpy["chg"]>=-0.5 else "JPY güçleniyor → carry unwind riski → risk varlıkları (BTC dahil) satış baskısı."},
+        "jgb10y": {**jgb, "ad": "JGB 10Y", "alt": "Japon 10Y getirisi · fonlama maliyeti",
+            "btc": "JGB yükseliyor → Japon sermayesi yurda dönüyor (repatriasyon) → küresel likidite daralır → BTC OLUMSUZ. BoJ faiz artışı bu trendi hızlandırır."},
+        "us10y": {**us10y, "ad": "ABD 10Y", "alt": "ABD 10Y getirisi · spread ayağı",
+            "btc": f"Carry spread geniş ({piyasa_spread}p) → JPY borçlanıp ABD/risk varlığı almak hâlâ kârlı → carry akışı sürüyor → BTC DESTEK."},
+        "nikkei": {**nikkei, "ad": "Nikkei 225", "alt": "Japon borsası · unwind barometresi",
+            "btc": "Nikkei güçlü → risk iştahı korunuyor → carry pozisyonları stabil → BTC için POZİTİF teyit." if nikkei["chg"]>=-1 else "Nikkei düşüyor → carry unwind sinyali → küresel risk-off → BTC baskı."},
+        "vix": {**vix, "ad": "VIX", "alt": "Korku endeksi · risk-off tetikleyici",
+            "btc": "VIX düşük (<20) → piyasa sakin → carry pozisyonları güvende → BTC için POZİTİF zemin." if vix["fiyat"]<20 else "VIX yüksek → carry trade'in en çok volatil pozisyonları çözülür → BTC risk-off."},
+        "boj": {**boj, "ad": "BoJ Politika Faizi", "alt": "Merkez bankası · carry fonlama maliyeti",
+            "btc": "BoJ faiz artırırsa → JPY güçlenir + carry maliyeti artar → ani unwind riski → BTC için YÜKSEK DİKKAT. Artırım olasılığı izleniyor."},
+    }
+    if unwind_sinyalleri <= 1:
+        degerlendirme = f"Carry trade istikrarlı — {unwind_sinyalleri}/5 unwind sinyali. Pozisyonlar korunuyor, BTC için sistemik risk yok."
+    elif unwind_sinyalleri <= 3:
+        degerlendirme = f"Hafif uyarı sinyali. {unwind_sinyalleri}/5 gösterge unwind yönünde kıpırdıyor ama henüz sistemik değil. Pozisyon izlenmeli, acil tehdit yok."
+    else:
+        degerlendirme = f"⚠ Carry unwind riski YÜKSEK — {unwind_sinyalleri}/5 sinyal aktif. 2024 Ağustos benzeri ani çözülme riski. BTC dahil risk varlıkları için kritik."
+
+    return {"risk": risk, "unwind_sinyalleri": unwind_sinyalleri,
+            "politika_spread": politika_spread, "piyasa_spread": piyasa_spread,
+            "gostergeler": gostergeler, "degerlendirme": degerlendirme,
+            "guncellendi": datetime.now(timezone.utc).isoformat()}
