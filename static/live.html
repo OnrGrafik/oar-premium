@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
@@ -181,39 +181,56 @@ function render(){
 let _kchart,_kcandle,_kpriceLines=[],_kcoin='BTCUSDT';
 async function renderKomutaChart(){
   const el=document.getElementById('kchart');
-  if(!el||typeof LightweightCharts==='undefined')return;
-  if(!_kchart){
-    _kchart=LightweightCharts.createChart(el,{
-      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
-      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
-      timeScale:{borderColor:'#18211f',timeVisible:true},
-      rightPriceScale:{borderColor:'#18211f'},
-      width:el.clientWidth,height:300});
-    _kcandle=_kchart.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
-      borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
-    new ResizeObserver(()=>{if(_kchart)_kchart.applyOptions({width:el.clientWidth});}).observe(el);
+  if(!el)return;
+  // Kütüphane henüz yüklenmediyse bekle ve tekrar dene
+  if(typeof LightweightCharts==='undefined'){
+    el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#5e716f;font-size:11px">Grafik kütüphanesi yükleniyor...</div>';
+    setTimeout(renderKomutaChart,400);return;
   }
-  const oh=await jget('/api/ohlcv?symbol='+_kcoin+'&interval=5m&limit=200');
-  if(oh&&oh.candles)_kcandle.setData(oh.candles.map(c=>({time:Math.floor(c.ts/1000),open:c.open,high:c.high,low:c.low,close:c.close})));
-  _kpriceLines.forEach(l=>_kcandle.removePriceLine(l));_kpriceLines=[];
-  // OAR fib (Asia range)
-  const fib=await jget('/api/oar-fib?symbol='+_kcoin);
-  if(fib&&fib.seviyeler){
-    Object.entries(fib.seviyeler).forEach(([ad,fiyat])=>{
-      _kpriceLines.push(_kcandle.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+ad}));
-    });
-  }
-  // Opsiyon CW/PW/ZG (sadece BTC için anlamlı)
-  if(_kcoin==='BTCUSDT'){
-    const lv=await jget('/api/options/levels?currency=BTC');
-    if(lv&&lv.kisa){const k=lv.kisa;
-      [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['zero_gamma','#ffb13c','ZG']].forEach(([key,col,t])=>{
-        if(k[key])_kpriceLines.push(_kcandle.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
+  // Container boyutu 0 ise (gizli sekme) bekle
+  if(el.clientWidth<10){setTimeout(renderKomutaChart,200);return;}
+  try{
+    if(!_kchart){
+      el.innerHTML='';
+      _kchart=LightweightCharts.createChart(el,{
+        layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
+        grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
+        timeScale:{borderColor:'#18211f',timeVisible:true},
+        rightPriceScale:{borderColor:'#18211f'},
+        width:el.clientWidth,height:300});
+      _kcandle=_kchart.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
+        borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
+      new ResizeObserver(()=>{if(_kchart)_kchart.applyOptions({width:el.clientWidth});}).observe(el);
+    }
+    const oh=await jget('/api/ohlcv?symbol='+_kcoin+'&interval=5m&limit=200');
+    if(oh&&oh.candles&&oh.candles.length){
+      _kcandle.setData(oh.candles.map(c=>({time:Math.floor(c.ts/1000),open:c.open,high:c.high,low:c.low,close:c.close})));
+      _kchart.timeScale().fitContent();
+    } else {
+      el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ff8a3c;font-size:11px">Mum verisi alınamadı (Binance erişimi)</div>';
+      _kchart=null;return;
+    }
+    _kpriceLines.forEach(l=>{try{_kcandle.removePriceLine(l);}catch(e){}});_kpriceLines=[];
+    const fib=await jget('/api/oar-fib?symbol='+_kcoin);
+    if(fib&&fib.seviyeler){
+      Object.entries(fib.seviyeler).forEach(([ad,fiyat])=>{
+        try{_kpriceLines.push(_kcandle.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+ad}));}catch(e){}
       });
     }
+    if(_kcoin==='BTCUSDT'){
+      const lv=await jget('/api/options/levels?currency=BTC');
+      if(lv&&lv.kisa){const k=lv.kisa;
+        [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['zero_gamma','#ffb13c','ZG']].forEach(([key,col,t])=>{
+          if(k[key])try{_kpriceLines.push(_kcandle.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));}catch(e){}
+        });
+      }
+    }
+  }catch(e){
+    el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ff5d6c;font-size:11px">Grafik hatası: '+esc(e.message||'')+'</div>';
+    _kchart=null;
   }
 }
-function komutaCoin(coin){_kcoin=coin;_kchart=null;_kcandle=null;document.getElementById('kchart').innerHTML='';render();}
+function komutaCoin(coin){_kcoin=coin;_kchart=null;_kcandle=null;const el=document.getElementById('kchart');if(el)el.innerHTML='';render();setTimeout(renderKomutaChart,80);}
 
 function scrLeader(){
   const pd=ST.piyasaDurumu||{}, pv=pd.veri||{};
@@ -805,6 +822,20 @@ async function kbAra(){
       <div style="font-size:10px;color:#56a8ff;margin-bottom:3px">${esc(s.title)} <span style="color:#5e716f">· ${s.category}</span></div>
       <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(s.content.slice(0,260))}...</div></div>`).join('');
   } else el.innerHTML='<div style="font-size:10px;color:#5e716f">Sonuç bulunamadı.</div>';
+}
+function feedHtmlGen(){
+  return (ST.feed||[]).map(f=>`<div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #131918">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:44px">
+      <span style="font-size:9.5px;color:#5e716f">${f.t||''}</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:${f.col||'#9fb0ad'};box-shadow:0 0 8px ${f.col||'#9fb0ad'}"></span>
+    </div>
+    <div style="min-width:0"><div class="sg" style="font-weight:600;font-size:11px;color:${f.col||'#9fb0ad'}">${f.a||''}</div>
+    <div style="font-size:11px;color:#b8c6c3;line-height:1.45;margin-top:3px;white-space:pre-wrap">${esc(f.txt||'')}</div></div>
+  </div>`).join('')||'<div style="font-size:10px;color:#5e716f;padding:14px">Agent feed yükleniyor — saatlik raporlar burada akacak.</div>';
+}
+function updateFeedOnly(){
+  const fc=document.getElementById('feed-container');
+  if(fc)fc.innerHTML=feedHtmlGen();
 }
 function scrLive(){
   const ctx=ST.ctx||{}, ms=ctx.move_source||{}, reg=ctx.regime||{};
