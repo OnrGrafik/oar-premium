@@ -758,6 +758,8 @@ async def startup_event():
     asyncio.create_task(pattern_sinyal_loop())
     from market_context import baglam_loop
     asyncio.create_task(baglam_loop())
+    from basari_skoru import skor_loop
+    asyncio.create_task(skor_loop())
     print("[LiderAgent] ✅ Tüm agent görevleri başlatıldı (toplayıcı + değerlendirici + 3 saatlik rapor)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
@@ -1111,6 +1113,50 @@ async def indicators_get(symbol: str = "BTCUSDT", interval: str = "5m"):
     from indicator_engine import analiz
     return await analiz(symbol, interval)
 
+@app.get("/api/ticker")
+async def ticker_get():
+    """Sadece: BTC, ETH, SP500, Nasdaq, Altın, Gümüş, VIX (belge kuralı)."""
+    import httpx
+    out = []
+    # Kripto — Binance
+    try:
+        async with httpx.AsyncClient(timeout=10) as cl:
+            r = await cl.get("https://fapi.binance.com/fapi/v1/ticker/24hr",
+                params={"symbols": '["BTCUSDT","ETHUSDT"]'})
+            for t in r.json():
+                sym = t["symbol"].replace("USDT","")
+                out.append({"sym": sym, "price": float(t["lastPrice"]),
+                            "chg": round(float(t["priceChangePercent"]),2)})
+    except Exception: pass
+    # Geleneksel — Yahoo Finance (ücretsiz, keysiz)
+    yahoo = {"^GSPC":"SP500","^IXIC":"Nasdaq","GC=F":"Altın","SI=F":"Gümüş","^VIX":"VIX"}
+    try:
+        async with httpx.AsyncClient(timeout=12) as cl:
+            for sym_y, ad in yahoo.items():
+                try:
+                    r = await cl.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym_y}",
+                        params={"interval":"1d","range":"2d"},
+                        headers={"User-Agent":"Mozilla/5.0"})
+                    m = r.json()["chart"]["result"][0]["meta"]
+                    fiyat = m.get("regularMarketPrice")
+                    onc = m.get("chartPreviousClose") or m.get("previousClose")
+                    chg = round((fiyat-onc)/onc*100,2) if (fiyat and onc) else 0
+                    out.append({"sym": ad, "price": round(fiyat,2), "chg": chg})
+                except Exception: continue
+    except Exception: pass
+    return {"items": out}
+
+@app.get("/api/basari-skoru")
+async def basari_skoru_get():
+    """Bot başarı skoru — yüzde + dolar tablosu (win rate yerine)."""
+    from basari_skoru import skor_tablosu
+    return skor_tablosu()
+
+@app.post("/api/basari-skoru/guncelle")
+async def basari_skoru_guncelle():
+    from basari_skoru import skorlari_guncelle
+    return await skorlari_guncelle()
+
 @app.get("/api/market-context")
 async def market_context_get(sembol: str = "BTCUSDT", refresh: bool = False):
     """Market Regime + OAR Score + Move Source."""
@@ -1136,15 +1182,24 @@ async def leader_chat(req: Request):
 
     # Kitap bilgisi ara (240+ trading kitabı SQLite'tan)
     kitap_baglam = ""
+    kitap_var = False
     try:
-        from kitap_db import ara as kitap_ara
+        from kitap_db import ara as kitap_ara, istatistik
+        stat = istatistik()
         sonuclar = kitap_ara(soru, limit=4)
         if sonuclar:
-            kitap_baglam = "\\n\\n══ İLGİLİ KİTAP BİLGİSİ (240+ trading kitabından) ══\\n"
+            kitap_var = True
+            kitap_baglam = "\n\n══ İLGİLİ KİTAP BİLGİSİ (kütüphanedeki trading kitaplarından) ══\n"
             for s in sonuclar:
-                kitap_baglam += f"\\n[{s['title']}]: {s['content'][:400]}\\n"
+                kitap_baglam += f"\n[{s['title']}]: {s['content'][:400]}\n"
+        elif stat.get("kitap_sayisi", 0) > 0:
+            kitap_baglam = f"\n\n(Kütüphanede {stat['kitap_sayisi']} kitap var ama bu soruyla doğrudan eşleşen bölüm bulunamadı.)"
     except Exception:
         pass
+
+    kitap_kural = ("Kütüphanedeki kitaplara ERİŞİMİN VAR — yukarıdaki 'KİTAP BİLGİSİ' bölümü sana o kitaplardan geldi, "
+                   "cevabında bu bilgiyi kullan ve hangi kitaptan geldiğini belirt." if kitap_var else
+                   "Bu soru için kitaplarda doğrudan eşleşme çıkmadı; genel bilginle cevapla, 'kitaplara erişemiyorum' DEME.")
 
     prompt = f"""Sen OAR Premium'un LİDER AGENT'ısın. Kripto trading sistemini yönetiyorsun.
 Altındaki agentlar: Research Agent (analiz) ve Backtest Agent (test).
@@ -1166,6 +1221,7 @@ Kurallar:
 - Kesin rakamlarla, matematiksel konuş. Tahmin yapma.
 - Canlı verileri kullan (fiyat, opsiyon seviyeleri, korku endeksi).
 - Veri yoksa "henüz veri birikmedi" de, uydurma.
+- {kitap_kural}
 - Türkçe, net, madde gerektiren yerde madde kullan."""
 
     try:
