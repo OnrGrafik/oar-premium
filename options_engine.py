@@ -99,6 +99,9 @@ def _aggregate(opts, expiry_filter="all"):
         x=m[k]; x["totalOI"]+=o["oi"]
         if o["type"]=="call": x["callGex"]+=o["gex"]; x["callOI"]+=o["oi"]
         else: x["putGex"]+=o["gex"]; x["putOI"]+=o["oi"]
+    # netGamma = call gex - put gex (dealer pozisyonu yaklaşık)
+    for x in m.values():
+        x["netGamma"]=round(x["callGex"]-x["putGex"],2)
     return sorted(m.values(),key=lambda a:a["strike"])
 
 def _max_pain(opts):
@@ -168,7 +171,16 @@ def _find_levels(strikes, spot, opts):
         if abs(s["putGex"])>maxPG: maxPG=abs(s["putGex"]); pw=s["strike"]
     mp=_max_pain(opts); zg=_zero_gamma(opts,spot)
     pct=lambda v:round((v-spot)/spot*100,2) if v else None
+    # Expected Move: ATM IV bazlı 1-haftalık ±1σ bant
+    em_ust=em_alt=None
+    if opts:
+        atm=min(opts,key=lambda o:abs(o["strike"]-spot))
+        iv=atm.get("iv",0)
+        if iv>0:
+            sigma=spot*iv*math.sqrt(7/365)  # 1 hafta
+            em_ust=round(spot+sigma); em_alt=round(spot-sigma)
     return {"call_wall":cw,"put_wall":pw,"max_pain":mp,"zero_gamma":zg,
+            "em_ust":em_ust,"em_alt":em_alt,
             "CW":cw,"PW":pw,"ZG":zg,"maxPain":mp,
             "call_wall_pct":pct(cw),"put_wall_pct":pct(pw),"zero_gamma_pct":pct(zg)}
 
