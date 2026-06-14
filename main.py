@@ -869,6 +869,31 @@ async def options_cvd_ep(currency: str = "BTC"):
     from options_engine import opsiyon_cvd
     return await opsiyon_cvd(currency)
 
+@app.get("/api/options/topografya")
+async def options_topografya(currency: str = "BTC", vade: str = "all"):
+    from options_engine import strike_topografya
+    return await strike_topografya(currency, vade)
+
+@app.get("/api/options/greekler")
+async def options_greekler(currency: str = "BTC"):
+    from options_engine import toplu_greekler
+    return await toplu_greekler(currency)
+
+@app.get("/api/options/skew")
+async def options_skew(currency: str = "BTC"):
+    from options_engine import iv_skew
+    return await iv_skew(currency)
+
+@app.get("/api/options/cvd-uclu")
+async def options_cvd_uclu(currency: str = "BTC"):
+    from options_engine import cvd_uclu
+    return await cvd_uclu(currency)
+
+@app.get("/api/options/islem-dagilimi")
+async def options_islem_dagilimi(currency: str = "BTC"):
+    from options_engine import islem_dagilimi
+    return await islem_dagilimi(currency)
+
 @app.get("/api/options/gex")
 async def options_gex(currency: str = "BTC"):
     from options_engine import gex_ozet
