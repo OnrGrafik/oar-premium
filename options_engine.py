@@ -46,7 +46,16 @@ async def _drb(cl, method, params=None):
 
 async def _spot(cl, currency="BTC"):
     d=await _drb(cl,"get_index_price",{"index_name":f"{currency.lower()}_usd"})
-    return float(d.get("index_price",0)) if d else 0
+    spot=float(d.get("index_price",0)) if d else 0
+    if spot>0: return spot
+    # Deribit başarısızsa Binance'ten spot al (opsiyon hesabı yine Deribit OI'siyle yapılır)
+    try:
+        r=await cl.get("https://api.binance.com/api/v3/ticker/price",
+            params={"symbol":f"{currency}USDT"})
+        if r.status_code==200:
+            return float(r.json().get("price",0))
+    except Exception: pass
+    return 0
 
 def _expiry_label(ts, now):
     gun=(ts-now)/(86400*1000)
