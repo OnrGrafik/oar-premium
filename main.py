@@ -1396,40 +1396,87 @@ async def theory_tara(req: Request):
 
 @app.get("/api/theory/yorum")
 async def theory_yorum():
-    """Research Agent + Lider bilimsel yorum (kitap destekli)."""
+    """Research Agent + Lider yorum — TÜM sayfalardan teori (makro+opsiyon+hacim+kitap+grafik)."""
     import httpx
     from theory_engine import son_hipotezler
     h = son_hipotezler()
     en_iyi = h.get("en_iyi_hipotezler", [])
-    # Teori/strateji kitaplarından
-    kitap_notu = ""
+
+    # TÜM SAYFALARDAN BAĞLAM TOPLA
+    baglam = {}
+    # 1. İndikatör (hacim/PA/CVD/OI)
+    try:
+        from indicator_engine import analiz
+        ind = await analiz("BTCUSDT", "5m")
+        baglam["indikator"] = {"skor": ind.get("skor",{}).get("skor"), "yon": ind.get("skor",{}).get("yon"),
+            "detay": [{"i":d.get("ind"),"k":d.get("katki")} for d in ind.get("skor",{}).get("detay",[])[:5]]}
+    except Exception: pass
+    # 2. Opsiyon (GEX/gamma)
+    try:
+        from options_engine import gex_ozet, toplu_greekler
+        gex = await gex_ozet("BTC")
+        gr = await toplu_greekler("BTC")
+        if not gex.get("error"):
+            baglam["opsiyon"] = {"gamma_rejim": gex.get("gamma_rejim"), "cw": gex.get("call_wall"),
+                "pw": gex.get("put_wall"), "zg": gex.get("zero_gamma"),
+                "net_gamma": gr.get("net_gamma") if not gr.get("error") else None}
+    except Exception: pass
+    # 3. Makro
+    try:
+        from macro_engine import makro_veri
+        mk = await makro_veri()
+        baglam["makro"] = {"egilim": mk.get("btcYorum",{}).get("egilim"),
+            "ozet": mk.get("btcYorum",{}).get("sentez","")[:200]}
+    except Exception: pass
+    # 4. Market context (rejim/move source)
+    try:
+        from market_context import son_baglam
+        ctx = son_baglam()
+        if ctx:
+            baglam["rejim"] = {"rejim": ctx.get("regime",{}).get("rejim"),
+                "move_source": ctx.get("move_source",{}).get("kaynak"),
+                "oar_score": ctx.get("oar_score",{}).get("skor")}
+    except Exception: pass
+
+    # 5. Kitaplar (strateji + teknik + opsiyon)
+    kitap_notu = ""; kitap_kaynaklar = []
     try:
         from kitap_db import ara
-        ks = ara("backtest strategy fibonacci asia range session trading edge win rate", limit=2)
+        ks = ara("backtest strategy fibonacci session volume gamma price action edge trading rules", limit=3)
         if ks:
-            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
+            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:130]}" for s in ks)
+            kitap_kaynaklar = list(dict.fromkeys(s['title'] for s in ks))
     except Exception: pass
+
     api_key = os.environ.get("GEMINI_API_KEY", "")
     yorum = {"gunluk": "", "haftalik": "", "oneri": "", "lider": ""}
-    if api_key and en_iyi:
-        prompt = f"""Sen OAR Research Agent'sın. Otomatik backtest sonuçlarını bilimsel dille yorumla.
-En iyi hipotezler: {json.dumps(en_iyi[:5], ensure_ascii=False)[:1000]}
-Kitaplardan: {kitap_notu[:300]}
+    if api_key:
+        prompt = f"""Sen OAR Research Agent'sın. SADECE backtest değil, TÜM sistem verilerinden teori üret.
+Trade edilen: BTC, ETH, Altın, Gümüş, SP500, Nasdaq.
 
+BACKTEST HİPOTEZLERİ: {json.dumps(en_iyi[:4], ensure_ascii=False)[:700]}
+İNDİKATÖR (hacim/PA/CVD/OI): {json.dumps(baglam.get('indikator',{}), ensure_ascii=False)[:300]}
+OPSİYON (GEX/gamma): {json.dumps(baglam.get('opsiyon',{}), ensure_ascii=False)[:200]}
+MAKRO: {json.dumps(baglam.get('makro',{}), ensure_ascii=False)[:200]}
+REJİM: {json.dumps(baglam.get('rejim',{}), ensure_ascii=False)[:150]}
+KİTAPLAR: {kitap_notu[:400]}
+
+Bu verilerin TAMAMINI sentezle. Örn: "Makro risk-off + negatif GEX + Asia sweep hipotezi → güçlü short edge".
 JSON döndür (başka şey yazma):
-{{"gunluk":"günlük başarı analizi 1-2 cümle","haftalik":"haftalık bias 1-2 cümle","oneri":"OAR'a eklenecek/çıkarılacak özellik veya hangi saatte trade edilmeli önerisi 1-2 cümle","lider":"Lider Agent sistem geliştirme yorumu 2-3 cümle, mantık hatası/eksik tespit"}}"""
+{{"gunluk":"bugünkü tüm-sayfa sentezi, hangi koşulda trade 1-2 cümle","haftalik":"haftalık bias + hangi saatler/durumlar 1-2 cümle","oneri":"OAR'a eklenecek özellik veya canlı takip önerisi 1-2 cümle","lider":"Lider sistem geliştirme + tüm veri kaynaklarını birleştiren teori 2-3 cümle"}}"""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
                 rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
-                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                    "generationConfig":{"temperature":0.35,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
                 if rr.status_code == 200:
                     txt = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
                     txt = txt.replace("```json","").replace("```","").strip()
                     try: yorum = json.loads(txt)
                     except Exception: yorum["lider"] = txt[:400]
         except Exception: pass
-    return {"yorum": yorum, "en_iyi": en_iyi[:6], "tarih": h.get("tarih")}
+    return {"yorum": yorum, "en_iyi": en_iyi[:6], "baglam": baglam,
+            "kitap_kaynaklar": kitap_kaynaklar, "tarih": h.get("tarih")}
 
 @app.get("/api/makro")
 async def makro_get(refresh: bool = False):
@@ -1438,6 +1485,12 @@ async def makro_get(refresh: bool = False):
     data = await makro_veri(refresh)
     # Kitap destekli AI özet (opsiyonel, cache'li veride bir kez)
     return data
+
+@app.get("/api/makro/carry")
+async def makro_carry():
+    """Japonya carry trade risk monitörü (USD/JPY, JGB, Nikkei, VIX, BoJ)."""
+    from macro_engine import carry_trade
+    return await carry_trade()
 
 @app.get("/api/makro/ozet")
 async def makro_ozet():
