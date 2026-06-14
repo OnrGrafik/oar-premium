@@ -139,7 +139,7 @@ function renderRail(){
       <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
     </div>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)loadDevops(true);if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)loadDevops(true);if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -464,143 +464,71 @@ function scrAgents(){
 }
 
 // ─── THEORY LAB ───
+// ─── THEORY LAB (v3 — otomatik, coin/fib seçimi yok) ───
 function scrTheory(){
-  const ths=ST.theories||[];
-  const sel=ST.selTheory||ths[0]||{};
-  const sc={Confirmed:['#1ff0ad','#18382c','#0c1c16'],Rejected:['#ff5d6c','#4a2226','#1a0d0e'],Testing:['#ffb13c','#4a3a22','#1a140c'],Draft:['#9fb0ad','#1a2422','#0c1112']};
-  const row=t=>{const s=t.testler&&t.testler.length?t.testler[t.testler.length-1]:{};const col=sc[t.durum]||sc.Draft;
-    return `<div onclick="selTheory('${t.id}')" style="display:grid;grid-template-columns:74px 1fr 92px 56px 52px;gap:10px;padding:10px 15px;border-bottom:1px solid #131918;cursor:pointer;${sel.id===t.id?'background:#0f1716':''}">
-      <span style="font-weight:600;color:#9fb0ad;font-size:11px">${t.id}</span>
-      <span style="font-size:10.5px;color:#c4d2cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.hipotez||'')}</span>
-      <span style="font-size:9px;font-weight:600;color:${col[0]};border:1px solid ${col[1]};background:${col[2]};padding:2px 0;border-radius:4px;text-align:center">${t.durum}</span>
-      <span style="text-align:right;font-weight:600;color:${(s.win_rate>=60)?'#1ff0ad':(s.win_rate>=45)?'#ffb13c':'#ff5d6c'};font-size:12px">${s.win_rate!=null?'%'+s.win_rate:'—'}</span>
-      <span style="text-align:right;color:#9fb0ad;font-size:12px">${s.profit_factor!=null?s.profit_factor:'—'}</span></div>`;
-  };
-  const selT=sel.testler&&sel.testler.length?sel.testler[sel.testler.length-1]:{};
-  const col=sc[sel.durum]||sc.Draft;
+  const h=ST.theoryHipotez||{}, ty=ST.theoryYorum||{};
+  const eniyiler=ty.en_iyi||h.en_iyi_hipotezler||[];
+  const yorum=ty.yorum||{};
+
+  const durumRenk={Confirmed:'#1ff0ad',Rejected:'#ff5d6c',Testing:'#ffb13c'};
+  const hipotezRow=(b)=>`<div style="display:grid;grid-template-columns:90px 1fr 80px 56px 52px;gap:10px;padding:9px 0;border-bottom:1px solid #131918;font-size:10.5px;align-items:center">
+    <span style="color:#9fb0ad;font-weight:600">${b.ad||b.sym}</span>
+    <span style="color:#c4d2cf">fib ${b.fib} ${b.en_iyi_skor_aralik?'· '+b.en_iyi_skor_aralik:''}</span>
+    <span style="font-size:9px;font-weight:600;color:${durumRenk[b.durum]||'#9fb0ad'};border:1px solid #1a2422;padding:2px 0;border-radius:4px;text-align:center">${b.durum}</span>
+    <span style="text-align:right;font-weight:700;color:${b.win_rate>=60?'#1ff0ad':b.win_rate>=45?'#ffb13c':'#ff5d6c'}">%${b.win_rate}</span>
+    <span style="text-align:right;color:#9fb0ad">${b.profit_factor}</span>
+  </div>`;
+
   return `
   <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:6px">
     <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Theory Lab</h1>
-    <span style="font-size:11px;color:#5e716f">Draft → Testing → Confirmed / Rejected</span>
+    <span style="font-size:11px;color:#5e716f">Otomatik hipotez üretimi · BTC/ETH/Altın · tüm fib + indikatör taraması</span>
+    <button onclick="theoryTara()" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:7px 14px;font-weight:600;font-size:11px;cursor:pointer">⚗ Şimdi Tara</button>
   </div>
-  <div style="font-size:10px;color:#5e716f;margin-bottom:14px">≥30 örnek · WR ≥%60 &amp; PF ≥1.5 → Confirmed · &lt;%45 → Rejected (saklanır)</div>
-  <div style="display:grid;grid-template-columns:1.55fr 1.15fr;gap:13px">
-    <div class="card" style="overflow:hidden">
-      <div class="sg" style="display:grid;grid-template-columns:74px 1fr 92px 56px 52px;gap:10px;padding:11px 15px;border-bottom:1px solid #18211f;font-size:9px;letter-spacing:.06em;color:#5e716f">
-        <span>ID</span><span>HİPOTEZ</span><span>DURUM</span><span style="text-align:right">WR</span><span style="text-align:right">PF</span>
-      </div>
-      ${ths.length?ths.map(row).join(''):'<div style="padding:20px;text-align:center;color:#5e716f;font-size:11px">Teoriler yükleniyor...</div>'}
+  <div style="font-size:10px;color:#5e716f;margin-bottom:14px">Sistem en geriye giden veriyi otomatik çeker, tüm fib seviyelerini + indikatör skorlarını dener. Coin/fib seçimi yok — sistem kendi hipotezini üretir.</div>
+
+  <div id="theory-durum" style="font-size:11px;color:#ffb13c;margin-bottom:10px"></div>
+
+  <!-- EN İYİ HİPOTEZLER -->
+  <div class="card" style="padding:15px;margin-bottom:13px">
+    <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#1ff0ad;margin-bottom:11px">EN GÜÇLÜ HİPOTEZLER — otomatik üretildi</div>
+    <div style="display:grid;grid-template-columns:90px 1fr 80px 56px 52px;gap:10px;padding-bottom:7px;border-bottom:1px solid #18211f;font-size:8.5px;letter-spacing:.06em;color:#5e716f">
+      <span>ENSTRÜMAN</span><span>HİPOTEZ</span><span>DURUM</span><span style="text-align:right">WR</span><span style="text-align:right">PF</span>
     </div>
-    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:13px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div style="display:flex;align-items:center;gap:9px">
-          <span class="sg" style="font-weight:700;font-size:17px;color:#eaf4f2">${sel.id||'—'}</span>
-          <span style="font-size:10px;font-weight:600;color:${col[0]};border:1px solid ${col[1]};background:${col[2]};padding:3px 9px;border-radius:5px">${sel.durum||''}</span>
-        </div>
-        <span style="font-size:10px;color:#5e716f">fib ${sel.fib!=null?sel.fib:'—'} · ${sel.yontem||''}</span>
-      </div>
-      <div style="font-size:12px;color:#c4d2cf;line-height:1.45">${esc(sel.hipotez||'Teori seçin')}</div>
+    ${eniyiler.length?eniyiler.map(hipotezRow).join(''):'<div style="font-size:10.5px;color:#5e716f;padding:14px;text-align:center">Henüz tarama yapılmadı. "Şimdi Tara" ile başlat veya günlük otomatik tarama bekle (2-3 dk sürer).</div>'}
+  </div>
+
+  <!-- RESEARCH AGENT BİLİMSEL BULGULAR -->
+  <div class="card" style="padding:15px;margin-bottom:13px">
+    <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff;margin-bottom:13px">● RESEARCH AGENT — BİLİMSEL BULGULAR</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px">
       <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:8px;padding:13px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:9px">
-          <span class="sg" style="font-size:9px;letter-spacing:.12em;color:#5e716f">BACKTEST · BTCUSDT · 365 GÜN</span>
-          <span style="font-size:10px;color:#5e716f">${selT.ornek||0} örnek</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div><div style="font-size:9px;color:#5e716f">WIN RATE</div><div class="sg" style="font-weight:600;font-size:15px;color:${(selT.win_rate>=60)?'#1ff0ad':'#ffb13c'};margin-top:3px">${selT.win_rate!=null?'%'+selT.win_rate:'—'}</div></div>
-          <div><div style="font-size:9px;color:#5e716f">PROFIT FACTOR</div><div class="sg" style="font-weight:600;font-size:15px;color:#cdd9d8;margin-top:3px">${selT.profit_factor!=null?selT.profit_factor:'—'}</div></div>
-          <div><div style="font-size:9px;color:#5e716f">ORT PNL</div><div class="sg" style="font-weight:600;font-size:15px;color:${(selT.ort_pnl>0)?'#1ff0ad':'#ff5d6c'};margin-top:3px">${selT.ort_pnl!=null?selT.ort_pnl+'%':'—'}</div></div>
-        </div>
+        <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:7px">GÜNLÜK</div>
+        <div style="font-size:10.5px;color:#c4d2cf;line-height:1.5">${esc(yorum.gunluk||'Tarama sonrası dolacak.')}</div>
       </div>
-      <button onclick="teoriTest('${sel.id}')" class="sg" style="background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:9px;font-weight:600;font-size:11px;cursor:pointer">↻ Yeniden Backtest (365g)</button>
-      <div id="teori-durum" style="font-size:10px;color:#5e716f"></div>
+      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:8px;padding:13px">
+        <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:7px">HAFTALIK</div>
+        <div style="font-size:10.5px;color:#c4d2cf;line-height:1.5">${esc(yorum.haftalik||'—')}</div>
+      </div>
+      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:8px;padding:13px">
+        <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:7px">ÖNERİ</div>
+        <div style="font-size:10.5px;color:#c4d2cf;line-height:1.5">${esc(yorum.oneri||'—')}</div>
+      </div>
     </div>
   </div>
-  ${scrTheoryAdvanced()}`;
+
+  <!-- LİDER AGENT YORUMU -->
+  <div class="card" style="padding:15px;background:#0b1010">
+    <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4;margin-bottom:10px">◆ LİDER AGENT YORUM — SİSTEM GELİŞTİRME</div>
+    <div style="font-size:11px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${esc(yorum.lider||'Lider Agent otomatik hipotezleri değerlendirecek — tarama sonrası bilimsel sistem geliştirme önerisi burada.')}</div>
+  </div>`;
 }
 
-// ─── GELİŞMİŞ BACKTEST (indikatör skoru × fib seviyesi × dönem) ───
-function scrTheoryAdvanced(){
-  const r=ST.advTest||{};
-  let sonucHtml='';
-  if(r.hata){
-    sonucHtml=`<div style="padding:14px;color:#ff8a3c;font-size:11px">${r.hata}</div>`;
-  } else if(r.genel_win_rate!=null){
-    const wrC=r.genel_win_rate>=60?'#1ff0ad':r.genel_win_rate>=45?'#ffb13c':'#ff5d6c';
-    // Skor analiz tablosu
-    const skorRows=Object.entries(r.skor_analiz||{}).map(([ad,s])=>{
-      const c=s.win_rate>=60?'#1ff0ad':s.win_rate>=45?'#ffb13c':'#ff5d6c';
-      return `<div style="display:grid;grid-template-columns:1fr 60px 50px 56px;gap:8px;padding:7px 0;border-bottom:1px solid #131918;font-size:10px">
-        <span style="color:#c4d2cf">${ad}</span>
-        <span style="text-align:right;color:#8a9c99">${s.ornek} örnek</span>
-        <span style="text-align:right;font-weight:700;color:${c}">%${s.win_rate}</span>
-        <span style="text-align:right;color:${s.ort_pct>0?'#1ff0ad':'#ff5d6c'}">${s.ort_pct>0?'+':''}${s.ort_pct}%</span>
-      </div>`;}).join('');
-    // Dönemsel
-    const donemHtml=(obj,baslik)=>{
-      const e=Object.entries(obj||{});
-      if(!e.length)return'';
-      return `<div style="margin-bottom:10px"><div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:5px">${baslik}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${e.map(([k,v])=>`<span style="font-size:9px;background:#0a0f0f;border:1px solid #1a2422;padding:3px 7px;border-radius:4px;color:${v.win_rate>=55?'#1ff0ad':v.win_rate>=45?'#ffb13c':'#ff5d6c'}">${k}: %${v.win_rate} <span style="color:#5e716f">(${v.ornek})</span></span>`).join('')}
-        </div></div>`;};
-    sonucHtml=`
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0">
-        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">GENEL WR</div><div class="sg" style="font-size:18px;color:${wrC};margin-top:4px">%${r.genel_win_rate}</div></div>
-        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">PROFIT FACTOR</div><div class="sg" style="font-size:18px;color:#cdd9d8;margin-top:4px">${r.profit_factor}</div></div>
-        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">TEMAS</div><div class="sg" style="font-size:18px;color:#56a8ff;margin-top:4px">${r.toplam_temas}</div></div>
-        <div class="card" style="padding:11px"><div style="font-size:9px;color:#5e716f">ORT PNL</div><div class="sg" style="font-size:18px;color:${r.ort_pct>0?'#1ff0ad':'#ff5d6c'};margin-top:4px">${r.ort_pct>0?'+':''}${r.ort_pct}%</div></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:13px">
-        <div class="card" style="padding:15px">
-          <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#1ff0ad;margin-bottom:10px">SKOR ARALIĞINA GÖRE TEPKİ — fib ${r.fib}</div>
-          <div style="display:grid;grid-template-columns:1fr 60px 50px 56px;gap:8px;padding-bottom:6px;border-bottom:1px solid #18211f;font-size:8.5px;color:#5e716f">
-            <span>İNDİKATÖR SKORU</span><span style="text-align:right">N</span><span style="text-align:right">WR</span><span style="text-align:right">PNL</span>
-          </div>
-          ${skorRows||'<div style="font-size:10px;color:#5e716f;padding:8px 0">Yeterli temas yok</div>'}
-        </div>
-        <div class="card" style="padding:15px">
-          <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff;margin-bottom:10px">DÖNEMSEL BAŞARI</div>
-          ${donemHtml(r.donemsel?.ceyreklik,'ÇEYREKLİK')}
-          ${donemHtml(r.donemsel?.aylik,'AYLIK')}
-        </div>
-      </div>
-      ${(r.oneriler||[]).length?`<div class="card" style="padding:15px;margin-top:13px;background:#0b1010">
-        <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4;margin-bottom:10px">🔬 RESEARCH AGENT BULGULARI</div>
-        ${r.oneriler.map(o=>`<div style="font-size:10.5px;color:#c4d2cf;line-height:1.5;padding:4px 0">${esc(o)}</div>`).join('')}
-      </div>`:''}`;
-  } else {
-    sonucHtml='<div style="padding:14px;color:#5e716f;font-size:11px">Parametreleri seç ve "Gelişmiş Backtest Çalıştır"a bas. Asia range fib seviyesine her temas anındaki indikatör skoru hesaplanır, hangi skorda hangi sonuç alındığı analiz edilir.</div>';
-  }
-
-  return `
-  <div style="margin-top:18px">
-    <div class="sg" style="font-size:13px;font-weight:600;color:#eaf4f2;margin-bottom:4px">⚗ Gelişmiş Backtest — İndikatör Skoru × Fib Seviyesi</div>
-    <div style="font-size:10px;color:#5e716f;margin-bottom:12px">Belge: "Gömülü indikatörlerin skoru kaç olduğunda hangi seviyelerden daha çok tepki/kayıp alındığını açıklar"</div>
-    <div class="card" style="padding:14px;margin-bottom:13px">
-      <div style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:10px;align-items:end">
-        <div><label style="font-size:9px;color:#5e716f">COIN</label>
-          <select id="adv-sym" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
-            <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select></div>
-        <div><label style="font-size:9px;color:#5e716f">GÜN</label>
-          <select id="adv-gun" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
-            <option value="90">90</option><option value="180" selected>180</option><option value="365">365</option></select></div>
-        <div><label style="font-size:9px;color:#5e716f">FİB SEVİYE</label>
-          <select id="adv-fib" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
-            <option value="0.236">0.236</option><option value="0.377">0.377</option>
-            <option value="0.5">0.5</option><option value="0.618" selected>0.618</option>
-            <option value="0.786">0.786</option><option value="-0.272">-0.272</option>
-            <option value="1.272">1.272</option><option value="1.618">1.618</option></select></div>
-        <div><label style="font-size:9px;color:#5e716f">ASIA BAŞ (UTC)</label>
-          <select id="adv-as" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
-            <option value="0" selected>00:00 (TR 03)</option><option value="23">23:00 (TR 02)</option><option value="1">01:00 (TR 04)</option></select></div>
-        <div><label style="font-size:9px;color:#5e716f">ASIA BİT (UTC)</label>
-          <select id="adv-ab" style="width:100%;margin-top:4px;background:#0a0f0f;border:1px solid #1a2422;border-radius:6px;color:#cdd9d8;padding:7px;font-size:11px">
-            <option value="4" selected>04:00 (TR 07)</option><option value="3">03:00 (TR 06)</option><option value="5">05:00 (TR 08)</option></select></div>
-        <button onclick="advBacktest()" class="sg" style="background:#1ff0ad;border:none;border-radius:6px;padding:9px 16px;color:#04130d;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap">▶ Çalıştır</button>
-      </div>
-    </div>
-    ${sonucHtml}
-  </div>`;
+async function theoryTara(){
+  const el=$('theory-durum');if(el)el.textContent='⏳ Tüm enstrümanlar taranıyor (2-3 dk, fib × indikatör × dönem)...';
+  await jpost('/api/theory/tara',{gun:365});
+  await loadTheoryHipotez();
+  if(ST.tab==='theory')render();
 }
 
 // ─── OPTIONS & GEX ───
@@ -1083,7 +1011,12 @@ async function renderLeaderChart(){
     if(yel)yel.innerHTML=`${ocvd.yon==='YUKARI'?'<span style="color:#1ff0ad">▲ YUKARI</span>':'<span style="color:#ff5d6c">▼ AŞAĞI</span>'} · güncel ${ocvd.guncel}`;
   }
 }
-async function loadTheories(){const d=await jget('/api/teori');if(d){ST.theories=d.teoriler||[];if(!ST.selTheory&&ST.theories.length)ST.selTheory=ST.theories[0];}}
+async function loadTheoryHipotez(){
+  const d=await jget('/api/theory/hipotezler');if(d)ST.theoryHipotez=d;
+  const y=await jget('/api/theory/yorum');if(y)ST.theoryYorum=y;
+  if(ST.tab==='theory')render();
+}
+async function loadTheories(){return loadTheoryHipotez();}
 async function loadOptions(){ return loadOptionsFull(); }
 async function loadOptionsFull(){
   const v=_optVade;
