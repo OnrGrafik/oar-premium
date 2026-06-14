@@ -217,3 +217,87 @@ async def gelismis_backtest(sym="BTCUSDT", gun=180, fib=0.618,
 def gecmis_sonuclar(limit=20):
     db = json.loads(SONUC_FILE.read_text()) if SONUC_FILE.exists() else {"testler": []}
     return db["testler"][-limit:]
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  v3 — OTOMATİK HİPOTEZ ÜRETECİ (coin/fib seçimi yok)
+# ═══════════════════════════════════════════════════════════════════
+# Belge: "Benim fib seçmem ya da coin seçmem önemli değil. İptal et.
+#  Tarihte ne kadar geriye gidebiliyorsa o kadar gidip tüm enstrümanlarla
+#  denesin, hipotezler üretsin."
+
+# Sadece bu 6 enstrüman trade ediliyor
+ENSTRUMANLAR = {
+    "BTCUSDT": "Bitcoin", "ETHUSDT": "Ethereum",
+    "PAXGUSDT": "Altın (PAXG)", "XAUTUSDT": "Altın (XAUT)",
+    # SP500/Nasdaq/Gümüş Binance'te yok → Yahoo ile ayrı ele alınır (şimdilik kripto proxy)
+}
+# Test edilecek fib seviyeleri (otomatik)
+FIB_SEVIYELER = [0.236, 0.377, 0.5, 0.618, 0.786, -0.272, 1.272, 1.618]
+HIPOTEZ_FILE = DATA_DIR / "otomatik_hipotezler.json"
+
+async def otomatik_hipotez_uret(sym="BTCUSDT", gun=365):
+    """Bir enstrüman için TÜM fib seviyelerini otomatik tarar, en iyi hipotezleri çıkarır."""
+    bulgular = []
+    for fib in FIB_SEVIYELER:
+        try:
+            r = await gelismis_backtest(sym, gun, fib, 0, 4)
+            if r.get("hata"): continue
+            wr = r.get("genel_win_rate", 0)
+            pf = r.get("profit_factor", 0)
+            ornek = r.get("degerli", 0)
+            if ornek < 20: continue
+            # Skor analizinden en iyi aralığı bul
+            sa = r.get("skor_analiz", {})
+            en_iyi_aralik = None; en_iyi_wr = 0
+            for ad, s in sa.items():
+                if s.get("degerli", 0) >= 8 and s.get("win_rate", 0) > en_iyi_wr:
+                    en_iyi_wr = s["win_rate"]; en_iyi_aralik = ad
+            durum = "Confirmed" if (wr>=60 and pf>=1.5 and ornek>=30) else "Rejected" if (wr<45 or pf<1) else "Testing"
+            bulgular.append({
+                "fib": fib, "win_rate": wr, "profit_factor": pf, "ornek": ornek,
+                "durum": durum, "en_iyi_skor_aralik": en_iyi_aralik, "en_iyi_skor_wr": en_iyi_wr,
+                "donemsel": r.get("donemsel", {}),
+            })
+        except Exception:
+            continue
+        await asyncio.sleep(0.3)
+    bulgular.sort(key=lambda x: (x["win_rate"], x["profit_factor"]), reverse=True)
+    return {"sym": sym, "ad": ENSTRUMANLAR.get(sym, sym), "gun": gun,
+            "tarih": _now(), "bulgular": bulgular}
+
+async def tum_enstruman_tara(gun=365):
+    """Tüm enstrümanları otomatik tarar — sistemin kendi hipotez üretimi."""
+    sonuc = {}
+    for sym in ["BTCUSDT", "ETHUSDT", "PAXGUSDT"]:
+        try:
+            sonuc[sym] = await otomatik_hipotez_uret(sym, gun)
+        except Exception as e:
+            sonuc[sym] = {"hata": str(e)[:60]}
+    # En güçlü bulguları topla
+    en_iyiler = []
+    for sym, r in sonuc.items():
+        if r.get("bulgular"):
+            for b in r["bulgular"][:2]:
+                if b["durum"] == "Confirmed":
+                    en_iyiler.append({"sym": sym, "ad": r["ad"], **b})
+    en_iyiler.sort(key=lambda x: x["win_rate"], reverse=True)
+    out = {"tarih": _now(), "gun": gun, "enstrumanlar": sonuc, "en_iyi_hipotezler": en_iyiler[:8]}
+    HIPOTEZ_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2))
+    return out
+
+def son_hipotezler():
+    if HIPOTEZ_FILE.exists():
+        return json.loads(HIPOTEZ_FILE.read_text())
+    return {"durum": "henuz_calismadi", "en_iyi_hipotezler": []}
+
+async def hipotez_loop():
+    """Günde bir tüm enstrümanları otomatik tarar."""
+    await asyncio.sleep(600)
+    while True:
+        try:
+            await tum_enstruman_tara(365)
+            print("[Hipotez] ✅ Tüm enstrümanlar tarandı")
+        except Exception as e:
+            print(f"[Hipotez] {str(e)[:60]}")
+        await asyncio.sleep(86400)  # 24 saat
