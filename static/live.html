@@ -139,7 +139,7 @@ function renderRail(){
       <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
     </div>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)loadDevops(true);if(tab==='options')loadOptionsFull();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='system'&&!ST.devops)loadDevops(true);if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -174,7 +174,7 @@ function render(){
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
   else if(ST.tab==='system')m.innerHTML=scrSystem();
-  else if(ST.tab==='macro')m.innerHTML='<div style="padding:40px;text-align:center;color:#5e716f"><h1 class="sg" style="color:#eaf4f2;font-weight:600">Makro Ekonomi</h1><div style="margin-top:12px">Bu sayfa Adım 3\'te kurulacak.</div></div>';
+  else if(ST.tab==='macro')m.innerHTML=scrMacro();
 }
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
@@ -687,6 +687,62 @@ function scrOptions(){
   </div>`;
 }
 
+// ─── MAKRO EKONOMİ (v3 — görsel 7) ───
+function scrMacro(){
+  const m=ST.makro||{}, g=m.gostergeler||{}, y=m.btcYorum||{}, h=y.harita||{};
+  const oz=ST.makroOzet||{};
+
+  const gosterge=(key,ad,altAd,birim,suffix)=>{
+    const d=g[key]; if(!d)return '';
+    const tr=d.trend, trRenk=tr==='yukari'?'#1ff0ad':tr==='asagi'?'#ff5d6c':'#9fb0ad';
+    const trOk=tr==='yukari'?'▲ Yükselen':tr==='asagi'?'▼ Düşüş':'● Yatay';
+    const vals=(d.gecmis||[]).map(x=>x.deger);
+    const btc=h[key]||'';
+    const fb=d.fallback?'<span style="font-size:8px;color:#5e716f">~</span>':'';
+    return `<div class="card" style="padding:15px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <div><div class="sg" style="font-size:12px;color:#eaf4f2;font-weight:600">${ad} ${fb}</div>
+        <div style="font-size:8.5px;color:#5e716f">${altAd}</div></div>
+        ${d.degisim!=null?`<span style="font-size:9px;color:${d.degisim>=0?'#1ff0ad':'#ff5d6c'};border:1px solid #1a2422;padding:2px 6px;border-radius:4px;height:fit-content">${d.degisim>=0?'+':''}${d.degisim}</span>`:''}
+      </div>
+      <div class="sg" style="font-weight:700;font-size:24px;color:#eaf4f2;margin:6px 0">${birim||''}${d.guncel}${suffix||''}</div>
+      <div style="font-size:9px;color:${trRenk};margin-bottom:8px">${trOk} Trend</div>
+      ${vals.length?spark(vals,trRenk,300,32):''}
+      ${btc?`<div style="margin-top:10px;padding-top:9px;border-top:1px solid #141d1b">
+        <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin-bottom:4px">BTC ETKİSİ</div>
+        <div style="font-size:9.5px;color:#a8b8b5;line-height:1.45">${esc(btc)}</div></div>`:''}
+    </div>`;
+  };
+
+  const egilimRenk=(y.egilim||'').includes('POZİTİF')?'#1ff0ad':(y.egilim||'').includes('NEGATİF')?'#ff5d6c':'#ffb13c';
+
+  return `
+  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:13px">
+    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Makro Ekonomi Göstergeleri</h1>
+    <span style="font-size:11px;color:#5e716f">Günlük AI analiz · BTC etkisi · ${m.kaynak_ozet||''}</span>
+    <span style="margin-left:auto;font-size:11px;font-weight:600;color:${egilimRenk};border:1px solid ${egilimRenk}44;padding:4px 11px;border-radius:6px">BTC Eğilimi: ${y.egilim||'—'}</span>
+  </div>
+
+  <!-- AI MAKRO ÖZET -->
+  <div class="card" style="padding:15px 17px;margin-bottom:13px;background:#0b1010;border-color:#3a3022">
+    <div class="sg" style="font-size:9px;letter-spacing:.14em;color:#ffb13c;margin-bottom:8px">🪙 AI MAKRO ÖZET</div>
+    <div style="font-size:11.5px;color:#c4d2cf;line-height:1.6;white-space:pre-wrap">${esc(oz.ozet||y.sentez||'Makro özet yükleniyor...')}</div>
+  </div>
+
+  <!-- 9 GÖSTERGE -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    ${gosterge('fedFaiz','Fed Faiz / Hazine','FED FUNDS RATE','%','')}
+    ${gosterge('cpi','TÜFE (CPI)','TÜKETİCİ FİYAT ENDEKSİ','','')}
+    ${gosterge('nfp','Tarım Dışı İstihdam','NON-FARM PAYROLLS / AYLIK','','K')}
+    ${gosterge('ppi','ÜFE (PPI)','ÜRETİCİ FİYAT / YILLIK','%','')}
+    ${gosterge('gsyih','GSYİH','BÜYÜME / ÇEYREKLİK','%','')}
+    ${gosterge('pce','PCE','FED TERCİH GÖSTERGESİ','%','')}
+    ${gosterge('isRate','İşsizlik Oranı','UNEMPLOYMENT / AYLIK','%','')}
+    ${gosterge('ism','ISM İmalat PMI','MANUFACTURING PMI','','')}
+    ${gosterge('perakende','Perakende Satışlar','RETAIL SALES / Mr$','','Mr$')}
+  </div>`;
+}
+
 // ─── BİLGİ / HAFIZA ───
 function scrKnowledge(){
   const kb=ST.knowledge||{};
@@ -977,6 +1033,7 @@ async function loadOptionsFull(){
   if(ST.tab==='options')render();
 }
 async function loadKnowledge(){const d=await jget('/api/knowledge');if(d)ST.knowledge=d;}
+async function loadMakro(){const d=await jget('/api/makro');if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;if(ST.tab==='macro')render();}
 async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='system')render();}
 async function loadFeed(){
   const d=await jget('/api/leader/rapor-gecmisi?limit=10');
