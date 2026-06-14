@@ -545,7 +545,10 @@ function scrTheory(){
 
   <!-- RESEARCH AGENT BİLİMSEL BULGULAR -->
   <div class="card" style="padding:15px;margin-bottom:13px">
-    <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff;margin-bottom:13px">● RESEARCH AGENT — BİLİMSEL BULGULAR</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px">
+      <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff">● RESEARCH AGENT — BİLİMSEL BULGULAR</span>
+      <span style="font-size:8px;color:#5e716f;margin-left:auto">veri: 📊 indikatör · ∑ opsiyon · ▦ makro · ⛁ kitaplar · ◆ grafik</span>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px">
       <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:8px;padding:13px">
         <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:7px">GÜNLÜK</div>
@@ -807,6 +810,44 @@ function scrMacro(){
     ${gosterge('isRate','İşsizlik Oranı','UNEMPLOYMENT / AYLIK','%','')}
     ${gosterge('ism','ISM İmalat PMI','MANUFACTURING PMI','','')}
     ${gosterge('perakende','Perakende Satışlar','RETAIL SALES / Mr$','','Mr$')}
+  </div>
+
+  ${carryTradeHtml()}`;
+}
+
+function carryTradeHtml(){
+  const c=ST.makroCarry; if(!c||!c.gostergeler)return '';
+  const g=c.gostergeler;
+  const riskRenk=c.risk==='YÜKSEK'?'#ff5d6c':c.risk==='ORTA'?'#ffb13c':'#1ff0ad';
+  const kart=(k)=>{const d=g[k];if(!d)return '';
+    return `<div class="card" style="padding:14px 15px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <div><div class="sg" style="font-size:11.5px;color:#eaf4f2;font-weight:600">${d.ad}</div>
+        <div style="font-size:8px;color:#5e716f">${d.alt}</div></div>
+        <span style="font-size:9px;color:${d.chg>=0?'#1ff0ad':'#ff5d6c'};height:fit-content">${d.chg>=0?'+':''}${d.chg}%</span>
+      </div>
+      <div class="sg" style="font-weight:700;font-size:21px;color:#eaf4f2;margin:5px 0">${fmtNum(d.fiyat)}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid #141d1b">
+        <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin-bottom:4px">BTC ETKİSİ</div>
+        <div style="font-size:9.5px;color:#a8b8b5;line-height:1.45">${esc(d.btc)}</div></div>
+    </div>`;};
+  return `
+  <div style="display:flex;align-items:center;gap:11px;margin:22px 0 11px">
+    <span class="sg" style="font-size:11px;letter-spacing:.14em;color:#eaf4f2;font-weight:600">🌏 JAPONYA CARRY TRADE RİSK MONİTÖRÜ</span>
+    <span style="font-size:10px;font-weight:600;color:${riskRenk};border:1px solid ${riskRenk}44;padding:3px 10px;border-radius:5px;margin-left:auto">UNWIND RİSKİ: ${c.risk} (${c.unwind_sinyalleri}/5)</span>
+  </div>
+  <div style="font-size:10px;color:#7d908d;margin-bottom:12px;line-height:1.5">Carry trade: yatırımcı düşük faizli JPY ile borçlanıp yüksek getirili varlığa (ABD tahvili, hisse, BTC dahil) yatırır. JPY değer kazanınca pozisyonlar aynı anda kapanır — kaskad satış. BTC bu zincirin sonundaki risk varlığıdır.</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:13px">
+    ${kart('usdjpy')}${kart('jgb10y')}${kart('us10y')}
+    ${kart('nikkei')}${kart('vix')}${kart('boj')}
+  </div>
+  <div class="card" style="padding:14px 16px;border-left:2px solid ${riskRenk}">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+      <span class="sg" style="font-size:9px;letter-spacing:.14em;color:#5e716f">CARRY TRADE GENEL DEĞERLENDİRME</span>
+      <span style="font-size:9px;color:${riskRenk}">RİSK: ${c.risk}</span>
+    </div>
+    <div style="font-size:11px;color:#b8c6c3;line-height:1.55">${esc(c.degerlendirme)}</div>
+    <div style="margin-top:8px;font-size:9px;color:#5e716f">Politika spread: <b style="color:#8a9c99">${c.politika_spread}p</b> (ABD 10Y − BoJ) · Piyasa spread: <b style="color:#8a9c99">${c.piyasa_spread}p</b> (ABD 10Y − JGB 10Y)</div>
   </div>`;
 }
 
@@ -1169,7 +1210,7 @@ async function loadKnowledge(){
   if(ST.tab==='knowledge')render();
 }
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
-async function loadMakro(){const d=await jget('/api/makro');if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;if(ST.tab==='macro')render();}
+async function loadMakro(){const d=await jget('/api/makro');if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;const cr=await jget('/api/makro/carry');if(cr)ST.makroCarry=cr;if(ST.tab==='macro')render();}
 async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='knowledge')render();}
 async function loadFeed(){
   const d=await jget('/api/leader/rapor-gecmisi?limit=10');
