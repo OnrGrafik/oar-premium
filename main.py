@@ -1113,6 +1113,136 @@ async def indicators_get(symbol: str = "BTCUSDT", interval: str = "5m"):
     from indicator_engine import analiz
     return await analiz(symbol, interval)
 
+@app.get("/api/opsiyon-yorum")
+async def opsiyon_yorum(currency: str = "BTC"):
+    """Opsiyon genel durum analizi — tüm opsiyon verileri + opsiyon kitapları."""
+    import httpx
+    from options_engine import alarm_levels, opsiyon_cvd
+    lv = await alarm_levels(currency)
+    if lv.get("error"):
+        return {"yorum": "Opsiyon verisi alınamadı.", "veri": {}}
+    cvd = await opsiyon_cvd(currency)
+    genel = lv.get("genel", {})
+    spot = lv.get("spot")
+    veri = {
+        "spot": spot, "call_wall": genel.get("call_wall"), "put_wall": genel.get("put_wall"),
+        "zero_gamma": genel.get("zero_gamma"), "max_pain": genel.get("max_pain"),
+        "opsiyon_cvd": cvd.get("guncel"), "cvd_yon": cvd.get("yon"),
+    }
+    # Opsiyon kitaplarından bilgi
+    kitap_notu = ""
+    try:
+        from kitap_db import ara
+        ks = ara("gamma exposure call wall put wall zero gamma dealer hedging options", limit=2)
+        if ks:
+            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:180]}" for s in ks)
+    except Exception: pass
+
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    yorum = ""
+    if api_key:
+        prompt = f"""Sen opsiyon piyasası uzmanısın. {currency} opsiyon verilerini bilimsel/matematiksel yorumla
+(4-5 cümle, vade yorumlaması dahil, Türkçe):
+
+Spot: {spot}
+Call Wall (direnç): {genel.get('call_wall')}
+Put Wall (destek): {genel.get('put_wall')}
+Zero Gamma (flip): {genel.get('zero_gamma')}
+Max Pain: {genel.get('max_pain')}
+Opsiyon CVD: {cvd.get('guncel')} (yön: {cvd.get('yon')})
+Kısa vade (0-7g): {lv.get('kisa', {})}
+Orta vade (8-45g): {lv.get('orta', {})}
+
+Opsiyon kitaplarından: {kitap_notu[:400]}
+
+Dealer gamma pozisyonu, spot-ZG ilişkisi, CW/PW bandı, CVD akışını değerlendir.
+Kitap bilgisi varsa referans ver."""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=30) as cl:
+                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
+                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                if rr.status_code == 200:
+                    yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception: pass
+    return {"veri": veri, "yorum": yorum}
+
+@app.get("/api/piyasa-durumu")
+async def piyasa_durumu():
+    """Komuta Merkezi 'Piyasa Durumu' — opsiyon + makro + indikatör + kitap harmanı, AI yorumu."""
+    import httpx
+    from market_context import son_baglam
+    ctx = son_baglam()
+    veri = {}
+    # İndikatör skoru
+    try:
+        from indicator_engine import analiz
+        ind = await analiz("BTCUSDT", "5m")
+        veri["indikator_skor"] = ind.get("skor", {}).get("skor")
+        veri["indikator_yon"] = ind.get("skor", {}).get("yon")
+        veri["fiyat"] = ind.get("fiyat")
+    except Exception: pass
+    # Opsiyon
+    try:
+        from options_engine import gex_ozet
+        gex = await gex_ozet("BTC")
+        if not gex.get("error"):
+            veri["gamma_rejim"] = gex.get("gamma_rejim")
+            veri["call_wall"] = gex.get("call_wall")
+            veri["put_wall"] = gex.get("put_wall")
+            veri["zero_gamma"] = gex.get("zero_gamma")
+    except Exception: pass
+    # Market context (regime + move source)
+    if ctx:
+        veri["rejim"] = ctx.get("regime", {}).get("rejim")
+        veri["move_source"] = ctx.get("move_source", {}).get("kaynak")
+        veri["oar_score"] = ctx.get("oar_score", {}).get("skor")
+    # Korku endeksi
+    try:
+        async with httpx.AsyncClient(timeout=6) as cl:
+            r = await cl.get("https://api.alternative.me/fng/")
+            d = r.json()["data"][0]
+            veri["korku"] = f"{d['value']} ({d['value_classification']})"
+    except Exception: pass
+    # Kitaplardan ilgili bilgi (mevcut duruma göre)
+    kitap_notu = ""
+    try:
+        from kitap_db import ara
+        sorgu = f"{veri.get('rejim','')} {veri.get('gamma_rejim','')} market regime gamma"
+        ks = ara(sorgu, limit=2)
+        if ks:
+            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
+    except Exception: pass
+
+    # AI yorumu
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    yorum = ""
+    if api_key:
+        prompt = f"""Sen OAR Premium piyasa analistisin. Aşağıdaki canlı verilerle BTC için
+genel piyasa durumu yorumu yaz (3-4 cümle, bilimsel, matematiksel, Türkçe):
+
+İndikatör skoru: {veri.get('indikator_skor')} ({veri.get('indikator_yon')})
+Piyasa rejimi: {veri.get('rejim')}
+Move source: {veri.get('move_source')}
+OAR Score: {veri.get('oar_score')}/100
+Gamma rejim: {veri.get('gamma_rejim')}
+CW/PW/ZG: {veri.get('call_wall')}/{veri.get('put_wall')}/{veri.get('zero_gamma')}
+Korku endeksi: {veri.get('korku')}
+Fiyat: {veri.get('fiyat')}
+İlgili kitap bilgisi: {kitap_notu[:400]}
+
+Opsiyon konumunu, indikatör skorunu, rejimi ve korku endeksini birlikte değerlendir.
+Kitap bilgisi varsa referans ver. Pozisyon önerisi değil, durum tespiti yap."""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=30) as cl:
+                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
+                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                if rr.status_code == 200:
+                    yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception: pass
+    return {"veri": veri, "yorum": yorum, "kitap_notu": kitap_notu[:300]}
+
 @app.get("/api/ticker")
 async def ticker_get():
     """Sadece: BTC, ETH, SP500, Nasdaq, Altın, Gümüş, VIX (belge kuralı)."""
