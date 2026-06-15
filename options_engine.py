@@ -393,23 +393,59 @@ async def cvd_uclu(currency="BTC"):
     }
 
 async def islem_dagilimi(currency="BTC"):
-    """Son 1000 işlem: Calls Buy/Sell, Puts Buy/Sell, Block ayrımı."""
-    async with httpx.AsyncClient(timeout=20) as cl:
-        now=int(time.time()*1000); basla=now-2*86400*1000
+    """Son 1000 işlem: Calls/Puts Buy/Sell + Block + STRIKE bazlı buy/sell volume + gamma."""
+    async with httpx.AsyncClient(timeout=25) as cl:
+        now=int(time.time()*1000); basla=now-86400*1000
         trades=await _drb(cl,"get_last_trades_by_currency_and_time",
             {"currency":currency,"kind":"option","start_timestamp":basla,"end_timestamp":now,"count":1000})
+        spot=await _spot(cl,currency)
+        opts=await _tum_opsiyonlar(cl,spot,currency) if spot else []
     if not trades or "trades" not in trades: return {"error":"trade yok"}
     d={"calls_buy":0,"calls_sell":0,"puts_buy":0,"puts_sell":0,
        "calls_buy_block":0,"puts_buy_block":0,"calls_sell_block":0,"puts_sell_block":0}
-    BLOCK=25  # ≥25 kontrat = block
+    BLOCK=25
+    # Strike bazlı buy/sell volume (görsel 4 sağ panel)
+    strike_vol={}  # strike -> {buy, sell}
+    def _strike_from_name(nm):
+        # BTC-27JUN25-65000-C → 65000
+        try: return float(nm.split("-")[2])
+        except Exception: return None
     for t in trades["trades"]:
         nm=t["instrument_name"]; tip="calls" if nm.endswith("-C") else "puts"
         yon="buy" if t["direction"]=="buy" else "sell"
         amt=t["amount"]
         d[f"{tip}_{yon}"]+=amt
         if amt>=BLOCK: d[f"{tip}_{yon}_block"]+=amt
+        K=_strike_from_name(nm)
+        if K:
+            sv=strike_vol.setdefault(K,{"buy":0,"sell":0})
+            sv[yon]+=amt
     for k in d: d[k]=round(d[k],1)
+    # Strike volume listesi (spot etrafı ±%20)
+    vol_list=[]
+    if spot:
+        lo,hi=spot*0.8,spot*1.2
+        for K,v in sorted(strike_vol.items()):
+            if lo<=K<=hi and (v["buy"]+v["sell"])>0:
+                vol_list.append({"strike":K,"buy":round(v["buy"],1),"sell":round(v["sell"],1)})
+    # Gamma per strike (görsel 4 sol panel) — opsiyon zincirinden
+    gamma_list=[]
+    if opts and spot:
+        agg={}
+        for o in opts:
+            K=o["strike"]
+            if not (spot*0.8<=K<=spot*1.2): continue
+            g=agg.setdefault(K,{"strike":K,"callG":0,"putG":0})
+            if o["type"]=="call": g["callG"]+=o.get("gex",0)
+            else: g["putG"]+=o.get("gex",0)
+        for K,g in sorted(agg.items()):
+            net=g["callG"]+g["putG"]  # putG zaten negatif işaretli
+            gamma_list.append({"strike":K,"net":round(net/1e6,3)})
     toplam_call=d["calls_buy"]+d["calls_sell"]
     toplam_put=d["puts_buy"]+d["puts_sell"]
     return {"dagilim":d,"call_toplam":round(toplam_call,1),"put_toplam":round(toplam_put,1),
-            "pcr":round(toplam_put/toplam_call,2) if toplam_call else 0}
+            "pcr":round(toplam_put/toplam_call,2) if toplam_call else 0,
+            "spot":spot,"strike_volume":vol_list,"gamma_per_strike":gamma_list,
+            "calls_buy":d["calls_buy"],"calls_sell":d["calls_sell"],
+            "puts_buy":d["puts_buy"],"puts_sell":d["puts_sell"],
+            "call_blocks":round(d["calls_buy_block"]+d["calls_sell_block"],1)}
