@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -26,6 +27,97 @@ body{background:#07090a;color:#cdd9d8;font-family:'JetBrains Mono',ui-monospace,
 .card{background:#0c1112;border:1px solid #18211f;border-radius:9px}
 input,button{font-family:'JetBrains Mono',monospace}
 a{color:inherit;text-decoration:none}
+/* ═══ OPSİYON MASASI (Options Desk teması — yalnız .od kapsamı) ═══ */
+.od{
+  --od-bg:#0c0c0d;--od-surface:#131316;--od-surface-2:#1a1a1e;
+  --od-line:#232328;--od-line-soft:#1a1a1e;--od-line-strong:#36363c;
+  --od-text:#e8e6e0;--od-text-2:#b8b5ac;--od-dim:#7a7771;--od-mute:#4a4742;
+  --od-accent:#c4a574;--od-pos:#6b9e7d;--od-neg:#b5564c;--od-neutral:#5a6776;
+  --od-serif:'Instrument Serif',Georgia,serif;
+  --od-sans:'Manrope',-apple-system,system-ui,sans-serif;
+  --od-mono:'JetBrains Mono',ui-monospace,monospace;
+  margin:-18px -20px -28px;padding:26px 34px 40px;
+  background:var(--od-bg);color:var(--od-text);
+  font-family:var(--od-sans);font-size:13px;min-height:calc(100vh - 46px);
+}
+.od *{box-sizing:border-box}
+.od .pos{color:var(--od-pos)!important}.od .neg{color:var(--od-neg)!important}
+
+.od-top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:24px}
+.od-title{font-family:var(--od-serif);font-size:30px;font-weight:400;letter-spacing:-.01em;color:var(--od-text);line-height:1}
+.od-sub{font-size:11px;color:var(--od-dim)}
+.od-vade{margin-left:auto;display:flex;gap:5px}
+.od-chip{padding:4px 11px;background:var(--od-surface-2);border:1px solid var(--od-line);color:var(--od-dim);font-family:var(--od-sans);font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.03em;transition:.15s}
+.od-chip:hover{color:var(--od-text);border-color:var(--od-line-strong)}
+.od-chip.on{background:var(--od-accent);border-color:var(--od-accent);color:#0c0c0d;font-weight:700}
+
+.od-sec{padding:30px 0 4px;border-top:1px solid var(--od-line);margin-top:24px}
+.od-sec:first-of-type{border-top:none;margin-top:0;padding-top:4px}
+.od-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid var(--od-line-soft)}
+.od-h2{font-family:var(--od-serif);font-size:21px;font-weight:400;line-height:1;color:var(--od-text);letter-spacing:-.01em;margin:0}
+.od-nbr{font-family:var(--od-serif);color:var(--od-accent);font-style:italic;margin-right:10px}
+.od-meta{font-size:10px;font-weight:600;color:var(--od-dim);letter-spacing:.08em;text-transform:uppercase}
+
+.od-pull{font-family:var(--od-serif);font-size:23px;line-height:1.35;color:var(--od-text-2);max-width:62ch;margin:0}
+.od-pull em{font-style:italic;color:var(--od-accent)}
+
+.od-wrap{display:grid;grid-template-columns:1.75fr 1fr;gap:38px}
+.od-two{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.od-walls{display:grid;grid-template-columns:1fr 280px;gap:34px}
+@media(max-width:1100px){.od-wrap,.od-two,.od-walls{grid-template-columns:1fr}}
+
+.od-ladder{display:flex;flex-direction:column;font-family:var(--od-sans);font-size:12px;width:100%}
+.od-lhead,.od-lrow{display:grid;grid-template-columns:40px 50px 1fr 84px 1fr 70px 58px;align-items:center}
+.od-lhead{padding:7px 0;border-bottom:1px solid var(--od-line);color:var(--od-mute);font-size:10px;font-weight:700;letter-spacing:.10em;text-transform:uppercase}
+.od-lhead>div:nth-child(3){text-align:right;padding-right:13px}
+.od-lhead>div:nth-child(5){text-align:left;padding-left:13px}
+.od-lrow{padding:5px 0;border-bottom:1px solid var(--od-line-soft);color:var(--od-text-2);cursor:crosshair;transition:background .1s}
+.od-lrow:hover{background:var(--od-surface-2)}
+.od-lrow.spot{background:rgba(196,165,116,.08);border-top:1px solid var(--od-accent);border-bottom:1px solid var(--od-accent);color:var(--od-text)}
+.od-tag{font-size:10px;font-weight:700;color:var(--od-mute);text-align:center;letter-spacing:.05em}
+.od-tag.cw{color:var(--od-pos)}.od-tag.pw{color:var(--od-neg)}.od-tag.mp{color:var(--od-accent)}.od-tag.zg{color:var(--od-neutral)}
+.od-ap{font-size:11px;font-weight:700;color:var(--od-dim);text-align:center}
+.od-bar{height:16px;display:flex;align-items:center}
+.od-bar.put{justify-content:flex-end;padding-right:13px}
+.od-bar.call{justify-content:flex-start;padding-left:13px}
+.od-fill{height:9px;border-radius:1px;opacity:.85}
+.od-fill.call{background:var(--od-pos)}.od-fill.put{background:var(--od-neg)}
+.od-strike{font-size:13px;font-weight:700;color:var(--od-text);text-align:right;padding-right:15px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.od-lrow.spot .od-strike{color:var(--od-accent)}
+.od-net{font-size:11px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.od-dist{font-size:10px;font-weight:500;color:var(--od-dim);text-align:right;font-variant-numeric:tabular-nums}
+.od-dist.pos{color:#6f9a7e}.od-dist.neg{color:#a86a60}
+
+.od-sheet-label{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--od-mute);margin-bottom:10px}
+.od-lvl{display:grid;grid-template-columns:10px 1fr auto auto;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--od-line-soft)}
+.od-lvl:last-child{border-bottom:none}
+.od-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.od-lname{font-size:12px;font-weight:500;color:var(--od-text)}
+.od-lsub{font-size:10px;color:var(--od-mute);margin-left:5px}
+.od-lval{font-size:13px;font-weight:700;color:var(--od-text);font-family:var(--od-mono)}
+.od-ldelta{font-size:11px;font-weight:700;color:var(--od-dim);min-width:54px;text-align:right;font-variant-numeric:tabular-nums}
+.od-ldelta.pos{color:var(--od-pos)}.od-ldelta.neg{color:var(--od-neg)}
+
+.od-greeks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0}
+.od-greek{padding:22px 30px 22px 0;border-right:1px solid var(--od-line)}
+.od-greek:last-child{border-right:none;padding-right:0}
+.od-glyph{font-family:var(--od-serif);font-style:italic;font-size:24px;color:var(--od-accent);margin-bottom:6px;line-height:1}
+.od-glabel{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--od-mute);margin-bottom:12px}
+.od-gnum{font-family:var(--od-serif);font-size:36px;line-height:1;color:var(--od-text);margin-bottom:8px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.od-gfoot{font-size:10px;font-weight:600;color:var(--od-dim);line-height:1.55}
+
+.od-empty{color:var(--od-mute);font-size:11px;padding:26px;text-align:center}
+.od-note{font-size:10px;color:var(--od-dim);line-height:1.6;margin-top:8px;background:var(--od-surface);border:1px solid var(--od-line);padding:10px 14px}
+.od-cvd-h{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.od-cvd-t{font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--od-mute);text-transform:uppercase}
+.od-pill{padding:2px 10px;border-radius:2px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#fff}
+.od-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.od-flow-c{background:var(--od-surface);border:1px solid var(--od-line);padding:10px 12px;display:flex;justify-content:space-between;align-items:baseline}
+.od-flow-l{font-size:10px;color:var(--od-mute)}
+.od-flow-v{font-family:var(--od-serif);font-size:16px;color:var(--od-text)}
+.od-scn{display:grid;grid-template-columns:1fr auto;gap:16px;padding:11px 0;border-bottom:1px solid var(--od-line-soft)}
+.od-foot{display:flex;justify-content:space-between;align-items:flex-end;padding:14px 0 0;border-top:1px solid var(--od-line);margin-top:26px;font-size:10px;color:var(--od-mute)}
+.od-foot-pg{font-family:var(--od-serif);font-style:italic;color:var(--od-accent);font-size:16px}
 </style>
 </head>
 <body>
@@ -581,14 +673,18 @@ async function theoryTara(){
 }
 
 // ─── OPTIONS & GEX ───
-// ─── OPSİYON & GEX (v3 — görsel 8) ───
+// ─── OPSİYON MASASI (Options Desk teması — veri sözleşmesi değişmedi) ───
 let _optVade='all';
 function optVadeSec(v){_optVade=v;loadOptionsFull();render();}
-// Hover tooltip
+
+// OD palet (SVG + body'ye eklenen tooltip CSS değişkeni çözemez → hex)
+const OD={bg:'#0c0c0d',surf:'#131316',line:'#232328',lineS:'#1a1a1e',lineH:'#36363c',text:'#e8e6e0',t2:'#b8b5ac',dim:'#7a7771',mute:'#4a4742',acc:'#c4a574',pos:'#6b9e7d',neg:'#b5564c',neu:'#5a6776',buy:'#5b8fc7',sell:'#d4a05c'};
+
+// Hover tooltip (Options Desk yüzeyi)
 function optTip(e,html){
   let t=document.getElementById('opt-tip');
   if(!t){t=document.createElement('div');t.id='opt-tip';
-    t.style.cssText='position:fixed;z-index:9999;background:#0a0f0f;border:1px solid #2a3a36;border-radius:8px;padding:10px 13px;font-size:10px;color:#c4d2cf;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:240px';
+    t.style.cssText='position:fixed;z-index:9999;background:#131316;border:1px solid #36363c;border-radius:4px;padding:9px 12px;font-family:Manrope,sans-serif;font-size:10px;color:#b8b5ac;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.6);max-width:240px;line-height:1.5';
     document.body.appendChild(t);}
   t.innerHTML=html;t.style.display='block';
   t.style.left=Math.min(e.clientX+14,window.innerWidth-260)+'px';
@@ -596,230 +692,236 @@ function optTip(e,html){
 }
 function optTipHide(){const t=document.getElementById('opt-tip');if(t)t.style.display='none';}
 
-// Gamma per strike — dikey bar (yeşil pozitif üst, kırmızı negatif alt)
-function gammaPerStrikeChart(data,spot){
-  if(!data||!data.length)return '<div style="height:140px;display:flex;align-items:center;justify-content:center;color:#5e716f;font-size:10px">Veri yükleniyor...</div>';
-  const W=560,H=140,mid=H/2;
-  const maxV=Math.max(...data.map(d=>Math.abs(d.net)),0.001);
-  const bw=Math.max(W/data.length-1.5,2);
-  const bars=data.map((d,i)=>{
-    const x=(i/data.length)*W;
-    const h=Math.abs(d.net)/maxV*(mid-8);
-    const pos=d.net>=0;
-    const tip=`$${fmtNum(d.strike)}<br>Net Γ: <b style='color:${pos?'#1ff0ad':'#ff5d6c'}'>${d.net>=0?'+':''}${d.net}M</b>`;
-    return `<rect x="${x.toFixed(1)}" y="${(pos?mid-h:mid).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${pos?'#1ff0ad':'#ff5d6c'}" opacity="0.8" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;
-  }).join('');
-  // spot çizgisi
-  let spotX='';
-  if(spot){const idx=data.findIndex(d=>d.strike>=spot);if(idx>=0){const sx=(idx/data.length)*W;spotX=`<line x1="${sx}" y1="0" x2="${sx}" y2="${H}" stroke="#56a8ff" stroke-width="1" stroke-dasharray="3 2"/><text x="${sx+3}" y="11" fill="#56a8ff" font-size="8">SPOT</text>`;}}
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:140px" preserveAspectRatio="none">
-    <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="#2a3a36" stroke-width="0.5"/>
-    ${bars}${spotX}
-  </svg>
-  <div style="font-size:9px;color:#7d908d;margin-top:7px;line-height:1.4">Strike başına net gamma. Spot üstü yeşil (call gamma direnç), altı kırmızı (put gamma destek). En yüksek bar = en güçlü duvar.</div>`;
+// kompakt sayı (K/M/Mr)
+function odK(n){if(n==null||!isFinite(n))return '—';const x=Number(n),a=Math.abs(x),s=x<0?'-':'';if(a>=1e9)return s+(a/1e9).toFixed(2)+'Mr';if(a>=1e6)return s+(a/1e6).toFixed(1)+'M';if(a>=1e3)return s+(a/1e3).toFixed(0)+'K';return s+a.toFixed(0);}
+
+// ── i. STRİKE TOPOGRAFYASI (merdiven) ──
+function odLadder(t,lv,spot){
+  const all=(t.strikes||[]);
+  if(!all.length||!spot)return '<div class="od-empty">Opsiyon verisi yükleniyor (Deribit)…</div>';
+  const lo=spot*0.90,hi=spot*1.10;
+  const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>b.strike-a.strike);
+  if(!vis.length)return '<div class="od-empty">Bu vade için strike yok.</div>';
+  const maxOI=Math.max(...vis.map(s=>Math.max(s.callOI||0,s.putOI||0)),1);
+  const sumOI=vis.reduce((a,s)=>a+(s.callOI||0)+(s.putOI||0),0)||1;
+  const tagOf=s=>{if(lv.call_wall===s.strike)return['CW','cw'];if(lv.put_wall===s.strike)return['PW','pw'];if(lv.max_pain===s.strike)return['MP','mp'];if(lv.zero_gamma&&Math.abs(lv.zero_gamma-s.strike)<spot*0.004)return['ZΓ','zg'];return['',''];};
+  const spotRow=`<div class="od-lrow spot"><div class="od-tag" style="color:${OD.acc}">◆</div><div></div><div class="od-bar put"></div><div class="od-strike">${fmtNum(Math.round(spot))}</div><div class="od-bar call"></div><div class="od-net" style="color:${OD.acc}">—</div><div class="od-dist" style="color:${OD.acc}">0.00%</div></div>`;
+  let rows='',placed=false;
+  vis.forEach(s=>{
+    if(!placed&&s.strike<spot){rows+=spotRow;placed=true;}
+    const tg=tagOf(s),tag=tg[0],cls=tg[1];
+    const callW=(s.callOI||0)/maxOI*100,putW=(s.putOI||0)/maxOI*100;
+    const oiPct=(((s.callOI||0)+(s.putOI||0))/sumOI*100);
+    const dist=(s.strike-spot)/spot*100,ng=s.netGamma||0;
+    const tip=`<b style='color:${OD.text}'>$${fmtNum(s.strike)}</b>${cls==='cw'?' · CALL WALL':cls==='pw'?' · PUT WALL':cls==='zg'?' · ZERO GAMMA':cls==='mp'?' · MAX PAIN':''}<br>Call OI: <b style='color:${OD.pos}'>${fmtNum(s.callOI||0)}</b><br>Put OI: <b style='color:${OD.neg}'>${fmtNum(s.putOI||0)}</b><br>Net γ: <b style='color:${ng>=0?OD.pos:OD.neg}'>${ng>=0?'+':''}${odK(ng)}</b>`;
+    rows+=`<div class="od-lrow" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">`+
+      `<div class="od-tag ${cls}">${tag}</div>`+
+      `<div class="od-ap">${oiPct.toFixed(1)}%</div>`+
+      `<div class="od-bar put"><div class="od-fill put" style="width:${putW.toFixed(1)}%"></div></div>`+
+      `<div class="od-strike">${fmtNum(s.strike)}</div>`+
+      `<div class="od-bar call"><div class="od-fill call" style="width:${callW.toFixed(1)}%"></div></div>`+
+      `<div class="od-net" style="color:${ng>=0?OD.pos:OD.neg}">${ng>=0?'+':'−'}${odK(Math.abs(ng))}</div>`+
+      `<div class="od-dist ${dist>=0?'pos':'neg'}">${dist>=0?'+':''}${dist.toFixed(1)}%</div></div>`;
+  });
+  if(!placed)rows=spotRow+rows;
+  return `<div class="od-ladder"><div class="od-lhead"><div>Etiket</div><div>AP%</div><div>Put γ</div><div style="text-align:center">Kullanım</div><div>Call γ</div><div style="text-align:center">Net γ</div><div style="text-align:right">Δ%</div></div>${rows}</div>`;
 }
 
-// Buy/Sell volume per strike — dikey bar (alış mavi üst, satış turuncu alt)
-function buySellPerStrikeChart(data,spot){
-  if(!data||!data.length)return '<div style="height:140px;display:flex;align-items:center;justify-content:center;color:#5e716f;font-size:10px">Veri yükleniyor...</div>';
-  const W=560,H=140,mid=H/2;
-  const maxV=Math.max(...data.map(d=>Math.max(d.buy,d.sell)),1);
-  const bw=Math.max(W/data.length-1.5,2);
-  const bars=data.map((d,i)=>{
-    const x=(i/data.length)*W;
-    const bh=d.buy/maxV*(mid-8), sh=d.sell/maxV*(mid-8);
-    const tip=`$${fmtNum(d.strike)}<br>Buy: <b style='color:#56a8ff'>${d.buy}</b><br>Sell: <b style='color:#ff8a3c'>${d.sell}</b>`;
-    return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">
-      <rect x="${x.toFixed(1)}" y="${(mid-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="#56a8ff" opacity="0.8"/>
-      <rect x="${x.toFixed(1)}" y="${mid}" width="${bw.toFixed(1)}" height="${sh.toFixed(1)}" fill="#ff8a3c" opacity="0.8"/>
-    </g>`;
+// ── Kilit Seviyeler ──
+function odLevels(lv,spot){
+  const rows=[['Call Wall','maks. pozitif γ',lv.call_wall,OD.pos],['Beklenen Hareket ↑','1σ hafta sonu',lv.em_ust,OD.neu],['Max Pain','min. yazar ödemesi',lv.max_pain,OD.acc],['Zero Gamma','rejim dönüşümü',lv.zero_gamma,OD.dim],['Beklenen Hareket ↓','1σ hafta sonu',lv.em_alt,OD.neu],['Put Wall','maks. negatif γ',lv.put_wall,OD.neg]].filter(r=>r[2]!=null);
+  if(!rows.length)return '<div class="od-empty">yükleniyor…</div>';
+  return '<div class="od-sheet-label">Kilit Seviyeler</div>'+rows.map(r=>{
+    const n=r[0],sub=r[1],v=r[2],c=r[3];const pct=spot?((v-spot)/spot*100):null;
+    return `<div class="od-lvl"><span class="od-dot" style="color:${c}"></span><span><span class="od-lname">${n}</span><span class="od-lsub">${sub}</span></span><span class="od-lval">$${fmtNum(v)}</span><span class="od-ldelta ${pct!=null&&pct>=0?'pos':'neg'}">${pct!=null?(pct>=0?'+':'')+pct.toFixed(2)+'%':'—'}</span></div>`;
   }).join('');
-  let spotX='';
-  if(spot){const idx=data.findIndex(d=>d.strike>=spot);if(idx>=0){const sx=(idx/data.length)*W;spotX=`<line x1="${sx}" y1="0" x2="${sx}" y2="${H}" stroke="#56a8ff" stroke-width="1" stroke-dasharray="3 2"/>`;}}
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:140px" preserveAspectRatio="none">
-    <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="#2a3a36" stroke-width="0.5"/>
-    ${bars}${spotX}
-  </svg>
-  <div style="display:flex;gap:14px;font-size:9px;color:#7d908d;margin-top:7px">
-    <span><span style="color:#56a8ff">▲</span> Alış (üst)</span><span><span style="color:#ff8a3c">▼</span> Satış (alt)</span>
-    <span style="margin-left:auto">Hangi strike'a alış/satış yığılmış gösterir</span>
-  </div>`;
+}
+
+// ── ii. KUANTUM DUVARLAR (yatay GEX) ──
+function odWalls(t,lv,spot,g){
+  const all=(t.strikes||[]).filter(s=>Math.abs(s.netGamma||0)>0);
+  if(!all.length||!spot)return '<div class="od-empty">GEX verisi yükleniyor…</div>';
+  const lo=spot*0.80,hi=spot*1.22;
+  const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>b.strike-a.strike);
+  if(!vis.length)return '<div class="od-empty">Bu aralıkta GEX yok.</div>';
+  const W=1000,PL=70,PR=40,PT=20,PB=40,H=Math.max(vis.length*16+PT+PB,200);
+  const cH=H-PT-PB,cW=W-PL-PR;
+  const yS=p=>PT+((hi-p)/(hi-lo))*cH;
+  const maxBar=Math.max(...vis.map(s=>Math.abs(s.netGamma)),1);
+  const rowH=Math.max(cH/vis.length-1,2.5);
+  const xBar=m=>(Math.abs(m)/maxBar)*cW*0.9;
+  let body=vis.map(s=>{
+    const y=yS(s.strike),w=xBar(s.netGamma),pos=s.netGamma>=0;
+    const tip=`$${fmtNum(s.strike)}<br>Net GEX: <b style='color:${pos?OD.pos:OD.neg}'>${s.netGamma>=0?'+':''}${odK(s.netGamma)}</b><br>Call OI ${fmtNum(s.callOI||0)} · Put OI ${fmtNum(s.putOI||0)}`;
+    return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">`+
+      `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.lineS}" stroke-width="0.3"/>`+
+      `<rect x="${PL}" y="${(y-rowH/2).toFixed(1)}" width="${w.toFixed(1)}" height="${rowH.toFixed(1)}" fill="${pos?'url(#odcw)':'url(#odpw)'}"/>`+
+      `<text x="${PL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="10" font-weight="700" fill="${OD.mute}">${(s.strike/1000).toFixed(0)}K</text></g>`;
+  }).join('');
+  const lvls=[[lv.call_wall,'CW',OD.pos],[lv.em_ust,'BH↑',OD.neu],[lv.zero_gamma,'ZΓ',OD.dim],[lv.max_pain,'MA',OD.acc],[lv.em_alt,'BH↓',OD.neu],[lv.put_wall,'PW',OD.neg]].filter(x=>x[0]&&x[0]>=lo&&x[0]<=hi);
+  let roz=lvls.map(x=>{const y=yS(x[0]);return `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${x[2]}" stroke-width="0.7" stroke-dasharray="3 5" opacity="0.25"/><rect x="${PL-54}" y="${(y-9).toFixed(1)}" width="46" height="18" rx="3" fill="${OD.surf}" stroke="${x[2]}" stroke-width="1"/><text x="${PL-31}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${x[2]}">${x[1]}</text>`;}).join('');
+  let sp='';
+  if(spot>=lo&&spot<=hi){const y=yS(spot);sp=`<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.acc}" stroke-width="1.8" opacity="0.9"/><rect x="${PL-54}" y="${(y-10).toFixed(1)}" width="46" height="20" rx="3" fill="${OD.acc}"/><text x="${PL-31}" y="${(y+5).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="10" font-weight="700" fill="${OD.bg}">SPOT</text>`;}
+  const chart=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><defs><linearGradient id="odcw" x1="0" x2="1"><stop offset="0%" stop-color="${OD.pos}" stop-opacity="0.9"/><stop offset="100%" stop-color="${OD.pos}" stop-opacity="0.18"/></linearGradient><linearGradient id="odpw" x1="0" x2="1"><stop offset="0%" stop-color="${OD.neg}" stop-opacity="0.88"/><stop offset="100%" stop-color="${OD.neg}" stop-opacity="0.14"/></linearGradient></defs>${body}${roz}${sp}</svg>`;
+  const top=vis.slice().sort((a,b)=>Math.abs(b.netGamma)-Math.abs(a.netGamma)).slice(0,8);
+  const list=top.map((w,i)=>{const pos=w.netGamma>=0,c=pos?OD.pos:OD.neg,pct=(w.strike-spot)/spot*100;
+    return `<div style="display:grid;grid-template-columns:22px 1fr auto;gap:6px 10px;align-items:baseline;padding:9px 0;border-bottom:1px solid ${OD.lineS}"><span style="font-size:9px;color:${OD.mute};font-style:italic;font-family:Instrument Serif,serif">${String(i+1).padStart(2,'0')}</span><div><div style="font-size:13px;color:${c};font-weight:700">$${fmtNum(w.strike)}</div><div style="font-size:9px;color:${c};margin-top:2px;font-weight:600">${pos?'Call γ':'Put γ'}</div></div><div style="text-align:right"><div style="font-size:12px;font-weight:700;color:${pct>=0?OD.pos:OD.neg}">${pct>=0?'+':''}${pct.toFixed(1)}%</div><div style="font-size:10px;color:${OD.mute};margin-top:2px">${w.netGamma>=0?'+':'−'}${odK(Math.abs(w.netGamma))}</div></div></div>`;}).join('');
+  return `<div class="od-walls"><div>${chart}<div class="od-note">${esc((g&&g.gamma_yorum)||'')}</div></div><div><p class="od-pull" style="font-size:15px;line-height:1.45;margin-bottom:18px">İki <em>duvar</em> spot'u çerçeveler: yukarıda Call Wall kümesi, aşağıda Put Wall yığını.</p><div class="od-sheet-label">Önemli Duvarlar — Sıralı ↓</div>${list}</div></div>`;
+}
+
+// ── iii. CVD çizgisi (medyan + son nokta) ──
+function odLine(d,renk,birim){
+  if(!d||!d.seri||!d.seri.length)return '<div class="od-empty">Veri yükleniyor…</div>';
+  const vals=d.seri.map(x=>Number(x.v)).filter(v=>isFinite(v));
+  if(vals.length<2)return '<div class="od-empty">Yeterli veri yok</div>';
+  const W=1000,H=150,PL=64,PR=16,PT=12,PB=14,iw=W-PL-PR,ih=H-PT-PB;
+  const med=isFinite(d.medyan)?Number(d.medyan):vals[vals.length-1];
+  let mn=Math.min(...vals,med),mx=Math.max(...vals,med);if(mx===mn){mx+=1;mn-=1;}
+  const pad=(mx-mn)*0.08;mn-=pad;mx+=pad;
+  const X=i=>PL+(vals.length<=1?iw/2:(i/(vals.length-1))*iw);
+  const Y=v=>PT+(1-(v-mn)/(mx-mn))*ih;
+  const path=vals.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const medY=Y(med).toFixed(1);
+  const fY=v=>birim==='$'?('$'+odK(v)):odK(v);
+  const last=vals[vals.length-1];
+  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.line}" stroke-width="1"/><text x="${PL-8}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="9" fill="${OD.mute}">${fY(v)}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}<line x1="${PL}" x2="${W-PR}" y1="${medY}" y2="${medY}" stroke="${OD.text}" stroke-width="1" stroke-dasharray="6 4" opacity="0.55"/><text x="${W-PR}" y="${(medY-5)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="8.5" fill="${OD.text}" opacity="0.7">MEDYAN ${fY(med)}</text><path d="${path}" fill="none" stroke="${renk}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4" fill="${renk}"/></svg>`;
+}
+function odCvd(d,baslik,birim,aciklama){
+  const yon=d&&d.yon,renk=yon==='YUKARI'?OD.pos:yon==='AŞAĞI'?OD.neg:OD.neu;
+  const fmtV=v=>birim==='$'?('$'+fmtNum(v)):fmtNum(v);
+  const head=`<div class="od-cvd-h"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="od-cvd-t">${baslik}</span>${d&&d.yon?`<span class="od-pill" style="background:${renk}">${yon==='YUKARI'?'▲ YUKARI':yon==='AŞAĞI'?'▼ AŞAĞI':'— NÖTR'}</span>`:''}</div>${d&&d.guncel!=null?`<div style="font-size:10px;color:${OD.mute}">Net: <b style="color:${renk};font-size:12px">${fmtV(d.guncel)}</b> · Medyan: <b style="color:${OD.text}">${fmtV(d.medyan)}</b></div>`:''}</div>`;
+  return `<div style="margin-bottom:18px">${head}${odLine(d,renk,birim)}<div class="od-note">${aciklama}</div></div>`;
+}
+
+// ── Gamma / Buy-Sell per strike (histogram) ──
+function odGammaStrike(arr,spot){
+  if(!arr||!arr.length)return '<div class="od-empty">Veri yükleniyor…</div>';
+  const W=1000,H=240,PT=20,PR=28,PB=40,PL=52,cW=W-PL-PR,cH=H-PT-PB;
+  const lo=Math.min(...arr.map(d=>d.strike)),hi=Math.max(...arr.map(d=>d.strike)),span=(hi-lo)||1;
+  const X=s=>PL+((s-lo)/span)*cW;
+  const yMax=Math.max(...arr.map(d=>Math.abs(d.net)),1e-6)*1.1,zY=PT+cH/2;
+  const bw=Math.max(cW/arr.length*0.55,1);
+  const bars=arr.map(d=>{const x=X(d.strike),h=Math.abs(d.net)/yMax*(cH/2);if(h<0.4)return '';const pos=d.net>=0;
+    const tip=`$${fmtNum(d.strike)}<br>Net Γ: <b style='color:${pos?OD.pos:OD.neg}'>${d.net>=0?'+':''}${d.net}M</b>`;
+    return `<rect x="${(x-bw/2).toFixed(1)}" y="${(pos?zY-h:zY).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${pos?OD.pos:OD.neg}" opacity="0.88" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;}).join('');
+  let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
+  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="${OD.acc}">SPOT</text>`;}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}</svg>`;
+}
+function odBuySell(arr,spot){
+  if(!arr||!arr.length)return '<div class="od-empty">Veri yükleniyor…</div>';
+  const W=1000,H=240,PT=20,PR=28,PB=40,PL=52,cW=W-PL-PR,cH=H-PT-PB;
+  const lo=Math.min(...arr.map(d=>d.strike)),hi=Math.max(...arr.map(d=>d.strike)),span=(hi-lo)||1;
+  const X=s=>PL+((s-lo)/span)*cW;
+  const yMax=Math.max(...arr.map(d=>Math.max(d.buy||0,d.sell||0)),1)*1.1,zY=PT+cH/2;
+  const bw=Math.max(cW/arr.length*0.55,1);
+  const bars=arr.map(d=>{const x=X(d.strike),bh=(d.buy||0)/yMax*(cH/2),sh=(d.sell||0)/yMax*(cH/2);
+    const tip=`$${fmtNum(d.strike)}<br>Buy: <b style='color:${OD.buy}'>${fmtNum(d.buy||0)}</b><br>Sell: <b style='color:${OD.sell}'>${fmtNum(d.sell||0)}</b>`;
+    return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"><rect x="${(x-bw/2).toFixed(1)}" y="${(zY-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${OD.buy}" opacity="0.9"/><rect x="${(x-bw/2).toFixed(1)}" y="${zY.toFixed(1)}" width="${bw.toFixed(1)}" height="${sh.toFixed(1)}" fill="${OD.sell}" opacity="0.9"/></g>`;}).join('');
+  let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
+  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>`;}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}</svg><div style="display:flex;gap:16px;margin-top:6px;font-size:9px;color:${OD.dim}"><span style="color:${OD.buy}">▲ Buy (üst)</span><span style="color:${OD.sell}">▼ Sell (alt)</span></div>`;
+}
+
+// ── iv. Toplu Greek'ler ──
+function odGreeks(g){
+  const cells=[['Γ','Net Gamma',g.net_gamma,g.gamma_yorum],['𝒱','Net Vanna',g.net_vanna,g.vanna_yorum],['𝒞','Net Charm',g.net_charm,g.charm_yorum]];
+  return '<div class="od-greeks">'+cells.map(c=>{const sym=c[0],lab=c[1],v=c[2],foot=c[3];
+    const val=v==null?'—':((v>=0?'+':'')+v);const col=v==null?OD.text:v<0?OD.neg:v>0?OD.pos:OD.text;
+    return `<div class="od-greek"><div class="od-glyph">${sym}</div><div class="od-glabel">${lab}</div><div class="od-gnum" style="color:${col}">${val}${v!=null?'<span style="color:'+OD.dim+';font-size:16px">M$</span>':''}</div><div class="od-gfoot">${esc(foot||'')}</div></div>`;
+  }).join('')+'</div>';
+}
+
+// ── v. Volatilite Yüzeyi ──
+function odTerm(arr){
+  const pts=(arr||[]).map(x=>Number(x.iv)).filter(v=>isFinite(v)&&v>1&&v<300);
+  if(pts.length<2)return '<div class="od-empty">Hesaplanıyor…</div>';
+  const W=620,H=220,PL=46,PR=24,PT=24,PB=30,iw=W-PL-PR,ih=H-PT-PB;
+  let mn=Math.min(...pts),mx=Math.max(...pts);const r=(mx-mn)||5;mn-=r*0.15;mx+=r*0.15;
+  const X=i=>PL+(i/(pts.length-1))*iw,Y=v=>PT+(1-(v-mn)/(mx-mn))*ih;
+  const path=pts.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const fill=path+` L ${X(pts.length-1).toFixed(1)} ${H-PB} L ${X(0).toFixed(1)} ${H-PB} Z`;
+  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.lineS}" stroke-width="0.6"/><text x="${PL-5}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.mute}">${v.toFixed(0)}%</text>`).join('');
+  const dots=pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.5" fill="${OD.bg}" stroke="${OD.acc}" stroke-width="1.5"/><text x="${X(i).toFixed(1)}" y="${(Y(v)-9).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.t2}">${v.toFixed(0)}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="odiv" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="${OD.acc}" stop-opacity="0.18"/><stop offset="100%" stop-color="${OD.acc}" stop-opacity="0.01"/></linearGradient></defs>${grid}<path d="${fill}" fill="url(#odiv)"/><path d="${path}" fill="none" stroke="${OD.acc}" stroke-width="2"/>${dots}</svg>`;
+}
+function odRR(arr){
+  const rows=(arr||[]).map(x=>Number(x.rr)).filter(v=>isFinite(v)).slice(0,14);
+  if(!rows.length)return '<div class="od-empty">Hesaplanıyor…</div>';
+  const W=620,H=220,PL=52,PR=24,PT=24,PB=30,cW=W-PL-PR,cH=H-PT-PB;
+  const mx=Math.max(...rows,1)+1,mn=Math.min(...rows,-1)-1,rng=mx-mn;
+  const X=i=>PL+(i+0.5)*(cW/rows.length),Y=v=>PT+((mx-v)/rng)*cH,y0=Y(0);
+  const bw=Math.max(8,Math.min(36,cW/rows.length*0.6));
+  const bars=rows.map((v,i)=>{const x=X(i),top=v>=0?Y(v):y0,h=Math.max(Math.abs(Y(v)-y0),2),renk=v>=0?OD.neg:OD.pos;
+    return `<rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${renk}" opacity="0.62" rx="1"/><line x1="${(x-bw/2).toFixed(1)}" x2="${(x+bw/2).toFixed(1)}" y1="${top.toFixed(1)}" y2="${top.toFixed(1)}" stroke="${renk}" stroke-width="1.5"/><text x="${x.toFixed(1)}" y="${(v>=0?top-5:top+h+12).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.t2}">${v>=0?'+':''}${v.toFixed(1)}</text>`;}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><line x1="${PL}" x2="${W-PR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="${OD.lineH}" stroke-width="1.2"/><text x="${PL-5}" y="${(y0+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.dim}">0</text>${bars}</svg>`;
+}
+
+// ── vi. Pozisyon · Analiz ──
+function odPozisyon(lv,spot,g,oy){
+  const cw=lv.call_wall||0,pw=lv.put_wall||0,band=cw-pw;
+  const bandPct=spot?((band/spot)*100).toFixed(1):'—';
+  const pull=(cw&&pw)?`Put Wall ile Call Wall arasındaki <em>$${fmtNum(band)}</em> bant gerçekleşen volatiliteyi sınırlar — tepeden dibe <em>${bandPct}%</em>.`:'Seviye verisi bekleniyor.';
+  const scn=[['Spot yukarı kırar ↑',lv.call_wall,'dealer delta satmaya başlar'],['Spot sabitlenir',lv.max_pain,'vol vadeye kadar düşer'],['Spot aşağı kırar ↓',lv.put_wall,'gamma negatife döner, vol genişler'],['Haftalık kapanış',lv.max_pain,'Max Pain mıknatısı']];
+  return `<div class="od-two"><div><p class="od-pull" style="margin-bottom:20px">${pull}</p><p style="font-size:12px;color:${OD.t2};line-height:1.7;margin:0">${esc((oy&&oy.yorum)||'')||'Opsiyon pozisyon analizi yükleniyor…'}</p></div><div><div class="od-sheet-label" style="margin-bottom:14px">Senaryolar</div>${scn.map(s=>`<div class="od-scn"><div><div style="font-size:13px;color:${OD.text};font-weight:600;margin-bottom:2px">${s[0]}</div><div style="font-size:10px;color:${OD.mute};font-weight:600">${s[2]}</div></div><div style="text-align:right;color:${OD.acc};font-size:14px;font-family:Instrument Serif,serif">${(s[1]==null||!isFinite(s[1]))?'—':'$'+fmtNum(s[1])}</div></div>`).join('')}</div></div>`;
 }
 
 function scrOptions(){
-  const t=ST.optTopo||{}, g=ST.optGreek||{}, sk=ST.optSkew||{}, cvd=ST.optCvd||{}, dag=ST.optDagilim||{}, oy=ST.opsiyonYorum||{};
-  const lv=t.levels||{}, spot=t.spot;
-  const vadeBtn=(v,l)=>`<button onclick="optVadeSec('${v}')" style="font-size:10px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid ${_optVade===v?'#1ff0ad':'#1a2422'};background:${_optVade===v?'#11201b':'#0a0f0f'};color:${_optVade===v?'#7af0c4':'#8a9c99'}">${l}</button>`;
-  const vurgu=(x)=>esc(x||'').replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>');
+  const t=ST.optTopo||{},g=ST.optGreek||{},sk=ST.optSkew||{},cvd=ST.optCvd||{},dag=ST.optDagilim||{},oy=ST.opsiyonYorum||{};
+  const lv=t.levels||{},spot=t.spot,dg=dag.dagilim||{};
+  const chip=(v,l)=>`<button class="od-chip ${_optVade===v?'on':''}" onclick="optVadeSec('${v}')">${l}</button>`;
+  const flowC=(l,v)=>`<div class="od-flow-c"><span class="od-flow-l">${l}</span><span class="od-flow-v">${fmtNum(v||0)}</span></div>`;
+  const netGex=g.net_gamma!=null?((g.net_gamma>=0?'+':'')+g.net_gamma+'M'):'—';
+  return `<div class="od">
+    <div class="od-top">
+      <h1 class="od-title">Opsiyon Masası</h1>
+      <span class="od-sub">Deribit · Black-Scholes · ${spot?'BTC $'+fmtNum(Math.round(spot)):'yükleniyor'}</span>
+      <div class="od-vade">${chip('all','Tümü')}${chip('0-7d','0-7g')}${chip('8-45d','8-45g')}${chip('45d+','45+g')}</div>
+    </div>
 
-  // ── STRİKE TOPOGRAFYASI (hover'da seviye bilgisi) ──
-  const maxOI=Math.max(t.max_call_oi||1,t.max_put_oi||1);
-  const strikeRows=(t.strikes||[]).slice().reverse().map(s=>{
-    const isCW=lv.call_wall===s.strike, isPW=lv.put_wall===s.strike;
-    const isZG=Math.abs((lv.zero_gamma||0)-s.strike)<(spot*0.004), isSpot=Math.abs((spot||0)-s.strike)<(spot*0.004);
-    const isMP=lv.max_pain===s.strike;
-    const callW=s.callOI/maxOI*100, putW=s.putOI/maxOI*100;
-    const netG=s.netGamma||0;
-    let tag='';
-    if(isCW)tag='<span style="color:#1ff0ad;font-weight:700">CW</span>';
-    else if(isPW)tag='<span style="color:#ff5d6c;font-weight:700">PW</span>';
-    else if(isZG)tag='<span style="color:#ffb13c;font-weight:700">ZG</span>';
-    else if(isMP)tag='<span style="color:#9fb0ad;font-weight:700">MP</span>';
-    else if(isSpot)tag='<span style="color:#56a8ff;font-weight:700">SPOT</span>';
-    const tip=`<b style='color:#eaf4f2'>$${fmtNum(s.strike)}</b>${isCW?' · CALL WALL':isPW?' · PUT WALL':isZG?' · ZERO GAMMA':''}<br>Call OI: <b style='color:#1ff0ad'>${fmtNum(s.callOI)}</b><br>Put OI: <b style='color:#ff5d6c'>${fmtNum(s.putOI)}</b><br>Net γ: <b style='color:${netG>=0?'#1ff0ad':'#ff5d6c'}'>${netG>=0?'+':''}${fmtNum(netG)}</b>`;
-    return `<div onmousemove="optTip(event,&quot;${tip.replace(/"/g,'&quot;')}&quot;)" onmouseleave="optTipHide()" style="display:flex;align-items:center;gap:4px;height:18px;font-size:8.5px;cursor:crosshair;${isSpot?'background:#11160f':''}">
-      <div style="flex:1;display:flex;justify-content:flex-end"><div style="width:${putW}%;height:12px;background:#ff5d6c;border-radius:2px 0 0 2px;opacity:.82"></div></div>
-      <div style="width:48px;text-align:center;color:${isSpot?'#56a8ff':isCW?'#1ff0ad':isPW?'#ff5d6c':'#9fb0ad'};font-weight:600">${Math.round(s.strike/1000)}k</div>
-      <div style="flex:1;display:flex"><div style="width:${callW}%;height:12px;background:#1ff0ad;border-radius:0 2px 2px 0;opacity:.82"></div></div>
-      <div style="width:36px">${tag}</div>
-    </div>`;
-  }).join('');
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">i.</span>Strike Topografyası</h2><span class="od-meta">${(t.strikes||[]).length} KULLANIM · ${_optVade==='all'?'TÜMÜ':_optVade.toUpperCase()}</span></div>
+      <div class="od-wrap">${odLadder(t,lv,spot)}<div>${odLevels(lv,spot)}</div></div>
+    </section>
 
-  // ── KUANTUM DUVARLAR (yatay GEX bar — görsel 2) ──
-  const duvarlar=(t.strikes||[]).filter(s=>Math.abs(s.netGamma||0)>0).slice().reverse();
-  const maxGex=Math.max(...duvarlar.map(s=>Math.abs(s.netGamma||0)),1);
-  const duvarRows=duvarlar.map(s=>{
-    const ng=s.netGamma||0, w=Math.abs(ng)/maxGex*100;
-    const isCW=lv.call_wall===s.strike,isPW=lv.put_wall===s.strike,isSpot=Math.abs((spot||0)-s.strike)<(spot*0.004),isZG=Math.abs((lv.zero_gamma||0)-s.strike)<(spot*0.004);
-    let etiket='';
-    if(isCW)etiket='<span style="color:#1ff0ad;font-size:8px;font-weight:700">CW</span>';
-    else if(isPW)etiket='<span style="color:#ff5d6c;font-size:8px;font-weight:700">PW</span>';
-    else if(isSpot)etiket='<span style="color:#56a8ff;font-size:8px;font-weight:700">SPOT</span>';
-    else if(isZG)etiket='<span style="color:#ffb13c;font-size:8px;font-weight:700">ZG</span>';
-    const tip=`$${fmtNum(s.strike)}<br>Net GEX: <b style='color:${ng>=0?'#1ff0ad':'#ff5d6c'}'>${ng>=0?'+':''}${fmtNum(ng)}</b><br>Call OI ${fmtNum(s.callOI)} · Put OI ${fmtNum(s.putOI)}`;
-    return `<div onmousemove="optTip(event,&quot;${tip.replace(/"/g,'&quot;')}&quot;)" onmouseleave="optTipHide()" style="display:flex;align-items:center;gap:6px;height:15px;font-size:8px;cursor:crosshair">
-      <div style="width:40px;text-align:right;color:#8a9c99">${Math.round(s.strike/1000)}k</div>
-      <div style="flex:1;display:flex;${ng>=0?'':'justify-content:flex-end'}">
-        <div style="width:${w}%;height:9px;background:${ng>=0?'linear-gradient(90deg,#0d3a2a,#1ff0ad)':'linear-gradient(90deg,#ff5d6c,#3a1518)'};border-radius:2px"></div>
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">ii.</span>Kuantum Duvarlar</h2><span class="od-meta">GEX EXPOSURE · NET GEX ${netGex}</span></div>
+      ${odWalls(t,lv,spot,g)}
+    </section>
+
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>Order Flow · Kapanan</h2><span class="od-meta">OPSİYON CVD · SON 3 GÜN · DERIBIT</span></div>
+      ${odCvd(cvd.opsiyon_cvd,'1 · Opsiyon CVD (kontrat)','','Kontrat bazlı CVD: Call buy (+), Put sell (+) / Call sell (−), Put buy (−). Medyan çizgisinin üstü pozitif akış.')}
+      ${odCvd(cvd.premium_cvd,'2 · Premium CVD (USD) — para nereye akıyor','$','Dolar tabanlı premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi artıyor.')}
+      ${odCvd(cvd.whale_cvd,'3 · Whale CVD — büyük işlemler','','Balina opsiyon akışı. Genel CVD ile aynı yöndeyse teyit, ters yönde divergence uyarısı.')}
+      <div class="od-two" style="gap:34px;margin-top:8px">
+        <div><div class="od-sheet-label">Gamma Exposure · per strike</div>${odGammaStrike(dag.gamma_per_strike,dag.spot)}</div>
+        <div><div class="od-sheet-label">Buy / Sell Volume · per strike</div>${odBuySell(dag.strike_volume,dag.spot)}</div>
       </div>
-      <div style="width:30px">${etiket}</div>
-    </div>`;
-  }).join('');
+      <div class="od-flow">${flowC('Calls Buy',dg.calls_buy)}${flowC('Calls Sell',dg.calls_sell)}${flowC('Puts Buy',dg.puts_buy)}${flowC('Puts Sell',dg.puts_sell)}</div>
+      <div style="display:flex;gap:24px;margin-top:12px;font-size:11px;color:${OD.dim}"><span>Call Blocks: <b style="color:${OD.acc}">${fmtNum(dag.call_blocks||0)}</b></span><span>PCR (Put/Call): <b style="color:${OD.t2}">${dag.pcr!=null?dag.pcr:'—'}</b></span></div>
+    </section>
 
-  // ── 3× CVD (medyan çizgili, hover) ──
-  const cvdBox=(d,baslik,renk,birim,aciklama)=>{
-    if(!d||!d.seri||!d.seri.length)return `<div class="card" style="padding:14px;margin-bottom:10px"><div class="sg" style="font-size:9px;color:#5e716f">${baslik}</div><div style="font-size:10px;color:#5e716f;padding:14px;text-align:center">Veri yükleniyor...</div></div>`;
-    const vals=d.seri.map(x=>Number(x.v)).filter(v=>isFinite(v));
-    if(vals.length<2)return `<div class="card" style="padding:14px;margin-bottom:10px"><div class="sg" style="font-size:9px;color:#5e716f">${baslik}</div><div style="font-size:10px;color:#5e716f;padding:14px;text-align:center">Yeterli veri yok</div></div>`;
-    const mn=Math.min(...vals),mx=Math.max(...vals),rng=(mx-mn)||1;
-    const W=600,H=70;
-    const pts=vals.map((v,i)=>`${(i/(vals.length-1)*W).toFixed(1)},${(H-(v-mn)/rng*H).toFixed(1)}`).join(' ');
-    const medV=isFinite(d.medyan)?d.medyan:mn;
-    const medY=(H-(medV-mn)/rng*H).toFixed(1);
-    return `<div class="card" style="padding:13px 15px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span class="sg" style="font-size:9px;letter-spacing:.1em;color:#5e716f">${baslik}</span>
-        <span style="font-size:10px;color:${d.yon==='YUKARI'?'#1ff0ad':'#ff5d6c'}">${d.yon==='YUKARI'?'▲ YUKARI':'▼ AŞAĞI'} · ${birim==='$'?'$'+fmtNum(d.guncel):fmtNum(d.guncel)} <span style="color:#5e716f">medyan ${birim==='$'?'$'+fmtNum(d.medyan):fmtNum(d.medyan)}</span></span>
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iv.</span>Toplu Greek'ler</h2><span class="od-meta">DEALER-NORMALIZE · USD</span></div>
+      ${odGreeks(g)}
+    </section>
+
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">v.</span>Volatilite Yüzeyi</h2><span class="od-meta">VADE YAPISI · 25Δ RISK REVERSAL</span></div>
+      <div class="od-two">
+        <div><div class="od-sheet-label">ATM Vade Yapısı</div>${odTerm(sk.atm_vade)}<div class="od-note">${esc(sk.yapı||'')} — Log-moneyness interpolasyonu (ATM IV).</div></div>
+        <div><div class="od-sheet-label">25Δ Risk Reversal</div>${odRR(sk.risk_reversal)}<div class="od-note">RR = IV(25Δ put) − IV(25Δ call). Pozitif = put skew (aşağı korunma talebi, kırmızı).</div></div>
       </div>
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:60px" preserveAspectRatio="none">
-        <line x1="0" y1="${medY}" x2="${W}" y2="${medY}" stroke="#5e716f" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
-        <polyline points="${pts}" fill="none" stroke="${renk}" stroke-width="1.5"/>
-      </svg>
-      <div style="font-size:9px;color:#7d908d;margin-top:6px;line-height:1.4">${aciklama}</div>
-    </div>`;
-  };
+    </section>
 
-  // ── İşlem dağılımı ──
-  const dg=dag.dagilim||{};
-  const flowRow=(l,v,renk)=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:10px"><span style="color:#8a9c99">${l}</span><span style="color:${renk};font-weight:600">${fmtNum(v||0)}</span></div>`;
-  const gBox=(sembol,ad,deger,yorum,renk)=>`<div class="card" style="padding:14px 15px">
-    <div style="display:flex;align-items:baseline;gap:8px"><span class="sg" style="font-size:20px;color:${renk}">${sembol}</span><span style="font-size:9px;color:#5e716f">${ad}</span></div>
-    <div class="sg" style="font-weight:700;font-size:18px;color:#eaf4f2;margin:6px 0">${deger>=0?'+':''}${deger}M</div>
-    <div style="font-size:9.5px;color:#7d908d;line-height:1.4">${yorum||''}</div></div>`;
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">vi.</span>Pozisyon · Analiz</h2><span class="od-meta">DEALER AKIŞI · MASA NOTLARI</span></div>
+      ${odPozisyon(lv,spot,g,oy)}
+    </section>
 
-  // Kritik seviyeler kutusu (görsel 1 sağ)
-  const seviyeKutu=[['CW','Call Wall · maks. pozitif γ',lv.call_wall,'#1ff0ad'],['EM','Beklenen Hareket ↑',lv.em_ust,'#56a8ff'],['MP','Max Pain · min yazar ödemesi',lv.max_pain,'#9fb0ad'],['ZG','Zero Gamma · rejim dönüşümü',lv.zero_gamma,'#ffb13c'],['EM','Beklenen Hareket ↓',lv.em_alt,'#56a8ff'],['PW','Put Wall · maks negatif γ',lv.put_wall,'#ff5d6c']].filter(x=>x[2]);
-
-  return `
-  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:13px">
-    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Opsiyon Masası</h1>
-    <span style="font-size:11px;color:#5e716f">Deribit · Black-Scholes · ${spot?'BTC $'+fmtNum(spot):'yükleniyor'}</span>
-    <div style="margin-left:auto;display:flex;gap:5px">${vadeBtn('all','Tümü')}${vadeBtn('0-7d','0-7g')}${vadeBtn('8-45d','8-45g')}${vadeBtn('45d+','45+g')}</div>
-  </div>
-
-  <!-- POZİSYON · ANALİZ -->
-  <div class="card" style="padding:16px 18px;margin-bottom:13px">
-    <div class="sg" style="font-size:10px;letter-spacing:.16em;color:#7af0c4;margin-bottom:10px">POZİSYON · ANALİZ — vade yorumlaması (John Hull metodolojisi)</div>
-    <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6">${vurgu(oy.yorum)||'Opsiyon pozisyon analizi yükleniyor...'}</div>
-  </div>
-
-  <!-- i. STRİKE TOPOGRAFYASI -->
-  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:13px;margin-bottom:13px">
-    <div class="card" style="padding:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:9px"><span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">ı. STRİKE TOPOGRAFYASI</span><span style="font-size:8.5px;color:#5e716f">◀ PUT · CALL ▶ · hover: detay</span></div>
-      ${strikeRows||'<div style="color:#5e716f;font-size:10px;padding:30px;text-align:center">Opsiyon verisi yükleniyor (Deribit)...</div>'}
-    </div>
-    <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">KİLİT SEVİYELER</div>
-      ${seviyeKutu.map(([t,d,v,c])=>`<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #131918">
-        <span class="sg" style="font-size:9px;font-weight:700;color:${c};border:1px solid ${c}44;padding:2px 6px;border-radius:4px;width:30px;text-align:center">${t}</span>
-        <span style="font-size:9.5px;color:#8a9c99;flex:1">${d}</span>
-        <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">$${fmtNum(v)}</span>
-      </div>`).join('')||'<div style="font-size:10px;color:#5e716f">yükleniyor...</div>'}
-    </div>
-  </div>
-
-  <!-- ii. KUANTUM DUVARLAR -->
-  <div class="card" style="padding:15px;margin-bottom:13px">
-    <div style="display:flex;justify-content:space-between;margin-bottom:11px">
-      <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">ıı. KUANTUM DUVARLAR — GEX EXPOSURE (γ maruziyeti · USD)</span>
-      <span style="font-size:9px;color:#8a9c99">Net GEX: <b style="color:${(g.net_gamma||0)>=0?'#1ff0ad':'#ff5d6c'}">${g.net_gamma!=null?(g.net_gamma>=0?'+':'')+g.net_gamma+'M':'—'}</b> · hover: detay</span>
-    </div>
-    ${duvarRows||'<div style="color:#5e716f;font-size:10px;padding:24px;text-align:center">GEX verisi yükleniyor...</div>'}
-    <div style="margin-top:9px;padding-top:9px;border-top:1px solid #141d1b;font-size:9.5px;color:#7d908d;line-height:1.4">${g.gamma_yorum||''}</div>
-  </div>
-
-  <!-- iii. ORDER FLOW — 3× CVD -->
-  <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:9px">ııı. ORDER FLOW — KAPANAN (CVD · son 3 gün)</div>
-  ${cvdBox(cvd.opsiyon_cvd,'1 · OPSİYON CVD (kontrat)','#8b5cf6','','Kontrat bazlı CVD: Call buy (+), Put sell (+) / Call sell (−), Put buy (−). Medyan çizgisinin üstü pozitif akış.')}
-  ${cvdBox(cvd.premium_cvd,'2 · PREMIUM CVD (USD) — PARA NEREYE AKIYOR','#1ff0ad','$','Dolar tabanlı premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi artıyor.')}
-  ${cvdBox(cvd.whale_cvd,'3 · WHALE CVD — BÜYÜK İŞLEMLER (≥50 BTC)','#56a8ff','','Balina opsiyon akışı. Spot CVD ile aynı yöndeyse teyit, ters yönde divergence (uyarı).')}
-
-  <!-- GAMMA + BUY/SELL VOLUME PER STRIKE (görsel 4) -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:13px 0">
-    <div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">GAMMA EXPOSURE · PER STRIKE</span><span style="font-size:8.5px;color:#5e716f">Net Γ · BTC</span></div>
-      ${gammaPerStrikeChart(dag.gamma_per_strike,dag.spot)}
-    </div>
-    <div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">BUY/SELL VOLUME · PER STRIKE</span><span style="font-size:8.5px;color:#5e716f">son 24h · gerçek</span></div>
-      ${buySellPerStrikeChart(dag.strike_volume,dag.spot)}
-    </div>
-  </div>
-
-  <!-- Akış toplamları + Greekler -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:13px 0">
-    <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">24H FLOW · TOPLAMLAR</div>
-      ${flowRow('Calls Buy',dg.calls_buy,'#1ff0ad')}${flowRow('Calls Sell',dg.calls_sell,'#ff8a3c')}
-      ${flowRow('Puts Buy',dg.puts_buy,'#56a8ff')}${flowRow('Puts Sell',dg.puts_sell,'#ff5d6c')}
-      <div style="margin-top:6px;padding-top:6px;border-top:1px solid #131918">
-        ${flowRow('Call Blocks',dag.call_blocks,'#ffb13c')}
-      </div>
-      <div style="margin-top:8px;font-size:10px;color:#8a9c99">PCR (Put/Call): <b style="color:#ffb13c">${dag.pcr||'—'}</b></div>
-    </div>
-    <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">iv. TOPLU GREEK'LER (dealer-normalize · USD)</div>
-      <div style="display:grid;gap:9px">
-        ${gBox('Γ','Net Gamma',g.net_gamma||0,g.gamma_yorum,'#1ff0ad')}
-        ${gBox('𝒱','Net Vanna',g.net_vanna||0,g.vanna_yorum,'#56a8ff')}
-        ${gBox('𝒞','Net Charm',g.net_charm||0,g.charm_yorum,'#ffb13c')}
-      </div>
-    </div>
-  </div>
-
-  <!-- v. VOLATİLİTE YÜZEYİ -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
-    <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">v. ATM IV VADE YAPISI</div>
-      ${sk.atm_vade&&sk.atm_vade.length?spark(sk.atm_vade.map(x=>x.iv),'#ffb13c',500,60):'<div style="color:#5e716f;font-size:10px">yükleniyor</div>'}
-      <div style="font-size:9.5px;color:#7d908d;margin-top:8px">${sk.yapı||''} — Log-moneyness interpolasyonu</div>
-    </div>
-    <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">25Δ RISK REVERSAL · VADE EĞİMİ</div>
-      ${sk.risk_reversal&&sk.risk_reversal.length?spark(sk.risk_reversal.map(x=>x.rr),'#ff5d6c',500,60):'<div style="color:#5e716f;font-size:10px">yükleniyor</div>'}
-      <div style="font-size:9.5px;color:#7d908d;margin-top:8px">RR = IV(25Δ put) − IV(25Δ call). Pozitif = put skew (aşağı korunma talebi).</div>
-    </div>
+    <div class="od-foot"><div><div style="font-weight:500;margin-bottom:4px">Opsiyon Masası · BTC · Deribit</div><div style="color:${OD.mute}">Black-Scholes · Hull 11e · ${(t.strikes||[]).length} kullanım</div></div><div class="od-foot-pg">— BTC Gamma —</div></div>
   </div>`;
 }
 
