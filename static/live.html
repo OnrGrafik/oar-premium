@@ -596,6 +596,56 @@ function optTip(e,html){
 }
 function optTipHide(){const t=document.getElementById('opt-tip');if(t)t.style.display='none';}
 
+// Gamma per strike — dikey bar (yeşil pozitif üst, kırmızı negatif alt)
+function gammaPerStrikeChart(data,spot){
+  if(!data||!data.length)return '<div style="height:140px;display:flex;align-items:center;justify-content:center;color:#5e716f;font-size:10px">Veri yükleniyor...</div>';
+  const W=560,H=140,mid=H/2;
+  const maxV=Math.max(...data.map(d=>Math.abs(d.net)),0.001);
+  const bw=Math.max(W/data.length-1.5,2);
+  const bars=data.map((d,i)=>{
+    const x=(i/data.length)*W;
+    const h=Math.abs(d.net)/maxV*(mid-8);
+    const pos=d.net>=0;
+    const tip=`$${fmtNum(d.strike)}<br>Net Γ: <b style='color:${pos?'#1ff0ad':'#ff5d6c'}'>${d.net>=0?'+':''}${d.net}M</b>`;
+    return `<rect x="${x.toFixed(1)}" y="${(pos?mid-h:mid).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${pos?'#1ff0ad':'#ff5d6c'}" opacity="0.8" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;
+  }).join('');
+  // spot çizgisi
+  let spotX='';
+  if(spot){const idx=data.findIndex(d=>d.strike>=spot);if(idx>=0){const sx=(idx/data.length)*W;spotX=`<line x1="${sx}" y1="0" x2="${sx}" y2="${H}" stroke="#56a8ff" stroke-width="1" stroke-dasharray="3 2"/><text x="${sx+3}" y="11" fill="#56a8ff" font-size="8">SPOT</text>`;}}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:140px" preserveAspectRatio="none">
+    <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="#2a3a36" stroke-width="0.5"/>
+    ${bars}${spotX}
+  </svg>
+  <div style="font-size:9px;color:#7d908d;margin-top:7px;line-height:1.4">Strike başına net gamma. Spot üstü yeşil (call gamma direnç), altı kırmızı (put gamma destek). En yüksek bar = en güçlü duvar.</div>`;
+}
+
+// Buy/Sell volume per strike — dikey bar (alış mavi üst, satış turuncu alt)
+function buySellPerStrikeChart(data,spot){
+  if(!data||!data.length)return '<div style="height:140px;display:flex;align-items:center;justify-content:center;color:#5e716f;font-size:10px">Veri yükleniyor...</div>';
+  const W=560,H=140,mid=H/2;
+  const maxV=Math.max(...data.map(d=>Math.max(d.buy,d.sell)),1);
+  const bw=Math.max(W/data.length-1.5,2);
+  const bars=data.map((d,i)=>{
+    const x=(i/data.length)*W;
+    const bh=d.buy/maxV*(mid-8), sh=d.sell/maxV*(mid-8);
+    const tip=`$${fmtNum(d.strike)}<br>Buy: <b style='color:#56a8ff'>${d.buy}</b><br>Sell: <b style='color:#ff8a3c'>${d.sell}</b>`;
+    return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">
+      <rect x="${x.toFixed(1)}" y="${(mid-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="#56a8ff" opacity="0.8"/>
+      <rect x="${x.toFixed(1)}" y="${mid}" width="${bw.toFixed(1)}" height="${sh.toFixed(1)}" fill="#ff8a3c" opacity="0.8"/>
+    </g>`;
+  }).join('');
+  let spotX='';
+  if(spot){const idx=data.findIndex(d=>d.strike>=spot);if(idx>=0){const sx=(idx/data.length)*W;spotX=`<line x1="${sx}" y1="0" x2="${sx}" y2="${H}" stroke="#56a8ff" stroke-width="1" stroke-dasharray="3 2"/>`;}}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:140px" preserveAspectRatio="none">
+    <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="#2a3a36" stroke-width="0.5"/>
+    ${bars}${spotX}
+  </svg>
+  <div style="display:flex;gap:14px;font-size:9px;color:#7d908d;margin-top:7px">
+    <span><span style="color:#56a8ff">▲</span> Alış (üst)</span><span><span style="color:#ff8a3c">▼</span> Satış (alt)</span>
+    <span style="margin-left:auto">Hangi strike'a alış/satış yığılmış gösterir</span>
+  </div>`;
+}
+
 function scrOptions(){
   const t=ST.optTopo||{}, g=ST.optGreek||{}, sk=ST.optSkew||{}, cvd=ST.optCvd||{}, dag=ST.optDagilim||{}, oy=ST.opsiyonYorum||{};
   const lv=t.levels||{}, spot=t.spot;
@@ -725,16 +775,28 @@ function scrOptions(){
   ${cvdBox(cvd.premium_cvd,'2 · PREMIUM CVD (USD) — PARA NEREYE AKIYOR','#1ff0ad','$','Dolar tabanlı premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi artıyor.')}
   ${cvdBox(cvd.whale_cvd,'3 · WHALE CVD — BÜYÜK İŞLEMLER (≥50 BTC)','#56a8ff','','Balina opsiyon akışı. Spot CVD ile aynı yöndeyse teyit, ters yönde divergence (uyarı).')}
 
-  <!-- Gamma per strike + işlem dağılımı + Greekler -->
+  <!-- GAMMA + BUY/SELL VOLUME PER STRIKE (görsel 4) -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:13px 0">
     <div class="card" style="padding:15px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">BUY/SELL VOLUME — SON 1000 İŞLEM</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">GAMMA EXPOSURE · PER STRIKE</span><span style="font-size:8.5px;color:#5e716f">Net Γ · BTC</span></div>
+      ${gammaPerStrikeChart(dag.gamma_per_strike,dag.spot)}
+    </div>
+    <div class="card" style="padding:15px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">BUY/SELL VOLUME · PER STRIKE</span><span style="font-size:8.5px;color:#5e716f">son 24h · gerçek</span></div>
+      ${buySellPerStrikeChart(dag.strike_volume,dag.spot)}
+    </div>
+  </div>
+
+  <!-- Akış toplamları + Greekler -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:13px 0">
+    <div class="card" style="padding:15px">
+      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">24H FLOW · TOPLAMLAR</div>
       ${flowRow('Calls Buy',dg.calls_buy,'#1ff0ad')}${flowRow('Calls Sell',dg.calls_sell,'#ff8a3c')}
       ${flowRow('Puts Buy',dg.puts_buy,'#56a8ff')}${flowRow('Puts Sell',dg.puts_sell,'#ff5d6c')}
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid #131918">
-        ${flowRow('Calls Buy Block',dg.calls_buy_block,'#1ff0ad')}${flowRow('Puts Buy Block',dg.puts_buy_block,'#56a8ff')}
+        ${flowRow('Call Blocks',dag.call_blocks,'#ffb13c')}
       </div>
-      <div style="margin-top:8px;font-size:10px;color:#8a9c99">PCR: <b style="color:#ffb13c">${dag.pcr||'—'}</b></div>
+      <div style="margin-top:8px;font-size:10px;color:#8a9c99">PCR (Put/Call): <b style="color:#ffb13c">${dag.pcr||'—'}</b></div>
     </div>
     <div class="card" style="padding:15px">
       <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">iv. TOPLU GREEK'LER (dealer-normalize · USD)</div>
