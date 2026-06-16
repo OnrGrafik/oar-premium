@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -29,12 +28,12 @@ input,button{font-family:'JetBrains Mono',monospace}
 a{color:inherit;text-decoration:none}
 /* ═══ OPSİYON MASASI (Options Desk teması — yalnız .od kapsamı) ═══ */
 .od{
-  --od-bg:#0c0c0d;--od-surface:#131316;--od-surface-2:#1a1a1e;
-  --od-line:#232328;--od-line-soft:#1a1a1e;--od-line-strong:#36363c;
-  --od-text:#e8e6e0;--od-text-2:#b8b5ac;--od-dim:#7a7771;--od-mute:#4a4742;
-  --od-accent:#c4a574;--od-pos:#6b9e7d;--od-neg:#b5564c;--od-neutral:#5a6776;
-  --od-serif:'Instrument Serif',Georgia,serif;
-  --od-sans:'Manrope',-apple-system,system-ui,sans-serif;
+  --od-bg:#07090a;--od-surface:#0c1112;--od-surface-2:#131918;
+  --od-line:#18211f;--od-line-soft:#131918;--od-line-strong:#1a2422;
+  --od-text:#cdd9d8;--od-text-2:#b8c6c3;--od-dim:#8a9c99;--od-mute:#5e716f;
+  --od-accent:#1ff0ad;--od-pos:#1ff0ad;--od-neg:#ff5d6c;--od-neutral:#9fb0ad;
+  --od-serif:'Space Grotesk',sans-serif;
+  --od-sans:'JetBrains Mono',ui-monospace,monospace;
   --od-mono:'JetBrains Mono',ui-monospace,monospace;
   margin:-18px -20px -28px;padding:26px 34px 40px;
   background:var(--od-bg);color:var(--od-text);
@@ -49,7 +48,7 @@ a{color:inherit;text-decoration:none}
 .od-vade{margin-left:auto;display:flex;gap:5px}
 .od-chip{padding:4px 11px;background:var(--od-surface-2);border:1px solid var(--od-line);color:var(--od-dim);font-family:var(--od-sans);font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.03em;transition:.15s}
 .od-chip:hover{color:var(--od-text);border-color:var(--od-line-strong)}
-.od-chip.on{background:var(--od-accent);border-color:var(--od-accent);color:#0c0c0d;font-weight:700}
+.od-chip.on{background:var(--od-accent);border-color:var(--od-accent);color:#07090a;font-weight:700}
 
 .od-sec{padding:30px 0 4px;border-top:1px solid var(--od-line);margin-top:24px}
 .od-sec:first-of-type{border-top:none;margin-top:0;padding-top:4px}
@@ -260,7 +259,7 @@ function tickClock(){
 // ════════════ SCREENS ════════════
 function render(){
   const m=$('screen');
-  if(ST.tab==='leader'){m.innerHTML=scrLeader();setTimeout(renderKomutaChart,60);}
+  if(ST.tab==='leader'){m.innerHTML=scrLeader();}
   else if(ST.tab==='agents')m.innerHTML=scrAgents();
   else if(ST.tab==='theory')m.innerHTML=scrTheory();
   else if(ST.tab==='options')m.innerHTML=scrOptions();
@@ -271,59 +270,7 @@ function render(){
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
 // ─── KOMUTA MERKEZİ (v3) ───
-let _kchart,_kcandle,_kpriceLines=[],_kcoin='BTCUSDT';
-async function renderKomutaChart(){
-  const el=document.getElementById('kchart');
-  if(!el)return;
-  // Kütüphane henüz yüklenmediyse bekle ve tekrar dene
-  if(typeof LightweightCharts==='undefined'){
-    el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#5e716f;font-size:11px">Grafik kütüphanesi yükleniyor...</div>';
-    setTimeout(renderKomutaChart,400);return;
-  }
-  // Container boyutu 0 ise (gizli sekme) bekle
-  if(el.clientWidth<10){setTimeout(renderKomutaChart,200);return;}
-  try{
-    if(!_kchart){
-      el.innerHTML='';
-      _kchart=LightweightCharts.createChart(el,{
-        layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
-        grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
-        timeScale:{borderColor:'#18211f',timeVisible:true},
-        rightPriceScale:{borderColor:'#18211f'},
-        width:el.clientWidth,height:300});
-      _kcandle=_kchart.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
-        borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
-      new ResizeObserver(()=>{if(_kchart)_kchart.applyOptions({width:el.clientWidth});}).observe(el);
-    }
-    const oh=await jget('/api/ohlcv?symbol='+_kcoin+'&interval=5m&limit=200');
-    if(oh&&oh.candles&&oh.candles.length){
-      _kcandle.setData(oh.candles.map(c=>({time:Math.floor(c.ts/1000),open:c.open,high:c.high,low:c.low,close:c.close})));
-      _kchart.timeScale().fitContent();
-    } else {
-      el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ff8a3c;font-size:11px">Mum verisi alınamadı (Binance erişimi)</div>';
-      _kchart=null;return;
-    }
-    _kpriceLines.forEach(l=>{try{_kcandle.removePriceLine(l);}catch(e){}});_kpriceLines=[];
-    const fib=await jget('/api/oar-fib?symbol='+_kcoin);
-    if(fib&&fib.seviyeler){
-      Object.entries(fib.seviyeler).forEach(([ad,fiyat])=>{
-        try{_kpriceLines.push(_kcandle.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+ad}));}catch(e){}
-      });
-    }
-    if(_kcoin==='BTCUSDT'){
-      const lv=await jget('/api/options/levels?currency=BTC');
-      if(lv&&lv.kisa){const k=lv.kisa;
-        [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['zero_gamma','#ffb13c','ZG']].forEach(([key,col,t])=>{
-          if(k[key])try{_kpriceLines.push(_kcandle.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));}catch(e){}
-        });
-      }
-    }
-  }catch(e){
-    el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ff5d6c;font-size:11px">Grafik hatası: '+esc(e.message||'')+'</div>';
-    _kchart=null;
-  }
-}
-function komutaCoin(coin){_kcoin=coin;_kchart=null;_kcandle=null;const el=document.getElementById('kchart');if(el)el.innerHTML='';render();setTimeout(renderKomutaChart,80);loadGrafikYorum();}
+let _kcoin='BTCUSDT';  // grafik kaldırıldı; _kcoin yalnız grafik-yorum endpoint'i için
 
 function scrLeader(){
   const pd=ST.piyasaDurumu||{}, pv=pd.veri||{};
@@ -388,54 +335,7 @@ function scrLeader(){
     </div>`:''}
   </div>
 
-  <!-- GRAFİK + SKOR -->
-  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:13px;margin-bottom:13px">
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:1px solid #18211f">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">ASIA RANGE · ${_kcoin==='BTCUSDT'?'BTC':'ETH'} 5M</span>
-          <span style="font-size:9px;color:#5e716f">OAR fib · opsiyon seviyeleri</span>
-        </div>
-        <div style="display:flex;gap:5px">
-          <button onclick="komutaCoin('BTCUSDT')" style="font-size:10px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid ${_kcoin==='BTCUSDT'?'#1ff0ad':'#1a2422'};background:${_kcoin==='BTCUSDT'?'#11201b':'#0a0f0f'};color:${_kcoin==='BTCUSDT'?'#7af0c4':'#8a9c99'}">BTC</button>
-          <button onclick="komutaCoin('ETHUSDT')" style="font-size:10px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid ${_kcoin==='ETHUSDT'?'#1ff0ad':'#1a2422'};background:${_kcoin==='ETHUSDT'?'#11201b':'#0a0f0f'};color:${_kcoin==='ETHUSDT'?'#7af0c4':'#8a9c99'}">ETH</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:11px;padding:6px 15px;font-size:9px;border-bottom:1px solid #18211f">
-        <span style="color:#1ff0ad">━ CW</span><span style="color:#ff5d6c">━ PW</span>
-        <span style="color:#ffb13c">┄ ZG</span><span style="color:#56a8ff">┄ OAR fib</span>
-      </div>
-      <div id="kchart" style="height:300px;width:100%"></div>
-    </div>
-
-    <div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">5M İNDİKATÖR SKORU</span>
-        <span style="font-size:9px;color:#5e716f">${ind.indikator_sayisi||0} indikatör</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px">
-        <div style="position:relative;width:74px;height:74px;flex-shrink:0">
-          <svg width="74" height="74" viewBox="0 0 74 74">
-            <circle cx="37" cy="37" r="32" fill="none" stroke="#141d1b" stroke-width="6"/>
-            <circle cx="37" cy="37" r="32" fill="none" stroke="${skRenk}" stroke-width="6"
-              stroke-dasharray="${Math.abs(skor==='—'?0:skor)/100*201} 201" stroke-linecap="round" transform="rotate(-90 37 37)"/>
-          </svg>
-          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <span class="sg" style="font-weight:700;font-size:18px;color:${skRenk};line-height:1">${skor}</span>
-            <span style="font-size:7px;color:#5e716f">/100</span>
-          </div>
-        </div>
-        <div style="min-width:0">
-          <div class="sg" style="font-weight:700;font-size:15px;color:${skRenk}">${sk.yon||'—'}</div>
-          <div style="font-size:9.5px;color:#7d908d;margin-top:4px;line-height:1.4">${ind.indikator_sayisi||0} ücretsiz indikatör, ağırlıklı</div>
-        </div>
-      </div>
-      <div style="margin-top:13px;padding-top:11px;border-top:1px solid #141d1b">
-        <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:7px">EN ETKİLİ KATKILAR</div>
-        ${detayHtml}
-      </div>
-    </div>
-  </div>
+  ${komutaAsiaPanel()}
 
   <!-- GRAFİK ALTI LİVE AÇIKLAMA (Lider gözlemi, kendini günceller) -->
   <div class="card" style="padding:14px 16px;margin-bottom:13px;border-left:2px solid #1ff0ad">
@@ -483,6 +383,84 @@ function cokluTeyitHtml(){
     <span style="color:#8a9c99;font-size:10px;margin-left:auto">${t.botlar.join(' + ')}</span>
   </div>`).join('');
 }
+
+// ─── KOMUTA: OAR ASIA RANGE + HACİM (grafik/skor yerine) ───
+function komutaAsiaPanel(){
+  const fib=ST.oarFib||{}, sev=fib.seviyeler||{};
+  const opt=ST.optScore||{};
+  const ind=ST.indicators||{}, inds=ind.indikatorler||{};
+  const spot=opt.spot||ind.fiyat||0;
+  const rp=fib.range_pct;
+  const aktif=(rp||0)>=1.0;
+
+  // Fib + opsiyon seviye merdiveni (fiyata göre azalan)
+  const rows=[];
+  Object.entries(sev).forEach(([ad,px])=>rows.push({px:+px,ad:'fib '+ad,col:'#56a8ff',tip:'fib'}));
+  if(opt.call_wall)rows.push({px:+opt.call_wall,ad:'Call Wall (direnç)',col:'#1ff0ad',tip:'CW'});
+  if(opt.put_wall)rows.push({px:+opt.put_wall,ad:'Put Wall (destek)',col:'#ff5d6c',tip:'PW'});
+  if(opt.zero_gamma)rows.push({px:+opt.zero_gamma,ad:'Zero Gamma (flip)',col:'#ffb13c',tip:'ZG'});
+  if(opt.max_pain)rows.push({px:+opt.max_pain,ad:'Max Pain',col:'#9fb0ad',tip:'MP'});
+  if(spot)rows.push({px:+spot,ad:'SPOT',col:'#cdd9d8',tip:'SPOT',spot:true});
+  rows.sort((a,b)=>b.px-a.px);
+  const merdiven=rows.length?rows.map(r=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid #131918;${r.spot?'background:#0d1413':''}">
+      <span style="width:34px;font-size:8px;font-weight:700;color:${r.col};border:1px solid ${r.col}44;border-radius:4px;text-align:center;padding:2px 0">${r.tip}</span>
+      <span style="flex:1;font-size:10px;color:#8a9c99">${esc(r.ad)}</span>
+      <span class="sg" style="font-size:12px;font-weight:600;color:${r.spot?'#cdd9d8':'#c4d2cf'}">$${fmtNum(Math.round(r.px))}</span>
+    </div>`).join(''):'<div style="font-size:10px;color:#5e716f;padding:18px;text-align:center">Asia Range verisi bekleniyor (TR 03:00-07:00 oluşumu)...</div>';
+
+  // Hacim & akış indikatörleri
+  const irow=(ad,val,col,sub)=>val==null||val===''?'':`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #131918">
+      <span style="flex:1;font-size:10px;color:#8a9c99">${ad}</span>
+      <span style="font-size:11px;font-weight:600;color:${col||'#cdd9d8'}">${val}</span>
+      ${sub?`<span style="font-size:8.5px;color:#5e716f;width:66px;text-align:right">${sub}</span>`:''}
+    </div>`;
+  const ms=inds['Move Source']||{}, scvd=inds['Spot CVD']||{}, oi=inds['Open Interest']||{},
+        rvol=inds['RVOL']||{}, cmf=inds['CMF']||{}, mfi=inds['MFI']||{}, vwap=inds['VWAP']||{},
+        fund=inds['Funding']||{}, cb=inds['Coinbase Premium']||{};
+  const hacim=
+    irow('Move Source',ms.kaynak||'',ms.kaynak==='SPOT-DRIVEN'?'#1ff0ad':ms.kaynak==='FUTURES-DRIVEN'?'#ff5d6c':'#9fb0ad',ms.spot_pct!=null?'%'+ms.spot_pct+' spot':'')+
+    irow('Spot CVD',scvd.egim?(scvd.egim==='yukarı'?'\u25b2 yukar\u0131':'\u25bc a\u015fa\u011f\u0131'):'',scvd.egim==='yukarı'?'#1ff0ad':'#ff5d6c','')+
+    irow('Open Interest',oi.delta_pct!=null?((oi.delta_pct>=0?'+':'')+oi.delta_pct+'%'):'',(oi.delta_pct||0)>=0?'#1ff0ad':'#ff5d6c',oi.deger!=null?(oi.deger+(oi.birim||'')):'')+
+    irow('RVOL',rvol.deger!=null?(rvol.deger+'\u00d7'):'',(rvol.deger||0)>1.5?'#ffb13c':'#cdd9d8','')+
+    irow('CMF',cmf.deger!=null?cmf.deger:'',(cmf.deger||0)>0?'#1ff0ad':(cmf.deger||0)<0?'#ff5d6c':'#9fb0ad','')+
+    irow('MFI',mfi.deger!=null?mfi.deger:'',(mfi.deger||0)>80?'#ff5d6c':(mfi.deger||0)<20?'#1ff0ad':'#cdd9d8','')+
+    irow('VWAP',vwap.pozisyon||'',vwap.pozisyon==='üstünde'?'#1ff0ad':vwap.pozisyon==='altında'?'#ff5d6c':'#9fb0ad','')+
+    irow('Funding',fund.deger!=null?(fund.deger+'%'):'',(fund.deger||0)>0.03?'#ff5d6c':(fund.deger||0)<-0.03?'#1ff0ad':'#9fb0ad','')+
+    irow('Coinbase Prem.',cb.deger!=null?(cb.deger+'%'):'',(cb.deger||0)>0.05?'#1ff0ad':(cb.deger||0)<-0.05?'#ff5d6c':'#9fb0ad','');
+  const hacimHtml=hacim.trim()?hacim:'<div style="font-size:10px;color:#5e716f;padding:18px;text-align:center">Hacim indikatörleri yükleniyor...</div>';
+
+  return `
+  <!-- OAR ASIA RANGE + HACİM (fapi.binance futures + Deribit — grafik/skor yerine) -->
+  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:13px;margin-bottom:13px">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid #18211f">
+        <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">OAR ASIA RANGE \u00b7 BTC</span>
+        <span style="font-size:9px;color:#5e716f">TR 03:00-07:00</span>
+        <span style="margin-left:auto;font-size:9px;font-weight:700;padding:3px 9px;border-radius:5px;${aktif?'color:#7af0c4;border:1px solid #1ff0ad;background:#11201b':'color:#8a9c99;border:1px solid #1a2422'}">${rp!=null?(aktif?('AKT\u0130F \u00b7 %'+rp):('GE\u00c7ERS\u0130Z \u00b7 %'+rp+' (<%1)')):'VER\u0130 BEKLEN\u0130YOR'}</span>
+      </div>
+      ${fib.asia_high?`<div style="display:flex;gap:0;border-bottom:1px solid #18211f">
+        <div style="flex:1;padding:9px 14px;border-right:1px solid #18211f"><div style="font-size:8px;color:#5e716f">ASIA HIGH</div><div class="sg" style="font-size:13px;color:#1ff0ad;margin-top:2px">$${fmtNum(Math.round(fib.asia_high))}</div></div>
+        <div style="flex:1;padding:9px 14px;border-right:1px solid #18211f"><div style="font-size:8px;color:#5e716f">ASIA LOW</div><div class="sg" style="font-size:13px;color:#ff5d6c;margin-top:2px">$${fmtNum(Math.round(fib.asia_low))}</div></div>
+        <div style="flex:1;padding:9px 14px"><div style="font-size:8px;color:#5e716f">RANGE</div><div class="sg" style="font-size:13px;color:${aktif?'#7af0c4':'#9fb0ad'};margin-top:2px">%${rp}</div></div>
+      </div>`:''}
+      <div style="padding:6px 15px 12px">
+        <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin:6px 0 4px">F\u0130B + OPS\u0130YON SEV\u0130YELER\u0130 (azalan)</div>
+        ${merdiven}
+      </div>
+    </div>
+    <div class="card" style="padding:15px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">HAC\u0130M & AKI\u015e</span>
+        <span style="font-size:8.5px;color:#5e716f">Asia Range ba\u011flam\u0131</span>
+      </div>
+      ${hacimHtml}
+      <div style="margin-top:10px;padding-top:9px;border-top:1px solid #141d1b;font-size:9px;color:#7d908d;line-height:1.4">${esc(ms.yorum||'Spot/vadeli bask\u0131s\u0131 hareketin kal\u0131c\u0131l\u0131\u011f\u0131n\u0131 g\u00f6sterir.')}</div>
+    </div>
+  </div>`;
+}
+
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
 function scrAgents(){
   const sk=ST.basariSkoru||{};
@@ -678,13 +656,13 @@ let _optVade='all';
 function optVadeSec(v){_optVade=v;loadOptionsFull();render();}
 
 // OD palet (SVG + body'ye eklenen tooltip CSS değişkeni çözemez → hex)
-const OD={bg:'#0c0c0d',surf:'#131316',line:'#232328',lineS:'#1a1a1e',lineH:'#36363c',text:'#e8e6e0',t2:'#b8b5ac',dim:'#7a7771',mute:'#4a4742',acc:'#c4a574',pos:'#6b9e7d',neg:'#b5564c',neu:'#5a6776',buy:'#5b8fc7',sell:'#d4a05c'};
+const OD={bg:'#07090a',surf:'#0c1112',line:'#18211f',lineS:'#131918',lineH:'#1a2422',text:'#cdd9d8',t2:'#b8c6c3',dim:'#8a9c99',mute:'#5e716f',acc:'#1ff0ad',pos:'#1ff0ad',neg:'#ff5d6c',neu:'#9fb0ad',buy:'#56a8ff',sell:'#ff8a3c'};
 
 // Hover tooltip (Options Desk yüzeyi)
 function optTip(e,html){
   let t=document.getElementById('opt-tip');
   if(!t){t=document.createElement('div');t.id='opt-tip';
-    t.style.cssText='position:fixed;z-index:9999;background:#131316;border:1px solid #36363c;border-radius:4px;padding:9px 12px;font-family:Manrope,sans-serif;font-size:10px;color:#b8b5ac;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.6);max-width:240px;line-height:1.5';
+    t.style.cssText='position:fixed;z-index:9999;background:#0c1112;border:1px solid #1a2422;border-radius:4px;padding:9px 12px;font-family:ui-monospace,monospace;font-size:10px;color:#b8c6c3;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.6);max-width:240px;line-height:1.5';
     document.body.appendChild(t);}
   t.innerHTML=html;t.style.display='block';
   t.style.left=Math.min(e.clientX+14,window.innerWidth-260)+'px';
@@ -756,16 +734,16 @@ function odWalls(t,lv,spot,g){
     return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">`+
       `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.lineS}" stroke-width="0.3"/>`+
       `<rect x="${PL}" y="${(y-rowH/2).toFixed(1)}" width="${w.toFixed(1)}" height="${rowH.toFixed(1)}" fill="${pos?'url(#odcw)':'url(#odpw)'}"/>`+
-      `<text x="${PL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="10" font-weight="700" fill="${OD.mute}">${(s.strike/1000).toFixed(0)}K</text></g>`;
+      `<text x="${PL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="10" font-weight="700" fill="${OD.mute}">${(s.strike/1000).toFixed(0)}K</text></g>`;
   }).join('');
   const lvls=[[lv.call_wall,'CW',OD.pos],[lv.em_ust,'BH↑',OD.neu],[lv.zero_gamma,'ZΓ',OD.dim],[lv.max_pain,'MA',OD.acc],[lv.em_alt,'BH↓',OD.neu],[lv.put_wall,'PW',OD.neg]].filter(x=>x[0]&&x[0]>=lo&&x[0]<=hi);
-  let roz=lvls.map(x=>{const y=yS(x[0]);return `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${x[2]}" stroke-width="0.7" stroke-dasharray="3 5" opacity="0.25"/><rect x="${PL-54}" y="${(y-9).toFixed(1)}" width="46" height="18" rx="3" fill="${OD.surf}" stroke="${x[2]}" stroke-width="1"/><text x="${PL-31}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${x[2]}">${x[1]}</text>`;}).join('');
+  let roz=lvls.map(x=>{const y=yS(x[0]);return `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${x[2]}" stroke-width="0.7" stroke-dasharray="3 5" opacity="0.25"/><rect x="${PL-54}" y="${(y-9).toFixed(1)}" width="46" height="18" rx="3" fill="${OD.surf}" stroke="${x[2]}" stroke-width="1"/><text x="${PL-31}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${x[2]}">${x[1]}</text>`;}).join('');
   let sp='';
-  if(spot>=lo&&spot<=hi){const y=yS(spot);sp=`<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.acc}" stroke-width="1.8" opacity="0.9"/><rect x="${PL-54}" y="${(y-10).toFixed(1)}" width="46" height="20" rx="3" fill="${OD.acc}"/><text x="${PL-31}" y="${(y+5).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="10" font-weight="700" fill="${OD.bg}">SPOT</text>`;}
+  if(spot>=lo&&spot<=hi){const y=yS(spot);sp=`<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.acc}" stroke-width="1.8" opacity="0.9"/><rect x="${PL-54}" y="${(y-10).toFixed(1)}" width="46" height="20" rx="3" fill="${OD.acc}"/><text x="${PL-31}" y="${(y+5).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10" font-weight="700" fill="${OD.bg}">SPOT</text>`;}
   const chart=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><defs><linearGradient id="odcw" x1="0" x2="1"><stop offset="0%" stop-color="${OD.pos}" stop-opacity="0.9"/><stop offset="100%" stop-color="${OD.pos}" stop-opacity="0.18"/></linearGradient><linearGradient id="odpw" x1="0" x2="1"><stop offset="0%" stop-color="${OD.neg}" stop-opacity="0.88"/><stop offset="100%" stop-color="${OD.neg}" stop-opacity="0.14"/></linearGradient></defs>${body}${roz}${sp}</svg>`;
   const top=vis.slice().sort((a,b)=>Math.abs(b.netGamma)-Math.abs(a.netGamma)).slice(0,8);
   const list=top.map((w,i)=>{const pos=w.netGamma>=0,c=pos?OD.pos:OD.neg,pct=(w.strike-spot)/spot*100;
-    return `<div style="display:grid;grid-template-columns:22px 1fr auto;gap:6px 10px;align-items:baseline;padding:9px 0;border-bottom:1px solid ${OD.lineS}"><span style="font-size:9px;color:${OD.mute};font-style:italic;font-family:Instrument Serif,serif">${String(i+1).padStart(2,'0')}</span><div><div style="font-size:13px;color:${c};font-weight:700">$${fmtNum(w.strike)}</div><div style="font-size:9px;color:${c};margin-top:2px;font-weight:600">${pos?'Call γ':'Put γ'}</div></div><div style="text-align:right"><div style="font-size:12px;font-weight:700;color:${pct>=0?OD.pos:OD.neg}">${pct>=0?'+':''}${pct.toFixed(1)}%</div><div style="font-size:10px;color:${OD.mute};margin-top:2px">${w.netGamma>=0?'+':'−'}${odK(Math.abs(w.netGamma))}</div></div></div>`;}).join('');
+    return `<div style="display:grid;grid-template-columns:22px 1fr auto;gap:6px 10px;align-items:baseline;padding:9px 0;border-bottom:1px solid ${OD.lineS}"><span style="font-size:9px;color:${OD.mute};font-style:italic;font-family:'Space Grotesk',sans-serif">${String(i+1).padStart(2,'0')}</span><div><div style="font-size:13px;color:${c};font-weight:700">$${fmtNum(w.strike)}</div><div style="font-size:9px;color:${c};margin-top:2px;font-weight:600">${pos?'Call γ':'Put γ'}</div></div><div style="text-align:right"><div style="font-size:12px;font-weight:700;color:${pct>=0?OD.pos:OD.neg}">${pct>=0?'+':''}${pct.toFixed(1)}%</div><div style="font-size:10px;color:${OD.mute};margin-top:2px">${w.netGamma>=0?'+':'−'}${odK(Math.abs(w.netGamma))}</div></div></div>`;}).join('');
   return `<div class="od-walls"><div>${chart}<div class="od-note">${esc((g&&g.gamma_yorum)||'')}</div></div><div><p class="od-pull" style="font-size:15px;line-height:1.45;margin-bottom:18px">İki <em>duvar</em> spot'u çerçeveler: yukarıda Call Wall kümesi, aşağıda Put Wall yığını.</p><div class="od-sheet-label">Önemli Duvarlar — Sıralı ↓</div>${list}</div></div>`;
 }
 
@@ -784,8 +762,8 @@ function odLine(d,renk,birim){
   const medY=Y(med).toFixed(1);
   const fY=v=>birim==='$'?('$'+odK(v)):odK(v);
   const last=vals[vals.length-1];
-  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.line}" stroke-width="1"/><text x="${PL-8}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="9" fill="${OD.mute}">${fY(v)}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}<line x1="${PL}" x2="${W-PR}" y1="${medY}" y2="${medY}" stroke="${OD.text}" stroke-width="1" stroke-dasharray="6 4" opacity="0.55"/><text x="${W-PR}" y="${(medY-5)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="8.5" fill="${OD.text}" opacity="0.7">MEDYAN ${fY(med)}</text><path d="${path}" fill="none" stroke="${renk}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4" fill="${renk}"/></svg>`;
+  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.line}" stroke-width="1"/><text x="${PL-8}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" fill="${OD.mute}">${fY(v)}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}<line x1="${PL}" x2="${W-PR}" y1="${medY}" y2="${medY}" stroke="${OD.text}" stroke-width="1" stroke-dasharray="6 4" opacity="0.55"/><text x="${W-PR}" y="${(medY-5)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="${OD.text}" opacity="0.7">MEDYAN ${fY(med)}</text><path d="${path}" fill="none" stroke="${renk}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4" fill="${renk}"/></svg>`;
 }
 function odCvd(d,baslik,birim,aciklama){
   const yon=d&&d.yon,renk=yon==='YUKARI'?OD.pos:yon==='AŞAĞI'?OD.neg:OD.neu;
@@ -842,8 +820,8 @@ function odTerm(arr){
   const X=i=>PL+(i/(pts.length-1))*iw,Y=v=>PT+(1-(v-mn)/(mx-mn))*ih;
   const path=pts.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
   const fill=path+` L ${X(pts.length-1).toFixed(1)} ${H-PB} L ${X(0).toFixed(1)} ${H-PB} Z`;
-  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.lineS}" stroke-width="0.6"/><text x="${PL-5}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.mute}">${v.toFixed(0)}%</text>`).join('');
-  const dots=pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.5" fill="${OD.bg}" stroke="${OD.acc}" stroke-width="1.5"/><text x="${X(i).toFixed(1)}" y="${(Y(v)-9).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.t2}">${v.toFixed(0)}</text>`).join('');
+  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.lineS}" stroke-width="0.6"/><text x="${PL-5}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.mute}">${v.toFixed(0)}%</text>`).join('');
+  const dots=pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.5" fill="${OD.bg}" stroke="${OD.acc}" stroke-width="1.5"/><text x="${X(i).toFixed(1)}" y="${(Y(v)-9).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.t2}">${v.toFixed(0)}</text>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="odiv" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="${OD.acc}" stop-opacity="0.18"/><stop offset="100%" stop-color="${OD.acc}" stop-opacity="0.01"/></linearGradient></defs>${grid}<path d="${fill}" fill="url(#odiv)"/><path d="${path}" fill="none" stroke="${OD.acc}" stroke-width="2"/>${dots}</svg>`;
 }
 function odRR(arr){
@@ -854,8 +832,8 @@ function odRR(arr){
   const X=i=>PL+(i+0.5)*(cW/rows.length),Y=v=>PT+((mx-v)/rng)*cH,y0=Y(0);
   const bw=Math.max(8,Math.min(36,cW/rows.length*0.6));
   const bars=rows.map((v,i)=>{const x=X(i),top=v>=0?Y(v):y0,h=Math.max(Math.abs(Y(v)-y0),2),renk=v>=0?OD.neg:OD.pos;
-    return `<rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${renk}" opacity="0.62" rx="1"/><line x1="${(x-bw/2).toFixed(1)}" x2="${(x+bw/2).toFixed(1)}" y1="${top.toFixed(1)}" y2="${top.toFixed(1)}" stroke="${renk}" stroke-width="1.5"/><text x="${x.toFixed(1)}" y="${(v>=0?top-5:top+h+12).toFixed(1)}" text-anchor="middle" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.t2}">${v>=0?'+':''}${v.toFixed(1)}</text>`;}).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><line x1="${PL}" x2="${W-PR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="${OD.lineH}" stroke-width="1.2"/><text x="${PL-5}" y="${(y0+3).toFixed(1)}" text-anchor="end" font-family="Manrope,sans-serif" font-size="9" font-weight="700" fill="${OD.dim}">0</text>${bars}</svg>`;
+    return `<rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${renk}" opacity="0.62" rx="1"/><line x1="${(x-bw/2).toFixed(1)}" x2="${(x+bw/2).toFixed(1)}" y1="${top.toFixed(1)}" y2="${top.toFixed(1)}" stroke="${renk}" stroke-width="1.5"/><text x="${x.toFixed(1)}" y="${(v>=0?top-5:top+h+12).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.t2}">${v>=0?'+':''}${v.toFixed(1)}</text>`;}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><line x1="${PL}" x2="${W-PR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="${OD.lineH}" stroke-width="1.2"/><text x="${PL-5}" y="${(y0+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.dim}">0</text>${bars}</svg>`;
 }
 
 // ── vi. Pozisyon · Analiz ──
@@ -864,7 +842,7 @@ function odPozisyon(lv,spot,g,oy){
   const bandPct=spot?((band/spot)*100).toFixed(1):'—';
   const pull=(cw&&pw)?`Put Wall ile Call Wall arasındaki <em>$${fmtNum(band)}</em> bant gerçekleşen volatiliteyi sınırlar — tepeden dibe <em>${bandPct}%</em>.`:'Seviye verisi bekleniyor.';
   const scn=[['Spot yukarı kırar ↑',lv.call_wall,'dealer delta satmaya başlar'],['Spot sabitlenir',lv.max_pain,'vol vadeye kadar düşer'],['Spot aşağı kırar ↓',lv.put_wall,'gamma negatife döner, vol genişler'],['Haftalık kapanış',lv.max_pain,'Max Pain mıknatısı']];
-  return `<div class="od-two"><div><p class="od-pull" style="margin-bottom:20px">${pull}</p><p style="font-size:12px;color:${OD.t2};line-height:1.7;margin:0">${esc((oy&&oy.yorum)||'')||'Opsiyon pozisyon analizi yükleniyor…'}</p></div><div><div class="od-sheet-label" style="margin-bottom:14px">Senaryolar</div>${scn.map(s=>`<div class="od-scn"><div><div style="font-size:13px;color:${OD.text};font-weight:600;margin-bottom:2px">${s[0]}</div><div style="font-size:10px;color:${OD.mute};font-weight:600">${s[2]}</div></div><div style="text-align:right;color:${OD.acc};font-size:14px;font-family:Instrument Serif,serif">${(s[1]==null||!isFinite(s[1]))?'—':'$'+fmtNum(s[1])}</div></div>`).join('')}</div></div>`;
+  return `<div class="od-two"><div><p class="od-pull" style="margin-bottom:20px">${pull}</p><p style="font-size:12px;color:${OD.t2};line-height:1.7;margin:0">${esc((oy&&oy.yorum)||'')||'Opsiyon pozisyon analizi yükleniyor…'}</p></div><div><div class="od-sheet-label" style="margin-bottom:14px">Senaryolar</div>${scn.map(s=>`<div class="od-scn"><div><div style="font-size:13px;color:${OD.text};font-weight:600;margin-bottom:2px">${s[0]}</div><div style="font-size:10px;color:${OD.mute};font-weight:600">${s[2]}</div></div><div style="text-align:right;color:${OD.acc};font-size:14px;font-family:'Space Grotesk',sans-serif">${(s[1]==null||!isFinite(s[1]))?'—':'$'+fmtNum(s[1])}</div></div>`).join('')}</div></div>`;
 }
 
 function scrOptions(){
@@ -1291,6 +1269,7 @@ async function loadContext(){const d=await jget('/api/market-context');if(d)ST.c
 // ── Komuta Merkezi: indikatör + opsiyon skoru + grafik ──
 async function loadIndicators(){const d=await jget('/api/indicators?symbol=BTCUSDT&interval=5m');if(d&&!d.hata)ST.indicators=d;}
 async function loadOptScore(){const d=await jget('/api/options/gex?currency=BTC');if(d&&!d.error)ST.optScore=d;}
+async function loadOarFib(){const d=await jget('/api/oar-fib?symbol=BTCUSDT');if(d&&!d.error)ST.oarFib=d;}
 async function loadPiyasaDurumu(){const d=await jget('/api/piyasa-durumu');if(d)ST.piyasaDurumu=d;}
 async function loadOpsiyonYorum(){const d=await jget('/api/opsiyon-yorum?currency=BTC');if(d)ST.opsiyonYorum=d;}
 async function loadGrafikYorum(){const d=await jget('/api/grafik-yorum?symbol='+_kcoin);if(d)ST.grafikYorum=d;if(ST.tab==='leader')render();}
@@ -1401,10 +1380,10 @@ async function loadFng(){
 async function boot(){
   renderNav();renderRail();render();
   tickClock();setInterval(tickClock,1000);
-  await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge(),loadIndicators(),loadOptScore(),loadPiyasaDurumu(),loadOpsiyonYorum(),loadBasariSkoru(),loadGrafikYorum()]);
+  await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge(),loadIndicators(),loadOptScore(),loadOarFib(),loadPiyasaDurumu(),loadOpsiyonYorum(),loadBasariSkoru(),loadGrafikYorum()]);
   renderRail();render();
   loadTicker();loadOptions();
-  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();
+  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','agents'].includes(ST.tab))render();},120000);
   setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();
