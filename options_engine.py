@@ -117,6 +117,35 @@ async def _tum_opsiyonlar(cl, spot, currency="BTC"):
         await asyncio.sleep(0.05)
     return opts
 
+# ─── Paylaşımlı zincir: TTL cache + in-flight dedup ───────────────
+# 5 opsiyon endpoint'i (topografya/greekler/skew/islem/alarm) aynı anda
+# çağrıldığında zinciri TEK kez çeker; diğerleri kilitte bekleyip cache okur.
+# Böylece Deribit rate-limit önlenir (zincir tam gelir) ve sayfa hızlanır.
+_chain_cache = {}   # currency -> (ts, spot, opts)
+_chain_locks = {}   # currency -> asyncio.Lock
+_CHAIN_TTL = 45     # saniye
+
+def _chain_lock(currency):
+    lk = _chain_locks.get(currency)
+    if lk is None:
+        lk = asyncio.Lock(); _chain_locks[currency] = lk
+    return lk
+
+async def _zincir(cl, currency="BTC"):
+    """Spot + tüm opsiyon zincirini bir kez çek, TTL boyunca paylaş."""
+    c = _chain_cache.get(currency)
+    if c and (time.time() - c[0]) < _CHAIN_TTL:
+        return c[1], c[2]
+    async with _chain_lock(currency):
+        c = _chain_cache.get(currency)        # kilit beklerken dolmuş olabilir
+        if c and (time.time() - c[0]) < _CHAIN_TTL:
+            return c[1], c[2]
+        spot = await _spot(cl, currency)
+        opts = await _tum_opsiyonlar(cl, spot, currency) if spot else []
+        if spot and opts:
+            _chain_cache[currency] = (time.time(), spot, opts)
+        return spot, opts
+
 def _aggregate(opts, expiry_filter="all"):
     labels=["0-7d","8-45d","45d+"] if expiry_filter=="all" else [expiry_filter]
     m={}
@@ -127,9 +156,9 @@ def _aggregate(opts, expiry_filter="all"):
         x=m[k]; x["totalOI"]+=o["oi"]
         if o["type"]=="call": x["callGex"]+=o["gex"]; x["callOI"]+=o["oi"]
         else: x["putGex"]+=o["gex"]; x["putOI"]+=o["oi"]
-    # netGamma = call gex - put gex (dealer pozisyonu yaklaşık)
+    # netGamma = call gex + put gex (put zaten negatif işaretli — gex.js/islem_dagilimi ile tutarlı)
     for x in m.values():
-        x["netGamma"]=round(x["callGex"]-x["putGex"],2)
+        x["netGamma"]=round(x["callGex"]+x["putGex"],2)
     return sorted(m.values(),key=lambda a:a["strike"])
 
 def _max_pain(opts):
@@ -215,9 +244,8 @@ def _find_levels(strikes, spot, opts):
 # ─── ANA: alarm-levels (vade dilimli) ─────────────────────────────
 async def alarm_levels(currency="BTC"):
     async with httpx.AsyncClient(timeout=30) as cl:
-        spot=await _spot(cl,currency)
+        spot,opts=await _zincir(cl,currency)
         if not spot: return {"error":"spot alınamadı"}
-        opts=await _tum_opsiyonlar(cl,spot,currency)
         if not opts: return {"error":"opsiyon verisi yok"}
     out={"spot":spot,"tarih":datetime.now(timezone.utc).isoformat()}
     for dilim in ["0-7d","8-45d","45d+","all"]:
@@ -281,9 +309,8 @@ def _charm(S,K,T,sig):
 async def strike_topografya(currency="BTC", vade="all"):
     """Strike bazında call/put OI + GEX dağılımı (görsel: Strike Topografyası)."""
     async with httpx.AsyncClient(timeout=30) as cl:
-        spot=await _spot(cl,currency)
-        if not spot: return {"error":"spot yok"}
-        opts=await _tum_opsiyonlar(cl,spot,currency)
+        spot,opts=await _zincir(cl,currency)
+    if not spot: return {"error":"spot yok"}
     if not opts: return {"error":"opsiyon yok"}
     strikes=_aggregate(opts,vade)
     # Spot etrafında ±%15 filtrele (okunabilirlik)
@@ -297,9 +324,8 @@ async def strike_topografya(currency="BTC", vade="all"):
 async def toplu_greekler(currency="BTC"):
     """Net Gamma, Net Vanna, Net Charm — dealer pozisyonu (USD, gex.js formülü)."""
     async with httpx.AsyncClient(timeout=30) as cl:
-        spot=await _spot(cl,currency)
-        if not spot: return {"error":"spot yok"}
-        opts=await _tum_opsiyonlar(cl,spot,currency)
+        spot,opts=await _zincir(cl,currency)
+    if not spot: return {"error":"spot yok"}
     if not opts: return {"error":"opsiyon yok"}
     # Her opsiyonda zaten gex/vex/cex hesaplı (gex.js ile birebir)
     ng=sum(o.get("gex",0) for o in opts)
@@ -314,9 +340,8 @@ async def toplu_greekler(currency="BTC"):
 async def iv_skew(currency="BTC"):
     """ATM IV vade yapısı (log-moneyness interp) + gerçek 25Δ Risk Reversal (Hull §20.3)."""
     async with httpx.AsyncClient(timeout=30) as cl:
-        spot=await _spot(cl,currency)
-        if not spot: return {"error":"spot yok"}
-        opts=await _tum_opsiyonlar(cl,spot,currency)
+        spot,opts=await _zincir(cl,currency)
+    if not spot: return {"error":"spot yok"}
     if not opts: return {"error":"opsiyon yok"}
     now=int(time.time()*1000)
     vadeler={}
@@ -398,8 +423,7 @@ async def islem_dagilimi(currency="BTC"):
         now=int(time.time()*1000); basla=now-86400*1000
         trades=await _drb(cl,"get_last_trades_by_currency_and_time",
             {"currency":currency,"kind":"option","start_timestamp":basla,"end_timestamp":now,"count":1000})
-        spot=await _spot(cl,currency)
-        opts=await _tum_opsiyonlar(cl,spot,currency) if spot else []
+        spot,opts=await _zincir(cl,currency)
     if not trades or "trades" not in trades: return {"error":"trade yok"}
     d={"calls_buy":0,"calls_sell":0,"puts_buy":0,"puts_sell":0,
        "calls_buy_block":0,"puts_buy_block":0,"calls_sell_block":0,"puts_sell_block":0}
