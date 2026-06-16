@@ -753,42 +753,67 @@ function odWalls(t,lv,spot,g){
   return `<div class="od-walls"><div>${chart}<div class="od-note">${esc((g&&g.gamma_yorum)||'')}</div></div><div><p class="od-pull" style="font-size:15px;line-height:1.45;margin-bottom:18px">İki <em>duvar</em> spot'u çerçeveler: yukarıda Call Wall kümesi, aşağıda Put Wall yığını.</p><div class="od-sheet-label">Önemli Duvarlar — Sıralı ↓</div>${list}</div></div>`;
 }
 
-// ── iii. CVD çizgisi (medyan + son nokta) ──
-function odLine(d,renk,birim){
+// ── iii. CVD çizgisi (medyan + spot overlay + saatlik tooltip + hacim) ──
+function odLine(d,renk,birim,opt){
+  opt=opt||{};
   if(!d||!d.seri||!d.seri.length)return '<div class="od-empty">Veri yükleniyor…</div>';
-  const vals=d.seri.map(x=>Number(x.v)).filter(v=>isFinite(v));
+  const S=d.seri;
+  const vals=S.map(x=>Number(x.v)).filter(v=>isFinite(v));
   if(vals.length<2)return '<div class="od-empty">Yeterli veri yok</div>';
   const hasVol=!!(d.hacim&&d.hacim.length);
-  const W=1000,PL=64,PR=16,PT=12,LH=118,G=12,VOLH=34,PB=14;
+  const W=1000,PL=64,PR=opt.spot?54:16,PT=12,LH=118,G=12,VOLH=34,PB=14;
   const H=hasVol?(PT+LH+G+VOLH+PB):(PT+LH+PB);
-  const iw=W-PL-PR,ih=LH;
+  const iw=W-PL-PR,ih=LH,n=S.length;
   const med=isFinite(d.medyan)?Number(d.medyan):vals[vals.length-1];
   let mn=Math.min(...vals,med),mx=Math.max(...vals,med);if(mx===mn){mx+=1;mn-=1;}
   const pad=(mx-mn)*0.08;mn-=pad;mx+=pad;
-  const X=i=>PL+(vals.length<=1?iw/2:(i/(vals.length-1))*iw);
+  const X=i=>PL+(n<=1?iw/2:(i/(n-1))*iw);
   const Y=v=>PT+(1-(v-mn)/(mx-mn))*ih;
   const path=vals.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
   const medY=Y(med).toFixed(1);
   const fY=v=>birim==='$'?('$'+odK(v)):odK(v);
   const last=vals[vals.length-1];
   const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.line}" stroke-width="1"/><text x="${PL-8}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" fill="${OD.mute}">${fY(v)}</text>`).join('');
+  // spot overlay (sağ eksen, turuncu) — Image 2 gibi
+  let spotSvg='';
+  if(opt.spot){
+    const sp=S.map(x=>x.spot==null?null:Number(x.spot)),sv=sp.filter(v=>v!=null&&isFinite(v));
+    if(sv.length>1){
+      let smn=Math.min(...sv),smx=Math.max(...sv);if(smx===smn){smx+=1;smn-=1;}
+      const spad=(smx-smn)*0.12;smn-=spad;smx+=spad;
+      const SY=v=>PT+(1-(v-smn)/(smx-smn))*ih;
+      let sd='',started=false;
+      sp.forEach((v,i)=>{if(v==null)return;sd+=(started?'L':'M')+X(i).toFixed(1)+','+SY(v).toFixed(1)+' ';started=true;});
+      const rg=[smx,(smx+smn)/2,smn].map(v=>`<text x="${W-PR+6}" y="${(SY(v)+3).toFixed(1)}" text-anchor="start" font-family="'JetBrains Mono',monospace" font-size="9" fill="${OD.sell}" opacity="0.85">${odK(v)}</text>`).join('');
+      spotSvg=`<path d="${sd.trim()}" fill="none" stroke="${OD.sell}" stroke-width="1.6" stroke-linejoin="round" opacity="0.9"/>${rg}`;
+    }
+  }
+  // hacim (kova bazlı alım/satım, çizgiyle hizalı)
   let vol='';
   if(hasVol){
     const hb=d.hacim,vb=PT+LH+G+VOLH;
     const maxV=Math.max(...hb.map(h=>(h.buy||0)+(h.sell||0)),1);
     const bwv=Math.max(iw/hb.length*0.7,1);
     vol=`<text x="${PL-8}" y="${(PT+LH+G+9).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8" fill="${OD.mute}">HACİM</text>`+
-      hb.map((h,i)=>{const x=PL+(i+0.5)/hb.length*iw,tot=(h.buy||0)+(h.sell||0),hh=Math.max(tot/maxV*VOLH,0.6),net=(h.buy||0)-(h.sell||0),col=net>=0?OD.pos:OD.neg;
-        const tip=`Alım: <b style='color:${OD.pos}'>${fY(h.buy||0)}</b><br>Satım: <b style='color:${OD.neg}'>${fY(h.sell||0)}</b>`;
-        return `<rect x="${(x-bwv/2).toFixed(1)}" y="${(vb-hh).toFixed(1)}" width="${bwv.toFixed(1)}" height="${hh.toFixed(1)}" fill="${col}" opacity="0.55" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;}).join('');
+      hb.map((h,i)=>{const x=PL+(n<=1?iw/2:(i/(n-1))*iw),tot=(h.buy||0)+(h.sell||0),hh=Math.max(tot/maxV*VOLH,0.6),net=(h.buy||0)-(h.sell||0),col=net>=0?OD.pos:OD.neg;
+        return `<rect x="${(x-bwv/2).toFixed(1)}" y="${(vb-hh).toFixed(1)}" width="${bwv.toFixed(1)}" height="${hh.toFixed(1)}" fill="${col}" opacity="0.5"/>`;}).join('');
   }
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}<line x1="${PL}" x2="${W-PR}" y1="${medY}" y2="${medY}" stroke="${OD.text}" stroke-width="1" stroke-dasharray="6 4" opacity="0.55"/><text x="${W-PR}" y="${(medY-5)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="${OD.text}" opacity="0.7">MEDYAN ${fY(med)}</text><path d="${path}" fill="none" stroke="${renk}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4" fill="${renk}"/>${vol}</svg>`;
+  // saatlik hover sütunları → tooltip (Image 2'deki kutu)
+  const colW=iw/Math.max(n,1),hovH=hasVol?(LH+G+VOLH):ih;
+  const hov=S.map((p,i)=>{const x=X(i),dt=new Date(p.ts),hh=String(dt.getHours()).padStart(2,'0'),dd=String(dt.getDate()).padStart(2,'0'),mo=String(dt.getMonth()+1).padStart(2,'0');
+    let tip;
+    if(opt.detay){tip=`${dd}.${mo} ${hh}:00<br>Call Buy (+): <b style='color:${OD.pos}'>${fmtNum(p.cb||0)}</b><br>Call Sell (−): <b style='color:${OD.neg}'>${fmtNum(p.cs||0)}</b><br>Put Buy (−): <b style='color:${OD.neg}'>${fmtNum(p.pb||0)}</b><br>Put Sell (+): <b style='color:${OD.pos}'>${fmtNum(p.ps||0)}</b><br>Saat Δ: <b style='color:${(p.delta||0)>=0?OD.pos:OD.neg}'>${(p.delta||0)>=0?'+':''}${fmtNum(p.delta||0)}</b> · CVD: <b style='color:${OD.text}'>${fY(p.v)}</b>`;}
+    else{tip=`${dd}.${mo} ${hh}:00<br>${birim==='$'?'Premium':'CVD'}: <b style='color:${renk}'>${fY(p.v)}</b>`;}
+    return `<rect x="${(x-colW/2).toFixed(1)}" y="${PT}" width="${colW.toFixed(1)}" height="${hovH.toFixed(1)}" fill="transparent" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair">${grid}<line x1="${PL}" x2="${W-PR}" y1="${medY}" y2="${medY}" stroke="${OD.text}" stroke-width="1" stroke-dasharray="6 4" opacity="0.55"/><text x="${W-PR}" y="${(medY-5)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="${OD.text}" opacity="0.7">MEDYAN ${fY(med)}</text>${spotSvg}<path d="${path}" fill="none" stroke="${renk}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4" fill="${renk}"/>${vol}${hov}</svg>`;
 }
-function odCvd(d,baslik,birim,aciklama){
+function odCvd(d,baslik,birim,aciklama,opt){
   const yon=d&&d.yon,renk=yon==='YUKARI'?OD.pos:yon==='AŞAĞI'?OD.neg:OD.neu;
   const fmtV=v=>birim==='$'?('$'+fmtNum(v)):fmtNum(v);
-  const head=`<div class="od-cvd-h"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="od-cvd-t">${baslik}</span>${d&&d.yon?`<span class="od-pill" style="background:${renk}">${yon==='YUKARI'?'▲ YUKARI':yon==='AŞAĞI'?'▼ AŞAĞI':'— NÖTR'}</span>`:''}</div>${d&&d.guncel!=null?`<div style="font-size:10px;color:${OD.mute}">Net: <b style="color:${renk};font-size:12px">${fmtV(d.guncel)}</b> · Medyan: <b style="color:${OD.text}">${fmtV(d.medyan)}</b></div>`:''}</div>`;
-  return `<div style="margin-bottom:18px">${head}${odLine(d,renk,birim)}<div class="od-note">${aciklama}</div></div>`;
+  const dv=d&&d.divergence;
+  const dvBadge=dv?`<span class="od-pill" style="background:${dv.tip==='BULLISH'?OD.pos:OD.neg}">⚠ ${dv.tip} DIVERGENCE</span>`:'';
+  const head=`<div class="od-cvd-h"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="od-cvd-t">${baslik}</span>${d&&d.yon?`<span class="od-pill" style="background:${renk}">${yon==='YUKARI'?'▲ YUKARI':yon==='AŞAĞI'?'▼ AŞAĞI':'— NÖTR'}</span>`:''}${dvBadge}</div>${d&&d.guncel!=null?`<div style="font-size:10px;color:${OD.mute}">Net: <b style="color:${renk};font-size:12px">${fmtV(d.guncel)}</b> · Medyan: <b style="color:${OD.text}">${fmtV(d.medyan)}</b></div>`:''}</div>`;
+  return `<div style="margin-bottom:18px">${head}${odLine(d,renk,birim,opt)}<div class="od-note">${aciklama}</div></div>`;
 }
 
 // ── Gamma / Buy-Sell per strike (histogram) ──
@@ -889,9 +914,9 @@ function scrOptions(){
 
     <section class="od-sec">
       <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>Order Flow · Kapanan</h2><span class="od-meta">OPSİYON CVD · SON 3 GÜN · DERIBIT</span></div>
-      ${odCvd(cvd.opsiyon_cvd,'1 · Opsiyon CVD (kontrat)','','Kontrat bazlı CVD: Call buy (+), Put sell (+) / Call sell (−), Put buy (−). Medyan çizgisinin üstü pozitif akış.')}
+      ${odCvd(cvd.opsiyon_cvd,'1 · Opsiyon CVD (kontrat) + spot','','Renkli çizgi kontrat bazlı CVD (Call buy +, Put sell + / Call sell −, Put buy −), turuncu çizgi spot fiyat. Aynı yönde → teyit, zıt → divergence. Alttaki barlar saatlik hacim.',{spot:true,detay:true})}
       ${odCvd(cvd.premium_cvd,'2 · Premium CVD (USD) — para nereye akıyor','$','Dolar tabanlı premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi artıyor.')}
-      ${odCvd(cvd.whale_cvd,'3 · Whale CVD — büyük işlemler','','Balina opsiyon akışı. Genel CVD ile aynı yöndeyse teyit, ters yönde divergence uyarısı.')}
+      ${odCvd(cvd.whale_cvd,'3 · Whale CVD — büyük işlemler','','Balina opsiyon akışı (≥5 BTC tekil işlem). Genel CVD ile aynı yöndeyse teyit, ters yönde divergence uyarısı.')}
       <div class="od-two" style="gap:34px;margin-top:8px">
         <div><div class="od-sheet-label">Gamma Exposure · per strike</div>${odGammaStrike(dag.gamma_per_strike,dag.spot)}</div>
         <div><div class="od-sheet-label">Buy / Sell Volume · per strike</div>${odBuySell(dag.strike_volume,dag.spot)}</div>
