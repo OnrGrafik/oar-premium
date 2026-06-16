@@ -400,47 +400,94 @@ async def iv_skew(currency="BTC"):
             "yapı":"Contango (uzun vade pahalı)" if len(atm_seri)>=2 and atm_seri[-1]["iv"]>atm_seri[0]["iv"] else "Backwardation"}
 
 async def cvd_uclu(currency="BTC"):
-    """3 CVD: Opsiyon CVD + Premium CVD (USD) + Whale CVD (≥25 BTC). Medyan + kova bazlı alım/satım hacmi."""
+    """Opsiyon/Premium/Whale CVD — eski opsiyon-cvd.js portu.
+       Call buy +, Call sell −, Put buy −, Put sell +. Saatlik bucket, sayfalı çekim,
+       spot overlay + divergence + saatlik alım/satım detayı."""
+    SAAT=3600*1000
+    WHALE=5 if currency=="BTC" else 50   # tekil işlem eşiği (kontrat) — eski koddaki değer
+    simdi=int(time.time()*1000); bas3g=simdi-3*86400*1000
+    trades=[]
     async with httpx.AsyncClient(timeout=20) as cl:
-        now=int(time.time()*1000); basla=now-3*86400*1000
-        trades=await _drb(cl,"get_last_trades_by_currency_and_time",
-            {"currency":currency,"kind":"option","start_timestamp":basla,"end_timestamp":now,"count":1000})
-    if not trades or "trades" not in trades:
+        end=simdi
+        for _ in range(8):   # sayfalı: ~8000 işleme kadar (3 günü kapsa); tek sayfa son saatlere yığılıyordu
+            r=await _drb(cl,"get_last_trades_by_currency_and_time",
+                {"currency":currency,"kind":"option","start_timestamp":bas3g,
+                 "end_timestamp":end,"count":1000,"sorting":"desc"})
+            if not r or not r.get("trades"): break
+            trades.extend(r["trades"])
+            if not r.get("has_more"): break
+            end=r["trades"][-1]["timestamp"]-1
+            if end<=bas3g: break
+    if not trades:
         return {"error":"trade yok"}
-    tl=sorted(trades["trades"],key=lambda x:x["timestamp"])
-    WHALE=25      # büyük işlem eşiği (islem_dagilimi BLOCK ile tutarlı). 50 BTC opsiyonda çok yüksekti → whale boş kalıyordu
-    NB=48         # hacim kovası (3 gün ≈ 90 dk/kova)
-    span=max(now-basla,1)
-    cvd=prem=whale=0
-    cseri=[];pseri=[];wseri=[]
-    hc=[{"buy":0.0,"sell":0.0} for _ in range(NB)]   # opsiyon (kontrat) alım/satım
-    hp=[{"buy":0.0,"sell":0.0} for _ in range(NB)]   # premium (USD) alım/satım
-    hw=[{"buy":0.0,"sell":0.0} for _ in range(NB)]   # whale (kontrat) alım/satım
-    for t in tl:
-        nm=t["instrument_name"]; tip="C" if nm.endswith("-C") else "P"
-        buy=t["direction"]=="buy"; amt=t["amount"]
-        usd=amt*t.get("price",0)*t.get("index_price",0)  # yaklaşık USD premium
-        yon=1 if (tip=="C" and buy) or (tip=="P" and not buy) else -1  # +1 bullish akış, -1 bearish
-        cvd+=amt*yon; cseri.append({"ts":t["timestamp"],"v":round(cvd,2)})
-        prem+=usd*yon; pseri.append({"ts":t["timestamp"],"v":round(prem,0)})
-        bi=min(int((t["timestamp"]-basla)/span*NB),NB-1)
-        if yon>0: hc[bi]["buy"]+=amt;  hp[bi]["buy"]+=usd
-        else:     hc[bi]["sell"]+=amt; hp[bi]["sell"]+=usd
+    bd={}  # bucketTs -> agregasyon
+    enEski=simdi; whaleToplam=0
+    for t in trades:
+        nm=t.get("instrument_name","") or ""
+        tip=nm.split("-")[-1]
+        if tip not in ("C","P"): continue
+        buy=t.get("direction")=="buy"; amt=float(t.get("amount",0) or 0)
+        if not amt: continue
+        isaret=(1 if tip=="C" else -1)*(1 if buy else -1)  # C buy +, C sell −, P buy −, P sell +
+        bk=(t["timestamp"]//SAAT)*SAAT
+        b=bd.get(bk)
+        if b is None:
+            b={"delta":0,"cb":0,"cs":0,"pb":0,"ps":0,"prem":0,"pBuy":0,"pSell":0,
+               "wd":0,"wBuy":0,"wSell":0,"ws":0,"spot":0,"_sts":0}
+            bd[bk]=b
+        b["delta"]+=isaret*amt
+        if tip=="C":
+            if buy: b["cb"]+=amt
+            else:   b["cs"]+=amt
+        else:
+            if buy: b["pb"]+=amt
+            else:   b["ps"]+=amt
+        idx=float(t.get("index_price",0) or 0); prc=float(t.get("price",0) or 0)
+        if idx and prc:
+            u=prc*idx*amt; b["prem"]+=isaret*u
+            if isaret>0: b["pBuy"]+=u
+            else:        b["pSell"]+=u
         if amt>=WHALE:
-            whale+=amt*yon; wseri.append({"ts":t["timestamp"],"v":round(whale,2)})
-            if yon>0: hw[bi]["buy"]+=amt
-            else:     hw[bi]["sell"]+=amt
-    def medyan(seri):
-        vals=sorted(s["v"] for s in seri)
-        return round(vals[len(vals)//2],2) if vals else 0
-    def hac(h,r):
-        bw=span/NB
-        return [{"ts":int(basla+(i+0.5)*bw),"buy":round(b["buy"],r),"sell":round(b["sell"],r)}
-                for i,b in enumerate(h) if b["buy"] or b["sell"]]
+            b["wd"]+=isaret*amt; b["ws"]+=1; whaleToplam+=1
+            if isaret>0: b["wBuy"]+=amt
+            else:        b["wSell"]+=amt
+        if idx and t["timestamp"]>=b["_sts"]: b["spot"]=idx; b["_sts"]=t["timestamp"]
+        if t["timestamp"]<enEski: enEski=t["timestamp"]
+    ks=sorted(bd.keys())
+    cvd=prem=whale=0; sonSpot=0
+    oS=[];pS=[];wS=[]; oH=[];pH=[];wH=[]
+    for ts in ks:
+        b=bd[ts]; cvd+=b["delta"]; prem+=b["prem"]; whale+=b["wd"]
+        if b["spot"]: sonSpot=b["spot"]
+        oS.append({"ts":ts,"v":round(cvd,2),"spot":round(sonSpot,1) if sonSpot else None,
+                   "cb":round(b["cb"],2),"cs":round(b["cs"],2),"pb":round(b["pb"],2),"ps":round(b["ps"],2),
+                   "delta":round(b["delta"],2)})
+        pS.append({"ts":ts,"v":round(prem,0)})
+        wS.append({"ts":ts,"v":round(whale,2)})
+        oH.append({"ts":ts,"buy":round(b["cb"]+b["ps"],2),"sell":round(b["cs"]+b["pb"],2)})   # bullish vs bearish akış
+        pH.append({"ts":ts,"buy":round(b["pBuy"],0),"sell":round(b["pSell"],0)})
+        wH.append({"ts":ts,"buy":round(b["wBuy"],2),"sell":round(b["wSell"],2)})
+    def medyan(arr):
+        s=sorted(arr); n=len(s)
+        if n==0: return 0
+        return s[(n-1)//2] if n%2 else round((s[n//2-1]+s[n//2])/2,2)
+    cvdMed=medyan([p["v"] for p in oS]); premMed=medyan([p["v"] for p in pS]); whaleMed=medyan([p["v"] for p in wS])
+    def yon(g,m): return "YUKARI" if g>m else "AŞAĞI" if g<m else "NÖTR"
+    gO=oS[-1]["v"] if oS else 0; gP=pS[-1]["v"] if pS else 0; gW=wS[-1]["v"] if wS else 0
+    # divergence: son n saatte fiyat ↔ CVD zıt yönlü mü
+    diverg=None
+    if len(oS)>=8:
+        n=min(12,len(oS)//2); p=oS[-n:]
+        s0=p[0]["spot"]; s1=p[-1]["spot"]
+        if s0 and s1:
+            spotPct=(s1-s0)/s0*100; cvdDeg=p[-1]["v"]-p[0]["v"]
+            if spotPct>0.5 and cvdDeg<0:   diverg={"tip":"BEARISH","pencere":n,"spotPct":round(spotPct,2),"cvdDeg":round(cvdDeg,1)}
+            elif spotPct<-0.5 and cvdDeg>0: diverg={"tip":"BULLISH","pencere":n,"spotPct":round(spotPct,2),"cvdDeg":round(cvdDeg,1)}
     return {
-        "opsiyon_cvd":{"seri":cseri[-200:],"guncel":round(cvd,2),"medyan":medyan(cseri),"yon":"YUKARI" if cvd>medyan(cseri) else "AŞAĞI","hacim":hac(hc,2)},
-        "premium_cvd":{"seri":pseri[-200:],"guncel":round(prem,0),"medyan":medyan(pseri),"yon":"YUKARI" if prem>medyan(pseri) else "AŞAĞI","hacim":hac(hp,0)},
-        "whale_cvd":{"seri":wseri[-200:],"guncel":round(whale,2),"medyan":medyan(wseri),"yon":"YUKARI" if whale>medyan(wseri) else "AŞAĞI","hacim":hac(hw,2)},
+        "kapsam":{"saat":round((simdi-enEski)/SAAT,1),"trade":len(trades)},
+        "opsiyon_cvd":{"seri":oS,"guncel":gO,"medyan":cvdMed,"yon":yon(gO,cvdMed),"hacim":oH,"divergence":diverg},
+        "premium_cvd":{"seri":pS,"guncel":gP,"medyan":round(premMed,0),"yon":yon(gP,premMed),"hacim":pH},
+        "whale_cvd":{"seri":wS,"guncel":gW,"medyan":round(whaleMed,2),"yon":yon(gW,whaleMed),"hacim":wH,"esik":WHALE,"islem":whaleToplam},
     }
 
 async def islem_dagilimi(currency="BTC"):
