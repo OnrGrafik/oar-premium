@@ -81,40 +81,46 @@ def _expiry_label(ts, now):
     return "45d+"
 
 async def _tum_opsiyonlar(cl, spot, currency="BTC"):
+    # ── Tüm zincir 2 TOPLU çağrıyla (per-enstrüman ticker YOK) ──────────────
+    # Eski yöntem ~600 ayrı "ticker" çağrısı yapıyordu → Deribit rate-limit →
+    # düşen ticker'lar sessizce atlanıp zincir EKSİK kalıyordu (retry de yetmedi):
+    # çok-vadeli yuvarlak strike'lar (67k/68k/60k) eksik sayılıp CW/MP/ZG kayıyordu.
+    # get_book_summary_by_currency TEK çağrıda tüm enstrümanların OI+mark_iv'sini
+    # verir (main.py'de zaten kullanılıyor) → zincir TAM, rate-limit yok, hızlı.
+    # 1) Enstrüman tanımları: strike, vade, tip
     inst=await _drb(cl,"get_instruments",{"currency":currency,"kind":"option","expired":"false"})
     if not inst: return []
     now=int(time.time()*1000)
-    aktif=[i for i in inst if i["expiration_timestamp"]>now]
+    meta={}
+    for i in inst:
+        if i.get("expiration_timestamp",0)<=now: continue
+        meta[i["instrument_name"]]={"strike":i["strike"],
+            "expiryTs":i["expiration_timestamp"],
+            "type":"call" if i["option_type"]=="call" else "put"}
+    if not meta: return []
+    # 2) Tüm enstrümanların OI + mark_iv'si TEK book-summary çağrısında
+    book=await _drb(cl,"get_book_summary_by_currency",{"currency":currency,"kind":"option"})
+    if not book: return []
     opts=[]
-    BATCH=25
-    for i in range(0,len(aktif),BATCH):
-        batch=aktif[i:i+BATCH]
-        tickers=await asyncio.gather(*[_drb(cl,"ticker",{"instrument_name":x["instrument_name"]}) for x in batch],return_exceptions=True)
-        for inst_data,tk in zip(batch,tickers):
-            if not isinstance(tk,dict): continue
-            oi=tk.get("open_interest",0)
-            iv=(tk.get("mark_iv",0) or 0)/100
-            if not oi or not iv: continue
-            ts=inst_data["expiration_timestamp"]
-            T=max((ts-now)/(365.25*24*3600*1000),0.0001)
-            K=inst_data["strike"]
-            typ="call" if inst_data["option_type"]=="call" else "put"
-            sgn=1 if typ=="call" else -1
-            # Deribit greeks varsa onları kullan (mark), yoksa BS hesapla
-            bs=_bs_greeks(spot,K,T,iv,typ)
-            drb_g=tk.get("greeks",{}) or {}
-            gamma=drb_g.get("gamma") if isinstance(drb_g.get("gamma"),(int,float)) else bs["gamma"]
-            delta=drb_g.get("delta") if isinstance(drb_g.get("delta"),(int,float)) else bs["delta"]
-            vanna=bs["vanna"]; charm=bs["charm"]
-            # gex.js ile birebir: exposure formülleri (contractSize=1)
-            gex = gamma*oi*spot*spot*0.01*sgn
-            vex = vanna*oi*spot*0.01*sgn
-            cex = charm*oi*spot*(1/365)*sgn
-            opts.append({"strike":K,"type":typ,"oi":oi,"iv":iv,
-                         "gex":gex,"vex":vex,"cex":cex,
-                         "gamma":gamma,"delta":delta,"vanna":vanna,"charm":charm,
-                         "expiryTs":ts,"expiryLabel":_expiry_label(ts,now),"T":T})
-        await asyncio.sleep(0.05)
+    for b in book:
+        m=meta.get(b.get("instrument_name"))
+        if not m: continue
+        oi=b.get("open_interest",0) or 0
+        iv=(b.get("mark_iv",0) or 0)/100
+        if not oi or not iv: continue
+        K=m["strike"]; ts=m["expiryTs"]; typ=m["type"]
+        T=max((ts-now)/(365.25*24*3600*1000),0.0001)
+        sgn=1 if typ=="call" else -1
+        # gex.js ile birebir: TÜM greekler Black-Scholes'tan (tek tutarlı kaynak)
+        bs=_bs_greeks(spot,K,T,iv,typ)
+        gamma=bs["gamma"]; delta=bs["delta"]; vanna=bs["vanna"]; charm=bs["charm"]
+        gex = gamma*oi*spot*spot*0.01*sgn
+        vex = vanna*oi*spot*0.01*sgn
+        cex = charm*oi*spot*(1/365)*sgn
+        opts.append({"strike":K,"type":typ,"oi":oi,"iv":iv,
+                     "gex":gex,"vex":vex,"cex":cex,
+                     "gamma":gamma,"delta":delta,"vanna":vanna,"charm":charm,
+                     "expiryTs":ts,"expiryLabel":_expiry_label(ts,now),"T":T})
     return opts
 
 # ─── Paylaşımlı zincir: TTL cache + in-flight dedup ───────────────
