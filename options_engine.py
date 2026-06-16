@@ -234,13 +234,17 @@ def _find_levels(strikes, spot, opts):
         if abs(s["putGex"])>maxPG: maxPG=abs(s["putGex"]); pw=s["strike"]
     mp=_max_pain(opts); zg=_zero_gamma(opts,spot)
     pct=lambda v:round((v-spot)/spot*100,2) if v else None
-    # Expected Move: ATM IV bazlı 1-haftalık ±1σ bant
+    # Expected Move: 1σ 1-haftalık bant — EN YAKIN VADENİN ATM IV'si ile.
+    # (Önceki kod tüm vadelerden en yakın strike'ı seçiyordu → rastgele vade IV'si →
+    #  uyumsuz bant. Eski platform da front-expiry ATM IV kullanır.)
     em_ust=em_alt=None
     if opts:
-        atm=min(opts,key=lambda o:abs(o["strike"]-spot))
+        near_ts=min(o["expiryTs"] for o in opts)
+        near=[o for o in opts if o["expiryTs"]==near_ts]
+        atm=min(near,key=lambda o:abs(o["strike"]-spot))
         iv=atm.get("iv",0)
         if iv>0:
-            sigma=spot*iv*math.sqrt(7/365)  # 1 hafta
+            sigma=spot*iv*math.sqrt(7/365)  # 1σ, 1 hafta
             em_ust=round(spot+sigma); em_alt=round(spot-sigma)
     return {"call_wall":cw,"put_wall":pw,"max_pain":mp,"zero_gamma":zg,
             "em_ust":em_ust,"em_alt":em_alt,
@@ -396,7 +400,7 @@ async def iv_skew(currency="BTC"):
             "yapı":"Contango (uzun vade pahalı)" if len(atm_seri)>=2 and atm_seri[-1]["iv"]>atm_seri[0]["iv"] else "Backwardation"}
 
 async def cvd_uclu(currency="BTC"):
-    """3 CVD: Opsiyon CVD + Premium CVD (USD) + Whale CVD (≥50 BTC). Medyan çizgili."""
+    """3 CVD: Opsiyon CVD + Premium CVD (USD) + Whale CVD (≥25 BTC). Medyan + kova bazlı alım/satım hacmi."""
     async with httpx.AsyncClient(timeout=20) as cl:
         now=int(time.time()*1000); basla=now-3*86400*1000
         trades=await _drb(cl,"get_last_trades_by_currency_and_time",
@@ -404,23 +408,39 @@ async def cvd_uclu(currency="BTC"):
     if not trades or "trades" not in trades:
         return {"error":"trade yok"}
     tl=sorted(trades["trades"],key=lambda x:x["timestamp"])
+    WHALE=25      # büyük işlem eşiği (islem_dagilimi BLOCK ile tutarlı). 50 BTC opsiyonda çok yüksekti → whale boş kalıyordu
+    NB=48         # hacim kovası (3 gün ≈ 90 dk/kova)
+    span=max(now-basla,1)
     cvd=prem=whale=0
     cseri=[];pseri=[];wseri=[]
+    hc=[{"buy":0.0,"sell":0.0} for _ in range(NB)]   # opsiyon (kontrat) alım/satım
+    hp=[{"buy":0.0,"sell":0.0} for _ in range(NB)]   # premium (USD) alım/satım
+    hw=[{"buy":0.0,"sell":0.0} for _ in range(NB)]   # whale (kontrat) alım/satım
     for t in tl:
         nm=t["instrument_name"]; tip="C" if nm.endswith("-C") else "P"
         buy=t["direction"]=="buy"; amt=t["amount"]
         usd=amt*t.get("price",0)*t.get("index_price",0)  # yaklaşık USD premium
-        yon=1 if (tip=="C" and buy) or (tip=="P" and not buy) else -1
+        yon=1 if (tip=="C" and buy) or (tip=="P" and not buy) else -1  # +1 bullish akış, -1 bearish
         cvd+=amt*yon; cseri.append({"ts":t["timestamp"],"v":round(cvd,2)})
         prem+=usd*yon; pseri.append({"ts":t["timestamp"],"v":round(prem,0)})
-        if amt>=50: whale+=amt*yon; wseri.append({"ts":t["timestamp"],"v":round(whale,2)})
+        bi=min(int((t["timestamp"]-basla)/span*NB),NB-1)
+        if yon>0: hc[bi]["buy"]+=amt;  hp[bi]["buy"]+=usd
+        else:     hc[bi]["sell"]+=amt; hp[bi]["sell"]+=usd
+        if amt>=WHALE:
+            whale+=amt*yon; wseri.append({"ts":t["timestamp"],"v":round(whale,2)})
+            if yon>0: hw[bi]["buy"]+=amt
+            else:     hw[bi]["sell"]+=amt
     def medyan(seri):
         vals=sorted(s["v"] for s in seri)
         return round(vals[len(vals)//2],2) if vals else 0
+    def hac(h,r):
+        bw=span/NB
+        return [{"ts":int(basla+(i+0.5)*bw),"buy":round(b["buy"],r),"sell":round(b["sell"],r)}
+                for i,b in enumerate(h) if b["buy"] or b["sell"]]
     return {
-        "opsiyon_cvd":{"seri":cseri[-200:],"guncel":round(cvd,2),"medyan":medyan(cseri),"yon":"YUKARI" if cvd>medyan(cseri) else "AŞAĞI"},
-        "premium_cvd":{"seri":pseri[-200:],"guncel":round(prem,0),"medyan":medyan(pseri),"yon":"YUKARI" if prem>medyan(pseri) else "AŞAĞI"},
-        "whale_cvd":{"seri":wseri[-200:],"guncel":round(whale,2),"medyan":medyan(wseri),"yon":"YUKARI" if whale>medyan(wseri) else "AŞAĞI"},
+        "opsiyon_cvd":{"seri":cseri[-200:],"guncel":round(cvd,2),"medyan":medyan(cseri),"yon":"YUKARI" if cvd>medyan(cseri) else "AŞAĞI","hacim":hac(hc,2)},
+        "premium_cvd":{"seri":pseri[-200:],"guncel":round(prem,0),"medyan":medyan(pseri),"yon":"YUKARI" if prem>medyan(pseri) else "AŞAĞI","hacim":hac(hp,0)},
+        "whale_cvd":{"seri":wseri[-200:],"guncel":round(whale,2),"medyan":medyan(wseri),"yon":"YUKARI" if whale>medyan(wseri) else "AŞAĞI","hacim":hac(hw,2)},
     }
 
 async def islem_dagilimi(currency="BTC"):
