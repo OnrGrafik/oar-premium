@@ -8,10 +8,11 @@ import base64
 import json
 import httpx
 import asyncio
+import time
 from pathlib import Path
 
 import os as _os_data
-DATA_DIR = Path(_os_data.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(_os_data.environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
@@ -754,7 +755,7 @@ async def startup_event():
         kalici = {}
         for ad, dosya in [("sinyaller","oar_signals_log.json"),("hafıza","agent_memory.json"),
                           ("raporlar","rapor_gecmisi.json"),("başarı","basari_skoru.json"),
-                          ("kitaplar","kitaplar.db"),("teoriler","otomatik_hipotezler.json")]:
+                          ("kitaplar","kitaplar/kitaplar.db"),("teoriler","otomatik_hipotezler.json")]:
             f = DATA_DIR / dosya
             if f.exists():
                 kalici[ad] = f"{f.stat().st_size//1024}KB"
@@ -1181,34 +1182,25 @@ async def indicators_get(symbol: str = "BTCUSDT", interval: str = "5m"):
     from indicator_engine import analiz
     return await analiz(symbol, interval)
 
-@app.get("/api/opsiyon-yorum")
-async def opsiyon_yorum(currency: str = "BTC"):
-    """Opsiyon genel durum analizi — tüm opsiyon verileri + opsiyon kitapları."""
-    import httpx
-    from options_engine import alarm_levels, opsiyon_cvd
-    lv = await alarm_levels(currency)
-    if lv.get("error"):
-        return {"yorum": "Opsiyon verisi alınamadı.", "veri": {}}
-    cvd = await opsiyon_cvd(currency)
-    genel = lv.get("genel", {})
-    spot = lv.get("spot")
-    veri = {
-        "spot": spot, "call_wall": genel.get("call_wall"), "put_wall": genel.get("put_wall"),
-        "zero_gamma": genel.get("zero_gamma"), "max_pain": genel.get("max_pain"),
-        "opsiyon_cvd": cvd.get("guncel"), "cvd_yon": cvd.get("yon"),
-    }
-    # Opsiyon kitaplarından bilgi
-    kitap_notu = ""
-    try:
-        from kitap_db import ara
-        ks = ara("gamma exposure call wall put wall zero gamma dealer hedging options", limit=2)
-        if ks:
-            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:180]}" for s in ks)
-    except Exception: pass
+# ── Opsiyon yorumu: AI yorumu cache + arka planda üretilir, sayfayı bloklamaz ──
+_OPSIYON_YORUM_CACHE = {}        # currency -> {"ts":float,"yorum":str}
+_OPSIYON_YORUM_TTL = 300         # 5 dk taze kabul
+_opsiyon_yorum_inflight = set()  # eşzamanlı tekrar üretimi engelle
 
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    yorum = ""
-    if api_key:
+async def _opsiyon_yorum_uret(currency, spot, genel, cvd, lv):
+    """AI yorumunu arka planda üret, cache'e yaz (endpoint'i bloklamadan)."""
+    try:
+        api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            return
+        kitap_notu = ""
+        try:
+            from kitap_db import ara
+            ks = ara("gamma exposure call wall put wall zero gamma dealer hedging options", limit=2)
+            if ks:
+                kitap_notu = " | ".join(f"{s['title']}: {s['content'][:180]}" for s in ks)
+        except Exception:
+            pass
         prompt = f"""Sen opsiyon piyasası uzmanısın. {currency} opsiyon verilerini bilimsel/matematiksel yorumla
 (4-5 cümle, vade yorumlaması dahil, Türkçe):
 
@@ -1225,6 +1217,7 @@ Opsiyon kitaplarından: {kitap_notu[:400]}
 
 Dealer gamma pozisyonu, spot-ZG ilişkisi, CW/PW bandı, CVD akışını değerlendir.
 Kitap bilgisi varsa referans ver."""
+        yorum = ""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
@@ -1232,7 +1225,37 @@ Kitap bilgisi varsa referans ver."""
                     "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
                 if rr.status_code == 200:
                     yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception: pass
+        except Exception:
+            pass
+        if yorum:
+            _OPSIYON_YORUM_CACHE[currency] = {"ts": time.time(), "yorum": yorum}
+    finally:
+        _opsiyon_yorum_inflight.discard(currency)
+
+@app.get("/api/opsiyon-yorum")
+async def opsiyon_yorum(currency: str = "BTC"):
+    """Opsiyon genel durum — veri paralel çekilir + hızlı döner; AI yorumu cache'li/arka planda."""
+    from options_engine import alarm_levels, opsiyon_cvd
+    # Paralel veri çekme (sıralı bekleme yerine)
+    lv, cvd = await asyncio.gather(alarm_levels(currency), opsiyon_cvd(currency), return_exceptions=True)
+    if isinstance(lv, Exception) or not isinstance(lv, dict) or lv.get("error"):
+        return {"yorum": "Opsiyon verisi alınamadı.", "veri": {}}
+    if isinstance(cvd, Exception) or not isinstance(cvd, dict):
+        cvd = {}
+    genel = lv.get("genel", {})
+    spot = lv.get("spot")
+    veri = {
+        "spot": spot, "call_wall": genel.get("call_wall"), "put_wall": genel.get("put_wall"),
+        "zero_gamma": genel.get("zero_gamma"), "max_pain": genel.get("max_pain"),
+        "opsiyon_cvd": cvd.get("guncel"), "cvd_yon": cvd.get("yon"),
+    }
+    # AI yorumu: taze cache varsa onu dön; yoksa arka planda üret, sayfayı bloklama
+    c = _OPSIYON_YORUM_CACHE.get(currency)
+    taze = c and (time.time() - c["ts"] < _OPSIYON_YORUM_TTL)
+    if not taze and currency not in _opsiyon_yorum_inflight:
+        _opsiyon_yorum_inflight.add(currency)
+        asyncio.create_task(_opsiyon_yorum_uret(currency, spot, genel, cvd, lv))
+    yorum = c["yorum"] if c else "Yorum hesaplanıyor… (birkaç saniye içinde güncellenecek)"
     return {"veri": veri, "yorum": yorum}
 
 @app.get("/api/grafik-yorum")
