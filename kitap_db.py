@@ -13,9 +13,10 @@ import os, sqlite3, json
 from pathlib import Path
 from datetime import datetime, timezone
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-DB_PATH = DATA_DIR / "kitaplar.db"
+DATA_DIR = Path(os.environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
+DB_DIR = DATA_DIR / "kitaplar"
+DB_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DB_DIR / "kitaplar.db"
 
 def _conn():
     c = sqlite3.connect(str(DB_PATH), timeout=30)
