@@ -2288,6 +2288,30 @@ async def chat(
         "model": globals().get("_last_model_used", GEMINI_MODEL),
     }
 
+
+# ─── OAR Tam Backtest Endpoint'leri ──────────────────────────────────────
+
+@app.post("/api/oar-backtest/run")
+async def oar_backtest_run(req: Request):
+    from historical_backtest import bt_oar_tam, OAR_DEFAULT_PARAMS
+    data   = await req.json()
+    sym    = data.get("sembol", "BTCUSDT")
+    gun    = int(data.get("gun", 90))
+    params = {**OAR_DEFAULT_PARAMS, **data.get("params", {})}
+    return await bt_oar_tam(sym, gun, params)
+
+@app.get("/api/oar-backtest/gecmis")
+async def oar_backtest_gecmis(limit: int = 20):
+    from historical_backtest import oar_gecmis_testler
+    return {"testler": oar_gecmis_testler(limit)}
+
+@app.get("/api/oar-backtest/en-iyi")
+async def oar_backtest_en_iyi():
+    from historical_backtest import oar_gecmis_testler
+    testler = [t for t in oar_gecmis_testler(50) if t.get("toplam_sinyal", 0) >= 5]
+    if not testler: return {"mesaj": "Henuz yeterli backtest yok"}
+    return max(testler, key=lambda t: t.get("sharpe", 0))
+
 # ─── Veri Dışa Aktarma (Lokal Sync için) ────────────────────────────────────
 
 @app.get("/api/data/export")
