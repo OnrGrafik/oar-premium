@@ -24,6 +24,122 @@ import os, json, asyncio, httpx
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
+# OAR Backtest sonuçlarını oku
+def _oar_backtest_ozet() -> str:
+    """En son OAR tam backtest sonucunu kısa özet olarak döner."""
+    try:
+        from historical_backtest import oar_gecmis_testler
+        testler = oar_gecmis_testler(5)
+        if not testler:
+            return "OAR backtest henüz yok."
+        en_iyi = max(testler, key=lambda t: t.get("sharpe", 0))
+        return (
+            f"OAR Backtest ({en_iyi['sembol']} {en_iyi['gun']}g): "
+            f"WR %{en_iyi['win_rate']} | Sharpe {en_iyi['sharpe']} | "
+            f"PnL {en_iyi['toplam_pnl_pct']:+.1f}% | "
+            f"MaxDD -%{en_iyi['max_drawdown']} | "
+            f"Fib kırılım: {json.dumps(en_iyi.get('by_fib', {}), ensure_ascii=False)[:200]}"
+        )
+    except Exception as e:
+        return f"OAR backtest okunamadı: {e}"
+
+# Deribit opsiyon bağlamı
+async def _deribit_ozet() -> str:
+    """GEX, Call/Put Wall, Max Pain, DVOL — Lider Agent promptuna eklenir."""
+    try:
+        async with httpx.AsyncClient(timeout=12) as cl:
+            # DVOL
+            r = await cl.get("https://www.deribit.com/api/v2/public/get_volatility_index_data",
+                params={"currency": "BTC", "start_timestamp": int(__import__("time").time()*1000) - 3600000,
+                        "end_timestamp": int(__import__("time").time()*1000), "resolution": "3600"})
+            dvol = None
+            if r.status_code == 200:
+                data = r.json().get("result", {}).get("data", [])
+                if data: dvol = data[-1][4]
+
+            # Anlık spot
+            sp = await cl.get("https://www.deribit.com/api/v2/public/get_index_price",
+                              params={"index_name": "btc_usd"})
+            spot = None
+            if sp.status_code == 200:
+                spot = sp.json().get("result", {}).get("index_price")
+
+        parcalar = []
+        if dvol:   parcalar.append(f"DVOL: {dvol:.1f}")
+        if spot:   parcalar.append(f"BTC Spot: ${spot:,.0f}")
+
+        # options_engine'den GEX (varsa)
+        try:
+            from options_engine import get_gex_summary
+            gex = await get_gex_summary()
+            if gex:
+                parcalar.append(f"GEX: {gex.get('net_gex_usd', '?')} ({gex.get('regime', '?')})")
+                if gex.get("call_wall"): parcalar.append(f"Call Wall: ${gex['call_wall']:,.0f}")
+                if gex.get("put_wall"):  parcalar.append(f"Put Wall:  ${gex['put_wall']:,.0f}")
+                if gex.get("max_pain"):  parcalar.append(f"Max Pain:  ${gex['max_pain']:,.0f}")
+        except Exception:
+            pass
+
+        return " | ".join(parcalar) if parcalar else "Deribit verisi alınamadı"
+    except Exception as e:
+        return f"Deribit hatası: {str(e)[:60]}"
+
+# Swing karar fonksiyonu
+async def swing_karar(sinyal: dict) -> dict:
+    """
+    Açık pozisyon için swing taşıma kararı.
+    Kural tabanlı (LLM'e gerek yok, kesin matematik):
+      - GEX negatif + yön uyumlu → swing olası
+      - DVOL < 50 → düşük volatilite, swing riskli
+      - Funding yön uyumlu değil → swing YOK
+    Dönüş: {swing: bool, reason: str, max_gun: int}
+    """
+    try:
+        direction = sinyal.get("direction", sinyal.get("yon", ""))
+        deribit   = await _deribit_ozet()
+
+        # Funding kontrolü
+        async with httpx.AsyncClient(timeout=8) as cl:
+            sym = sinyal.get("symbol", sinyal.get("sembol", "BTCUSDT"))
+            r   = await cl.get("https://fapi.binance.com/fapi/v1/fundingRate",
+                               params={"symbol": sym, "limit": 1})
+            funding = 0.0
+            if r.status_code == 200 and r.json():
+                funding = float(r.json()[-1]["fundingRate"])
+
+        reasons = []
+        swing   = True
+
+        # Funding yön uyumu
+        if direction == "LONG"  and funding < -0.002:
+            swing = False; reasons.append(f"Funding negatif ({funding:.4f}) — LONG swing riskli")
+        elif direction == "SHORT" and funding >  0.002:
+            swing = False; reasons.append(f"Funding pozitif ({funding:.4f}) — SHORT swing riskli")
+        else:
+            reasons.append(f"Funding nötr ({funding:.4f}) ✓")
+
+        # DVOL kontrolü
+        if "DVOL:" in deribit:
+            try:
+                dvol_val = float(deribit.split("DVOL:")[1].split("|")[0].strip())
+                if dvol_val > 80:
+                    swing = False; reasons.append(f"DVOL yüksek ({dvol_val:.0f}) — volatilite swing'i zorlaştırır")
+                elif dvol_val < 35:
+                    swing = False; reasons.append(f"DVOL çok düşük ({dvol_val:.0f}) — momentum zayıf")
+                else:
+                    reasons.append(f"DVOL normal ({dvol_val:.0f}) ✓")
+            except Exception:
+                pass
+
+        return {
+            "swing":   swing,
+            "reason":  " | ".join(reasons),
+            "max_gun": 3 if swing else 0,
+            "funding": funding,
+        }
+    except Exception as e:
+        return {"swing": False, "reason": str(e), "max_gun": 0, "funding": 0.0}
+
 DATA_DIR     = Path(os.environ.get("DATA_DIR", "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -528,28 +644,41 @@ Kullanıcı sorusu: {soru}
 
 Kesin rakamlarla, matematiksel ve bilimsel cevap ver. Türkçe."""
     else:
+        # Deribit + OAR backtest bağlamı
+        try:
+            deribit_ctx = await _deribit_ozet()
+        except Exception:
+            deribit_ctx = "Deribit verisi alınamadı"
+        oar_bt_ctx = _oar_backtest_ozet()
+
         prompt = f"""Sen OAR Premium'un Lider Agent'ısın. Sabah raporunu oluştur.
 
 BOT KATALOĞU:
 {json.dumps({b: i["strateji"] for b,i in BOT_KATALOG.items()}, ensure_ascii=False)}
 
-BACKTEST ANALİZİ:
-{json.dumps(backtest, ensure_ascii=False)[:2000]}
+BACKTEST ANALİZİ (bot sinyalleri):
+{json.dumps(backtest, ensure_ascii=False)[:1500]}
+
+OAR TAM BACKTEST (Asia Range Fib sistemi):
+{oar_bt_ctx}
+
+DERİBİT OPSİYON BAĞLAMI:
+{deribit_ctx}
 
 RESEARCH BULGULARI:
-{json.dumps(research, ensure_ascii=False)[:1500]}
+{json.dumps(research, ensure_ascii=False)[:1000]}
 
 GÖREV KUYRUĞU:
-{json.dumps(_load(TASKS_FILE, {}), ensure_ascii=False)[:500]}
+{json.dumps(_load(TASKS_FILE, {}), ensure_ascii=False)[:400]}
 
 Şunları içeren kısa sabah raporu yaz (Türkçe, madde madde):
-1. Genel performans özeti (genel win rate, en iyi bot)
-2. Research Agent'tan en kritik 2 bulgu
-3. Bugün odaklanılacak 1 hipotez/test
-4. Herhangi bir bot için acil uyarı varsa belirt
-5. Genel tavsiye (1 cümle)
+1. Genel performans özeti (WR, en iyi bot, OAR backtest Sharpe)
+2. Deribit opsiyon bağlamı (GEX rejimi + Call/Put Wall + DVOL yorumu)
+3. Research Agent'tan en kritik 2 bulgu
+4. Bugün OAR sisteminde odaklanılacak 1 Fib seviyesi / hipotez
+5. Herhangi bir bot veya açık pozisyon için acil uyarı varsa belirt
 
-Tahmin yapma, yalnızca verideki gerçekleri yorumla."""
+Kesinlikle tahmin yapma, yalnızca verideki gerçekleri yorumla. Rakamlarla konuş."""
 
     try:
         url = f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
