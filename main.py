@@ -2414,6 +2414,116 @@ async def data_manifest():
     }
 
 
+
+# ─── OAR Kural Bankası ───────────────────────────────────────────────────────
+
+@app.get("/api/oar-rules")
+async def oar_rules_listele(tip: str = "", aktif: bool = True):
+    from oar_rules import kurallari_getir, istatistik
+    return {
+        "rules": kurallari_getir(tip or None, aktif),
+        "stats": istatistik()
+    }
+
+@app.post("/api/oar-rules")
+async def oar_rules_ekle(req: Request):
+    from oar_rules import kural_ekle
+    d = await req.json()
+    return kural_ekle(
+        baslik   = d.get("baslik", ""),
+        icerik   = d.get("icerik", ""),
+        tip      = d.get("tip", "GENEL"),
+        etiketler= d.get("etiketler", []),
+        oncelik  = d.get("oncelik", 1),
+    )
+
+@app.delete("/api/oar-rules/{kural_id}")
+async def oar_rules_sil(kural_id: str):
+    from oar_rules import kural_sil
+    ok = kural_sil(kural_id)
+    return {"silindi": ok}
+
+@app.patch("/api/oar-rules/{kural_id}")
+async def oar_rules_guncelle(kural_id: str, req: Request):
+    from oar_rules import kural_guncelle
+    d = await req.json()
+    ok = kural_guncelle(kural_id, **d)
+    return {"guncellendi": ok}
+
+@app.post("/api/oar-rules/{kural_id}/gorsel")
+async def oar_rules_gorsel(kural_id: str, dosya: UploadFile = File(...)):
+    from oar_rules import gorsel_ekle
+    veri = await dosya.read()
+    ok = gorsel_ekle(kural_id, dosya.filename, veri)
+    return {"eklendi": ok}
+
+@app.post("/api/oar-rules/dosya")
+async def oar_rules_dosya_ekle(
+    dosya: UploadFile = File(...),
+    baslik: str = Form(default=""),
+    tip: str = Form(default="GENEL"),
+    oncelik: int = Form(default=1),
+):
+    """
+    Canlı panelden dosya (txt/pdf/png/jpg) yükle → kural olarak kaydet.
+    Metin dosyaları icerik olarak okunur.
+    Görseller kural + görsel olarak kaydedilir.
+    """
+    from oar_rules import kural_ekle, gorsel_ekle
+    veri = await dosya.read()
+    uzanti = Path(dosya.filename).suffix.lower()
+
+    if uzanti in (".txt", ".md"):
+        icerik = veri.decode("utf-8", errors="replace")[:3000]
+        return kural_ekle(baslik or dosya.filename, icerik, tip, oncelik=oncelik)
+
+    elif uzanti == ".pdf":
+        try:
+            import pdfplumber, io
+            with pdfplumber.open(io.BytesIO(veri)) as pdf:
+                icerik = " ".join(p.extract_text() or "" for p in pdf.pages[:5])[:3000]
+        except Exception:
+            icerik = f"[PDF: {dosya.filename}]"
+        return kural_ekle(baslik or dosya.filename, icerik, tip, oncelik=oncelik)
+
+    elif uzanti in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+        kural = kural_ekle(baslik or dosya.filename,
+                           f"[Görsel: {dosya.filename}]", tip, oncelik=oncelik)
+        gorsel_ekle(kural["id"], dosya.filename, veri)
+        return kural
+
+    else:
+        return {"hata": f"Desteklenmeyen format: {uzanti}"}
+
+# ─── Kiyotaka Engine ─────────────────────────────────────────────────────────
+
+@app.get("/api/kiyotaka/ozet")
+async def kiyotaka_ozet_get(symbol: str = "BTCUSDT"):
+    """Anlık VPFR + TPO özeti."""
+    from kiyotaka_engine import canli_ozet
+    key = os.environ.get("KIYOTAKA_API_KEY", "")
+    if not key: return {"error": "KIYOTAKA_API_KEY eksik"}
+    return await canli_ozet(symbol, key)
+
+@app.post("/api/kiyotaka/filtre")
+async def kiyotaka_filtre_get(req: Request):
+    """
+    Fib temas noktası için Kiyotaka filtre skoru.
+    Body: {symbol, fib_price, direction, ts_ms}
+    """
+    from kiyotaka_engine import kiyotaka_filtre
+    d = await req.json()
+    key = os.environ.get("KIYOTAKA_API_KEY", "")
+    if not key: return {"error": "KIYOTAKA_API_KEY eksik"}
+    return await kiyotaka_filtre(
+        d.get("symbol","BTCUSDT"),
+        float(d.get("fib_price",0)),
+        d.get("direction","LONG"),
+        int(d.get("ts_ms", __import__("time").time()*1000)),
+        key
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Crypto AI Agent (Gemini + Deribit) başlatılıyor...")
