@@ -2330,6 +2330,35 @@ async def oar_backtest_ozet_get():
     from leader_agent import _oar_backtest_ozet
     return {"ozet": _oar_backtest_ozet()}
 
+@app.get("/api/oar-backtest/detay")
+async def oar_backtest_detay(limit: int = 1):
+    """
+    OAR backtest son test(ler)inin tam trade log'u.
+    Her trade: tarih, yön, fib, giriş, tp, outcome, pct.
+    Leader Agent panelinde gösterilir.
+    """
+    from historical_backtest import oar_gecmis_testler
+    testler = oar_gecmis_testler(limit)
+    if not testler:
+        return {"testler": [], "mesaj": "Henüz backtest yok"}
+    # Her testin son_50 trade logunu döndür
+    result = []
+    for t in testler:
+        result.append({
+            "sembol":        t.get("sembol"),
+            "gun":           t.get("gun"),
+            "tarih":         t.get("tarih"),
+            "win_rate":      t.get("win_rate"),
+            "sharpe":        t.get("sharpe"),
+            "toplam_pnl":    t.get("toplam_pnl_pct"),
+            "toplam_sinyal": t.get("toplam_sinyal"),
+            "filtrelenen":   t.get("filtrelenen"),
+            "by_fib":        t.get("by_fib", {}),
+            "params":        t.get("params", {}),
+            "trades":        t.get("son_50", t.get("son_10", [])),
+        })
+    return {"testler": result}
+
 @app.get("/api/deribit-ozet")
 async def deribit_ozet_get():
     """Anlık Deribit bağlamı: DVOL, GEX, Call/Put Wall."""
