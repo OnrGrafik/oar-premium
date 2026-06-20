@@ -152,9 +152,33 @@ async def oar_score(cl, sym="BTCUSDT") -> dict:
         # OAR yapısı (20) — Asia range mevcut mu (basit kontrol)
         detay["OAR Yapısı"] = {"puan": 14, "max": 20, "not": "Asia range izleniyor (canlı temas ek puan)"}
         skor += 14
-        # Options (10) — Vercel'den gelecek, şimdilik nötr
-        detay["Options"] = {"puan": 5, "max": 10, "not": "GEX entegrasyonu bekliyor"}
-        skor += 5
+        # Options (10) — Deribit GEX entegrasyonu
+        try:
+            from options_engine import gex_ozet
+            gex = await gex_ozet("BTC")
+            if gex and not gex.get("error"):
+                rejim = gex.get("gamma_rejim", "")
+                spot_val = gex.get("spot", 0) or 0
+                cw = gex.get("call_wall") or 0
+                pw = gex.get("put_wall")  or 0
+                # Spot, Call/Put Wall arasında mı? → nötr bölge
+                if pw and cw and pw < spot_val < cw:
+                    opt_p = 8  # nötr bölge, range
+                elif "POZİTİF" in rejim:
+                    opt_p = 10  # pozitif gamma: stabilize → trend sinyali güçlü
+                elif "NEGATİF" in rejim:
+                    opt_p = 6   # negatif gamma: volatil → dikkatli ol
+                else:
+                    opt_p = 5
+                detay["Options"] = {"puan": opt_p, "max": 10,
+                                    "not": f"GEX: {rejim} | CW=${cw:,.0f} PW=${pw:,.0f}"}
+            else:
+                detay["Options"] = {"puan": 5, "max": 10, "not": "GEX verisi yok"}
+                opt_p = 5
+        except Exception as eg:
+            detay["Options"] = {"puan": 5, "max": 10, "not": f"GEX hata: {str(eg)[:40]}"}
+            opt_p = 5
+        skor += opt_p
     except Exception as e:
         return {"skor": 0, "hata": str(e)[:80]}
     kalite = "YÜKSEK" if skor>=75 else "ORTA" if skor>=55 else "DÜŞÜK"
