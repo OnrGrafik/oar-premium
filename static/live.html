@@ -1146,13 +1146,16 @@ function updateFeedOnly(){
 }
 function scrLive(){
   const ctx=ST.ctx||{}, ms=ctx.move_source||{}, reg=ctx.regime||{};
+  const oarSc  = (ctx.oar_score||{});
+  const oarDet = oarSc.detay||{};
+  const optDet = oarDet['Options']||{};
   const ind=[
     {l:'REJİM',v:reg.rejim||'—',d:reg.atr_durum||'',col:'#1ff0ad'},
-    {l:'OAR SCORE',v:(ctx.oar_score||{}).skor||'—',d:'/100',col:'#7af0c4'},
+    {l:'OAR SCORE',v:oarSc.skor||'—',d:'/100 '+( oarSc.kalite||''),col:oarSc.skor>=75?'#1ff0ad':oarSc.skor>=55?'#ffb13c':'#ff5d6c'},
     {l:'MOVE SRC',v:ms.kaynak?ms.kaynak.split('-')[0]:'—',d:ms.spot_pct?'%'+ms.spot_pct+' spot':'',col:'#56a8ff'},
-    {l:'F&G',v:ST.fng||'—',d:'',col:'#ffb13c'},
+    {l:'GEX',v:optDet.not?optDet.not.split('|')[0].replace('GEX:','').trim():'—',d:optDet.puan!=null?optDet.puan+'/10 pt':'',col:optDet.puan>=8?'#1ff0ad':optDet.puan>=6?'#ffb13c':'#ff5d6c'},
     {l:'SİNYAL',v:ST.signals.length,d:'toplam',col:'#cdd9d8'},
-    {l:'TOPLULUK',v:'10',d:'aktif bot',col:'#9fb0ad'},
+    {l:'F&G',v:ST.fng||'—',d:'',col:'#ffb13c'},
   ];
   const feedHtml=feedHtmlGen();
 
@@ -1500,6 +1503,36 @@ function scrOarBacktest(){
         </div>`).join('')}
     </div>` : '';
 
+  // Swing karar bölümü
+  const swingHtml = `
+    <div class="card" style="padding:16px;margin-top:12px">
+      <div style="font-size:10px;color:#5e716f;letter-spacing:.1em;margin-bottom:12px">SWING KARAR ANALİZİ</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Sembol</div>
+          <select id="sw_sym" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;border-radius:3px">
+            ${['BTCUSDT','ETHUSDT','SOLUSDT'].map(s=>`<option>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Yön</div>
+          <select id="sw_dir" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;border-radius:3px">
+            <option>LONG</option><option>SHORT</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Fib Seviyesi</div>
+          <select id="sw_fib" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;border-radius:3px">
+            <option>-1.272</option><option>-1.618</option><option>2.272</option><option>2.618</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="checkSwing()" style="background:#131918;border:1px solid #1a2422;color:#56a8ff;font-family:inherit;font-size:11px;padding:7px 16px;cursor:pointer;border-radius:3px">
+        ⟳ Swing Analizi Yap
+      </button>
+      <div id="sw_result" style="margin-top:10px;font-size:12px;color:#8a9c99"></div>
+    </div>`;
+
   return `<div style="max-width:900px">
     <div style="margin-bottom:20px">
       <div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">OAR Backtest</div>
@@ -1581,6 +1614,30 @@ async function loadOarOzet(){
   if(d) ST.oar_ozet = d.ozet;
   const d2 = await jget('/api/deribit-ozet');
   if(d2) ST.deribit_ozet = d2.ozet;
+}
+
+async function checkSwing(){
+  const sym = document.getElementById('sw_sym')?.value||'BTCUSDT';
+  const dir = document.getElementById('sw_dir')?.value||'LONG';
+  const fib = document.getElementById('sw_fib')?.value||'-1.272';
+  const el  = document.getElementById('sw_result');
+  if(el) el.textContent = '⏳ Analiz yapılıyor...';
+  try {
+    const r = await fetch(API+'/api/oar-swing',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({symbol:sym, direction:dir, fib_level:fib})
+    });
+    const d = await r.json();
+    if(el){
+      const renk = d.swing ? '#1ff0ad' : '#ff5d6c';
+      const ikon = d.swing ? '✅ SWING TAŞINABİLİR' : '❌ SWING ÖNERİLMEZ';
+      el.innerHTML = `<span style="color:${renk};font-weight:600">${ikon}</span>
+        <div style="color:#8a9c99;font-size:11px;margin-top:6px">${esc(d.reason||'')}</div>
+        ${d.swing ? '<div style="color:#5e716f;font-size:10px;margin-top:4px">Max '+d.max_gun+' gün | Funding: '+(d.funding*100).toFixed(3)+'%</div>' : ''}`;
+    }
+  } catch(e) {
+    if(el) el.textContent = 'Hata: '+e.message;
+  }
 }
 
 boot();
