@@ -221,15 +221,23 @@ def gecmis_testler(limit=20):
 # OAR TAM BACKTEST — Taker / Funding / OI Filtreleri ile
 # ══════════════════════════════════════════════════════════════════════
 OAR_DEFAULT_PARAMS = {
-    "touch_pct":           0.003,
-    "btc_min_range_pct":   1.0,
+    "touch_pct":           0.003,   # %0.3 temas toleransı
+    "btc_min_range_pct":   1.0,     # BTC asia range min %1
     "sl_range_mult":       0.5,
     "filter_taker":        True,
-    "filter_funding":      True,
-    "filter_oi":           True,
+    "filter_funding":      False,   # Funding: geçmiş veri yok → kapalı
+    "filter_oi":           False,   # OI: sadece 29 gün geçmiş → kapalı (canlıda açık)
+    "taker_threshold_pct": 50.5,    # Hafif eşik — %50.5 (neredeyse nötr)
+    "eval_hours":          8,       # 8 saat sonrası değerlendirme
+    "eval_esik":           0.5,     # WIN/LOSS eşiği %0.5
+}
+
+# Canlı sinyal için filtreler (backtest'ten farklı)
+OAR_LIVE_PARAMS = {
+    **OAR_DEFAULT_PARAMS,
+    "filter_taker": True,           # Canlıda taker filtresi açık
+    "filter_oi":    True,           # Canlıda OI filtresi açık
     "taker_threshold_pct": 52.0,
-    "eval_hours":          4,
-    "eval_esik":           0.5,
 }
 
 OAR_BACKTEST_FILE = DATA_DIR / "oar_tam_backtest.json"
@@ -406,7 +414,7 @@ async def bt_oar_tam(sym: str = "BTCUSDT", gun: int = 90, params: dict = None) -
         "max_drawdown":   round(max_dd, 2),
         "sharpe":         sharpe,
         "by_fib":         by_fib,
-        "son_10":         tamamlanan[-10:],
+        "son_50":         tamamlanan[-50:],  # detaylı trade log
     }
 
     db = json.loads(OAR_BACKTEST_FILE.read_text()) \
