@@ -2312,6 +2312,30 @@ async def oar_backtest_en_iyi():
     if not testler: return {"mesaj": "Henuz yeterli backtest yok"}
     return max(testler, key=lambda t: t.get("sharpe", 0))
 
+
+@app.post("/api/oar-swing")
+async def oar_swing_karar(req: Request):
+    """
+    Açık pozisyon için swing taşıma kararı.
+    Body: {symbol, direction, entry_price, fib_level}
+    Kural tabanlı: Funding + DVOL + GEX
+    """
+    from leader_agent import swing_karar
+    data   = await req.json()
+    return await swing_karar(data)
+
+@app.get("/api/oar-backtest/ozet")
+async def oar_backtest_ozet_get():
+    """Leader sayfası için kısa OAR backtest özeti."""
+    from leader_agent import _oar_backtest_ozet
+    return {"ozet": _oar_backtest_ozet()}
+
+@app.get("/api/deribit-ozet")
+async def deribit_ozet_get():
+    """Anlık Deribit bağlamı: DVOL, GEX, Call/Put Wall."""
+    from leader_agent import _deribit_ozet
+    return {"ozet": await _deribit_ozet()}
+
 # ─── Veri Dışa Aktarma (Lokal Sync için) ────────────────────────────────────
 
 @app.get("/api/data/export")
