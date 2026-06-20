@@ -2288,6 +2288,55 @@ async def chat(
         "model": globals().get("_last_model_used", GEMINI_MODEL),
     }
 
+# ─── Veri Dışa Aktarma (Lokal Sync için) ────────────────────────────────────
+
+@app.get("/api/data/export")
+async def data_export():
+    """
+    /var/data klasörünün tamamını ZIP olarak indir.
+    Lokal sync scripti bunu çağırır — bilgisayar açılınca otomatik çeker.
+    """
+    import zipfile, io, time
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in DATA_DIR.rglob("*"):
+            if f.is_file():
+                try:
+                    zf.write(f, f.relative_to(DATA_DIR))
+                except Exception:
+                    pass
+    buf.seek(0)
+    ts = int(time.time())
+    from fastapi.responses import Response
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=oar_data_{ts}.zip"}
+    )
+
+@app.get("/api/data/manifest")
+async def data_manifest():
+    """Hangi dosyalar var, ne zaman güncellendi — sync kararı için."""
+    import time
+    files = {}
+    for f in DATA_DIR.rglob("*"):
+        if f.is_file():
+            try:
+                rel = str(f.relative_to(DATA_DIR))
+                files[rel] = {
+                    "size":     f.stat().st_size,
+                    "modified": int(f.stat().st_mtime),
+                }
+            except Exception:
+                pass
+    return {
+        "server":    "https://oar-premium.onrender.com",
+        "data_dir":  str(DATA_DIR),
+        "timestamp": int(time.time()),
+        "files":     files,
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Crypto AI Agent (Gemini + Deribit) başlatılıyor...")
