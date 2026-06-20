@@ -43,6 +43,15 @@ def _oar_backtest_ozet() -> str:
     except Exception as e:
         return f"OAR backtest okunamadı: {e}"
 
+# OAR Kural Bankası bağlamı
+def _oar_kural_baglami() -> str:
+    """Leader Agent promptuna kullanıcı tanımlı kuralları ekle."""
+    try:
+        from oar_rules import agent_baglami
+        return agent_baglami(max_kural=8)
+    except Exception:
+        return ""
+
 # Deribit opsiyon bağlamı
 async def _deribit_ozet() -> str:
     """GEX, Call/Put Wall, Max Pain, DVOL — Lider Agent promptuna eklenir."""
@@ -650,7 +659,8 @@ Kesin rakamlarla, matematiksel ve bilimsel cevap ver. Türkçe."""
             deribit_ctx = await _deribit_ozet()
         except Exception:
             deribit_ctx = "Deribit verisi alınamadı"
-        oar_bt_ctx = _oar_backtest_ozet()
+        oar_bt_ctx   = _oar_backtest_ozet()
+        oar_kural_ctx = _oar_kural_baglami()
 
         prompt = f"""Sen OAR Premium'un Lider Agent'ısın. Sabah raporunu oluştur.
 
@@ -662,6 +672,9 @@ BACKTEST ANALİZİ (bot sinyalleri):
 
 OAR TAM BACKTEST (Asia Range Fib sistemi):
 {oar_bt_ctx}
+
+OAR KURAL BANKASI (Kullanıcı tanımlı — kesinlikle uy):
+{oar_kural_ctx}
 
 DERİBİT OPSİYON BAĞLAMI:
 {deribit_ctx}
