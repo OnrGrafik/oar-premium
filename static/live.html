@@ -1728,7 +1728,7 @@ function scrOarRules(){
       +'<span style="font-size:12px;color:#cdd9d8;font-weight:600;flex:1">'+esc(r.baslik)+'</span>'
       +'<span style="font-size:9px;color:'+rc+';background:'+rc+'22;padding:2px 7px;border-radius:3px">'+r.tip+'</span>'
       +'<span style="font-size:10px;color:#ffb13c">'+onc+'</span>'
-      +'<button onclick="kuralSil(''+r.id+'')" style="background:none;border:none;color:#5e716f;cursor:pointer;font-size:13px;padding:0 4px">✕</button>'
+      +'<button onclick="kuralSilBtn(this)" data-id="'+r.id+'" style="background:none;border:none;color:#5e716f;cursor:pointer;font-size:13px;padding:0 4px">✕</button>'
       +'</div>'
       +'<div style="font-size:12px;color:#8a9c99;line-height:1.6;white-space:pre-wrap">'+esc(r.icerik.slice(0,300))+(r.icerik.length>300?'…':'')+'</div>'
       +(r.gorsel ? '<div style="margin-top:8px;font-size:10px;color:#56a8ff">📎 Görsel: '+esc(r.gorsel)+'</div>' : '')
@@ -1739,7 +1739,7 @@ function scrOarRules(){
   return '<div style="max-width:860px">'
     +'<div style="margin-bottom:20px">'
     +'<div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">OAR Kural Bankası</div>'
-    +'<div style="font-size:11px;color:#5e716f">Agent'larınıza öğrettiğiniz kurallar · Lider Agent her kararında bunları okur</div>'
+    +"<div style=\"font-size:11px;color:#5e716f\">Agentlarınıza öğrettiğiniz kurallar · Lider Agent her kararında bunları okur</div>"
     +'</div>'
 
     // Yeni kural formu
@@ -1822,6 +1822,10 @@ async function dosyaYukle(){
   }
 }
 
+async function kuralSilBtn(btn){
+  const id = btn.getAttribute('data-id');
+  await kuralSil(id);
+}
 async function kuralSil(id){
   if(!confirm('Bu kuralı sil?')) return;
   await fetch(API+'/api/oar-rules/'+id,{method:'DELETE'});
