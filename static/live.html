@@ -174,6 +174,7 @@ const NAV = [
   {id:'agents',  icon:'⬡', label:'Agentlar & Botlar'},
   {id:'theory',  icon:'⚗', label:'Theory Lab'},
   {id:'oarbt',    icon:'⊞', label:'OAR Backtest'},
+  {id:'oarrules', icon:'✦', label:'OAR Kural Bankası'},
   {id:'knowledge',icon:'⛁', label:'Bilgi / Hafıza'},
 ];
 
@@ -232,7 +233,7 @@ function renderRail(){
       <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
     </div>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='oarbt')loadOarBacktest();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='oarbt')loadOarBacktest();if(tab==='oarrules')loadOarRules();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -268,6 +269,7 @@ function render(){
   else if(ST.tab==='live')m.innerHTML=scrLive();
   else if(ST.tab==='macro')m.innerHTML=scrMacro();
   else if(ST.tab==='oarbt'){m.innerHTML=scrOarBacktest();loadOarBacktest();}
+  else if(ST.tab==='oarrules'){m.innerHTML=scrOarRules();loadOarRules();}
 }
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
@@ -1690,6 +1692,140 @@ async function checkSwing(){
   } catch(e) {
     if(el) el.textContent = 'Hata: '+e.message;
   }
+}
+
+// ════════════ OAR KURAL BANKASI ════════════
+const TIP_RENK = {SETUP:'#1ff0ad',FILTRE:'#ff5d6c',SWING:'#56a8ff',MAKRO:'#ffb13c',GENEL:'#8a9c99'};
+const TIP_ICON = {SETUP:'◆',FILTRE:'✕',SWING:'⟳',MAKRO:'▦',GENEL:'○'};
+
+function scrOarRules(){
+  const rules = ST.oar_rules || [];
+  const stats = ST.oar_rules_stats || {};
+  const tipler = ['SETUP','FILTRE','SWING','MAKRO','GENEL'];
+
+  const statsHtml = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      ${tipler.map(t=>{
+        const n=stats.tipler?.[t]||0;
+        return n ? '<div style="background:#0c1112;border:1px solid #18211f;border-radius:4px;padding:6px 12px;font-size:11px">'
+          +'<span style="color:'+TIP_RENK[t]+';margin-right:6px">'+TIP_ICON[t]+'</span>'
+          +'<span style="color:#cdd9d8">'+t+'</span>'
+          +'<span style="color:#5e716f;margin-left:8px">'+n+'</span></div>' : '';
+      }).join('')}
+      <div style="background:#0c1112;border:1px solid #18211f;border-radius:4px;padding:6px 12px;font-size:11px;margin-left:auto">
+        <span style="color:#5e716f">Toplam </span><span style="color:#cdd9d8">${stats.toplam_kural||0}</span>
+        <span style="color:#5e716f;margin-left:8px">Görselli </span><span style="color:#56a8ff">${stats.gorselli||0}</span>
+      </div>
+    </div>`;
+
+  const rulesHtml = rules.length ? rules.map(r => {
+    const rc = TIP_RENK[r.tip]||'#8a9c99';
+    const ri = TIP_ICON[r.tip]||'○';
+    const onc = '★'.repeat(r.oncelik||1)+'☆'.repeat(5-(r.oncelik||1));
+    return '<div class="card" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid '+rc+'">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+      +'<span style="color:'+rc+';font-size:13px">'+ri+'</span>'
+      +'<span style="font-size:12px;color:#cdd9d8;font-weight:600;flex:1">'+esc(r.baslik)+'</span>'
+      +'<span style="font-size:9px;color:'+rc+';background:'+rc+'22;padding:2px 7px;border-radius:3px">'+r.tip+'</span>'
+      +'<span style="font-size:10px;color:#ffb13c">'+onc+'</span>'
+      +'<button onclick="kuralSil(''+r.id+'')" style="background:none;border:none;color:#5e716f;cursor:pointer;font-size:13px;padding:0 4px">✕</button>'
+      +'</div>'
+      +'<div style="font-size:12px;color:#8a9c99;line-height:1.6;white-space:pre-wrap">'+esc(r.icerik.slice(0,300))+(r.icerik.length>300?'…':'')+'</div>'
+      +(r.gorsel ? '<div style="margin-top:8px;font-size:10px;color:#56a8ff">📎 Görsel: '+esc(r.gorsel)+'</div>' : '')
+      +(r.etiketler?.length ? '<div style="margin-top:6px">'+r.etiketler.map(e=>'<span style="font-size:9px;background:#131918;color:#8a9c99;padding:2px 6px;border-radius:10px;margin-right:4px">'+esc(e)+'</span>').join('')+'</div>' : '')
+      +'</div>';
+  }).join('') : '<div style="color:#5e716f;font-size:12px;padding:20px">Henüz kural eklenmedi.</div>';
+
+  return '<div style="max-width:860px">'
+    +'<div style="margin-bottom:20px">'
+    +'<div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">OAR Kural Bankası</div>'
+    +'<div style="font-size:11px;color:#5e716f">Agent'larınıza öğrettiğiniz kurallar · Lider Agent her kararında bunları okur</div>'
+    +'</div>'
+
+    // Yeni kural formu
+    +'<div class="card" style="padding:16px;margin-bottom:16px">'
+    +'<div style="font-size:10px;color:#5e716f;letter-spacing:.1em;margin-bottom:12px">YENİ KURAL / DOSYA EKLE</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
+    +'<div><div style="font-size:10px;color:#5e716f;margin-bottom:4px">Başlık</div>'
+    +'<input id="rl_baslik" placeholder="Kural başlığı..." style="width:100%;background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:7px 10px;border-radius:3px;outline:none"></div>'
+    +'<div><div style="font-size:10px;color:#5e716f;margin-bottom:4px">Tip · Öncelik</div>'
+    +'<div style="display:flex;gap:6px">'
+    +'<select id="rl_tip" style="flex:1;background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:7px 8px;border-radius:3px">'
+    +tipler.map(t=>'<option>'+t+'</option>').join('')
+    +'</select>'
+    +'<select id="rl_onc" style="width:70px;background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:7px 8px;border-radius:3px">'
+    +[1,2,3,4,5].map(n=>'<option>'+n+'</option>').join('')+'</select>'
+    +'</div></div></div>'
+    +'<div style="margin-bottom:10px"><div style="font-size:10px;color:#5e716f;margin-bottom:4px">Kural İçeriği (metin)</div>'
+    +'<textarea id="rl_icerik" rows="3" placeholder="Kuralı detaylı açıkla..." '
+    +'style="width:100%;background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:8px 10px;border-radius:3px;outline:none;resize:vertical"></textarea></div>'
+    +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+    +'<button onclick="kuralEkle()" style="background:#1ff0ad;color:#07090a;border:none;padding:8px 18px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:3px">+ Kural Ekle</button>'
+    +'<label style="background:#131918;border:1px solid #1a2422;color:#8a9c99;padding:8px 14px;border-radius:3px;cursor:pointer;font-size:12px">'
+    +'📎 Dosya / Görsel Yükle'
+    +'<input type="file" id="rl_dosya" accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.webp" style="display:none" onchange="dosyaYukle()">'
+    +'</label>'
+    +'<span id="rl_status" style="font-size:11px;color:#5e716f"></span>'
+    +'</div></div>'
+
+    +statsHtml
+    +rulesHtml
+    +'</div>';
+}
+
+async function loadOarRules(){
+  const d = await jget('/api/oar-rules');
+  if(d){ ST.oar_rules=d.rules||[]; ST.oar_rules_stats=d.stats||{}; }
+}
+
+async function kuralEkle(){
+  const b=document.getElementById('rl_baslik')?.value?.trim();
+  const i=document.getElementById('rl_icerik')?.value?.trim();
+  if(!b||!i){document.getElementById('rl_status').textContent='Başlık ve içerik zorunlu';return;}
+  const tip  = document.getElementById('rl_tip')?.value||'GENEL';
+  const onc  = parseInt(document.getElementById('rl_onc')?.value)||1;
+  document.getElementById('rl_status').textContent='Ekleniyor...';
+  const r = await jpost('/api/oar-rules',{baslik:b,icerik:i,tip,oncelik:onc});
+  if(r?.id){
+    document.getElementById('rl_baslik').value='';
+    document.getElementById('rl_icerik').value='';
+    document.getElementById('rl_status').textContent='✅ Eklendi: '+r.id;
+    await loadOarRules(); render();
+  }
+}
+
+async function dosyaYukle(){
+  const inp = document.getElementById('rl_dosya');
+  if(!inp?.files?.length) return;
+  const dosya = inp.files[0];
+  const baslik = document.getElementById('rl_baslik')?.value?.trim() || dosya.name;
+  const tip    = document.getElementById('rl_tip')?.value||'GENEL';
+  const onc    = parseInt(document.getElementById('rl_onc')?.value)||1;
+  document.getElementById('rl_status').textContent='Yükleniyor: '+dosya.name+'...';
+  const fd = new FormData();
+  fd.append('dosya', dosya);
+  fd.append('baslik', baslik);
+  fd.append('tip', tip);
+  fd.append('oncelik', onc);
+  try{
+    const r = await fetch(API+'/api/oar-rules/dosya',{method:'POST',body:fd});
+    const d = await r.json();
+    if(d?.id){
+      document.getElementById('rl_status').textContent='✅ Yüklendi: '+d.id;
+      inp.value='';
+      await loadOarRules(); render();
+    } else {
+      document.getElementById('rl_status').textContent='Hata: '+(d?.hata||'bilinmiyor');
+    }
+  } catch(e){
+    document.getElementById('rl_status').textContent='Hata: '+e.message;
+  }
+}
+
+async function kuralSil(id){
+  if(!confirm('Bu kuralı sil?')) return;
+  await fetch(API+'/api/oar-rules/'+id,{method:'DELETE'});
+  await loadOarRules(); render();
 }
 
 boot();
