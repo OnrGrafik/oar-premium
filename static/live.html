@@ -1489,6 +1489,54 @@ function scrOarBacktest(){
       </div>
     </div>` : '<div style="color:#5e716f;font-size:12px;margin-bottom:12px">Henüz backtest çalıştırılmadı.</div>';
 
+  // Detaylı trade log
+  const det = ST.oarbt_detay || null;
+  const tradeLogHtml = det && det.trades && det.trades.length ? (() => {
+    const rows = det.trades.map(t => {
+      const dt  = (t.tarih||'').slice(0,16).replace('T',' ');
+      const yon = t.yon||'—';
+      const fib = t.seviye!=null ? parseFloat(t.seviye).toFixed(2) : '—';
+      const gir = t.seviye!=null ? '$'+Number(t.seviye).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
+      const ahi = t.asia_hi!=null ? '$'+Number(t.asia_hi).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
+      const alo = t.asia_lo!=null ? '$'+Number(t.asia_lo).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
+      const rng = t.rng_pct!=null ? '%'+t.rng_pct : '—';
+      const tp  = t.tp!=null ? '$'+Number(t.tp).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
+      const res = t.outcome||'—';
+      const pct = t.pct!=null ? (t.pct>=0?'+':'')+t.pct+'%' : '—';
+      const rc = res==='WIN'?'#1ff0ad':res==='LOSS'?'#ff5d6c':'#8a9c99';
+      const pc = (t.pct||0)>=0?'#1ff0ad':'#ff5d6c';
+      const yc = yon==='LONG'?'#1ff0ad':'#ff5d6c';
+      return '<tr style="border-bottom:1px solid #0f1615">'
+        +'<td style="padding:6px 10px;color:#5e716f">'+dt+'</td>'
+        +'<td style="padding:6px 10px;color:'+yc+';font-weight:600">'+yon+'</td>'
+        +'<td style="padding:6px 10px;color:#56a8ff">'+fib+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#cdd9d8">'+gir+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">'+ahi+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">'+alo+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">'+rng+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#ffb13c">'+tp+'</td>'
+        +'<td style="padding:6px 10px;text-align:center;color:'+rc+';font-weight:600">'+res+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:'+pc+';font-weight:600">'+pct+'</td>'
+        +'</tr>';
+    }).join('');
+    const pr = det.params||{};
+    return '<div class="card" style="overflow:hidden;margin-top:12px">'
+      +'<div style="padding:11px 14px;border-bottom:1px solid #18211f;display:flex;align-items:center;justify-content:space-between">'
+      +'<div style="font-size:9.5px;color:#5e716f;letter-spacing:.1em">TRADE LOG — '+esc(det.sembol)+' '+det.gun+'g · '+det.trades.length+' işlem</div>'
+      +'<div style="font-size:10px;color:#5e716f">'
+      +'touch %'+(pr.touch_pct||0.003)*100+' · taker:'+(pr.filter_taker?'açık':'kapalı')+' · OI:'+(pr.filter_oi?'açık':'kapalı')+' · eval:'+( pr.eval_hours||8)+'h'
+      +'</div></div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +'<thead><tr style="background:#0a0f0f">'
+      +['TARİH','YÖN','FİB','GİRİŞ','ASIA H','ASIA L','RNG%','TP','SONUÇ','P&L%']
+        .map(h=>'<th style="padding:7px 10px;text-align:'+(h==='SONUÇ'?'center':['GİRİŞ','ASIA H','ASIA L','RNG%','TP','P&L%'].includes(h)?'right':'left')+';color:#5e716f;font-weight:400;font-size:9px;letter-spacing:.07em;border-bottom:1px solid #18211f">'+h+'</th>')
+        .join('')
+      +'</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      +'<div style="padding:8px 14px;border-top:1px solid #18211f;font-size:10px;color:#5e716f">'
+      +'TP = Asia High (SHORT) / Asia Low (LONG) · Değerlendirme: '+(pr.eval_hours||8)+'h sonrası · Temas: %'+((pr.touch_pct||0.003)*100)
+      +'</div></div>';
+  })() : '';
+
   const gecmisHtml = gecmis.length ? `
     <div class="card" style="overflow:hidden;margin-top:12px">
       <div style="padding:10px 14px;border-bottom:1px solid #18211f;font-size:9.5px;color:#5e716f;letter-spacing:.12em">GEÇMİŞ TESTLER</div>
@@ -1571,7 +1619,9 @@ function scrOarBacktest(){
     </div>
 
     ${sonucHtml}
+    ${tradeLogHtml}
     ${gecmisHtml}
+    ${swingHtml}
   </div>`;
 }
 
@@ -1607,6 +1657,8 @@ async function runOarBacktest(){
 async function loadOarBacktest(){
   const d = await jget('/api/oar-backtest/gecmis?limit=20');
   if(d && d.testler) ST.oarbt_gecmis = d.testler;
+  const det = await jget('/api/oar-backtest/detay?limit=1');
+  if(det && det.testler && det.testler.length) ST.oarbt_detay = det.testler[0];
 }
 
 async function loadOarOzet(){
