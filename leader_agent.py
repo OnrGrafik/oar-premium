@@ -68,15 +68,16 @@ async def _deribit_ozet() -> str:
         if dvol:   parcalar.append(f"DVOL: {dvol:.1f}")
         if spot:   parcalar.append(f"BTC Spot: ${spot:,.0f}")
 
-        # options_engine'den GEX (varsa)
+        # options_engine'den GEX
         try:
-            from options_engine import get_gex_summary
-            gex = await get_gex_summary()
-            if gex:
-                parcalar.append(f"GEX: {gex.get('net_gex_usd', '?')} ({gex.get('regime', '?')})")
+            from options_engine import gex_ozet
+            gex = await gex_ozet("BTC")
+            if gex and not gex.get("error"):
+                parcalar.append(f"GEX Rejim: {gex.get('gamma_rejim', '?')}")
                 if gex.get("call_wall"): parcalar.append(f"Call Wall: ${gex['call_wall']:,.0f}")
                 if gex.get("put_wall"):  parcalar.append(f"Put Wall:  ${gex['put_wall']:,.0f}")
                 if gex.get("max_pain"):  parcalar.append(f"Max Pain:  ${gex['max_pain']:,.0f}")
+                if gex.get("zero_gamma"):parcalar.append(f"Zero Gamma: ${gex['zero_gamma']:,.0f}")
         except Exception:
             pass
 
