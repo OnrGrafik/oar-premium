@@ -174,7 +174,9 @@ const NAV = [
   {id:'agents',  icon:'⬡', label:'Agentlar & Botlar'},
   {id:'theory',  icon:'⚗', label:'Theory Lab'},
   {id:'oarbt',    icon:'⊞', label:'OAR Backtest'},
-  {id:'oarrules', icon:'✦', label:'OAR Kural Bankası'},
+  {id:'oarrules',    icon:'✦', label:'OAR Kural Bankası'},
+  {id:'arastirma',   icon:'⚙', label:'Otonom Araştırma'},
+  {id:'keylevel',    icon:'⊕', label:'Key Level Analizi'},
   {id:'knowledge',icon:'⛁', label:'Bilgi / Hafıza'},
 ];
 
@@ -233,7 +235,7 @@ function renderRail(){
       <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
     </div>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='oarbt')loadOarBacktest();if(tab==='oarrules')loadOarRules();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if(tab==='theory'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='oarbt')loadOarBacktest();if(tab==='oarrules')loadOarRules();if(tab==='arastirma')loadArastirma();if(tab==='keylevel')loadKeyLevel();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -270,6 +272,8 @@ function render(){
   else if(ST.tab==='macro')m.innerHTML=scrMacro();
   else if(ST.tab==='oarbt'){m.innerHTML=scrOarBacktest();loadOarBacktest();}
   else if(ST.tab==='oarrules'){m.innerHTML=scrOarRules();loadOarRules();}
+  else if(ST.tab==='arastirma'){m.innerHTML=scrArastirma();loadArastirma();}
+  else if(ST.tab==='keylevel'){m.innerHTML=scrKeyLevel();loadKeyLevel();}
 }
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
@@ -1857,6 +1861,167 @@ async function kuralSil(id){
   if(!confirm('Bu kuralı sil?')) return;
   await fetch(API+'/api/oar-rules/'+id,{method:'DELETE'});
   await loadOarRules(); render();
+}
+
+// ════════════ OTONOM ARAŞTIRMA SAYFASI ════════════
+function scrArastirma(){
+  const d = ST.arastirma || {};
+  const enIyi = d.en_iyi || null;
+  const son5  = d.son_5  || [];
+
+  const pBadge = p => {
+    const c = p>=80?'#1ff0ad':p>=65?'#56a8ff':p>=50?'#ffb13c':'#ff5d6c';
+    const l = p>=80?'MÜKEMMEL':p>=65?'İYİ':p>=50?'ORTA':'ZAYIF';
+    return '<span style="color:'+c+';background:'+c+'22;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600">'+p+' · '+l+'</span>';
+  };
+
+  const iyi = enIyi ? '<div class="card" style="padding:16px;margin-bottom:12px;border-left:3px solid #1ff0ad">'
+    +'<div style="font-size:10px;color:#5e716f;letter-spacing:.1em;margin-bottom:10px">EN İYİ SİSTEM — '+pBadge(enIyi.puan)+'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">'
+    +[['WIN RATE','%'+enIyi.stats.win_rate,'#1ff0ad'],
+      ['SHARPE',enIyi.stats.sharpe,'#56a8ff'],
+      ['TOPLAM PnL',(enIyi.stats.toplam_pnl_pct>=0?'+':'')+enIyi.stats.toplam_pnl_pct+'%',enIyi.stats.toplam_pnl_pct>=0?'#1ff0ad':'#ff5d6c'],
+      ['MAX DD','-'+enIyi.stats.max_drawdown+'%','#ff5d6c']
+    ].map(([l,v,c])=>'<div style="background:#0c1112;border:1px solid #18211f;border-radius:3px;padding:8px 12px">'
+      +'<div style="font-size:9px;color:#5e716f">'+l+'</div>'
+      +'<div style="font-size:16px;color:'+c+';font-weight:600">'+v+'</div></div>'
+    ).join('')
+    +'</div>'
+    +'<div style="font-size:10px;color:#8a9c99">Parametreler: touch=%'+(enIyi.params.touch_pct*100).toFixed(1)
+    +' eval='+enIyi.params.eval_saat+'h taker>'+enIyi.params.taker_esik+' btc_min=%'+enIyi.params.btc_min_range+'</div>'
+    +'<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
+    +Object.entries(enIyi.stats.by_fib||{}).map(([fk,fv])=>
+      '<div style="background:#131918;border:1px solid #18211f;padding:6px 10px;border-radius:3px">'
+      +'<div style="font-size:10px;color:#56a8ff">Fib '+fk+'</div>'
+      +'<div style="font-size:11px;color:#cdd9d8">WR %'+fv.win_rate+' · '+fv.total+' sinyal</div>'
+      +'<div style="font-size:10px;color:'+(fv.pnl>=0?'#1ff0ad':'#ff5d6c')+'">'+(fv.pnl>=0?'+':'')+fv.pnl+'%</div>'
+      +'</div>'
+    ).join('')
+    +'</div></div>'
+    : '<div style="color:#5e716f;font-size:12px;padding:16px;background:#0c1112;border-radius:5px;margin-bottom:12px">Henüz araştırma yapılmadı. Başlat butonuna tıkla.</div>';
+
+  const sirali = son5.length ? '<div class="card" style="overflow:hidden;margin-bottom:12px">'
+    +'<div style="padding:10px 14px;border-bottom:1px solid #18211f;font-size:9.5px;color:#5e716f;letter-spacing:.1em">TÜM SİSTEMLER SIRALI</div>'
+    +son5.map((s,i)=>'<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid #0f1615;font-size:11px">'
+      +'<span style="color:#5e716f;min-width:20px">#'+(i+1)+'</span>'
+      +pBadge(s.puan)
+      +'<span style="color:#8a9c99;min-width:90px">'+s.params.etiket+'</span>'
+      +'<span style="color:#1ff0ad">WR %'+s.stats.win_rate+'</span>'
+      +'<span style="color:#56a8ff">Sh '+s.stats.sharpe+'</span>'
+      +'<span style="color:#cdd9d8">'+s.stats.toplam_sinyal+' sinyal</span>'
+      +'</div>'
+    ).join('')+'</div>'
+    : '';
+
+  const rapor = d.rapor ? '<div class="card" style="padding:14px;margin-top:12px">'
+    +'<div style="font-size:9.5px;color:#5e716f;letter-spacing:.1em;margin-bottom:10px">OTOMATİK RAPOR</div>'
+    +'<pre style="font-size:10px;color:#8a9c99;white-space:pre-wrap;line-height:1.6;margin:0">'+esc(d.rapor)+'</pre>'
+    +'</div>' : '';
+
+  return '<div style="max-width:900px">'
+    +'<div style="margin-bottom:20px">'
+    +'<div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">Otonom Araştırma</div>'
+    +'<div style="font-size:11px;color:#5e716f">OAR Asia Range Fib · 8 parametre seti · Otomatik puanlama · Leader Agent bağlantılı</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:16px">'
+    +'<button onclick="arastirmaBaslat()" id="ar_btn" style="background:#1ff0ad;color:#07090a;border:none;padding:8px 18px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:3px">⚙ Araştırma Başlat (30g)</button>'
+    +'<span id="ar_status" style="font-size:11px;color:#5e716f;align-self:center"></span>'
+    +'<span style="margin-left:auto;font-size:10px;color:#5e716f">'+(d.guncelleme?'Son: '+d.guncelleme.slice(0,16).replace("T"," "):'')+'</span>'
+    +'</div>'
+    +iyi+sirali+rapor+'</div>';
+}
+
+async function loadArastirma(){
+  const d = await jget('/api/arastirma/son');
+  if(d) ST.arastirma = d;
+}
+
+async function arastirmaBaslat(){
+  const btn=document.getElementById('ar_btn');
+  const status=document.getElementById('ar_status');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Çalışıyor...'; }
+  if(status) status.textContent='Arka planda başladı, 2-3 dakika sürebilir...';
+  try{
+    await jpost('/api/arastirma/baslat',{});
+    setTimeout(async()=>{
+      await loadArastirma(); render();
+      if(btn){ btn.disabled=false; btn.textContent='⚙ Araştırma Başlat (30g)'; }
+    }, 180000);  // 3 dk sonra otomatik yenile
+  } catch(e){
+    if(status) status.textContent='Hata: '+e.message;
+    if(btn){ btn.disabled=false; btn.textContent='⚙ Araştırma Başlat (30g)'; }
+  }
+}
+
+// ════════════ KEY LEVEL ANALİZİ ════════════
+function scrKeyLevel(){
+  const d = ST.keylevel || {};
+  const analizler = d.analizler || [];
+  const son = analizler.length ? analizler[analizler.length-1] : null;
+  const ozet = son?.data?.ozet || son?.ozet || {};
+
+  const LEVEL_AD = {
+    'asia_high':'Asia High (SHORT)','asia_low':'Asia Low (LONG)',
+    'fib_2272':'Fib 2.272 (SHORT)','fib_2618':'Fib 2.618 (SHORT)',
+    'fib_n1272':'Fib -1.272 (LONG)','fib_n1618':'Fib -1.618 (LONG)',
+    'prev_day_high':'Önceki Gün High','prev_day_low':'Önceki Gün Low',
+  };
+  const LEVEL_RENK = {
+    'asia_high':'#ff5d6c','asia_low':'#1ff0ad',
+    'fib_2272':'#ff8a3c','fib_2618':'#ff5d6c',
+    'fib_n1272':'#56a8ff','fib_n1618':'#1ff0ad',
+    'prev_day_high':'#ffb13c','prev_day_low':'#56a8ff',
+  };
+
+  const ozet_html = Object.keys(ozet).length ? '<div class="card" style="overflow:hidden;margin-bottom:12px">'
+    +'<div style="padding:10px 14px;border-bottom:1px solid #18211f;font-size:9.5px;color:#5e716f;letter-spacing:.1em">KEY LEVEL ETKİNLİK ANALİZİ</div>'
+    +Object.entries(ozet).sort(([,a],[,b])=>b.bounce_rate-a.bounce_rate).map(([lk,lv])=>{
+      const wr = lv.bounce_rate;
+      const rc = wr>=65?'#1ff0ad':wr>=50?'#ffb13c':'#ff5d6c';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #0f1615">'
+        +'<div style="min-width:170px">'
+        +'<div style="font-size:11px;color:'+( LEVEL_RENK[lk]||'#8a9c99')+';font-weight:600">'+(LEVEL_AD[lk]||lk)+'</div>'
+        +'</div>'
+        +'<div style="min-width:80px">'
+        +'<div style="font-size:10px;color:#5e716f">Bounce</div>'
+        +'<div style="font-size:15px;color:'+rc+';font-weight:600">%'+wr+'</div>'
+        +'</div>'
+        +'<div style="min-width:80px">'
+        +'<div style="font-size:10px;color:#5e716f">Temas</div>'
+        +'<div style="font-size:13px;color:#cdd9d8">'+lv.toplam_temas+'</div>'
+        +'</div>'
+        +'<div style="min-width:80px">'
+        +'<div style="font-size:10px;color:#5e716f">Avg Bounce</div>'
+        +'<div style="font-size:13px;color:#8a9c99">%'+lv.avg_bounce_pct+'</div>'
+        +'</div>'
+        +'<div style="flex:1">'
+        +'<div style="background:#0c1112;border-radius:3px;height:6px;overflow:hidden">'
+        +'<div style="height:100%;background:'+rc+';width:'+Math.min(wr,100)+'%;border-radius:3px"></div>'
+        +'</div></div></div>';
+    }).join('')
+    +'<div style="padding:10px 14px;font-size:10px;color:#5e716f">Kaynak: '+(son?.data?.sembol||son?.sembol||'?')+' · '+(son?.data?.baslangic||son?.baslangic||'?')+'dan · Lokal runner analizi</div>'
+    +'</div>'
+    : '<div style="background:#0c1112;border-radius:5px;padding:20px;color:#5e716f;font-size:12px;margin-bottom:12px">'
+    +'Key level analizi henüz yok. Lokal runnerde calistir:<br>'
+    +'<code style="color:#1ff0ad">python oar_local_runner.py keylevel</code>'
+    +'</div>';
+
+  return '<div style="max-width:860px">'
+    +'<div style="margin-bottom:20px">'
+    +'<div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">Key Level Etkinlik Analizi</div>'
+    +'<div style="font-size:11px;color:#5e716f">Asia Range H/L · Fib 2.272/2.618/-1.272/-1.618 · Önceki Gün H/L · Bounce Rate</div>'
+    +'</div>'
+    +ozet_html
+    +'<div style="background:#0c1112;border:1px solid #1a2422;border-radius:5px;padding:14px;font-size:11px;color:#5e716f">'
+    +'<b style="color:#8a9c99">Nasıl Çalışır?</b> Her key levela temas sayilir. Temasta '
+    +'sonraki 1 saatte %0.3+ bounce olursa WIN sayılır. Bounce Rate o seviyenin güvenilirliğini gösterir. '
+    +'%65+ = yüksek güvenilir, %50-65 = orta, %50 altı = zayıf.'
+    +'</div></div>';
+}
+
+async function loadKeyLevel(){
+  const d = await jget('/api/local/keylevel-sonuc');
+  if(d) ST.keylevel = d;
 }
 
 boot();
