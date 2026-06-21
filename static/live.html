@@ -1436,214 +1436,157 @@ async function boot(){
 }
 // ════════════ OAR BACKTEST SAYFASI ════════════
 function scrOarBacktest(){
-  const res = ST.oarbt_result || null;
-  const gecmis = ST.oarbt_gecmis || [];
+  const bt = ST.otonomBT || {};
+  const enIyi = bt.en_iyi || null;
+  const son5  = bt.son_5_run || [];
+  const gex   = bt.en_iyi?.params || {};
 
-  const params = ST.oarbt_params || {
-    sembol:'BTCUSDT', gun:90,
-    touch_pct:0.003, btc_min_range_pct:1.0,
-    filter_taker:true, filter_oi:true,
-    taker_threshold_pct:52.0, eval_hours:4
+  const pBadge = p => {
+    const c = p>=80?'#1ff0ad':p>=65?'#56a8ff':p>=50?'#ffb13c':'#ff5d6c';
+    const l = p>=80?'MÜKEMMEL':p>=65?'İYİ':p>=50?'ORTA':'ZAYIF';
+    return '<span style="color:'+c+';background:'+c+'22;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600">'+p+'/100 · '+l+'</span>';
   };
 
-  const fibRenk = f => ({'-1.618':'#1ff0ad','-1.272':'#56a8ff','2.272':'#ffb13c','2.618':'#ff5d6c'}[f]||'#9fb0ad');
+  // GEX snapshot
+  const gexSnap = enIyi?.gex_snapshot || bt.son_5_run?.[0]?.gex_snapshot || {};
 
-  const sonucHtml = res ? `
-    <div class="card" style="padding:18px;margin-bottom:12px">
-      <div style="font-size:10px;color:#5e716f;letter-spacing:.1em;margin-bottom:14px">SON BACKTEST — ${esc(res.sembol)} ${res.gun}g</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
-        ${[
-          ['WIN RATE', res.win_rate+'%', res.win_rate>=55?'#1ff0ad':res.win_rate>=45?'#ffb13c':'#ff5d6c'],
-          ['SHARPE',   res.sharpe,       res.sharpe>=1?'#1ff0ad':res.sharpe>=0?'#ffb13c':'#ff5d6c'],
-          ['TOPLAM PnL', (res.toplam_pnl_pct>=0?'+':'')+res.toplam_pnl_pct+'%', res.toplam_pnl_pct>=0?'#1ff0ad':'#ff5d6c'],
-          ['MAX DD',   '-'+res.max_drawdown+'%', '#ff5d6c'],
-          ['SİNYAL',   res.toplam_sinyal+' ('+res.filtrelenen+' filt.)', '#cdd9d8'],
-        ].map(([l,v,c])=>`<div class="card" style="padding:10px 12px;border:1px solid #18211f">
-          <div style="font-size:9px;color:#5e716f;margin-bottom:5px">${l}</div>
-          <div style="font-size:17px;color:${c};font-weight:600">${v}</div>
-        </div>`).join('')}
-      </div>
-      <div style="font-size:10px;color:#5e716f;margin-bottom:8px;letter-spacing:.08em">FİB SEVİYESİ KIRILIMU</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${Object.entries(res.by_fib||{}).map(([fk,v])=>`
-          <div style="background:#0c1112;border:1px solid #18211f;border-radius:5px;padding:8px 12px;min-width:100px">
-            <div style="font-size:11px;color:${fibRenk(fk)};font-weight:600;margin-bottom:4px">Fib ${fk}</div>
-            <div style="font-size:10px;color:#8a9c99">WR %${v.win_rate} · ${v.total} sinyal</div>
-            <div style="font-size:10px;color:${v.pnl>=0?'#1ff0ad':'#ff5d6c'}">${v.pnl>=0?'+':''}${v.pnl}%</div>
-          </div>`).join('')}
-      </div>
-    </div>` : '<div style="color:#5e716f;font-size:12px;margin-bottom:12px">Henüz backtest çalıştırılmadı.</div>';
+  const header = '<div style="margin-bottom:20px">'
+    +'<div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">OAR Backtest — Otonom</div>'
+    +'<div style="font-size:11px;color:#5e716f">Leader Agent yönetimli · Tüm veri kaynakları · Günlük otomatik · '+(bt.son_guncelleme?bt.son_guncelleme.slice(0,16).replace('T',' '):'Henüz çalışmadı')+'</div>'
+    +'</div>';
 
-  // Detaylı trade log
-  const det = ST.oarbt_detay || null;
-  const tradeLogHtml = det && det.trades && det.trades.length ? (() => {
-    const rows = det.trades.map(t => {
-      const dt  = (t.tarih||'').slice(0,16).replace('T',' ');
-      const yon = t.yon||'—';
-      const fib = t.seviye!=null ? parseFloat(t.seviye).toFixed(2) : '—';
-      const gir = t.seviye!=null ? '$'+Number(t.seviye).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
-      const ahi = t.asia_hi!=null ? '$'+Number(t.asia_hi).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
-      const alo = t.asia_lo!=null ? '$'+Number(t.asia_lo).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
-      const rng = t.rng_pct!=null ? '%'+t.rng_pct : '—';
-      const tp  = t.tp!=null ? '$'+Number(t.tp).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
-      const res = t.outcome||'—';
-      const pct = t.pct!=null ? (t.pct>=0?'+':'')+t.pct+'%' : '—';
-      const rc = res==='WIN'?'#1ff0ad':res==='LOSS'?'#ff5d6c':'#8a9c99';
-      const pc = (t.pct||0)>=0?'#1ff0ad':'#ff5d6c';
-      const yc = yon==='LONG'?'#1ff0ad':'#ff5d6c';
+  // Kontrol butonları
+  const controls = '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
+    +'<button onclick="otonomBTBaslat('BTCUSDT',30)" id="obt_btn" style="background:#1ff0ad;color:#07090a;border:none;padding:8px 18px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:3px">▶ Manuel Başlat (BTC 30g)</button>'
+    +'<button onclick="otonomBTBaslat('ETHUSDT',30)" style="background:#131918;border:1px solid #1a2422;color:#56a8ff;font-family:inherit;font-size:12px;padding:8px 14px;cursor:pointer;border-radius:3px">▶ ETH 30g</button>'
+    +'<span id="obt_status" style="font-size:11px;color:#5e716f;align-self:center"></span>'
+    +'<div style="margin-left:auto;font-size:10px;color:#5e716f">Otomatik: Her gün 08:00 UTC · Yeni kural öğrendikçe</div>'
+    +'</div>';
+
+  // GEX bağlamı
+  const gexHtml = Object.keys(gexSnap).length ? '<div class="card" style="padding:12px 16px;margin-bottom:12px;border-left:3px solid #b45cf6">'
+    +'<div style="font-size:9px;color:#5e716f;letter-spacing:.1em;margin-bottom:8px">TEST ANINDAKİ GEX BAĞLAMI</div>'
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px">'
+    +'<span style="color:#cdd9d8">Rejim: <b style="color:'+(gexSnap.rejim?.includes('POZİTİF')?'#1ff0ad':'#ff5d6c')+'">'+esc(gexSnap.rejim||'?')+'</b></span>'
+    +(gexSnap.call_wall?'<span style="color:#8a9c99">Call Wall: <b style="color:#ff5d6c">$'+Number(gexSnap.call_wall).toLocaleString()+'</b></span>':'')
+    +(gexSnap.put_wall?'<span style="color:#8a9c99">Put Wall: <b style="color:#1ff0ad">$'+Number(gexSnap.put_wall).toLocaleString()+'</b></span>':'')
+    +(gexSnap.zero_gamma?'<span style="color:#8a9c99">Zero Gamma: <b style="color:#b45cf6">$'+Number(gexSnap.zero_gamma).toLocaleString()+'</b></span>':'')
+    +(gexSnap.dvol?'<span style="color:#8a9c99">DVOL: <b style="color:#ffb13c">'+gexSnap.dvol+'</b></span>':'')
+    +'</div></div>' : '';
+
+  // En iyi sonuç
+  const iyiHtml = enIyi ? '<div class="card" style="padding:16px;margin-bottom:12px;border-left:3px solid #1ff0ad">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+    +'<div style="font-size:10px;color:#5e716f;letter-spacing:.1em">EN İYİ SİSTEM</div>'
+    +pBadge(enIyi.puan)
+    +'<div style="font-size:10px;color:#8a9c99;margin-left:auto">'+esc(enIyi.id||'')+'</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">'
+    +[
+      ['WIN RATE','%'+enIyi.stats.wr, enIyi.stats.wr>=60?'#1ff0ad':enIyi.stats.wr>=50?'#ffb13c':'#ff5d6c'],
+      ['SHARPE',enIyi.stats.sharpe,'#56a8ff'],
+      ['PnL',(enIyi.stats.pnl>=0?'+':'')+enIyi.stats.pnl+'%',enIyi.stats.pnl>=0?'#1ff0ad':'#ff5d6c'],
+      ['MAX DD','-'+enIyi.stats.max_dd+'%','#ff5d6c'],
+      ['SİNYAL',enIyi.stats.n,'#cdd9d8'],
+    ].map(([l,v,c])=>'<div style="background:#0c1112;border:1px solid #18211f;border-radius:3px;padding:8px 12px">'
+      +'<div style="font-size:9px;color:#5e716f">'+l+'</div>'
+      +'<div style="font-size:16px;color:'+c+';font-weight:600">'+v+'</div></div>'
+    ).join('')
+    +'</div>'
+    +'<div style="font-size:10px;color:#5e716f;margin-bottom:10px">Filtreler: '
+    +'GEX '+(enIyi.params.gex_filter?'<b style="color:#1ff0ad">ON</b>':'<b style="color:#ff5d6c">OFF</b>')+' · '
+    +'VPFR '+(enIyi.params.vpfr_filter?'<b style="color:#1ff0ad">ON</b>':'<b style="color:#ff5d6c">OFF</b>')+' · '
+    +'Taker &gt;'+enIyi.params.taker_esik+'% · '
+    +'Eval '+enIyi.params.eval_h+'h · touch %'+(enIyi.params.touch*100).toFixed(1)
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +Object.entries(enIyi.stats.by_fib||{}).sort(([,a],[,b])=>b.wr-a.wr).map(([fk,fv])=>{
+      const rc=fv.wr>=60?'#1ff0ad':fv.wr>=50?'#ffb13c':'#ff5d6c';
+      return '<div style="background:#131918;border:1px solid #18211f;padding:8px 12px;border-radius:3px">'
+        +'<div style="font-size:10px;color:#56a8ff;font-weight:600">Fib '+fk+'</div>'
+        +'<div style="font-size:11px;color:'+rc+'">WR %'+fv.wr+'</div>'
+        +'<div style="font-size:10px;color:#5e716f">'+fv.n+' sinyal · %'+fv.pnl+' PnL</div>'
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+    : '<div style="background:#0c1112;border-radius:5px;padding:20px;color:#5e716f;font-size:12px;margin-bottom:12px">Henüz otonom backtest çalışmadı. Manuel başlat veya sabah 08:00 UTC bekle.</div>';
+
+  // Tüm run'lar tablosu
+  const runsHtml = son5.length ? '<div class="card" style="overflow:hidden;margin-bottom:12px">'
+    +'<div style="padding:10px 14px;border-bottom:1px solid #18211f;font-size:9.5px;color:#5e716f;letter-spacing:.1em">SON BACKTEST KOŞUMLARI</div>'
+    +son5.slice().reverse().map(r=>{
+      const ei=r.en_iyi;
+      if(!ei) return '';
+      const puan=ei.puan||0;
+      const pc=puan>=65?'#1ff0ad':puan>=50?'#ffb13c':'#ff5d6c';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid #0f1615;font-size:11px">'
+        +'<span style="color:#5e716f;min-width:100px">'+(r.tarih||'').slice(0,10)+'</span>'
+        +'<span style="color:#8a9c99;min-width:60px">'+(r.sembol||'?')+' '+(r.gun||'?')+'g</span>'
+        +'<span style="color:'+pc+';font-weight:600;min-width:60px">'+puan+'/100</span>'
+        +'<span style="color:#8a9c99;min-width:80px">'+esc(ei.id||'?')+'</span>'
+        +'<span style="color:#1ff0ad">WR %'+ei.stats.wr+'</span>'
+        +'<span style="color:#56a8ff;margin-left:8px">Sh '+ei.stats.sharpe+'</span>'
+        +'<span style="color:#5e716f;font-size:9px;margin-left:auto">'+esc(r.sebep||'')+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>' : '';
+
+  // Son 10 trade logu
+  const trades = enIyi?.son_10 || [];
+  const tradeHtml = trades.length ? '<div class="card" style="overflow:hidden">'
+    +'<div style="padding:10px 14px;border-bottom:1px solid #18211f;font-size:9.5px;color:#5e716f;letter-spacing:.1em">SON 10 TRADE</div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+    +'<thead><tr style="background:#0a0f0f">'
+    +['TARİH','YÖN','FİB','GİRİŞ','ASIA H','ASIA L','RNG%','TP','SONUÇ','P&L%'].map(h=>
+      '<th style="padding:7px 10px;text-align:'+(h==='SONUÇ'?'center':['GİRİŞ','ASIA H','ASIA L','RNG%','TP','P&L%'].includes(h)?'right':'left')+';color:#5e716f;font-weight:400;font-size:9px;border-bottom:1px solid #18211f">'+h+'</th>'
+    ).join('')
+    +'</tr></thead><tbody>'
+    +trades.map(t=>{
+      const rc=t.out==='WIN'?'#1ff0ad':t.out==='LOSS'?'#ff5d6c':'#8a9c99';
+      const pc=(t.pct||0)>=0?'#1ff0ad':'#ff5d6c';
+      const yc=t.yon==='LONG'?'#1ff0ad':'#ff5d6c';
       return '<tr style="border-bottom:1px solid #0f1615">'
-        +'<td style="padding:6px 10px;color:#5e716f">'+dt+'</td>'
-        +'<td style="padding:6px 10px;color:'+yc+';font-weight:600">'+yon+'</td>'
-        +'<td style="padding:6px 10px;color:#56a8ff">'+fib+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:#cdd9d8">'+gir+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">'+ahi+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">'+alo+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">'+rng+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:#ffb13c">'+tp+'</td>'
-        +'<td style="padding:6px 10px;text-align:center;color:'+rc+';font-weight:600">'+res+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:'+pc+';font-weight:600">'+pct+'</td>'
+        +'<td style="padding:6px 10px;color:#5e716f">'+(t.tarih||'—')+'</td>'
+        +'<td style="padding:6px 10px;color:'+yc+';font-weight:600">'+(t.yon||'—')+'</td>'
+        +'<td style="padding:6px 10px;color:#56a8ff">'+(t.fib||'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#cdd9d8">$'+(t.giris?Number(t.giris).toLocaleString('en-US',{maximumFractionDigits:0}):'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">$'+(t.asia_hi?Number(t.asia_hi).toLocaleString('en-US',{maximumFractionDigits:0}):'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">$'+(t.asia_lo?Number(t.asia_lo).toLocaleString('en-US',{maximumFractionDigits:0}):'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#8a9c99">%'+(t.rng_pct||'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#ffb13c">$'+(t.tp?Number(t.tp).toLocaleString('en-US',{maximumFractionDigits:0}):'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:center;color:'+rc+';font-weight:600">'+(t.out||'—')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:'+pc+';font-weight:600">'+(t.pct!=null?(t.pct>=0?'+':'')+t.pct+'%':'—')+'</td>'
         +'</tr>';
-    }).join('');
-    const pr = det.params||{};
-    return '<div class="card" style="overflow:hidden;margin-top:12px">'
-      +'<div style="padding:11px 14px;border-bottom:1px solid #18211f;display:flex;align-items:center;justify-content:space-between">'
-      +'<div style="font-size:9.5px;color:#5e716f;letter-spacing:.1em">TRADE LOG — '+esc(det.sembol)+' '+det.gun+'g · '+det.trades.length+' işlem</div>'
-      +'<div style="font-size:10px;color:#5e716f">'
-      +'touch %'+(pr.touch_pct||0.003)*100+' · taker:'+(pr.filter_taker?'açık':'kapalı')+' · OI:'+(pr.filter_oi?'açık':'kapalı')+' · eval:'+( pr.eval_hours||8)+'h'
-      +'</div></div>'
-      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
-      +'<thead><tr style="background:#0a0f0f">'
-      +['TARİH','YÖN','FİB','GİRİŞ','ASIA H','ASIA L','RNG%','TP','SONUÇ','P&L%']
-        .map(h=>'<th style="padding:7px 10px;text-align:'+(h==='SONUÇ'?'center':['GİRİŞ','ASIA H','ASIA L','RNG%','TP','P&L%'].includes(h)?'right':'left')+';color:#5e716f;font-weight:400;font-size:9px;letter-spacing:.07em;border-bottom:1px solid #18211f">'+h+'</th>')
-        .join('')
-      +'</tr></thead><tbody>'+rows+'</tbody></table></div>'
-      +'<div style="padding:8px 14px;border-top:1px solid #18211f;font-size:10px;color:#5e716f">'
-      +'TP = Asia High (SHORT) / Asia Low (LONG) · Değerlendirme: '+(pr.eval_hours||8)+'h sonrası · Temas: %'+((pr.touch_pct||0.003)*100)
-      +'</div></div>';
-  })() : '';
+    }).join('')
+    +'</tbody></table></div></div>' : '';
 
-  const gecmisHtml = gecmis.length ? `
-    <div class="card" style="overflow:hidden;margin-top:12px">
-      <div style="padding:10px 14px;border-bottom:1px solid #18211f;font-size:9.5px;color:#5e716f;letter-spacing:.12em">GEÇMİŞ TESTLER</div>
-      ${gecmis.slice().reverse().slice(0,10).map(t=>`
-        <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid #0f1615;font-size:11px">
-          <span style="color:#8a9c99;min-width:70px">${t.sembol}</span>
-          <span style="color:#5e716f;min-width:30px">${t.gun}g</span>
-          <span style="color:${t.win_rate>=55?'#1ff0ad':t.win_rate>=45?'#ffb13c':'#ff5d6c'};min-width:55px">WR %${t.win_rate}</span>
-          <span style="color:${t.sharpe>=1?'#1ff0ad':'#ffb13c'};min-width:60px">Sh ${t.sharpe}</span>
-          <span style="color:${t.toplam_pnl_pct>=0?'#1ff0ad':'#ff5d6c'};min-width:70px">${t.toplam_pnl_pct>=0?'+':''}${t.toplam_pnl_pct}%</span>
-          <span style="color:#5e716f;font-size:10px">${t.toplam_sinyal} sinyal</span>
-        </div>`).join('')}
-    </div>` : '';
-
-  // Swing karar bölümü
-  const swingHtml = `
-    <div class="card" style="padding:16px;margin-top:12px">
-      <div style="font-size:10px;color:#5e716f;letter-spacing:.1em;margin-bottom:12px">SWING KARAR ANALİZİ</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-        <div>
-          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Sembol</div>
-          <select id="sw_sym" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;border-radius:3px">
-            ${['BTCUSDT','ETHUSDT','SOLUSDT'].map(s=>`<option>${s}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Yön</div>
-          <select id="sw_dir" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;border-radius:3px">
-            <option>LONG</option><option>SHORT</option>
-          </select>
-        </div>
-        <div>
-          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Fib Seviyesi</div>
-          <select id="sw_fib" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;border-radius:3px">
-            <option>-1.272</option><option>-1.618</option><option>2.272</option><option>2.618</option>
-          </select>
-        </div>
-      </div>
-      <button onclick="checkSwing()" style="background:#131918;border:1px solid #1a2422;color:#56a8ff;font-family:inherit;font-size:11px;padding:7px 16px;cursor:pointer;border-radius:3px">
-        ⟳ Swing Analizi Yap
-      </button>
-      <div id="sw_result" style="margin-top:10px;font-size:12px;color:#8a9c99"></div>
-    </div>`;
-
-  return `<div style="max-width:900px">
-    <div style="margin-bottom:20px">
-      <div class="sg" style="font-size:22px;font-weight:600;color:#cdd9d8;margin-bottom:4px">OAR Backtest</div>
-      <div style="font-size:11px;color:#5e716f">Asia Range Fib Ekstrem · Taker/OI filtreli · 2.272/2.618/-1.272/-1.618</div>
-    </div>
-
-    <div class="card" style="padding:16px;margin-bottom:12px">
-      <div style="font-size:10px;color:#5e716f;letter-spacing:.1em;margin-bottom:12px">PARAMETRELER</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div>
-          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Sembol</div>
-          <select id="obt_sym" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;width:100%;border-radius:3px">
-            ${['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','DOGEUSDT','AVAXUSDT','LINKUSDT'].map(s=>`<option${s===params.sembol?' selected':''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <div style="font-size:10px;color:#5e716f;margin-bottom:4px">Gün Sayısı</div>
-          <select id="obt_gun" style="background:#131918;border:1px solid #1a2422;color:#cdd9d8;font-family:inherit;font-size:12px;padding:5px 8px;width:100%;border-radius:3px">
-            ${[30,60,90,180,365].map(g=>`<option${g===params.gun?' selected':''}>${g}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8a9c99;cursor:pointer">
-          <input type="checkbox" id="obt_taker" ${params.filter_taker?'checked':''} style="accent-color:#1ff0ad"> Taker Filtresi
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8a9c99;cursor:pointer">
-          <input type="checkbox" id="obt_oi" ${params.filter_oi?'checked':''} style="accent-color:#1ff0ad"> OI Delta Filtresi
-        </label>
-      </div>
-      <button onclick="runOarBacktest()" id="obt_btn"
-        style="background:#1ff0ad;color:#07090a;border:none;padding:9px 22px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:3px">
-        ▶ Backtest Başlat
-      </button>
-      <span id="obt_status" style="margin-left:12px;font-size:11px;color:#5e716f"></span>
-    </div>
-
-    ${sonucHtml}
-    ${tradeLogHtml}
-    ${gecmisHtml}
-    ${swingHtml}
-  </div>`;
+  return '<div style="max-width:1100px">'+header+controls+gexHtml+iyiHtml+runsHtml+tradeHtml+'</div>';
 }
 
-async function runOarBacktest(){
+async function otonomBTBaslat(sym, gun){
   const btn = document.getElementById('obt_btn');
   const status = document.getElementById('obt_status');
-  if(!btn) return;
-  btn.disabled = true; btn.textContent = '⏳ Çalışıyor...';
-  status.textContent = 'Binance verisi çekiliyor...';
-
-  const sym = document.getElementById('obt_sym')?.value || 'BTCUSDT';
-  const gun = parseInt(document.getElementById('obt_gun')?.value || '90');
-  const filter_taker = document.getElementById('obt_taker')?.checked ?? true;
-  const filter_oi    = document.getElementById('obt_oi')?.checked    ?? true;
-
-  ST.oarbt_params = {sembol:sym, gun, filter_taker, filter_oi};
-
-  try {
-    const r = await fetch(API+'/api/oar-backtest/run',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({sembol:sym, gun, params:{filter_taker, filter_oi}})
-    });
-    const d = await r.json();
-    ST.oarbt_result = d;
-    status.textContent = d.hata ? ('Hata: '+d.hata) : `✅ ${d.toplam_sinyal} sinyal, WR %${d.win_rate}`;
-  } catch(e) {
-    status.textContent = 'Bağlantı hatası: '+e.message;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Çalışıyor...'; }
+  if(status) status.textContent = sym+' '+gun+'g otonom backtest arka planda başladı (2-3 dk)...';
+  try{
+    await jpost('/api/otonom-bt/baslat',{sembol:sym, gun});
+    setTimeout(async()=>{
+      await loadOarBacktest(); render();
+      if(btn){ btn.disabled=false; btn.textContent='▶ Manuel Başlat (BTC 30g)'; }
+      if(status) status.textContent='✅ Tamamlandı';
+    }, 180000);
+  } catch(e){
+    if(status) status.textContent='Hata: '+e.message;
+    if(btn){ btn.disabled=false; btn.textContent='▶ Manuel Başlat (BTC 30g)'; }
   }
-  btn.disabled = false; btn.textContent = '▶ Backtest Başlat';
-  render();
 }
 
+// Eski fonksiyonu yönlendir
+async function runOarBacktest(){ await otonomBTBaslat('BTCUSDT',30); }
+
 async function loadOarBacktest(){
-  const d = await jget('/api/oar-backtest/gecmis?limit=20');
-  if(d && d.testler) ST.oarbt_gecmis = d.testler;
-  const det = await jget('/api/oar-backtest/detay?limit=1');
-  if(det && det.testler && det.testler.length) ST.oarbt_detay = det.testler[0];
+  const d = await jget('/api/otonom-bt/son');
+  if(d) ST.otonomBT = d;
 }
 
 async function loadOarOzet(){
