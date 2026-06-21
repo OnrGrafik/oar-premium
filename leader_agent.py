@@ -1343,3 +1343,13 @@ async def saatlik_research_loop():
         except Exception as e:
             print(f"[ResearchSaatlik] Hata: {str(e)[:80]}")
         await asyncio.sleep(3600)
+
+
+# ─── Otonom Backtest Entegrasyonu ────────────────────────────────────────────
+async def otonom_bt_loop():
+    """Leader Agent kontrolünde otonom backtest döngüsü."""
+    try:
+        from oar_autonomous_backtest import otonom_backtest_loop
+        await otonom_backtest_loop()
+    except Exception as e:
+        print(f"[OtonomBT Loop] Başlatma hatası: {e}")
