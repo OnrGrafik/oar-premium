@@ -1201,22 +1201,43 @@ async def _opsiyon_yorum_uret(currency, spot, genel, cvd, lv):
                 kitap_notu = " | ".join(f"{s['title']}: {s['content'][:180]}" for s in ks)
         except Exception:
             pass
-        prompt = f"""Sen opsiyon piyasası uzmanısın. {currency} opsiyon verilerini bilimsel/matematiksel yorumla
-(4-5 cümle, vade yorumlaması dahil, Türkçe):
+        # Greeklerin gerçek anlamlarını önceden hesapla
+        spot_num = spot if isinstance(spot,(int,float)) else 0
+        zg_num   = genel.get("zero_gamma",0) or 0
+        mp_num   = genel.get("max_pain",0) or 0
+        ng_num   = genel.get("net_gamma",0) or 0
+        gex_rejim= "POZİTİF GEX (stabilize)" if ng_num>0 else "NEGATİF GEX (volatile)"
+        spot_vs_zg = ""
+        if spot_num and zg_num:
+            fark_pct=(spot_num-zg_num)/zg_num*100
+            spot_vs_zg=f"Spot ZG nin pct{abs(fark_pct):.1f} ustu dealer long gamma" if fark_pct>0 else f"Spot ZG nin pct{abs(fark_pct):.1f} alti dealer short gamma volatilite artar"
+        prompt = f"""Sen John Tull Options as a Strategic Investment ve Sheldon Natenberg Option Volatility Pricing kitaplarina hakim opsiyon masasi uzmaниsin.
+{currency} opsiyon piyasasini TAMAMEN BILIMSEL ve SOMUT RAKAMLARLA yorumla. Turkce yaz 6-8 cumle.
 
-Spot: {spot}
-Call Wall (direnç): {genel.get('call_wall')}
-Put Wall (destek): {genel.get('put_wall')}
-Zero Gamma (flip): {genel.get('zero_gamma')}
-Max Pain: {genel.get('max_pain')}
-Opsiyon CVD: {cvd.get('guncel')} (yön: {cvd.get('yon')})
-Kısa vade (0-7g): {lv.get('kisa', {})}
-Orta vade (8-45g): {lv.get('orta', {})}
+PIYASA VERISI
+Spot: {spot_num:,.0f} | Call Wall: {genel.get('call_wall','?')} | Put Wall: {genel.get('put_wall','?')}
+Zero Gamma: {genel.get('zero_gamma','?')} | Max Pain: {genel.get('max_pain','?')} | GEX Rejim: {gex_rejim}
+Opsiyon CVD: {cvd.get('guncel','?')} yon {cvd.get('yon','?')}
+Kisa vade 0-7g: {lv.get('kisa',{})}
+Orta vade 8-45g: {lv.get('orta',{})}
+Spot vs ZG: {spot_vs_zg}
 
-Opsiyon kitaplarından: {kitap_notu[:400]}
+GREEK TANIMLARI (bu verileri yorumlaman icin):
+Delta: Spot 1 USD artinca opsiyon fiyati ne kadar degisir. Dealer GEX pozitifse long gamma net-delta hedge icin spot stabilize eder. GEX negatifse short gamma her hareketi amplify eder.
+Gamma: Delta degisim hizi. Zero Gamma kirildiysa dealer hizla hedge degistirmek zorunda kalir volatilite patlar.
+Vanna: IV degistiginde Delta nasil degisir. IV artinca dealer delta pozisyonu kayar momentum guclenebilir.
+Charm: Zaman gecikayle Delta nasil degisir. Expiry yaklasinca artar pozisyon rotasyonunu hizlandirir.
+Vega: IV nin 1 puan artisina opsiyon fiyat duyarliligi. Net vega negatifse dealer IV dusturmek ister.
 
-Dealer gamma pozisyonu, spot-ZG ilişkisi, CW/PW bandı, CVD akışını değerlendir.
-Kitap bilgisi varsa referans ver."""
+KITAP REFERANSI:
+{kitap_notu[:400] if kitap_notu else "John Tull: Pozitif GEX ortaminda mean-reversion negatif GEX ortaminda trend takibi daha basarilidir. Dealer gamma flip noktasi kritik kirilim seviyesidir."}
+
+GOREV (rakam kullan tahmin yapma):
+1. GEX rejimi ve dealer pozisyonu nedir? Somut etkisi ne?
+2. Zero Gamma kirildiysa ne olur? (senaryo)
+3. Max Pain miknatisi vade baglaminda ne anlama gelir?
+4. CVD akisina gore buyuk paranin yonu?
+5. OAR Fib sistemi icin Call Wall Put Wall Zero Gamma nasil kullanilmali?"""
         yorum = ""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -2522,6 +2543,111 @@ async def kiyotaka_filtre_get(req: Request):
         int(d.get("ts_ms", __import__("time").time()*1000)),
         key
     )
+
+
+
+# ─── Cache istatistikleri ─────────────────────────────────────────────────────
+@app.get("/api/cache/stats")
+async def cache_stats_get():
+    from cache_layer import cache_stats
+    return cache_stats()
+
+@app.post("/api/cache/clear")
+async def cache_clear():
+    from cache_layer import cache_clear_all
+    n = cache_clear_all()
+    return {"silindi": n}
+
+# ─── Otonom Araştırma ─────────────────────────────────────────────────────────
+@app.get("/api/arastirma/son")
+async def arastirma_son():
+    from autonomous_researcher import son_arastirma
+    return son_arastirma()
+
+@app.post("/api/arastirma/baslat")
+async def arastirma_baslat(background_tasks: BackgroundTasks):
+    from autonomous_researcher import grid_arastir
+    async def _run():
+        await grid_arastir("BTCUSDT", 30, max_paralel=2)
+    background_tasks.add_task(_run)
+    return {"mesaj": "Araştırma arka planda başladı (30g, 8 sistem)"}
+
+# ─── Whale Backtest ───────────────────────────────────────────────────────────
+@app.post("/api/whale-backtest/run")
+async def whale_backtest_run(req: Request):
+    from whale_backtest import whale_backtest
+    d = await req.json()
+    return await whale_backtest(
+        d.get("sembol","BTCUSDT"),
+        int(d.get("gun",30)),
+        float(d.get("touch_pct",0.003)),
+    )
+
+@app.get("/api/whale-backtest/gecmis")
+async def whale_backtest_gecmis(limit: int = 10):
+    from whale_backtest import whale_gecmis
+    return {"testler": whale_gecmis(limit)}
+
+# ─── Hafıza doğrulama ─────────────────────────────────────────────────────────
+@app.get("/api/hafiza")
+async def hafiza_durumu():
+    """Hafıza sisteminin durumu."""
+    try:
+        from memory import get_memories, get_notes
+        anılar = get_memories(limit=5)
+        return {
+            "durum": "aktif",
+            "memory_dir": str(DATA_DIR / "memory"),
+            "son_anilar": len(anılar),
+            "ornekler": anılar[:3] if anılar else [],
+        }
+    except Exception as e:
+        return {"durum": "hata", "mesaj": str(e)}
+
+# ─── Lokal Runner Push Endpoint'leri ─────────────────────────────────────────
+@app.post("/api/local/backtest-push")
+async def lokal_backtest_push(req: Request):
+    """Lokal runner'dan backtest sonuçlarını al ve kaydet."""
+    d = await req.json()
+    kayit = DATA_DIR / "lokal_backtest_sonuclari.json"
+    try:
+        mevcut = json.loads(kayit.read_text()) if kayit.exists() else {"testler":[]}
+    except Exception:
+        mevcut = {"testler":[]}
+    data = d.get("data", [])
+    if isinstance(data, list):
+        mevcut["testler"].extend(data)
+    mevcut["testler"] = mevcut["testler"][-50:]
+    mevcut["guncelleme"] = __import__("time").strftime("%Y-%m-%d %H:%M:%S")
+    kayit.write_text(json.dumps(mevcut, ensure_ascii=False, indent=2))
+    return {"alindi": len(data) if isinstance(data,list) else 1}
+
+@app.post("/api/local/keylevel-push")
+async def lokal_keylevel_push(req: Request):
+    """Lokal runner'dan key level analizi al ve kaydet."""
+    d = await req.json()
+    kayit = DATA_DIR / "key_level_analizi.json"
+    try:
+        mevcut = json.loads(kayit.read_text()) if kayit.exists() else {"analizler":[]}
+    except Exception:
+        mevcut = {"analizler":[]}
+    mevcut["analizler"].append(d)
+    mevcut["analizler"] = mevcut["analizler"][-20:]
+    mevcut["guncelleme"] = __import__("time").strftime("%Y-%m-%d %H:%M:%S")
+    kayit.write_text(json.dumps(mevcut, ensure_ascii=False, indent=2))
+    return {"alindi": True}
+
+@app.get("/api/local/keylevel-sonuc")
+async def lokal_keylevel_sonuc():
+    kayit = DATA_DIR / "key_level_analizi.json"
+    if not kayit.exists(): return {"analizler": []}
+    return json.loads(kayit.read_text())
+
+@app.get("/api/local/backtest-sonuc")
+async def lokal_backtest_sonuc():
+    kayit = DATA_DIR / "lokal_backtest_sonuclari.json"
+    if not kayit.exists(): return {"testler": []}
+    return json.loads(kayit.read_text())
 
 
 if __name__ == "__main__":
