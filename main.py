@@ -781,6 +781,9 @@ async def startup_event():
         asyncio.create_task(saatlik_lider_raporu_loop(api_key))
         asyncio.create_task(saatlik_backtest_loop())
         asyncio.create_task(saatlik_research_loop())
+        # Otonom OAR Backtest
+        from oar_autonomous_backtest import otonom_backtest_loop
+        asyncio.create_task(otonom_backtest_loop())
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
     try:
@@ -2648,6 +2651,47 @@ async def lokal_backtest_sonuc():
     kayit = DATA_DIR / "lokal_backtest_sonuclari.json"
     if not kayit.exists(): return {"testler": []}
     return json.loads(kayit.read_text())
+
+
+# ─── Otonom OAR Backtest ─────────────────────────────────────────────────────
+
+@app.get("/api/otonom-bt/son")
+async def otonom_bt_son():
+    """Son otonom backtest sonucu."""
+    from oar_autonomous_backtest import son_sonuc
+    return son_sonuc()
+
+@app.post("/api/otonom-bt/baslat")
+async def otonom_bt_baslat(background_tasks: BackgroundTasks, req: Request):
+    """Manuel otonom backtest başlat."""
+    from oar_autonomous_backtest import otonom_backtest_calistir
+    d = await req.json()
+    sym = d.get("sembol","BTCUSDT")
+    gun = int(d.get("gun",30))
+    async def _run():
+        await otonom_backtest_calistir(sym, gun, sebep="manual")
+    background_tasks.add_task(_run)
+    return {"mesaj":f"{sym} {gun}g otonom backtest başladı"}
+
+# ─── Key Level Gelişmiş ───────────────────────────────────────────────────────
+
+@app.get("/api/key-level/anlik")
+async def key_level_anlik(symbol: str = "BTCUSDT"):
+    """Anlık key level analizi — tüm seviyeler + çok boyutlu skor."""
+    from cache_layer import cache_get, cache_set
+    ck = f"keylevel_anlik:{symbol}"
+    cached = cache_get(ck, "oar_fib")
+    if cached: return cached
+    from key_level_advanced import anlik_key_levels
+    result = await anlik_key_levels(symbol)
+    cache_set(ck, result)
+    return result
+
+@app.get("/api/key-level/tarihsel")
+async def key_level_tarihsel():
+    """Tarihsel key level analizi (lokal runner'dan push edilmiş veri)."""
+    from key_level_advanced import son_analiz
+    return son_analiz() or {"mesaj":"Henüz analiz yok — lokal runner ile çalıştır"}
 
 
 if __name__ == "__main__":
