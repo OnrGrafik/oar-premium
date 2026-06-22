@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # ─── Klasörler ────────────────────────────────────────────────────────────────
-DATA_DIR     = Path(__import__("os").environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(__import__("os").environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 MEMORY_DIR   = DATA_DIR / "memory"
 KNOWLEDGE_DIR= DATA_DIR / "knowledge"
 DATA_DIR.mkdir(exist_ok=True)
