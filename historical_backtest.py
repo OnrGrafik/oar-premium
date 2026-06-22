@@ -14,7 +14,7 @@ import os, json, asyncio, httpx
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 HBT_FILE = DATA_DIR / "tarihsel_backtest.json"
 
