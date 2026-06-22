@@ -11,12 +11,12 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # ─── Klasörler ────────────────────────────────────────────────────────────────
-DATA_DIR = Path(__import__("os").environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
+DATA_DIR     = Path(__import__("os").environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 MEMORY_DIR   = DATA_DIR / "memory"
 KNOWLEDGE_DIR= DATA_DIR / "knowledge"
-DATA_DIR.mkdir(exist_ok=True)
-MEMORY_DIR.mkdir(exist_ok=True)
-KNOWLEDGE_DIR.mkdir(exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+MEMORY_DIR.mkdir(parents=True, exist_ok=True)
+KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
 
 MEMORIES_FILE   = MEMORY_DIR / "memories.json"
 KNOWLEDGE_INDEX = KNOWLEDGE_DIR / "index.json"
@@ -43,7 +43,7 @@ def extract_keywords(text: str) -> list:
                   "do","does","did","will","would","could","should","may","might",
                   "i","you","he","she","it","we","they","and","or","but","in","on",
                   "at","to","for","of","with","by","from","as","into","through"}
-    
+
     words = re.findall(r'\b\w{3,}\b', text.lower())
     keywords = [w for w in words if w not in stop_words]
     # Frekansa göre sırala, en önemli 20'yi al
@@ -66,7 +66,7 @@ def text_similarity(query: str, text: str) -> float:
 def add_memory(content: str, category: str = "genel", tags: list = None) -> dict:
     """Yeni bir bilgi/hafıza ekle"""
     memories = _load(MEMORIES_FILE, [])
-    
+
     memory = {
         "id":         len(memories) + 1,
         "content":    content,
@@ -86,7 +86,7 @@ def search_memories(query: str, top_k: int = 5, category: str = None) -> list:
     memories = _load(MEMORIES_FILE, [])
     if not memories:
         return []
-    
+
     scored = []
     for m in memories:
         if category and m.get("category") != category:
@@ -98,14 +98,14 @@ def search_memories(query: str, top_k: int = 5, category: str = None) -> list:
         score += tag_matches * 0.1
         if score > 0:
             scored.append((score, m))
-    
+
     scored.sort(key=lambda x: x[0], reverse=True)
     results = []
     for score, m in scored[:top_k]:
         m["relevance_score"] = round(score, 3)
         m["access_count"] = m.get("access_count", 0) + 1
         results.append(m)
-    
+
     # Erişim sayısını güncelle
     if results:
         ids = {r["id"] for r in results}
@@ -113,7 +113,7 @@ def search_memories(query: str, top_k: int = 5, category: str = None) -> list:
             if m["id"] in ids:
                 m["access_count"] = m.get("access_count", 0) + 1
         _save(MEMORIES_FILE, memories)
-    
+
     return results
 
 def get_all_memories(category: str = None) -> list:
@@ -145,11 +145,11 @@ def get_memory_stats() -> dict:
 def index_document(filename: str, content: str, doc_type: str = "text") -> dict:
     """Belgeyi parçalara böl ve indeksle"""
     index = _load(KNOWLEDGE_INDEX, {"documents": [], "chunks": []})
-    
+
     # Mevcut belgeyi güncelle (aynı isimde varsa sil)
     index["documents"] = [d for d in index["documents"] if d["filename"] != filename]
     index["chunks"] = [c for c in index["chunks"] if c["source"] != filename]
-    
+
     # Belgeyi ~500 kelimelik parçalara böl
     words = content.split()
     chunk_size = 500
@@ -163,7 +163,7 @@ def index_document(filename: str, content: str, doc_type: str = "text") -> dict:
             "content":  chunk_text,
             "keywords": extract_keywords(chunk_text),
         })
-    
+
     doc_entry = {
         "filename":   filename,
         "doc_type":   doc_type,
@@ -172,18 +172,18 @@ def index_document(filename: str, content: str, doc_type: str = "text") -> dict:
         "indexed_at": datetime.now(timezone.utc).isoformat(),
         "summary":    content[:300] + "..." if len(content) > 300 else content,
     }
-    
+
     index["documents"].append(doc_entry)
     index["chunks"].extend(chunks)
-    
+
     # Fazla chunk temizle (max 5000)
     index["chunks"] = index["chunks"][-5000:]
     _save(KNOWLEDGE_INDEX, index)
-    
+
     # Belgeyi data/knowledge klasörüne de kaydet
     doc_path = KNOWLEDGE_DIR / f"{filename}.txt"
     doc_path.write_text(content, encoding="utf-8")
-    
+
     return {"status": "ok", "filename": filename,
             "chunks": len(chunks), "chars": len(content)}
 
@@ -192,7 +192,7 @@ def search_knowledge(query: str, top_k: int = 5) -> list:
     index = _load(KNOWLEDGE_INDEX, {"documents": [], "chunks": []})
     if not index["chunks"]:
         return []
-    
+
     scored = []
     for chunk in index["chunks"]:
         score = text_similarity(query, chunk["content"])
@@ -200,7 +200,7 @@ def search_knowledge(query: str, top_k: int = 5) -> list:
         score += kw_matches * 0.08
         if score > 0.05:
             scored.append((score, chunk))
-    
+
     scored.sort(key=lambda x: x[0], reverse=True)
     return [{"score": round(s, 3), **c} for s, c in scored[:top_k]]
 
@@ -243,7 +243,7 @@ def get_notes() -> list:
 def build_context_for_query(query: str) -> str:
     """Sorgu için ilgili hafıza ve bilgi bankasını derle"""
     context_parts = []
-    
+
     # Hafızadan ara
     memories = search_memories(query, top_k=4)
     if memories:
@@ -252,7 +252,7 @@ def build_context_for_query(query: str) -> str:
             cat = m.get("category", "genel")
             context_parts.append(f"[{cat.upper()}] {m['content'][:400]}")
         context_parts.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    
+
     # Bilgi bankasından ara
     knowledge = search_knowledge(query, top_k=3)
     if knowledge:
@@ -260,14 +260,14 @@ def build_context_for_query(query: str) -> str:
         for k in knowledge:
             context_parts.append(f"[{k['source']}] {k['content'][:500]}")
         context_parts.append("━━━━━━━━━━━━━━━━━━━━━")
-    
+
     return "\n".join(context_parts) if context_parts else ""
 
 # ─── Otomatik Hafıza Tespiti ─────────────────────────────────────────────────
 def detect_learn_intent(message: str) -> tuple:
     """Kullanıcı bir şey öğretmek istiyor mu?"""
     msg_lower = message.lower()
-    
+
     learn_phrases = [
         "bunu öğren", "bunu hatırla", "bunu bil", "not al",
         "kaydet bunu", "aklında tut", "unutma",
@@ -275,7 +275,7 @@ def detect_learn_intent(message: str) -> tuple:
         "sana söyleyeyim", "bilmeni istiyorum",
         "learn this", "remember this", "note:",
     ]
-    
+
     for phrase in learn_phrases:
         if phrase in msg_lower:
             # Kategori tespit et
@@ -288,5 +288,5 @@ def detect_learn_intent(message: str) -> tuple:
             else:
                 category = "genel"
             return True, category
-    
+
     return False, "genel"
