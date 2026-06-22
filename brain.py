@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from collections import deque
 
 # ─── Veri Deposu (JSON dosyaları, DB gerekmez) ───────────────────────────────
-DATA_DIR = Path(__import__("os").environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(__import__("os").environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(exist_ok=True)
 
 SIGNALS_FILE  = DATA_DIR / "signals.json"
