@@ -9,6 +9,7 @@ import json
 import httpx
 import asyncio
 import time
+import hashlib
 from pathlib import Path
 
 import os as _os_data
@@ -63,6 +64,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ─── Arka Plan Tarayıcı ──────────────────────────────────────────────────────
 scanner_task = None
+telegram_task = None
 
 async def background_scanner():
     """Her 15 dakikada piyasayı otomatik tara"""
@@ -74,16 +76,52 @@ async def background_scanner():
             print(f"[Scanner] Hata: {e}")
         await asyncio.sleep(900)  # 15 dakika
 
+async def telegram_rapor_loop():
+    """Agent raporlarını (rapor_gecmisi) Telegram'a iletir. leader_agent'a dokunmaz —
+       yeni raporları periyodik okur, daha önce gönderilmeyenleri yollar (dedup kalıcı)."""
+    if not (os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")):
+        print("[Telegram] yapılandırılmadı (ENV yok) — bildirim döngüsü pasif")
+        return
+    await asyncio.sleep(25)
+    gf = DATA_DIR / "telegram_gonderilen.json"
+    try:
+        gonderildi = set(json.loads(gf.read_text(encoding="utf-8"))) if gf.exists() else set()
+    except Exception:
+        gonderildi = set()
+    print("[Telegram] rapor bildirim döngüsü aktif")
+    while True:
+        try:
+            from leader_agent import rapor_gecmisi_al
+            yeni = 0
+            for r in reversed(rapor_gecmisi_al(limit=10)):   # eskiden yeniye
+                metin = (r.get("icerik") or {}).get("metin", "")
+                if not metin:
+                    continue
+                anahtar = hashlib.md5((str(r.get("tip","")) + metin).encode("utf-8")).hexdigest()
+                if anahtar in gonderildi:
+                    continue
+                baslik = f"📊 {str(r.get('tip','rapor')).upper()} RAPORU"
+                if await _telegram_gonder(f"{baslik}\n\n{metin[:3500]}"):
+                    gonderildi.add(anahtar); yeni += 1
+            if yeni:
+                gf.write_text(json.dumps(list(gonderildi)[-300:], ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            print(f"[Telegram] rapor loop hata: {str(e)[:100]}")
+        await asyncio.sleep(300)  # 5 dakika
+
 @app.on_event("startup")
 async def startup_event():
-    global scanner_task
+    global scanner_task, telegram_task
     scanner_task = asyncio.create_task(background_scanner())
+    telegram_task = asyncio.create_task(telegram_rapor_loop())
     print("🧠 Otonom tarayıcı başlatıldı (her 15dk)")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     if scanner_task:
         scanner_task.cancel()
+    if telegram_task:
+        telegram_task.cancel()
 
 # ─── Çoklu API Sistemi: Gemini → Gemini Lite → Groq ─────────────────────────
 GEMINI_MODEL      = "gemini-2.5-flash"
@@ -949,7 +987,39 @@ async def vercel_orderflow(currency: str = "BTC"):
 
 @app.get("/api/vercel/macro")
 async def vercel_macro():
-    return await _vercel_get("/api/macro")
+    # Yerelleştirildi: Vercel yerine yerel macro_engine
+    try:
+        from macro_engine import makro_veri
+        return await makro_veri()
+    except Exception as e:
+        return {"error": f"makro alınamadı: {str(e)[:120]}"}
+
+
+# ── Telegram Bildirimleri ─────────────────────────────────────────────────────
+# Token/chat ENV'den okunur (kodda SABİT TUTULMAZ): TELEGRAM_BOT_TOKEN,
+# TELEGRAM_CHAT_ID, opsiyonel TELEGRAM_THREAD_ID (forum konu/topic id).
+async def _telegram_gonder(metin: str, thread_id: str = None) -> bool:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat  = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat:
+        return False
+    payload = {"chat_id": chat, "text": metin[:4000], "disable_web_page_preview": True}
+    tid = thread_id or os.environ.get("TELEGRAM_THREAD_ID", "")
+    if tid:
+        try: payload["message_thread_id"] = int(tid)
+        except Exception: pass
+    try:
+        async with httpx.AsyncClient(timeout=15) as cl:
+            r = await cl.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
+            return r.status_code == 200
+    except Exception:
+        return False
+
+@app.get("/api/telegram/test")
+async def telegram_test():
+    yapilandirildi = bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"))
+    ok = await _telegram_gonder("✅ OAR Premium → Telegram bağlantı testi başarılı.")
+    return {"gonderildi": ok, "yapilandirildi": yapilandirildi}
 
 
 # ── Sinyal Listesi (UI için — sunucu diskinden) ───────────────────────────────
@@ -1004,9 +1074,10 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
-    # 2. Opsiyon seviyeleri (Vercel)
+    # 2. Opsiyon seviyeleri (yerel — options_engine, Vercel'siz)
     try:
-        levels = await _vercel_get("/api/alarm-levels")
+        from options_engine import alarm_levels
+        levels = await alarm_levels("BTC")
         if isinstance(levels, dict) and not levels.get("error"):
             g = levels.get("genel", levels)
             cw, pw, zg = g.get("call_wall") or g.get("CW"), g.get("put_wall") or g.get("PW"), g.get("zero_gamma") or g.get("ZG")
