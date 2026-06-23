@@ -215,7 +215,7 @@ function renderNav(){
       <span style="flex:1;text-align:left">${n.label}</span>
     </button>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if((tab==='theory'||tab==='live')&&!ST.theoryHipotez)loadTheoryHipotez();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -244,8 +244,6 @@ function tickClock(){
 function render(){
   const m=$('screen');
   if(ST.tab==='leader'){m.innerHTML=scrLeader();}
-  else if(ST.tab==='agents')m.innerHTML=scrAgents();
-  else if(ST.tab==='theory')m.innerHTML=scrTheory();
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
@@ -342,123 +340,6 @@ function scrLeader(){
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
-function scrAgents(){
-  const sk=ST.basariSkoru||{};
-  const yuzde=sk.yuzde_tablo||[], dolar=sk.dolar_tablo||[];
-
-  // Sinyalleri bot bazında topla
-  const sigByBot={};
-  (ST.signals||[]).forEach(s=>{
-    let bn=s.bot||'Diğer';
-    const known=BOTS.find(b=>bn.toLowerCase().includes(b.name.toLowerCase().split(' ')[0].toLowerCase()));
-    if(known)bn=known.name;
-    (sigByBot[bn]=sigByBot[bn]||[]).push(s);
-  });
-
-  const card=(b)=>{
-    const sigs=sigByBot[b.name]||[];
-    const son=sigs.slice(-6).reverse();
-    const bilgi=b.tip==='bilgi';
-    // Başarı skoru (bu bottan)
-    const yz=yuzde.find(x=>x.bot===b.name)||{};
-    const dl=dolar.find(x=>x.bot===b.name)||{};
-    const sigHtml=son.length?son.map(s=>{
-      const dir=(s.direction||'?').toUpperCase();
-      const dc=['LONG','ALIS','ALIŞ'].includes(dir)?'#1ff0ad':['SHORT','SATIS','SATIŞ'].includes(dir)?'#ff5d6c':'#8b5cf6';
-      const mp=s.max_pct;
-      return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #131918;font-size:10px">
-        <span style="font-weight:600;color:${dc};width:42px">${dir}</span>
-        <span style="color:#9fb0ad;flex:1">${s.symbol||''}</span>
-        ${bilgi?`<span style="color:#5e716f;font-size:9px">${(s.detail||'').slice(0,20)}</span>`:`<span style="color:${mp>0?'#1ff0ad':'#5e716f'}">${mp!=null?'+'+mp+'%':'⏳'}</span>`}
-      </div>`;
-    }).join(''):'<div style="font-size:9.5px;color:#4a5b59;padding:8px 0">Sinyal bekleniyor</div>';
-
-    return `<div class="card" style="overflow:hidden">
-      <div style="display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid #18211f">
-        <span style="width:8px;height:8px;border-radius:50%;background:${b.dot};box-shadow:0 0 7px ${b.dot}"></span>
-        <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">${b.name}</span>
-        <span style="font-size:9px;color:#5e716f;margin-left:auto">${b.tf} · ${bilgi?'BİLGİ':'SİNYAL'}</span>
-      </div>
-      ${bilgi?`
-      <div style="display:grid;grid-template-columns:1fr 2fr;gap:1px;background:#18211f">
-        <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:15px;color:#06b6d4">${sigs.length}</div><div style="font-size:8px;color:#5e716f">BİLDİRİM</div></div>
-        <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:11px;color:#8a9c99">${son.length?(son[0].symbol||'aktif'):'—'}</div><div style="font-size:8px;color:#5e716f">SON DURUM</div></div>
-      </div>`:`
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#18211f">
-        <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:14px;color:#1ff0ad">${yz.max_pct!=null?'+'+yz.max_pct+'%':'—'}</div><div style="font-size:8px;color:#5e716f">MAX %</div></div>
-        <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:14px;color:#7af0c4">${dl.max_dolar!=null?'$'+fmtNum(dl.max_dolar):'—'}</div><div style="font-size:8px;color:#5e716f">MAX $</div></div>
-        <div style="background:#0c1112;padding:8px;text-align:center"><div class="sg" style="font-size:14px;color:#cdd9d8">${sigs.length}</div><div style="font-size:8px;color:#5e716f">SİNYAL</div></div>
-      </div>`}
-      <div style="padding:6px 13px 10px;max-height:120px;overflow-y:auto">${sigHtml}</div>
-    </div>`;
-  };
-
-  const sinyal=BOTS.filter(b=>b.tip==='sinyal'), bilgi=BOTS.filter(b=>b.tip==='bilgi');
-
-  // En altta haftalık başarı tabloları
-  const tabloRow=(arr,key,birim)=>arr.slice(0,10).map((x,i)=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #131918;font-size:10.5px">
-      <span style="color:#5e716f;width:18px">${i+1}</span>
-      <span style="color:#c4d2cf;flex:1">${x.bot}</span>
-      <span style="color:#5e716f;font-size:9px">${x.sinyal} sinyal</span>
-      <span class="sg" style="font-weight:700;color:#1ff0ad;width:70px;text-align:right">${birim==='$'?'$'+fmtNum(x[key]):'+'+x[key]+'%'}</span>
-    </div>`).join('')||'<div style="font-size:10px;color:#5e716f;padding:10px">Henüz veri yok — sinyaller değerlendirilince dolacak.</div>';
-
-  return `
-  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:13px">
-    <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Agentlar & Bot Kataloğu</h1>
-    <span style="font-size:11px;color:#5e716f">3 alt-agent · ${sinyal.length} sinyal · ${bilgi.length} bilgi botu</span>
-  </div>
-
-  <!-- AGENT İLETİŞİM AĞI (Komuta'dan taşındı, en üstte) -->
-  <div class="card" style="background:#0b1010;padding:16px 17px;margin-bottom:14px">
-    <div class="sg" style="font-size:9.5px;letter-spacing:.16em;color:#5e716f;margin-bottom:13px">AGENT İLETİŞİM AĞI — TÜM SAYFALAR ORTAK HAFIZA ÜZERİNDEN HABERLEŞİR</div>
-    <div style="display:flex;justify-content:center;margin-bottom:13px">
-      <div style="background:linear-gradient(140deg,#11201b,#0c1814);border:1px solid #1ff0ad;border-radius:9px;padding:11px 22px;text-align:center;box-shadow:0 0 22px rgba(31,240,173,.12)">
-        <div class="sg" style="font-weight:700;font-size:13px;color:#7af0c4">◆ LİDER AGENT</div>
-        <div style="font-size:9.5px;color:#5e716f;margin-top:3px">orkestrasyon · sohbet · görev dağıtımı · tüm sayfalara erişim</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:13px">
-      <div style="background:#0a0f0f;border:1px solid #1e2a27;border-radius:8px;padding:12px 13px">
-        <div class="sg" style="font-weight:600;font-size:11.5px;color:#56a8ff">● Research Agent</div>
-        <div style="font-size:10px;color:#7d908d;line-height:1.45;margin-top:7px">Matematiksel/bilimsel pattern analizi. Hipotez üretir, görev kuyruğuna yazar.</div>
-      </div>
-      <div style="background:linear-gradient(140deg,#101a17,#0a1311);border:1px solid #274039;border-radius:8px;padding:12px 13px;text-align:center">
-        <div class="sg" style="font-weight:700;font-size:12px;color:#1ff0ad">⛁ SHARED MEMORY</div>
-        <div style="font-size:9.5px;color:#7d908d;margin-top:5px">agent_memory.json — tüm agentların okuyup yazdığı ortak banka</div>
-      </div>
-      <div style="background:#0a0f0f;border:1px solid #1e2a27;border-radius:8px;padding:12px 13px">
-        <div class="sg" style="font-weight:600;font-size:11.5px;color:#ffb13c">● Backtest Agent</div>
-        <div style="font-size:10px;color:#7d908d;line-height:1.45;margin-top:7px">Sinyal sonrası coin ne kadar gitti ölçer. Başarı skoru çıkarır.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="sg" style="font-size:10px;letter-spacing:.1em;color:#1ff0ad;margin-bottom:9px">📡 SİNYAL BOTLARI — yön verir, başarı = sinyal sonrası hareket</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px;margin-bottom:18px">${sinyal.map(card).join('')}</div>
-  <div class="sg" style="font-size:10px;letter-spacing:.1em;color:#06b6d4;margin-bottom:9px">📰 BİLGİ BOTLARI — bağlam sağlar, kombo motorunu besler</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px;margin-bottom:18px">${bilgi.map(card).join('')}</div>
-
-  <!-- HAFTALIK BAŞARI TABLOLARI (en altta, win rate yerine) -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
-    <div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:11px">
-        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#1ff0ad">HAFTALIK BAŞARI — MAX % HAREKET</span>
-        <span style="font-size:9px;color:#5e716f">${sk.hafta||''} · pazartesi sıfırlanır</span>
-      </div>
-      ${tabloRow(yuzde,'max_pct','%')}
-    </div>
-    <div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:11px">
-        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">HAFTALIK BAŞARI — 10$ × 100x KAZANÇ</span>
-        <span style="font-size:9px;color:#5e716f">en tepe/dipte kapatılsa</span>
-      </div>
-      ${tabloRow(dolar,'max_dolar','$')}
-    </div>
-  </div>`;
-}
-
 // ─── THEORY LAB ───
 // ─── THEORY LAB (v3 — otomatik, coin/fib seçimi yok) ───
 function scrTheory(){
@@ -533,7 +414,7 @@ async function theoryTara(){
     else if(!(r.en_iyi_hipotezler||[]).length){el.innerHTML='<span style="color:#ffb13c">Tarama bitti ama yeterli örnekli hipotez çıkmadı (min 20 örnek). Daha uzun dönem veya farklı enstrüman deneyin.</span>';}
     else {el.innerHTML='<span style="color:#7af0c4">✓ Tarama tamam — '+r.en_iyi_hipotezler.length+' hipotez bulundu.</span>';}
   }
-  if(ST.tab==='theory')render();
+  if(ST.tab==='live')render();
 }
 
 // ─── OPTIONS & GEX ───
@@ -1175,7 +1056,7 @@ async function advBacktest(){
   if(btn){btn.textContent='⏳ ...';btn.disabled=true;}
   const d=await jpost('/api/theory/advanced',{sembol:sym,gun:parseInt(gun),fib:parseFloat(fib),asia_baslangic:parseInt(ab),asia_bitis:parseInt(abit)});
   ST.advTest=d||{hata:'bağlantı hatası'};
-  if(ST.tab==='theory')render();
+  if(ST.tab==='live')render();
 }
 async function teoriTest(id){
   const el=$('teori-durum');if(el)el.textContent='⏳ '+id+' test ediliyor (1-2 dk)...';
@@ -1278,7 +1159,7 @@ async function renderLeaderChart(){
 async function loadTheoryHipotez(){
   const d=await jget('/api/theory/hipotezler');if(d)ST.theoryHipotez=d;
   const y=await jget('/api/theory/yorum');if(y)ST.theoryYorum=y;
-  if(ST.tab==='theory')render();
+  if(ST.tab==='live')render();
 }
 async function loadTheories(){return loadTheoryHipotez();}
 async function loadOptions(){ return loadOptionsFull(); }
@@ -1335,7 +1216,7 @@ async function boot(){
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
-    else if(['leader','agents'].includes(ST.tab))render();},120000);
+    else if(['leader','live'].includes(ST.tab))render();},120000);
   setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(ST.tab==='leader')render();},300000);
