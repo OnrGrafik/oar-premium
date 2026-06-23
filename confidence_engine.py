@@ -164,39 +164,35 @@ async def _orderflow_skoru(sembol: str) -> dict:
         skor = 0
         nedenler = []
 
-        # Funding
-        if funding is None:
-            pass  # veri yok — yorum ekleme
-        elif funding < -0.005:
-            skor += 30
-            nedenler.append(f"Aşırı negatif funding ({funding:.4f}) — short squeeze yakın → LONG")
-        elif funding < -0.001:
-            skor += 12
-            nedenler.append(f"Negatif funding ({funding:.4f}) — short ağır")
-        elif funding > 0.005:
-            skor -= 30
-            nedenler.append(f"Aşırı pozitif funding ({funding:.4f}) — long squeeze yakın → SHORT")
-        elif funding > 0.001:
-            skor -= 12
-            nedenler.append(f"Pozitif funding ({funding:.4f}) — long ağır")
-        else:
-            nedenler.append(f"Funding nötr ({funding:.4f})")
+        # Funding — % olarak gösterilir (her zaman okunan değer yazılır)
+        if funding is not None:
+            fpct = funding * 100  # oran → yüzde
+            if funding < -0.005:
+                skor += 30; nedenler.append(f"Aşırı negatif funding (%{fpct:+.4f}) — short squeeze yakın → LONG")
+            elif funding < -0.001:
+                skor += 12; nedenler.append(f"Negatif funding (%{fpct:+.4f}) — short ağır")
+            elif funding > 0.005:
+                skor -= 30; nedenler.append(f"Aşırı pozitif funding (%{fpct:+.4f}) — long squeeze yakın → SHORT")
+            elif funding > 0.001:
+                skor -= 12; nedenler.append(f"Pozitif funding (%{fpct:+.4f}) — long ağır")
+            else:
+                nedenler.append(f"Funding nötr (%{fpct:+.4f})")
 
-        # OI değişimi
+        # OI değişimi — geçmiş seri varsa değişim, yoksa anlık değeri raporla
         if len(oi_vals) >= 2 and oi_vals[0] > 0:
             oi_pct = (oi_vals[-1] - oi_vals[0]) / oi_vals[0] * 100
             if oi_pct > 8:
-                skor += 18
-                nedenler.append(f"OI %{oi_pct:.1f} arttı — güçlü pozisyon birikimi")
+                skor += 18; nedenler.append(f"OI %{oi_pct:+.1f} (7g) — güçlü pozisyon birikimi")
             elif oi_pct > 3:
-                skor += 8
-                nedenler.append(f"OI %{oi_pct:.1f} arttı — pozisyon artışı")
+                skor += 8; nedenler.append(f"OI %{oi_pct:+.1f} (7g) — pozisyon artışı")
             elif oi_pct < -8:
-                skor -= 18
-                nedenler.append(f"OI %{oi_pct:.1f} azaldı — toplu kapatma")
+                skor -= 18; nedenler.append(f"OI %{oi_pct:+.1f} (7g) — toplu kapatma")
             elif oi_pct < -3:
-                skor -= 8
-                nedenler.append(f"OI %{oi_pct:.1f} azaldı — pozisyon azalışı")
+                skor -= 8; nedenler.append(f"OI %{oi_pct:+.1f} (7g) — pozisyon azalışı")
+            else:
+                nedenler.append(f"OI yatay (%{oi_pct:+.1f} 7g)")
+        elif oi_now:
+            nedenler.append(f"OI: {oi_now:,.0f} (geçmiş seri yok)")
 
         # Taker oranı — buySellRatio = buyVol/sellVol (1.0 merkezli oran).
         # Alıcı payına çevir: buy_pct = ratio/(1+ratio)*100
@@ -204,17 +200,15 @@ async def _orderflow_skoru(sembol: str) -> dict:
             avg_ratio = sum(float(x.get("buySellRatio", 1.0)) for x in taker_data) / len(taker_data)
             buy_pct = avg_ratio / (1 + avg_ratio) * 100 if avg_ratio > 0 else 50.0
             if buy_pct > 56:
-                skor += 20
-                nedenler.append(f"Taker alıcı dominant (alış %{buy_pct:.1f}, oran {avg_ratio:.2f})")
+                skor += 20; nedenler.append(f"Taker alıcı dominant (alış %{buy_pct:.1f})")
             elif buy_pct > 52:
-                skor += 8
-                nedenler.append(f"Hafif taker alıcı (alış %{buy_pct:.1f})")
+                skor += 8; nedenler.append(f"Hafif taker alıcı (alış %{buy_pct:.1f})")
             elif buy_pct < 44:
-                skor -= 20
-                nedenler.append(f"Taker satıcı dominant (alış %{buy_pct:.1f}, oran {avg_ratio:.2f})")
+                skor -= 20; nedenler.append(f"Taker satıcı dominant (alış %{buy_pct:.1f})")
             elif buy_pct < 48:
-                skor -= 8
-                nedenler.append(f"Hafif taker satıcı (alış %{buy_pct:.1f})")
+                skor -= 8; nedenler.append(f"Hafif taker satıcı (alış %{buy_pct:.1f})")
+            else:
+                nedenler.append(f"Taker dengeli (alış %{buy_pct:.1f})")
 
         if not nedenler:
             return {"skor": 0, "yon": "NEUTRAL", "aciklama": "Orderflow verisi alınamadı (Binance fapi)", "guvenis": 0}
