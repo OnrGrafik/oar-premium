@@ -1035,14 +1035,19 @@ def rapor_gecmisi_ekle(tip: str, icerik: dict):
         "tarih": _now(),
         "icerik": icerik
     })
-    # 90 günden eski raporları arşivle (silme değil, ayrı dosya)
-    if len(gecmis["raporlar"]) > 2160:  # 90 gün x 24 saat
+    # Canlı dosyayı KÜÇÜK tut (512MB instance — her _load tüm dosyayı RAM'e parse eder).
+    # Eski raporlar silinmez, ayrı arşiv dosyasına taşınır.
+    if len(gecmis["raporlar"]) > 500:
         arsiv_file = DATA_DIR / "rapor_arsiv.json"
         arsiv = _load(arsiv_file, {"raporlar": []})
-        arsiv["raporlar"].extend(gecmis["raporlar"][:500])
+        tasinacak = len(gecmis["raporlar"]) - 300   # canlıda son 300 kalsın
+        arsiv["raporlar"].extend(gecmis["raporlar"][:tasinacak])
         _save(arsiv_file, arsiv)
-        gecmis["raporlar"] = gecmis["raporlar"][500:]
+        gecmis["raporlar"] = gecmis["raporlar"][tasinacak:]
+        del arsiv
     _save(RAPOR_GECMISI_FILE, gecmis)
+    del gecmis
+    import gc; gc.collect()
 
 def rapor_gecmisi_al(tip: str = None, limit: int = 24) -> list:
     gecmis = _load(RAPOR_GECMISI_FILE, {"raporlar": []})
@@ -1384,8 +1389,10 @@ async def saatlik_backtest_loop():
                 icerik["metin"] += f"\n\n🤖 {ai}"
             rapor_gecmisi_ekle("backtest", icerik)
             print(f"[BacktestSaatlik] ✅ {len(kombolar)} kombo")
+            del kombolar, backtest, icerik
         except Exception as e:
             print(f"[BacktestSaatlik] Hata: {str(e)[:80]}")
+        import gc; gc.collect()
         await asyncio.sleep(3600)
 
 
@@ -1417,8 +1424,10 @@ async def saatlik_research_loop():
                 icerik["metin"] += f"\n\n🤖 {ai}"
             rapor_gecmisi_ekle("research", icerik)
             print("[ResearchSaatlik] ✅")
+            del yenilik, research, icerik
         except Exception as e:
             print(f"[ResearchSaatlik] Hata: {str(e)[:80]}")
+        import gc; gc.collect()
         await asyncio.sleep(3600)
 
 

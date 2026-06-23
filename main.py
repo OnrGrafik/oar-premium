@@ -82,11 +82,13 @@ telegram_task = None
 async def background_scanner():
     """Her 15 dakikada piyasayı otomatik tara"""
     await asyncio.sleep(10)  # Başlangıçta 10sn bekle
+    import gc
     while True:
         try:
             await scan_market("1h")
         except Exception as e:
             print(f"[Scanner] Hata: {e}")
+        gc.collect()  # 512MB instance — tarama sonrası belleği temizle
         await asyncio.sleep(900)  # 15 dakika
 
 def _telegram_filtrele(r: dict) -> str | None:
