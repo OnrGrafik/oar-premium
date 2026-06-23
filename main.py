@@ -76,6 +76,68 @@ async def background_scanner():
             print(f"[Scanner] Hata: {e}")
         await asyncio.sleep(900)  # 15 dakika
 
+def _telegram_rapor_formatla(r: dict) -> str:
+    """Rapor geçmişi kaydını (tip + icerik) TAM Telegram mesajına çevirir.
+    Eskiden yalnız kısa 'metin' gönderiliyordu; yapısal detay (servisler,
+    bot stats, kombolar, bulgular, hipotezler, çakışmalar) artık dahil."""
+    tip = str(r.get("tip", "rapor")).lower()
+    ic = r.get("icerik") or {}
+    metin = ic.get("metin", "")
+    ai = ic.get("ai_dusunce", "")
+    b = []
+
+    if tip == "lider":
+        baslik = "📋 LİDER SAATLİK RAPOR"
+        sd = ic.get("servis_detay", [])
+        if sd: b.append("🖥 Servisler: " + "  ".join(sd))
+        b.append(f"📈 Win Rate: %{ic.get('win_rate',0)}  ·  Sinyal: {ic.get('sinyal_sayisi',0)}")
+        cak = ic.get("cakismalar", [])
+        if cak:
+            b.append(f"⚔️ Çakışan sinyaller ({len(cak)}):")
+            for c in cak[:5]:
+                b.append(f"  • {c.get('sembol','?')}: {c.get('bot1','?')} {c.get('yon1','')} ↔ {c.get('bot2','?')} {c.get('yon2','')}")
+    elif tip == "backtest":
+        baslik = "🧪 BACKTEST SAATLİK RAPOR"
+        kombolar = ic.get("yeni_kombolar", [])
+        if kombolar:
+            b.append(f"🎯 Yeni kombo sinyaller ({len(kombolar)}):")
+            for k in kombolar[:6]:
+                b.append(f"  • {k.get('sembol','?')} {k.get('yon','')} — {k.get('pattern','')}: {k.get('detay','')}")
+        else:
+            b.append("🎯 Bu saat yeni kombo sinyal yok.")
+        bs = ic.get("bot_stats", {})
+        if bs:
+            sirali = sorted(bs.items(), key=lambda x: x[1].get("win_rate", 0), reverse=True)[:5]
+            b.append("🏆 Bot performansları (WR):")
+            for ad, st in sirali:
+                b.append(f"  • {ad}: %{st.get('win_rate',0)} ({st.get('w',0)}W/{st.get('l',0)}L)")
+    elif tip == "research":
+        baslik = "🔍 RESEARCH SAATLİK RAPOR"
+        yen = ic.get("yenilikler", {})
+        trend = ", ".join(yen.get("trend_coinler", [])[:5])
+        if trend: b.append(f"🔥 Trend coinler: {trend}")
+        fg = yen.get("korku_endeksi", {})
+        if fg: b.append(f"😱 Korku Endeksi: {fg.get('deger','—')} ({fg.get('durum','—')})  ·  BTC Dom: %{yen.get('btc_dominans','—')}")
+        bul = ic.get("bulgular", [])
+        if bul:
+            b.append("📌 Bulgular:")
+            for x in bul[:4]:
+                etki = x.get("etki", "") if isinstance(x, dict) else ""
+                isaret = "🔴" if etki in ("yuksek", "kritik") else "🟡" if etki == "orta" else "⚪"
+                b.append(f"  {isaret} {x.get('bulgu','') if isinstance(x, dict) else x}")
+        hip = ic.get("hipotezler", [])
+        if hip:
+            b.append("💡 Hipotezler:")
+            for h in hip[:3]:
+                b.append(f"  • {h.get('hipotez','') if isinstance(h, dict) else h}")
+    else:
+        baslik = f"📊 {tip.upper()} RAPORU"
+        if metin: b.append(metin)
+
+    if ai: b.append(f"\n🤖 Lider Agent yorumu:\n{ai}")
+    govde = "\n".join(b) if b else metin
+    return f"{baslik}\n\n{govde}"
+
 async def telegram_rapor_loop():
     """Agent raporlarını (rapor_gecmisi) Telegram'a iletir. leader_agent'a dokunmaz —
        yeni raporları periyodik okur, daha önce gönderilmeyenleri yollar (dedup kalıcı)."""
@@ -100,8 +162,8 @@ async def telegram_rapor_loop():
                 anahtar = hashlib.md5((str(r.get("tip","")) + metin).encode("utf-8")).hexdigest()
                 if anahtar in gonderildi:
                     continue
-                baslik = f"📊 {str(r.get('tip','rapor')).upper()} RAPORU"
-                if await _telegram_gonder(f"{baslik}\n\n{metin[:3500]}"):
+                mesaj = _telegram_rapor_formatla(r)
+                if await _telegram_gonder(mesaj):
                     gonderildi.add(anahtar); yeni += 1
             if yeni:
                 gf.write_text(json.dumps(list(gonderildi)[-300:], ensure_ascii=False), encoding="utf-8")

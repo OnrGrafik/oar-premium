@@ -991,7 +991,7 @@ async def sabah_raporu_loop(api_key: str = ""):
 RAPOR_GECMISI_FILE = DATA_DIR / "rapor_gecmisi.json"   # tüm saatlik raporlar
 KOMBO_SINYAL_FILE  = DATA_DIR / "kombo_sinyaller.json" # OAR'ın kendi ürettiği sinyaller
 
-async def _hizli_ai(prompt: str, max_tok: int = 300) -> str:
+async def _hizli_ai(prompt: str, max_tok: int = 600) -> str:
     """Agent'ların saatlik düşünmesi için kompakt AI çağrısı."""
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
@@ -1336,7 +1336,9 @@ Win Rate: %{backtest.get('genel_win_rate',0)}
                 f"({backtest.get('degerlendirilmis',0)} değerlendirildi, WR %{backtest.get('genel_win_rate',0)})\n"
                 f"Bot stats: {json.dumps(backtest.get('bot_stats',{}), ensure_ascii=False)[:600]}\n"
                 f"Çakışma: {len(cakisma)}\n"
-                f"2-3 cümlede: en önemli gözlem + varsa aksiyon önerisi. Veri azsa onu söyle, uydurma. Türkçe.")
+                f"4-6 cümlede tam bir durum değerlendirmesi yap: (1) sistemin genel sağlığı, "
+                f"(2) en dikkat çeken bot/sinyal gözlemi rakamlarla, (3) çakışmalar bir risk mi, "
+                f"(4) bugün için somut aksiyon önerisi. Veri azsa onu açıkça söyle, uydurma. Türkçe, net.")
             if ai:
                 icerik["ai_dusunce"] = ai
                 icerik["metin"] += f"\n\n🤖 {ai}"
@@ -1364,7 +1366,9 @@ async def saatlik_backtest_loop():
                 f"Sen Backtest Agent'sın. Bu saat {len(kombolar)} kombo sinyal üretildi: "
                 f"{json.dumps([{'s':k['symbol'],'y':k['direction'],'p':k['pattern']} for k in kombolar], ensure_ascii=False)[:300]}\n"
                 f"Bot performansları: {json.dumps(backtest.get('bot_stats',{}), ensure_ascii=False)[:500]}\n"
-                f"2 cümlede: sinyal kalitesi yorumu + dikkat edilecek nokta. Türkçe, rakamlarla.")
+                f"3-5 cümlede tam yorum: (1) bu saatki kombo sinyallerin kalitesi ve yönü, "
+                f"(2) hangi bot öne çıkıyor/geride kalıyor rakamlarla, (3) dikkat edilecek nokta veya "
+                f"filtre önerisi. Türkçe, rakamlarla, uydurma.")
             if ai:
                 icerik["ai_dusunce"] = ai
                 icerik["metin"] += f"\n\n🤖 {ai}"
@@ -1395,8 +1399,9 @@ async def saatlik_research_loop():
             ai = await _hizli_ai(
                 f"Sen Research Agent'sın. Piyasa: {json.dumps(yenilik, ensure_ascii=False)[:400]}\n"
                 f"Bulgular: {json.dumps(research.get('bulgular',[])[:2], ensure_ascii=False)[:300]}\n"
-                f"2-3 cümlede: piyasa rejimi yorumu (trend coinler + korku endeksi + dominans birlikte ne anlatıyor) "
-                f"ve botlarımız için 1 somut öneri. Türkçe.")
+                f"4-6 cümlede tam analiz: (1) trend coinler + korku endeksi + BTC dominans birlikte hangi "
+                f"piyasa rejimini gösteriyor, (2) bu rejim risk-on mu risk-off mu, (3) en kritik research bulgusu, "
+                f"(4) botlarımız için 1-2 somut öneri. Türkçe, rakamlarla, uydurma.")
             if ai:
                 icerik["ai_dusunce"] = ai
                 icerik["metin"] += f"\n\n🤖 {ai}"
