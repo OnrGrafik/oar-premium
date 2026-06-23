@@ -274,15 +274,28 @@ async def tum_enstruman_tara(gun=365):
             sonuc[sym] = await otomatik_hipotez_uret(sym, gun)
         except Exception as e:
             sonuc[sym] = {"hata": str(e)[:60]}
-    # En güçlü bulguları topla
+    # En güçlü bulguları topla — Confirmed + Testing (sadece Confirmed çoğu zaman boş kalıyor)
     en_iyiler = []
+    tum_bulgular = []
+    hata_var = []
     for sym, r in sonuc.items():
+        if r.get("hata"):
+            hata_var.append(f"{sym}: {r['hata']}")
         if r.get("bulgular"):
-            for b in r["bulgular"][:2]:
-                if b["durum"] == "Confirmed":
-                    en_iyiler.append({"sym": sym, "ad": r["ad"], **b})
-    en_iyiler.sort(key=lambda x: x["win_rate"], reverse=True)
-    out = {"tarih": _now(), "gun": gun, "enstrumanlar": sonuc, "en_iyi_hipotezler": en_iyiler[:8]}
+            for b in r["bulgular"]:
+                kayit = {"sym": sym, "ad": r["ad"], **b}
+                tum_bulgular.append(kayit)
+                if b["durum"] in ("Confirmed", "Testing"):
+                    en_iyiler.append(kayit)
+    en_iyiler.sort(key=lambda x: (x["durum"] != "Confirmed", -x["win_rate"], -x.get("profit_factor", 0)))
+    # Hiç Confirmed/Testing yoksa en yüksek WR'li 3 bulguyu yine de göster
+    if not en_iyiler and tum_bulgular:
+        tum_bulgular.sort(key=lambda x: (-x["win_rate"], -x.get("profit_factor", 0)))
+        en_iyiler = tum_bulgular[:3]
+    out = {"tarih": _now(), "gun": gun, "enstrumanlar": sonuc,
+           "en_iyi_hipotezler": en_iyiler[:8],
+           "tarama_durumu": ("hata" if hata_var and not tum_bulgular else "ok"),
+           "hatalar": hata_var}
     HIPOTEZ_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2))
     return out
 

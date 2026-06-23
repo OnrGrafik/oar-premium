@@ -525,8 +525,14 @@ function scrTheory(){
 
 async function theoryTara(){
   const el=$('theory-durum');if(el)el.textContent='⏳ Tüm enstrümanlar taranıyor (2-3 dk, fib × indikatör × dönem)...';
-  await jpost('/api/theory/tara',{gun:365});
+  const r=await jpost('/api/theory/tara',{gun:365});
   await loadTheoryHipotez();
+  if(el){
+    if(!r){el.innerHTML='<span style="color:#ff5d6c">⚠ Tarama isteği başarısız (zaman aşımı veya sunucu hatası). Tekrar deneyin.</span>';}
+    else if(r.tarama_durumu==='hata'){el.innerHTML='<span style="color:#ff5d6c">⚠ Veri çekilemedi: '+esc((r.hatalar||[]).join(' · ')||'Binance verisine ulaşılamadı (geo-block olabilir)')+'</span>';}
+    else if(!(r.en_iyi_hipotezler||[]).length){el.innerHTML='<span style="color:#ffb13c">Tarama bitti ama yeterli örnekli hipotez çıkmadı (min 20 örnek). Daha uzun dönem veya farklı enstrüman deneyin.</span>';}
+    else {el.innerHTML='<span style="color:#7af0c4">✓ Tarama tamam — '+r.en_iyi_hipotezler.length+' hipotez bulundu.</span>';}
+  }
   if(ST.tab==='theory')render();
 }
 
