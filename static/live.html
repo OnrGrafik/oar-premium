@@ -1330,7 +1330,6 @@ async function dosyaOgret(){
 }
 async function send(){
   const inp=$('chatin');if(!inp)return;const q=inp.value.trim();
-  // Dosya ekliyse → vision destekli /api/chat'e gönder
   if(_chatFile){
     const f=_chatFile;
     ST.chat.push({role:'user',txt:(q||'Bu dosyayı analiz et')+' 📎'+f.name});
