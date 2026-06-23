@@ -444,19 +444,23 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
       tarih       : UTC timestamp
     """
     from time_context import time_risk_skoru
+    from regime_engine import rejim_tespit
 
     sembol_kisa = sembol.replace("USDT", "")
 
-    # Tüm agentları paralel çalıştır
-    oar, footprint, orderflow, volume, options, macro = await asyncio.gather(
+    # Tüm agentları + rejimi paralel çalıştır
+    oar, footprint, orderflow, volume, options, macro, rejim = await asyncio.gather(
         _oar_skoru(sembol),
         _footprint_skoru(sembol),
         _orderflow_skoru(sembol),
         _volume_skoru(sembol),
         _options_skoru(sembol_kisa),
         _macro_skoru(),
+        rejim_tespit(sembol),
         return_exceptions=True
     )
+    if isinstance(rejim, Exception):
+        rejim = {"rejim": "UNKNOWN", "guvenis": 0, "aciklama": str(rejim), "oar_uyari": ""}
     time_risk = await time_risk_skoru()
     backtest = _backtest_skoru()
 
@@ -491,13 +495,76 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
     long_say = yonler.count("LONG")
     short_say = yonler.count("SHORT")
 
+    # ─── Çakışma analizi (Conflict Detection) ────────────────────
+    catismalar = []
+    agent_liste = list(agent_skorlar.items())
+    for i in range(len(agent_liste)):
+        for j in range(i+1, len(agent_liste)):
+            ad1, a1 = agent_liste[i]
+            ad2, a2 = agent_liste[j]
+            s1, s2 = a1.get("skor", 0), a2.get("skor", 0)
+            g1, g2 = a1.get("guvenis", 0), a2.get("guvenis", 0)
+            # İkisi de verisi olan ama zıt yönlü güçlü agentlar
+            if g1 > 30 and g2 > 30 and abs(s1) > 15 and abs(s2) > 15:
+                if (s1 > 0) != (s2 > 0):
+                    siddet = "YÜKSEK" if abs(s1-s2) > 60 else "ORTA"
+                    catismalar.append({
+                        "agent1": ad1, "skor1": round(s1),
+                        "agent2": ad2, "skor2": round(s2),
+                        "siddet": siddet,
+                        "aciklama": f"{ad1.upper()} {'LONG' if s1>0 else 'SHORT'} ({s1:+.0f}) ↔ "
+                                    f"{ad2.upper()} {'LONG' if s2>0 else 'SHORT'} ({s2:+.0f})"
+                    })
+
+    # Çakışma cezası: Güçlü zıt oylar konfidansı düşürür
+    catisma_cezasi = 0.0
+    if long_say > 0 and short_say > 0:
+        catisma_cezasi = min(long_say, short_say) / len(yonler) * 30
+        catisma_cezasi += len(catismalar) * 3  # her güçlü çakışma +3 ceza
+
+    # ─── Volatility Engine ───────────────────────────────────────
+    # Options agentından IV verisi varsa expected move hesapla
+    vol_analiz = {}
+    try:
+        iv_pct = options.get("iv_pct") if isinstance(options, dict) else None
+        atr_pct = rejim.get("atr_pct", 0) if isinstance(rejim, dict) else 0
+
+        if iv_pct and iv_pct > 0:
+            # Beklenen günlük hareket: IV_yıllık / sqrt(365)
+            expected_gunluk = iv_pct / (365 ** 0.5)
+            rv = rejim.get("realized_vol_pct", 0) if isinstance(rejim, dict) else 0
+            rv_gunluk = rv / (365 ** 0.5) if rv > 0 else expected_gunluk
+
+            vol_analiz = {
+                "iv_pct":           round(iv_pct, 1),
+                "expected_move_pct": round(expected_gunluk, 2),
+                "realized_vol_pct": round(rv, 1),
+                "vol_oran":         round(iv_pct / rv, 2) if rv > 0 else None,
+                "durum": (
+                    "IV çok yüksek — premium sat fırsatı"   if iv_pct > rv * 1.5 else
+                    "IV düşük — trend hareketi yakın olabilir" if iv_pct < rv * 0.7 else
+                    "IV/RV dengeli"
+                )
+            }
+    except Exception:
+        pass
+
+    # ─── Rejim bazlı konfidans ayarlaması ────────────────────────
+    rejim_adi = rejim.get("rejim", "UNKNOWN") if isinstance(rejim, dict) else "UNKNOWN"
+    rejim_cezasi = 0.0
+    if rejim_adi == "RANGE":
+        # Range'de breakout ihtimali düşer
+        rejim_cezasi = 8.0
+    elif rejim_adi == "HIGH_VOL":
+        rejim_cezasi = 5.0
+    elif rejim_adi == "PANIC":
+        # Panik'te sinyaller güvenilmez, ceza büyük
+        rejim_cezasi = 15.0
+
     # Konfidans hesabı
     temel_konfidans = abs(ham_skor)
-
-    # Çakışma cezası: Karşıt yönlü güçlü oylar
-    if long_say > 0 and short_say > 0:
-        catisma = min(long_say, short_say) / len(yonler) * 35
-        temel_konfidans -= catisma
+    temel_konfidans -= catisma_cezasi
+    temel_konfidans -= rejim_cezasi
 
     # Zaman riski cezası (FED haftası, Triple Witching vb.)
     zaman_cezasi = time_risk.get("risk_skoru", 0) * 0.25
@@ -507,16 +574,21 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
 
     # Karar
     if konfidans < KONFIDANS_ESIKLERI["trade"]:
+        nedensler = [f"Konfidans yetersiz ({konfidans}/100)"]
+        if catisma_cezasi > 0:
+            nedensler.append(f"Çakışma cezası -{catisma_cezasi:.0f}")
+        if rejim_cezasi > 0:
+            nedensler.append(f"Rejim ({rejim_adi}) cezası -{rejim_cezasi:.0f}")
         karar = "NO_TRADE"
-        karar_nedeni = (f"Konfidans yetersiz ({konfidans}/100). "
-                        f"Çakışma: {long_say}L vs {short_say}S. "
-                        f"Zaman riski: {time_risk['seviye']}")
+        karar_nedeni = ". ".join(nedensler)
     elif ham_skor >= 0:
         karar = "LONG"
-        karar_nedeni = f"Ağırlıklı skor +{ham_skor:.1f} — {long_say}/{len(yonler)} ajan LONG"
+        karar_nedeni = (f"Ağırlıklı skor +{ham_skor:.1f} — {long_say}/{len(yonler)} ajan LONG. "
+                        f"Rejim: {rejim_adi}")
     else:
         karar = "SHORT"
-        karar_nedeni = f"Ağırlıklı skor {ham_skor:.1f} — {short_say}/{len(yonler)} ajan SHORT"
+        karar_nedeni = (f"Ağırlıklı skor {ham_skor:.1f} — {short_say}/{len(yonler)} ajan SHORT. "
+                        f"Rejim: {rejim_adi}")
 
     conviction = ("HIGH"   if konfidans >= KONFIDANS_ESIKLERI["high_conviction"] else
                   "MEDIUM" if konfidans >= KONFIDANS_ESIKLERI["trade"] else "LOW")
@@ -533,6 +605,9 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
             "NEUTRAL": yonler.count("NEUTRAL"),
             "toplam": len(yonler)
         },
+        "catismalar": catismalar,
+        "rejim": rejim if isinstance(rejim, dict) else {},
+        "volatilite": vol_analiz,
         "zaman_riski": time_risk,
         "agent_skorlar": {
             ad: {
@@ -570,6 +645,30 @@ def karar_ozet_metni(k: dict) -> str:
             f"[%{a['agirlik_pct']} ağırlık]  {a['aciklama'][:80]}"
         )
 
+    # Rejim
+    rj = k.get("rejim", {})
+    if rj.get("rejim") and rj["rejim"] != "UNKNOWN":
+        emojiler = {"TREND_UP": "📈", "TREND_DOWN": "📉", "RANGE": "↔️", "HIGH_VOL": "⚡", "PANIC": "🔥"}
+        re = emojiler.get(rj["rejim"], "")
+        satırlar.append("")
+        satırlar.append(f"{re} Rejim: {rj['rejim']}  ATR%{rj.get('atr_pct',0)}  RSI {rj.get('rsi',0)}")
+        if rj.get("oar_uyari"):
+            satırlar.append(f"   ⚑ {rj['oar_uyari']}")
+
+    # Volatilite
+    vl = k.get("volatilite", {})
+    if vl.get("iv_pct"):
+        satırlar.append(f"⚡ Vol: IV %{vl['iv_pct']} | Beklenen günlük ±%{vl.get('expected_move_pct',0)} | {vl.get('durum','')}")
+
+    # Çakışmalar
+    catismalar = k.get("catismalar", [])
+    if catismalar:
+        satırlar.append("")
+        satırlar.append(f"⚔ Çakışan Sinyaller ({len(catismalar)}):")
+        for c in catismalar[:3]:
+            satırlar.append(f"   [{c['siddet']}] {c['aciklama']}")
+
+    # Zaman riski
     zr = k.get("zaman_riski", {})
     if zr.get("aktif_etkinlikler"):
         satırlar.append("")
