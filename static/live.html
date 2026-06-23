@@ -1145,9 +1145,18 @@ function scrLive(){
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
           ${SUG.map(q=>`<button onclick="ask('${q}')" style="font-size:10px;color:#8a9c99;background:#0a0f0f;border:1px solid #1a2422;padding:5px 9px;border-radius:14px;cursor:pointer">${q}</button>`).join('')}
         </div>
-        <div style="display:flex;gap:8px">
-          <input id="chatin" placeholder="Neden? Kaç kere oldu? İspatı ne?" onkeydown="if(event.key==='Enter')send()" style="flex:1;background:#0a0f0f;border:1px solid #1a2422;border-radius:7px;padding:10px 12px;color:#cdd9d8;font-size:11.5px;outline:none"/>
+        <div id="chat-eklenti" style="display:none;align-items:center;gap:8px;margin-bottom:8px;padding:6px 10px;background:#0a0f0f;border:1px solid #1a2422;border-radius:7px;font-size:10.5px;color:#7af0c4">
+          <span id="chat-eklenti-ad">📎</span>
+          <button onclick="chatDosyaTemizle()" style="margin-left:auto;background:none;border:none;color:#ff5d6c;cursor:pointer;font-size:13px">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="file" id="chatfile" accept=".pdf,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp" style="display:none" onchange="chatDosyaSecildi(this)"/>
+          <button onclick="document.getElementById('chatfile').click()" title="Dosya ekle (pdf/txt/görsel) — sohbete sor veya kalıcı öğret" style="background:#0a0f0f;border:1px solid #1a2422;border-radius:7px;width:38px;height:38px;flex-shrink:0;color:#7af0c4;font-size:15px;cursor:pointer">📎</button>
+          <input id="chatin" placeholder="Soru sor ya da dosya ekleyip 'öğren' de..." onkeydown="if(event.key==='Enter')send()" style="flex:1;background:#0a0f0f;border:1px solid #1a2422;border-radius:7px;padding:10px 12px;color:#cdd9d8;font-size:11.5px;outline:none"/>
           <button onclick="send()" class="sg" style="background:#1ff0ad;border:none;border-radius:7px;padding:0 16px;color:#04130d;font-weight:700;font-size:12px;cursor:pointer">Sor</button>
+        </div>
+        <div id="chat-ogret-satir" style="display:none;margin-top:8px">
+          <button onclick="dosyaOgret()" style="width:100%;background:#0c1a14;border:1px solid #1a3a2a;border-radius:7px;padding:8px;color:#1ff0ad;font-size:11px;cursor:pointer">📚 Bu dosyayı Lider Agent'e KALICI öğret (bilgi tabanına ekle)</button>
         </div>
       </div>
     </div>
@@ -1269,8 +1278,56 @@ function updateChatOnly(){
   const cb=$('chatbox');
   if(cb){cb.innerHTML=chatHtmlGen();cb.scrollTop=cb.scrollHeight;}
 }
+// ── Lider Agent dosya ekleme ──
+let _chatFile=null;
+function chatDosyaSecildi(el){
+  const f=el.files&&el.files[0];if(!f)return;
+  _chatFile=f;
+  const ad=$('chat-eklenti-ad');if(ad)ad.textContent='📎 '+f.name+' ('+(f.size/1024).toFixed(0)+' KB)';
+  const box=$('chat-eklenti');if(box)box.style.display='flex';
+  const ogr=$('chat-ogret-satir');if(ogr)ogr.style.display='block';
+  const inp=$('chatin');if(inp&&!inp.value)inp.value='Bu dosyayı analiz et';
+}
+function chatDosyaTemizle(){
+  _chatFile=null;
+  const box=$('chat-eklenti');if(box)box.style.display='none';
+  const ogr=$('chat-ogret-satir');if(ogr)ogr.style.display='none';
+  const fi=$('chatfile');if(fi)fi.value='';
+}
+async function dosyaOgret(){
+  if(!_chatFile){alert('Önce dosya seç');return;}
+  const f=_chatFile;
+  ST.chat.push({role:'user',txt:'📚 Öğret: '+f.name});
+  ST.chat.push({role:'agent',txt:'⏳ Bilgi tabanına ekleniyor...'});
+  updateChatOnly();
+  const fd=new FormData();fd.append('file',f);fd.append('category','strateji');
+  try{
+    const r=await fetch('/api/knowledge/document',{method:'POST',body:fd});
+    const d=await r.json();
+    ST.chat.pop();
+    if(r.ok){ST.chat.push({role:'agent',txt:'✅ Öğrendim: **'+(d.title||f.name)+'** ('+(d.chunks||'?')+' parça, '+(d.total_words||'?')+' kelime). Artık stratejini sorularında kullanacağım.'});}
+    else{ST.chat.push({role:'agent',txt:'❌ '+((d&&d.detail)||'Yükleme başarısız')});}
+  }catch(e){ST.chat.pop();ST.chat.push({role:'agent',txt:'❌ Hata: '+e});}
+  chatDosyaTemizle();updateChatOnly();
+}
 async function send(){
-  const inp=$('chatin');if(!inp)return;const q=inp.value.trim();if(!q)return;inp.value='';
+  const inp=$('chatin');if(!inp)return;const q=inp.value.trim();
+  // Dosya ekliyse → vision destekli /api/chat'e gönder
+  if(_chatFile){
+    const f=_chatFile;
+    ST.chat.push({role:'user',txt:(q||'Bu dosyayı analiz et')+' 📎'+f.name});
+    ST.chat.push({role:'agent',txt:'⏳ Dosya okunuyor...'});
+    inp.value='';updateChatOnly();
+    const fd=new FormData();fd.append('message',q||'Bu dosyayı analiz et');fd.append('file',f);
+    try{
+      const r=await fetch('/api/chat',{method:'POST',body:fd});
+      const d=await r.json();
+      ST.chat.pop();
+      ST.chat.push({role:'agent',txt:(d&&(d.reply||d.cevap||d.response))||'Yanıt alınamadı'});
+    }catch(e){ST.chat.pop();ST.chat.push({role:'agent',txt:'❌ Hata: '+e});}
+    chatDosyaTemizle();updateChatOnly();return;
+  }
+  if(!q)return;inp.value='';
   ST.chat.push({role:'user',txt:q});
   ST.chat.push({role:'agent',txt:'⏳ Analiz ediliyor...'});
   updateChatOnly();  // tüm ekranı değil, sadece sohbeti güncelle
