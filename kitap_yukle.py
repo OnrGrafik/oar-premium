@@ -6,14 +6,21 @@
 kitap_hazirla.py'nin ürettiği kitap_indeksi.json dosyasını
 Render'daki sisteme PARÇA PARÇA yükler (timeout olmaz).
 
+ÖNCE:  python kitap_hazirla.py <kitap_klasoru>   → kitap_indeksi.json üretir
+SONRA: python kitap_yukle.py kitap_indeksi.json  → sisteme yükler
+
 KULLANIM:
   pip install requests
   python kitap_yukle.py kitap_indeksi.json
 
-  (URL'i değiştirmek istersen:)
+  (URL değiştirmek için:)
   python kitap_yukle.py kitap_indeksi.json https://oar-premium.onrender.com
+
+  (Sistemde OAR_API_KEY ayarlıysa anahtarı ver:)
+  python kitap_yukle.py kitap_indeksi.json https://oar-premium.onrender.com MYKEY
+  veya ortam değişkeni:  set OAR_API_KEY=MYKEY
 """
-import sys, json, time
+import sys, os, json, time
 
 try:
     import requests
@@ -23,12 +30,22 @@ except ImportError:
 
 def main():
     if len(sys.argv) < 2:
-        print("KULLANIM: python kitap_yukle.py kitap_indeksi.json [URL]")
+        print("KULLANIM: python kitap_yukle.py kitap_indeksi.json [URL] [API_KEY]")
         sys.exit(1)
 
     dosya = sys.argv[1]
     base = sys.argv[2] if len(sys.argv) > 2 else "https://oar-premium.onrender.com"
     base = base.rstrip("/")
+    api_key = sys.argv[3] if len(sys.argv) > 3 else os.environ.get("OAR_API_KEY", "")
+    headers = {"X-API-Key": api_key} if api_key else {}
+
+    if not os.path.exists(dosya):
+        print(f"❌ Dosya bulunamadı: {dosya}")
+        print(f"   Bulunduğun klasör: {os.getcwd()}")
+        print(f"\n   Önce kitap indeksini oluşturman gerekiyor:")
+        print(f"      python kitap_hazirla.py <kitap_klasoru>")
+        print(f"   Bu komut '{dosya}' dosyasını üretir, sonra bu scripti çalıştır.")
+        sys.exit(1)
 
     print(f"📂 Okunuyor: {dosya}")
     with open(dosya, "r", encoding="utf-8") as f:
@@ -49,11 +66,15 @@ def main():
         print(f"[{n}/{toplam_batch}] {len(batch)} parça gönderiliyor...", end=" ", flush=True)
         try:
             r = requests.post(f"{base}/api/knowledge/import",
-                              json={"documents": batch}, timeout=180)
+                              json={"documents": batch}, headers=headers, timeout=180)
             if r.status_code == 200:
                 res = r.json()
                 gonderilen += res.get("eklenen_chunk", 0)
                 print(f"✓ (toplam kitap: {res.get('toplam_kitap','?')})")
+            elif r.status_code == 401:
+                print("❌ HTTP 401 — API Key gerekli/geçersiz.")
+                print("   Anahtarı 3. argüman olarak ver veya OAR_API_KEY ayarla.")
+                sys.exit(1)
             else:
                 print(f"❌ HTTP {r.status_code}")
         except Exception as e:
@@ -61,7 +82,7 @@ def main():
             time.sleep(10)
             try:
                 r = requests.post(f"{base}/api/knowledge/import",
-                                  json={"documents": batch}, timeout=180)
+                                  json={"documents": batch}, headers=headers, timeout=180)
                 if r.status_code == 200:
                     gonderilen += r.json().get("eklenen_chunk", 0)
                     print("   ✓ ikinci denemede başarılı")
