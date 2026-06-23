@@ -1888,6 +1888,18 @@ async def trade_fikri_coklu_endpoint():
     from trade_setup import coklu_trade_fikri
     return await coklu_trade_fikri(["BTCUSDT", "ETHUSDT"])
 
+@app.get("/api/leader/kompozit-rejim")
+async def kompozit_rejim_endpoint(symbol: str = "BTCUSDT"):
+    """Fiyat + makro + gamma + move_source birleşik rejim profili."""
+    from hypothesis_activation import kompozit_rejim
+    return await kompozit_rejim(symbol)
+
+@app.get("/api/leader/aktif-hipotezler")
+async def aktif_hipotezler_endpoint(symbol: str = "BTCUSDT"):
+    """Mevcut rejimle uyumlu (aktif) backtest hipotezleri."""
+    from hypothesis_activation import aktif_hipotezler
+    return await aktif_hipotezler(symbol)
+
 
 @app.get("/api/leader/oar-session")
 async def oar_session_endpoint(sembol: str = "BTCUSDT"):
