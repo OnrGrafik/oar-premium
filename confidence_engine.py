@@ -126,29 +126,48 @@ async def _footprint_skoru(sembol: str) -> dict:
 async def _orderflow_skoru(sembol: str) -> dict:
     """Funding, OI trendi, Taker oranı — Orderflow Agent."""
     try:
+        funding = None; oi_now = 0; oi_vals = []; taker_data = []
         async with httpx.AsyncClient(timeout=10) as cl:
-            fr = await cl.get("https://fapi.binance.com/fapi/v1/fundingRate",
-                              params={"symbol": sembol, "limit": 1})
-            funding = float(fr.json()[0]["fundingRate"]) if fr.status_code == 200 and fr.json() else 0.0
+            # Güncel funding — premiumIndex.lastFundingRate (en doğru anlık değer)
+            try:
+                pr = await cl.get("https://fapi.binance.com/fapi/v1/premiumIndex",
+                                  params={"symbol": sembol})
+                if pr.status_code == 200:
+                    funding = float(pr.json().get("lastFundingRate"))
+            except Exception:
+                pass
 
-            oi_r = await cl.get("https://fapi.binance.com/fapi/v1/openInterest",
-                                params={"symbol": sembol})
-            oi_now = float(oi_r.json()["openInterest"]) if oi_r.status_code == 200 else 0
+            try:
+                oi_r = await cl.get("https://fapi.binance.com/fapi/v1/openInterest",
+                                    params={"symbol": sembol})
+                if oi_r.status_code == 200:
+                    oi_now = float(oi_r.json().get("openInterest", 0))
+            except Exception:
+                pass
 
-            oi_hist = await cl.get("https://fapi.binance.com/futures/data/openInterestHist",
-                                   params={"symbol": sembol, "period": "1d", "limit": 7})
-            oi_vals = [float(x["sumOpenInterest"])
-                       for x in (oi_hist.json() if oi_hist.status_code == 200 else [])]
+            try:
+                oi_hist = await cl.get("https://fapi.binance.com/futures/data/openInterestHist",
+                                       params={"symbol": sembol, "period": "1d", "limit": 7})
+                if oi_hist.status_code == 200:
+                    oi_vals = [float(x["sumOpenInterest"]) for x in oi_hist.json()]
+            except Exception:
+                pass
 
-            taker_r = await cl.get("https://fapi.binance.com/futures/data/takerlongshortRatio",
-                                   params={"symbol": sembol, "period": "1h", "limit": 4})
-            taker_data = taker_r.json() if taker_r.status_code == 200 else []
+            try:
+                taker_r = await cl.get("https://fapi.binance.com/futures/data/takerlongshortRatio",
+                                       params={"symbol": sembol, "period": "1h", "limit": 4})
+                if taker_r.status_code == 200:
+                    taker_data = taker_r.json()
+            except Exception:
+                pass
 
         skor = 0
         nedenler = []
 
         # Funding
-        if funding < -0.005:
+        if funding is None:
+            pass  # veri yok — yorum ekleme
+        elif funding < -0.005:
             skor += 30
             nedenler.append(f"Aşırı negatif funding ({funding:.4f}) — short squeeze yakın → LONG")
         elif funding < -0.001:
@@ -179,28 +198,34 @@ async def _orderflow_skoru(sembol: str) -> dict:
                 skor -= 8
                 nedenler.append(f"OI %{oi_pct:.1f} azaldı — pozisyon azalışı")
 
-        # Taker oranı
+        # Taker oranı — buySellRatio = buyVol/sellVol (1.0 merkezli oran).
+        # Alıcı payına çevir: buy_pct = ratio/(1+ratio)*100
         if taker_data:
-            avg_ratio = sum(float(x.get("buySellRatio", 0.5)) for x in taker_data) / len(taker_data)
-            if avg_ratio > 0.58:
+            avg_ratio = sum(float(x.get("buySellRatio", 1.0)) for x in taker_data) / len(taker_data)
+            buy_pct = avg_ratio / (1 + avg_ratio) * 100 if avg_ratio > 0 else 50.0
+            if buy_pct > 56:
                 skor += 20
-                nedenler.append(f"Taker alıcı dominant (%{avg_ratio*100:.1f})")
-            elif avg_ratio > 0.52:
+                nedenler.append(f"Taker alıcı dominant (alış %{buy_pct:.1f}, oran {avg_ratio:.2f})")
+            elif buy_pct > 52:
                 skor += 8
-                nedenler.append(f"Hafif taker alıcı (%{avg_ratio*100:.1f})")
-            elif avg_ratio < 0.42:
+                nedenler.append(f"Hafif taker alıcı (alış %{buy_pct:.1f})")
+            elif buy_pct < 44:
                 skor -= 20
-                nedenler.append(f"Taker satıcı dominant (%{avg_ratio*100:.1f})")
-            elif avg_ratio < 0.48:
+                nedenler.append(f"Taker satıcı dominant (alış %{buy_pct:.1f}, oran {avg_ratio:.2f})")
+            elif buy_pct < 48:
                 skor -= 8
-                nedenler.append(f"Hafif taker satıcı (%{avg_ratio*100:.1f})")
+                nedenler.append(f"Hafif taker satıcı (alış %{buy_pct:.1f})")
 
-        skor = max(-100, min(100, skor))
+        if not nedenler:
+            return {"skor": 0, "yon": "NEUTRAL", "aciklama": "Orderflow verisi alınamadı (Binance fapi)", "guvenis": 0}
+
+        skor = max(-100, min(100, int(skor)))
         return {
             "skor": skor,
             "yon": "LONG" if skor > 15 else "SHORT" if skor < -15 else "NEUTRAL",
             "aciklama": " | ".join(nedenler),
-            "detay": {"funding": round(funding, 6), "oi_now": round(oi_now, 2)},
+            "detay": {"funding": round(funding, 6) if funding is not None else None,
+                      "oi_now": round(oi_now, 2)},
             "guvenis": 78
         }
     except Exception as e:
@@ -215,47 +240,48 @@ async def _volume_skoru(sembol: str) -> dict:
         if ind.get("hata"):
             return {"skor": 0, "yon": "NEUTRAL", "aciklama": ind["hata"], "guvenis": 0}
 
+        # indicator_engine göstergeleri "indikatorler" altında, kompozit "skor.skor"
+        inds = ind.get("indikatorler", {})
         skor = 0
         nedenler = []
 
-        rsi = ind.get("RSI", {}).get("deger", 50)
-        if rsi > 72:
-            skor -= 22
-            nedenler.append(f"RSI aşırı alım ({rsi:.1f})")
-        elif rsi < 28:
-            skor += 22
-            nedenler.append(f"RSI aşırı satım ({rsi:.1f})")
-        elif rsi > 55:
-            skor += 12
-            nedenler.append(f"RSI yükseliş bölgesi ({rsi:.1f})")
-        elif rsi < 45:
-            skor -= 12
-            nedenler.append(f"RSI düşüş bölgesi ({rsi:.1f})")
-        else:
-            nedenler.append(f"RSI nötr ({rsi:.1f})")
+        rsi = inds.get("RSI", {}).get("deger")
+        if rsi is not None:
+            if rsi > 72:
+                skor -= 22; nedenler.append(f"RSI aşırı alım ({rsi:.1f})")
+            elif rsi < 28:
+                skor += 22; nedenler.append(f"RSI aşırı satım ({rsi:.1f})")
+            elif rsi > 55:
+                skor += 12; nedenler.append(f"RSI yükseliş bölgesi ({rsi:.1f})")
+            elif rsi < 45:
+                skor -= 12; nedenler.append(f"RSI düşüş bölgesi ({rsi:.1f})")
+            else:
+                nedenler.append(f"RSI nötr ({rsi:.1f})")
 
-        macd_h = ind.get("MACD", {}).get("histogram", 0)
-        if macd_h > 0:
-            skor += 15
-            nedenler.append(f"MACD pozitif histogram ({macd_h:+.5f})")
-        elif macd_h < 0:
-            skor -= 15
-            nedenler.append(f"MACD negatif histogram ({macd_h:+.5f})")
+        macd_h = inds.get("MACD", {}).get("hist")
+        if macd_h is not None:
+            if macd_h > 0:
+                skor += 15; nedenler.append(f"MACD pozitif histogram ({macd_h:+.5f})")
+            elif macd_h < 0:
+                skor -= 15; nedenler.append(f"MACD negatif histogram ({macd_h:+.5f})")
 
-        cmf = ind.get("CMF", {}).get("deger", 0)
-        if cmf > 0.05:
-            skor += 20
-            nedenler.append(f"CMF güçlü para girişi ({cmf:+.3f})")
-        elif cmf < -0.05:
-            skor -= 20
-            nedenler.append(f"CMF güçlü para çıkışı ({cmf:+.3f})")
+        cmf = inds.get("CMF", {}).get("deger")
+        if cmf is not None:
+            if cmf > 0.05:
+                skor += 20; nedenler.append(f"CMF güçlü para girişi ({cmf:+.3f})")
+            elif cmf < -0.05:
+                skor -= 20; nedenler.append(f"CMF güçlü para çıkışı ({cmf:+.3f})")
 
-        komp = ind.get("kompozit_skor_5m", 0)
-        if abs(komp) > 20:
+        # indicator_engine'in kendi kompozit 5m skoru (en güvenilir özet)
+        komp = ind.get("skor", {}).get("skor")
+        if komp is not None and abs(komp) > 20:
             skor += komp * 0.25
-            nedenler.append(f"Kompozit skor: {komp:+.0f}")
+            nedenler.append(f"Kompozit 5m skor: {komp:+.0f} ({ind.get('skor',{}).get('yon','')})")
 
-        skor = max(-100, min(100, skor))
+        if not nedenler:
+            return {"skor": 0, "yon": "NEUTRAL", "aciklama": "İndikatör verisi boş", "guvenis": 0}
+
+        skor = max(-100, min(100, int(skor)))
         return {
             "skor": skor,
             "yon": "LONG" if skor > 15 else "SHORT" if skor < -15 else "NEUTRAL",
@@ -337,46 +363,57 @@ async def _options_skoru(sembol_kisa: str) -> dict:
 async def _macro_skoru() -> dict:
     """Macro Engine — DXY, VIX, risk-on/off."""
     try:
-        from macro_engine import macro_ozet
-        macro = await macro_ozet() if asyncio.iscoroutinefunction(
-            __import__("macro_engine", fromlist=["macro_ozet"]).macro_ozet
-        ) else __import__("macro_engine", fromlist=["macro_ozet"]).macro_ozet()
-        if isinstance(macro, dict) and not macro.get("error"):
-            skor = 0
-            nedenler = []
-            vix = macro.get("vix_level") or macro.get("VIX")
-            if vix:
+        from macro_engine import carry_trade, makro_veri
+        carry, makro = await asyncio.gather(
+            carry_trade(), makro_veri(), return_exceptions=True)
+
+        skor = 0
+        nedenler = []
+
+        # VIX + carry unwind (Yahoo Finance — carry_trade)
+        if isinstance(carry, dict) and carry.get("gostergeler"):
+            g = carry["gostergeler"]
+            vix = (g.get("vix") or {}).get("fiyat")
+            if vix is not None:
                 v = float(vix)
                 if v > 35:
-                    skor -= 28
-                    nedenler.append(f"VIX kritik ({v:.1f}) — risk-off panik")
+                    skor -= 28; nedenler.append(f"VIX kritik ({v:.1f}) — risk-off panik")
                 elif v > 25:
-                    skor -= 15
-                    nedenler.append(f"VIX yüksek ({v:.1f}) — risk-off")
+                    skor -= 15; nedenler.append(f"VIX yüksek ({v:.1f}) — risk-off")
                 elif v < 14:
-                    skor += 15
-                    nedenler.append(f"VIX düşük ({v:.1f}) — risk-on")
+                    skor += 15; nedenler.append(f"VIX düşük ({v:.1f}) — risk-on")
                 else:
                     nedenler.append(f"VIX normal ({v:.1f})")
-            dxy = macro.get("dxy_change_pct") or macro.get("DXY_change")
-            if dxy is not None:
-                d = float(dxy)
-                if d > 0.4:
-                    skor -= 18
-                    nedenler.append(f"DXY güçleniyor (%{d:+.2f}) — crypto baskı")
-                elif d < -0.4:
-                    skor += 18
-                    nedenler.append(f"DXY zayıflıyor (%{d:+.2f}) — crypto destek")
-            skor = max(-100, min(100, skor))
-            return {
-                "skor": skor,
-                "yon": "LONG" if skor > 15 else "SHORT" if skor < -15 else "NEUTRAL",
-                "aciklama": " | ".join(nedenler) if nedenler else "Macro veri bekleniyor",
-                "guvenis": 55
-            }
+            if carry.get("risk") == "YÜKSEK":
+                skor -= 18
+                nedenler.append(f"Carry unwind riski YÜKSEK ({carry.get('unwind_sinyalleri','?')}/5)")
+            usdjpy_chg = (g.get("usdjpy") or {}).get("chg")
+            if usdjpy_chg is not None and float(usdjpy_chg) < -0.5:
+                skor -= 8
+                nedenler.append(f"USD/JPY düşüyor (%{usdjpy_chg}) — JPY güçleniyor, carry baskı")
+
+        # Makro econ tablo eğilimi (CPI/NFP/PPI/faiz — makro_veri)
+        if isinstance(makro, dict) and makro.get("egilim"):
+            eg = makro["egilim"]
+            if "POZİTİF" in eg:
+                skor += 15; nedenler.append(f"Makro tablo POZİTİF ({makro.get('olumlu','?')} destek)")
+            elif "NEGATİF" in eg:
+                skor -= 15; nedenler.append(f"Makro tablo NEGATİF ({makro.get('olumsuz','?')} baskı)")
+            else:
+                nedenler.append(f"Makro nötr ({makro.get('olumlu','?')}+/{makro.get('olumsuz','?')}-)")
+
+        if not nedenler:
+            return {"skor": 0, "yon": "NEUTRAL", "aciklama": "Macro verisi alınamadı", "guvenis": 0}
+
+        skor = max(-100, min(100, int(skor)))
+        return {
+            "skor": skor,
+            "yon": "LONG" if skor > 15 else "SHORT" if skor < -15 else "NEUTRAL",
+            "aciklama": " | ".join(nedenler),
+            "guvenis": 60
+        }
     except Exception as e:
-        pass
-    return {"skor": 0, "yon": "NEUTRAL", "aciklama": "Macro verisi alınamadı", "guvenis": 0}
+        return {"skor": 0, "yon": "NEUTRAL", "aciklama": f"Macro hatası: {str(e)[:80]}", "guvenis": 0}
 
 
 def _backtest_skoru() -> dict:
