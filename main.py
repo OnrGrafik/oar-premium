@@ -1480,20 +1480,38 @@ async def grafik_yorum(symbol: str = "BTCUSDT"):
             kitap_kaynaklar = list(dict.fromkeys(s['title'] for s in ks))
     except Exception: pass
 
+    # Somut işlem fikri — CIO yön/skor + fib+duvar giriş/TP/SL
+    trade = {}
+    try:
+        from trade_setup import trade_fikri
+        trade = await trade_fikri(symbol)
+    except Exception: pass
+
     api_key = os.environ.get("GEMINI_API_KEY", "")
     yorum = ""
     if api_key:
+        setup_metin = ""
+        if trade.get("setuplar"):
+            sc = trade["setuplar"].get("scalp", {})
+            sw = trade["setuplar"].get("swing", {})
+            setup_metin = (
+                f"\nÖNERİLEN İŞLEM (yön {trade.get('yon')}, işlem skoru {trade.get('islem_skoru')}/100):\n"
+                f"  SCALP: giriş {sc.get('giris')} ({sc.get('giris_etiket')}), "
+                f"TP {sc.get('tp')} ({sc.get('tp_etiket')}), SL {sc.get('sl')}, R:R {sc.get('rr')}\n"
+                f"  SWING: giriş {sw.get('giris')}, TP {sw.get('tp')}→{sw.get('tp2')} "
+                f"({sw.get('tp_etiket')}), SL {sw.get('sl')}, R:R {sw.get('rr')}"
+            )
         prompt = f"""Sen OAR Premium grafik analistisin. {cur} 5M ASIA RANGE grafiğini canlı yorumla.
-Lider Agent adına, ilgili agentların (indikatör, opsiyon, whale) bulgularını gözlemle.
-2-3 cümle, Türkçe, **önemli seviyeleri vurgula**, kitaplardan referans ver:
+Lider Agent adına, agentların (indikatör, opsiyon, whale) bulgularını gözlemle ve
+ÖNERİLEN İŞLEM seviyelerini gerekçelendir. 3-4 cümle, Türkçe, **seviyeleri vurgula**.
 
 İndikatör skoru: {veri.get('skor')} ({veri.get('yon')}) · Fiyat: {veri.get('fiyat')}
 Rejim: {veri.get('rejim')} · Whale/Move: {veri.get('whale')}
 Opsiyon CW/PW/ZG: {veri.get('cw')}/{veri.get('pw')}/{veri.get('zg')}
 En etkili indikatörler: {json.dumps(veri.get('detay', []), ensure_ascii=False)[:300]}
-Kitap: {kitap_notu[:300]}
+Kitap: {kitap_notu[:300]}{setup_metin}
 
-Fiyatın fib seviyelerine ve opsiyon duvarlarına göre konumunu, indikatör skorunu yorumla."""
+İşlem skorunu, fib/duvar konumunu ve giriş-TP-SL mantığını açıkla. İşlem skoru düşükse (<60) neden temkinli olunması gerektiğini söyle."""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
@@ -1502,7 +1520,7 @@ Fiyatın fib seviyelerine ve opsiyon duvarlarına göre konumunu, indikatör sko
                 if rr.status_code == 200:
                     yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
         except Exception: pass
-    return {"veri": veri, "yorum": yorum, "kitap_kaynaklar": kitap_kaynaklar}
+    return {"veri": veri, "yorum": yorum, "kitap_kaynaklar": kitap_kaynaklar, "trade": trade}
 
 @app.get("/api/piyasa-durumu")
 async def piyasa_durumu():
@@ -1857,6 +1875,18 @@ async def ogrenme_raporu():
         "agirliklar": agirlik_raporu(),
         "backtest_guven": backtest_guven_skoru(),
     }
+
+@app.get("/api/leader/trade-fikri")
+async def trade_fikri_endpoint(symbol: str = "BTCUSDT"):
+    """Scalp + Swing işlem fikri: yön + işlem skoru (CIO) + giriş/TP/SL (fib+duvar)."""
+    from trade_setup import trade_fikri
+    return await trade_fikri(symbol)
+
+@app.get("/api/leader/trade-fikri-coklu")
+async def trade_fikri_coklu_endpoint():
+    """BTC + ETH için paralel işlem fikri."""
+    from trade_setup import coklu_trade_fikri
+    return await coklu_trade_fikri(["BTCUSDT", "ETHUSDT"])
 
 
 @app.get("/api/leader/oar-session")
