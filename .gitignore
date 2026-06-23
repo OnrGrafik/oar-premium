@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Yerel veri / cache (production /var/data kullanır)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Ortam
+.env
