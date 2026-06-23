@@ -19,6 +19,9 @@ body{background:#07090a;color:#cdd9d8;font-family:'JetBrains Mono',ui-monospace,
 @keyframes oarticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 @keyframes oarfeedin{0%{opacity:0;transform:translateY(-7px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes oarpulse{0%,100%{opacity:.5}50%{opacity:1}}
+.info-tip{position:relative}
+.info-tip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#131918;border:1px solid #1c302a;color:#b8c6c3;font-size:10px;line-height:1.45;padding:7px 10px;border-radius:6px;white-space:pre-wrap;width:220px;z-index:999;pointer-events:none;opacity:0;transition:opacity .15s}
+.info-tip:hover::after{opacity:1}
 .sg{font-family:'Space Grotesk',sans-serif}
 .navbtn{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:7px;border:1px solid transparent;background:none;color:#8a9c99;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;width:100%;transition:.15s}
 .navbtn:hover{filter:brightness(1.3)}
@@ -360,12 +363,10 @@ function scrTheory(){
   return `
   <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:6px">
     <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Theory Lab</h1>
-    <span style="font-size:11px;color:#5e716f">Otomatik hipotez üretimi · BTC/ETH/Altın · tüm fib + indikatör taraması</span>
-    <button onclick="theoryTara()" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:7px 14px;font-weight:600;font-size:11px;cursor:pointer">⚗ Şimdi Tara</button>
+    <span style="font-size:11px;color:#5e716f">Otomatik hipotez üretici agent · fib seviyeleri × indikatörler × hacim × geçmiş veri</span>
+    <span style="margin-left:auto;font-size:9px;color:#3a4a47;background:#0a0f0f;border:1px solid #1a2422;border-radius:5px;padding:4px 9px">⏱ Günlük otomatik çalışır</span>
   </div>
-  <div style="font-size:10px;color:#5e716f;margin-bottom:14px">Sistem en geriye giden veriyi otomatik çeker, tüm fib seviyelerini + indikatör skorlarını dener. Coin/fib seçimi yok — sistem kendi hipotezini üretir.</div>
-
-  <div id="theory-durum" style="font-size:11px;color:#ffb13c;margin-bottom:10px"></div>
+  <div style="font-size:10px;color:#5e716f;margin-bottom:14px">Sistem tüm fib key level'larını, indikatörleri, hacimleri ve footprint verilerini geçmişle karşılaştırarak otomatik hipotez üretir. Hipotezler test edilip onaylanır veya çürütülür.</div>
 
   <!-- EN İYİ HİPOTEZLER -->
   <div class="card" style="padding:15px;margin-bottom:13px">
@@ -405,18 +406,6 @@ function scrTheory(){
   </div>`;
 }
 
-async function theoryTara(){
-  const el=$('theory-durum');if(el)el.textContent='⏳ Tüm enstrümanlar taranıyor (2-3 dk, fib × indikatör × dönem)...';
-  const r=await jpost('/api/theory/tara',{gun:365});
-  await loadTheoryHipotez();
-  if(el){
-    if(!r){el.innerHTML='<span style="color:#ff5d6c">⚠ Tarama isteği başarısız (zaman aşımı veya sunucu hatası). Tekrar deneyin.</span>';}
-    else if(r.tarama_durumu==='hata'){el.innerHTML='<span style="color:#ff5d6c">⚠ Veri çekilemedi: '+esc((r.hatalar||[]).join(' · ')||'Binance verisine ulaşılamadı (geo-block olabilir)')+'</span>';}
-    else if(!(r.en_iyi_hipotezler||[]).length){el.innerHTML='<span style="color:#ffb13c">Tarama bitti ama yeterli örnekli hipotez çıkmadı (min 20 örnek). Daha uzun dönem veya farklı enstrüman deneyin.</span>';}
-    else {el.innerHTML='<span style="color:#7af0c4">✓ Tarama tamam — '+r.en_iyi_hipotezler.length+' hipotez bulundu.</span>';}
-  }
-  if(ST.tab==='live')render();
-}
 
 // ─── OPTIONS & GEX ───
 // ─── OPSİYON MASASI (Options Desk teması — veri sözleşmesi değişmedi) ───
@@ -1120,12 +1109,12 @@ function scrLive(){
   const rjAdı=(karar.rejim&&karar.rejim.rejim)||reg.rejim||'—';
   const rjRenk={'TREND_UP':'#1ff0ad','TREND_DOWN':'#ff5d6c','RANGE':'#ffb13c','HIGH_VOL':'#f0a845','PANIC':'#ff5d6c','TREND':'#1ff0ad','EXPANSION':'#56a8ff','REVERSAL':'#ff5d6c'}[rjAdı]||'#9fb0ad';
   const ind=[
-    {l:'CIO KARAR',v:(karar.karar||reg.rejim||'—'),d:karar.konfidans?`%${karar.konfidans} conf`:'',col:{'LONG':'#1ff0ad','SHORT':'#ff5d6c','NO_TRADE':'#ffb13c'}[karar.karar]||rjRenk},
-    {l:'REJİM',v:rjAdı,d:karar.rejim?`ATR%${karar.rejim.atr_pct||0}`:'',col:rjRenk},
-    {l:'OAR SCORE',v:(ctx.oar_score||{}).skor||'—',d:'/100',col:'#7af0c4'},
-    {l:'F&G',v:ST.fng||'—',d:'',col:'#ffb13c'},
-    {l:'SİNYAL',v:ST.signals.length,d:'toplam',col:'#cdd9d8'},
-    {l:'TOPLULUK',v:'10',d:'aktif bot',col:'#9fb0ad'},
+    {l:'CIO KARAR',v:(karar.karar||reg.rejim||'—'),d:karar.konfidans?`%${karar.konfidans} conf`:'',col:{'LONG':'#1ff0ad','SHORT':'#ff5d6c','NO_TRADE':'#ffb13c'}[karar.karar]||rjRenk,tip:'7 agentin ağırlıklı oyu: LONG/SHORT/NO_TRADE. Konfidans %60+ ise pozisyon açılabilir.'},
+    {l:'REJİM',v:rjAdı,d:karar.rejim?`ATR%${karar.rejim.atr_pct||0}`:'',col:rjRenk,tip:'Fiyat davranış rejimi: TREND_UP/DOWN trend, RANGE yatay, HIGH_VOL yüksek oynaklık, PANIC piyasa stresi.'},
+    {l:'OAR SCORE',v:(ctx.oar_score||{}).skor||'—',d:'/100',col:'#7af0c4',tip:'Asia Range fib bazlı momentum skoru (0-100). Asia seansı high/low noktalarına göre hesaplanır.'},
+    {l:'F&G',v:ST.fng||'—',d:'',col:'#ffb13c',tip:'Fear & Greed Endeksi (0-100). 0-25 aşırı korku, 75-100 aşırı açgözlülük. Kontrarian sinyal olarak kullanılır.'},
+    {l:'SİNYAL',v:ST.signals.length,d:'toplam',col:'#cdd9d8',tip:'Aktif botlardan gelen toplam sinyal sayısı. Aynı yönde birden fazla sinyal teyit güçlendirir.'},
+    {l:'TOPLULUK',v:'10',d:'aktif bot',col:'#9fb0ad',tip:'Arka planda veri işleyen agent bot sayısı. Her bot farklı bir veri kaynağını analiz eder.'},
   ];
   const feedHtml=feedHtmlGen();
 
@@ -1138,8 +1127,11 @@ function scrLive(){
     <span style="font-size:11px;color:#5e716f">Agent feed &amp; Lider sohbeti — tüm sistem bağlamıyla</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin-bottom:13px">
-    ${ind.map(i=>`<div class="card" style="padding:11px 12px">
-      <div style="font-size:9px;letter-spacing:.08em;color:#5e716f">${i.l}</div>
+    ${ind.map(i=>`<div class="card" style="padding:11px 12px;position:relative">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:9px;letter-spacing:.08em;color:#5e716f">${i.l}</span>
+        <span class="info-tip" data-tip="${i.tip||''}" style="width:13px;height:13px;border-radius:50%;background:#1a2422;color:#5e716f;font-size:8px;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex-shrink:0;border:1px solid #243330">i</span>
+      </div>
       <div style="display:flex;align-items:baseline;gap:6px;margin-top:6px">
         <span class="sg" style="font-weight:600;font-size:15px;color:${i.col}">${i.v}</span>
         <span style="font-size:10px;color:#5e716f">${i.d}</span></div></div>`).join('')}
@@ -1198,14 +1190,14 @@ function scrLive(){
     </div>
   </div>
 
+  <div style="margin-top:22px">${scrTheory()}</div>
+
   <div style="margin-top:18px">
     <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">AGENT BOTLAR — verileri işleyen agentler</div>
     <div class="card" style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px 18px">
       ${BOTS.map(b=>`<div style="display:flex;align-items:center;gap:8px;font-size:11px"><span style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${b.dot};box-shadow:0 0 6px ${b.dot}"></span><span style="flex:1;color:#b8c6c3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</span><span style="color:#4a5b59;font-size:9px">${b.tf}</span></div>`).join('')}
     </div>
-  </div>
-
-  <div style="margin-top:22px">${scrTheory()}</div>`;
+  </div>`;
 }
 
 // ─── SİSTEM / DEVOPS ───
@@ -1254,17 +1246,7 @@ function scrSystemKutular(){
     </div>`;
   }
 
-  let envHtml;
-  if(!env.bagli){envHtml='';}
-  else{
-    envHtml=`<div class="card" style="padding:15px;margin-top:13px">
-      <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">ENVIRONMENT DEĞİŞKENLERİ <span style="color:#5e716f">(değerler gizli)</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:7px">
-        ${(env.degiskenler||[]).map(e=>`<span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#9fb0ad;background:#0a0f0f;border:1px solid #1a2422;padding:5px 10px;border-radius:5px">
-          <span style="width:5px;height:5px;border-radius:50%;background:${e.dolu?'#1ff0ad':'#5e716f'}"></span>${esc(e.key)}</span>`).join('')}
-      </div>
-    </div>`;
-  }
+  const envHtml='';
 
   return `
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px">

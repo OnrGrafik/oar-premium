@@ -89,71 +89,71 @@ async def background_scanner():
             print(f"[Scanner] Hata: {e}")
         await asyncio.sleep(900)  # 15 dakika
 
-def _telegram_rapor_formatla(r: dict) -> str:
-    """Rapor geçmişi kaydını (tip + icerik) TAM Telegram mesajına çevirir.
-    Eskiden yalnız kısa 'metin' gönderiliyordu; yapısal detay (servisler,
-    bot stats, kombolar, bulgular, hipotezler, çakışmalar) artık dahil."""
-    tip = str(r.get("tip", "rapor")).lower()
+def _telegram_filtrele(r: dict) -> str | None:
+    """
+    Raporu filtreler. Sadece 3 kategoride mesaj üretir:
+    1. Piyasa sinyali / trade fikri (konfidans yüksek CIO kararı)
+    2. Opsiyon takip güncellemesi (IV anomali, gamma rejim değişikliği)
+    3. Agent sistem önerisi / iyileştirme (AI düşüncesi)
+    Diğer tüm rutin raporları (servis uptime, bot stats, win rate) filtreler.
+    """
+    tip = str(r.get("tip", "")).lower()
     ic = r.get("icerik") or {}
-    metin = ic.get("metin", "")
     ai = ic.get("ai_dusunce", "")
     b = []
 
-    if tip == "lider":
-        baslik = "📋 LİDER SAATLİK RAPOR"
-        sd = ic.get("servis_detay", [])
-        if sd: b.append("🖥 Servisler: " + "  ".join(sd))
-        b.append(f"📈 Win Rate: %{ic.get('win_rate',0)}  ·  Sinyal: {ic.get('sinyal_sayisi',0)}")
-        cak = ic.get("cakismalar", [])
-        if cak:
-            b.append(f"⚔️ Çakışan sinyaller ({len(cak)}):")
-            for c in cak[:5]:
-                b.append(f"  • {c.get('sembol','?')}: {c.get('bot1','?')} {c.get('yon1','')} ↔ {c.get('bot2','?')} {c.get('yon2','')}")
-    elif tip == "backtest":
-        baslik = "🧪 BACKTEST SAATLİK RAPOR"
-        kombolar = ic.get("yeni_kombolar", [])
-        if kombolar:
-            b.append(f"🎯 Yeni kombo sinyaller ({len(kombolar)}):")
-            for k in kombolar[:6]:
-                b.append(f"  • {k.get('sembol','?')} {k.get('yon','')} — {k.get('pattern','')}: {k.get('detay','')}")
-        else:
-            b.append("🎯 Bu saat yeni kombo sinyal yok.")
-        bs = ic.get("bot_stats", {})
-        if bs:
-            sirali = sorted(bs.items(), key=lambda x: x[1].get("win_rate", 0), reverse=True)[:5]
-            b.append("🏆 Bot performansları (WR):")
-            for ad, st in sirali:
-                b.append(f"  • {ad}: %{st.get('win_rate',0)} ({st.get('w',0)}W/{st.get('l',0)}L)")
-    elif tip == "research":
-        baslik = "🔍 RESEARCH SAATLİK RAPOR"
-        yen = ic.get("yenilikler", {})
-        trend = ", ".join(yen.get("trend_coinler", [])[:5])
-        if trend: b.append(f"🔥 Trend coinler: {trend}")
-        fg = yen.get("korku_endeksi", {})
-        if fg: b.append(f"😱 Korku Endeksi: {fg.get('deger','—')} ({fg.get('durum','—')})  ·  BTC Dom: %{yen.get('btc_dominans','—')}")
-        bul = ic.get("bulgular", [])
-        if bul:
-            b.append("📌 Bulgular:")
-            for x in bul[:4]:
-                etki = x.get("etki", "") if isinstance(x, dict) else ""
-                isaret = "🔴" if etki in ("yuksek", "kritik") else "🟡" if etki == "orta" else "⚪"
-                b.append(f"  {isaret} {x.get('bulgu','') if isinstance(x, dict) else x}")
-        hip = ic.get("hipotezler", [])
-        if hip:
-            b.append("💡 Hipotezler:")
-            for h in hip[:3]:
-                b.append(f"  • {h.get('hipotez','') if isinstance(h, dict) else h}")
-    else:
-        baslik = f"📊 {tip.upper()} RAPORU"
-        if metin: b.append(metin)
+    # ── 1. Trade Sinyali ──────────────────────────────────────────────
+    if tip == "karar":
+        karar = ic.get("karar", "")
+        konf = ic.get("konfidans", 0)
+        sembol = ic.get("sembol", "BTC")
+        rejim = ic.get("rejim", {})
+        vol = ic.get("volatilite", {})
+        # Sadece yüksek konfidanslı gerçek sinyal
+        if karar in ("LONG", "SHORT") and konf >= 60:
+            yon_emoji = "📈 LONG" if karar == "LONG" else "📉 SHORT"
+            b.append(f"🎯 {yon_emoji} — {sembol}")
+            b.append(f"Konfidans: %{konf}")
+            if rejim:
+                b.append(f"Rejim: {rejim.get('rejim','—')}  |  ATR %{rejim.get('atr_pct',0)}")
+            if vol.get("iv_pct"):
+                b.append(f"IV: %{vol['iv_pct']}  |  Günlük ±%{vol.get('expected_move_pct',0)}  |  {vol.get('durum','')}")
+            nedenleri = ic.get("nedenler", [])
+            if nedenleri:
+                b.append("Nedenler: " + " · ".join(str(n) for n in nedenleri[:3]))
+            if ai:
+                b.append(f"\n🤖 {ai[:300]}")
+            return "🔔 OAR — Yüksek Konfidanslı Sinyal\n\n" + "\n".join(b)
+        return None  # düşük konfidans → gönderme
 
-    if ai: b.append(f"\n🤖 Lider Agent yorumu:\n{ai}")
-    govde = "\n".join(b) if b else metin
-    return f"{baslik}\n\n{govde}"
+    # ── 2. Opsiyon / Volatilite Güncellemesi ─────────────────────────
+    if tip in ("options", "opsiyon", "volatilite"):
+        gex = ic.get("gamma_rejim", "")
+        iv = ic.get("iv_pct") or ic.get("avg_iv_pct")
+        cw = ic.get("call_wall")
+        pw = ic.get("put_wall")
+        zg = ic.get("zero_gamma")
+        if not any([gex, iv, cw]):
+            return None
+        b.append(f"Gamma Rejimi: {gex}" if gex else "")
+        if iv: b.append(f"ATM IV: %{iv}")
+        if cw: b.append(f"Call Wall: ${cw:,.0f}")
+        if pw: b.append(f"Put Wall: ${pw:,.0f}")
+        if zg: b.append(f"Zero Gamma: ${zg:,.0f}")
+        if ai: b.append(f"\n🤖 {ai[:200]}")
+        return "📊 OAR — Opsiyon Güncellemesi\n\n" + "\n".join(x for x in b if x)
+
+    # ── 3. Agent sistem önerisi (AI analizi olan herhangi rapor) ──────
+    if ai and len(ai) > 80:
+        # Sadece gerçek içerik olan ai yorumu
+        ozet = ai[:400]
+        return f"💡 OAR — Agent Önerisi ({tip.upper()})\n\n{ozet}"
+
+    return None  # filtrele
+
 
 async def telegram_rapor_loop():
-    """Agent raporlarını (rapor_gecmisi) Telegram'a iletir. leader_agent'a dokunmaz —
-       yeni raporları periyodik okur, daha önce gönderilmeyenleri yollar (dedup kalıcı)."""
+    """Filtrelenmiş bildirimleri gönderir: sadece sinyal, opsiyon update, sistem önerisi."""
     if not (os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")):
         print("[Telegram] yapılandırılmadı (ENV yok) — bildirim döngüsü pasif")
         return
@@ -163,23 +163,25 @@ async def telegram_rapor_loop():
         gonderildi = set(json.loads(gf.read_text(encoding="utf-8"))) if gf.exists() else set()
     except Exception:
         gonderildi = set()
-    print("[Telegram] rapor bildirim döngüsü aktif")
+    print("[Telegram] filtreli bildirim döngüsü aktif")
     while True:
         try:
             from leader_agent import rapor_gecmisi_al
             yeni = 0
-            for r in reversed(rapor_gecmisi_al(limit=10)):   # eskiden yeniye
-                metin = (r.get("icerik") or {}).get("metin", "")
-                if not metin:
-                    continue
-                anahtar = hashlib.md5((str(r.get("tip","")) + metin).encode("utf-8")).hexdigest()
+            for r in reversed(rapor_gecmisi_al(limit=20)):
+                ic = r.get("icerik") or {}
+                anahtar = hashlib.md5(
+                    (str(r.get("tip","")) + str(ic.get("metin","")) + str(ic.get("karar",""))).encode()
+                ).hexdigest()
                 if anahtar in gonderildi:
                     continue
-                mesaj = _telegram_rapor_formatla(r)
-                if await _telegram_gonder(mesaj):
+                mesaj = _telegram_filtrele(r)
+                if mesaj and await _telegram_gonder(mesaj):
                     gonderildi.add(anahtar); yeni += 1
-            if yeni:
-                gf.write_text(json.dumps(list(gonderildi)[-300:], ensure_ascii=False), encoding="utf-8")
+                else:
+                    gonderildi.add(anahtar)  # filtrelenmiş olanı da işaretle
+            if yeni or True:  # her döngüde yaz (boş seti temizle)
+                gf.write_text(json.dumps(list(gonderildi)[-500:], ensure_ascii=False), encoding="utf-8")
         except Exception as e:
             print(f"[Telegram] rapor loop hata: {str(e)[:100]}")
         await asyncio.sleep(300)  # 5 dakika

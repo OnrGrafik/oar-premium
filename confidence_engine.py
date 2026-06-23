@@ -354,12 +354,32 @@ async def _options_skoru(sembol_kisa: str) -> dict:
                 except Exception:
                     pass
 
+        # ATM IV from near-term options for volatility engine
+        iv_pct = None
+        try:
+            from options_engine import _zincir
+            import httpx as _hx
+            async with _hx.AsyncClient(timeout=20) as _cl:
+                _spot, _opts = await _zincir(_cl, sembol_kisa)
+            if _opts and _spot:
+                import math as _math
+                _now = int(__import__("time").time() * 1000)
+                _near_ts = min(o["expiryTs"] for o in _opts)
+                _near = [o for o in _opts if o["expiryTs"] == _near_ts]
+                _atm = min(_near, key=lambda o: abs(o["strike"] - _spot))
+                _iv = _atm.get("iv", 0)
+                if _iv > 0:
+                    iv_pct = round(_iv * 100, 1)
+        except Exception:
+            pass
+
         skor = max(-100, min(100, skor))
         return {
             "skor": skor,
             "yon": "LONG" if skor > 15 else "SHORT" if skor < -15 else "NEUTRAL",
             "aciklama": " | ".join(nedenler),
-            "guvenis": 75
+            "guvenis": 75,
+            "iv_pct": iv_pct,
         }
     except Exception as e:
         return {"skor": 0, "yon": "NEUTRAL", "aciklama": f"Options hatası: {e}", "guvenis": 0}
