@@ -215,17 +215,6 @@ function renderNav(){
       <span style="flex:1;text-align:left">${n.label}</span>
     </button>`).join('');
 }
-function renderRail(){
-  if(!$('botcount')||!$('botrail'))return;
-  const aktif = BOTS.filter(b=>(ST.signals||[]).some(s=>(s.bot||'').toLowerCase().includes(b.name.toLowerCase().split(' ')[0].toLowerCase())));
-  $('botcount').textContent = `${BOTS.length} / 10`;
-  $('botrail').innerHTML = BOTS.map(b=>`
-    <div style="display:flex;align-items:center;gap:8px;font-size:10px">
-      <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${b.dot};box-shadow:0 0 6px ${b.dot};animation:oarpulse 2.4s infinite"></span>
-      <span style="flex:1;color:#8a9c99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</span>
-      <span style="color:#4a5b59;font-size:9px">${b.tf}</span>
-    </div>`).join('');
-}
 function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='agents')loadBasariSkoru();if((tab==='theory'||tab==='live')&&!ST.theoryHipotez)loadTheoryHipotez();}
 
 // ════════════ TICKER ════════════
@@ -349,102 +338,6 @@ function scrLeader(){
       ${ov.cvd_yon?`<span style="font-size:10px;color:${ov.cvd_yon==='YUKARI'?'#1ff0ad':'#ff5d6c'};margin-left:auto">Opsiyon CVD ${ov.cvd_yon}</span>`:''}
     </div>
     <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${esc(oy.yorum||'Opsiyon analizi yükleniyor... (Deribit verileri + opsiyon kitapları)')}</div>
-  </div>`;
-}
-
-function cokluTeyitHtml(){
-  // Aynı sembol+yön'de 2+ bot sinyali = teyit
-  const sigs=(ST.signals||[]).slice(-60);
-  const grup={};
-  sigs.forEach(s=>{
-    if(!s.symbol||!s.direction)return;
-    const key=s.symbol+'|'+(s.direction||'').toUpperCase();
-    (grup[key]=grup[key]||new Set()).add(s.bot||'?');
-  });
-  const teyitler=Object.entries(grup).filter(([k,v])=>v.size>=2)
-    .map(([k,v])=>{const[sym,yon]=k.split('|');return{sym,yon,botlar:[...v]};}).slice(0,8);
-  if(!teyitler.length)return '<div style="font-size:10px;color:#5e716f">Henüz çoklu teyit yok — 2+ bot aynı yönde sinyal verince burada görünür.</div>';
-  return teyitler.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #131918;font-size:11px">
-    <span style="font-weight:600;color:#cdd9d8;width:90px">${t.sym}</span>
-    <span style="font-size:9.5px;font-weight:600;color:${['LONG','ALIS','ALIŞ'].includes(t.yon)?'#1ff0ad':'#ff5d6c'};border:1px solid #1a2422;padding:2px 7px;border-radius:4px">${t.yon}</span>
-    <span style="color:#8a9c99;font-size:10px;margin-left:auto">${t.botlar.join(' + ')}</span>
-  </div>`).join('');
-}
-
-// ─── KOMUTA: OAR ASIA RANGE + HACİM (grafik/skor yerine) ───
-function komutaAsiaPanel(){
-  const fib=ST.oarFib||{}, sev=fib.seviyeler||{};
-  const opt=ST.optScore||{};
-  const ind=ST.indicators||{}, inds=ind.indikatorler||{};
-  const spot=opt.spot||ind.fiyat||0;
-  const rp=fib.range_pct;
-  const aktif=(rp||0)>=1.0;
-
-  // Fib + opsiyon seviye merdiveni (fiyata göre azalan)
-  const rows=[];
-  Object.entries(sev).forEach(([ad,px])=>rows.push({px:+px,ad:'fib '+ad,col:'#56a8ff',tip:'fib'}));
-  if(opt.call_wall)rows.push({px:+opt.call_wall,ad:'Call Wall (direnç)',col:'#1ff0ad',tip:'CW'});
-  if(opt.put_wall)rows.push({px:+opt.put_wall,ad:'Put Wall (destek)',col:'#ff5d6c',tip:'PW'});
-  if(opt.zero_gamma)rows.push({px:+opt.zero_gamma,ad:'Zero Gamma (flip)',col:'#ffb13c',tip:'ZG'});
-  if(opt.max_pain)rows.push({px:+opt.max_pain,ad:'Max Pain',col:'#9fb0ad',tip:'MP'});
-  if(spot)rows.push({px:+spot,ad:'SPOT',col:'#cdd9d8',tip:'SPOT',spot:true});
-  rows.sort((a,b)=>b.px-a.px);
-  const merdiven=rows.length?rows.map(r=>`
-    <div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid #131918;${r.spot?'background:#0d1413':''}">
-      <span style="width:34px;font-size:8px;font-weight:700;color:${r.col};border:1px solid ${r.col}44;border-radius:4px;text-align:center;padding:2px 0">${r.tip}</span>
-      <span style="flex:1;font-size:10px;color:#8a9c99">${esc(r.ad)}</span>
-      <span class="sg" style="font-size:12px;font-weight:600;color:${r.spot?'#cdd9d8':'#c4d2cf'}">$${fmtNum(Math.round(r.px))}</span>
-    </div>`).join(''):'<div style="font-size:10px;color:#5e716f;padding:18px;text-align:center">Asia Range verisi bekleniyor (TR 03:00-07:00 oluşumu)...</div>';
-
-  // Hacim & akış indikatörleri
-  const irow=(ad,val,col,sub)=>val==null||val===''?'':`
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #131918">
-      <span style="flex:1;font-size:10px;color:#8a9c99">${ad}</span>
-      <span style="font-size:11px;font-weight:600;color:${col||'#cdd9d8'}">${val}</span>
-      ${sub?`<span style="font-size:8.5px;color:#5e716f;width:66px;text-align:right">${sub}</span>`:''}
-    </div>`;
-  const ms=inds['Move Source']||{}, scvd=inds['Spot CVD']||{}, oi=inds['Open Interest']||{},
-        rvol=inds['RVOL']||{}, cmf=inds['CMF']||{}, mfi=inds['MFI']||{}, vwap=inds['VWAP']||{},
-        fund=inds['Funding']||{}, cb=inds['Coinbase Premium']||{};
-  const hacim=
-    irow('Move Source',ms.kaynak||'',ms.kaynak==='SPOT-DRIVEN'?'#1ff0ad':ms.kaynak==='FUTURES-DRIVEN'?'#ff5d6c':'#9fb0ad',ms.spot_pct!=null?'%'+ms.spot_pct+' spot':'')+
-    irow('Spot CVD',scvd.egim?(scvd.egim==='yukarı'?'\u25b2 yukar\u0131':'\u25bc a\u015fa\u011f\u0131'):'',scvd.egim==='yukarı'?'#1ff0ad':'#ff5d6c','')+
-    irow('Open Interest',oi.delta_pct!=null?((oi.delta_pct>=0?'+':'')+oi.delta_pct+'%'):'',(oi.delta_pct||0)>=0?'#1ff0ad':'#ff5d6c',oi.deger!=null?(oi.deger+(oi.birim||'')):'')+
-    irow('RVOL',rvol.deger!=null?(rvol.deger+'\u00d7'):'',(rvol.deger||0)>1.5?'#ffb13c':'#cdd9d8','')+
-    irow('CMF',cmf.deger!=null?cmf.deger:'',(cmf.deger||0)>0?'#1ff0ad':(cmf.deger||0)<0?'#ff5d6c':'#9fb0ad','')+
-    irow('MFI',mfi.deger!=null?mfi.deger:'',(mfi.deger||0)>80?'#ff5d6c':(mfi.deger||0)<20?'#1ff0ad':'#cdd9d8','')+
-    irow('VWAP',vwap.pozisyon||'',vwap.pozisyon==='üstünde'?'#1ff0ad':vwap.pozisyon==='altında'?'#ff5d6c':'#9fb0ad','')+
-    irow('Funding',fund.deger!=null?(fund.deger+'%'):'',(fund.deger||0)>0.03?'#ff5d6c':(fund.deger||0)<-0.03?'#1ff0ad':'#9fb0ad','')+
-    irow('Coinbase Prem.',cb.deger!=null?(cb.deger+'%'):'',(cb.deger||0)>0.05?'#1ff0ad':(cb.deger||0)<-0.05?'#ff5d6c':'#9fb0ad','');
-  const hacimHtml=hacim.trim()?hacim:'<div style="font-size:10px;color:#5e716f;padding:18px;text-align:center">Hacim indikatörleri yükleniyor...</div>';
-
-  return `
-  <!-- OAR ASIA RANGE + HACİM (fapi.binance futures + Deribit — grafik/skor yerine) -->
-  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:13px;margin-bottom:13px">
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid #18211f">
-        <span class="sg" style="font-weight:600;font-size:12px;color:#eaf4f2">OAR ASIA RANGE \u00b7 BTC</span>
-        <span style="font-size:9px;color:#5e716f">TR 03:00-07:00</span>
-        <span style="margin-left:auto;font-size:9px;font-weight:700;padding:3px 9px;border-radius:5px;${aktif?'color:#7af0c4;border:1px solid #1ff0ad;background:#11201b':'color:#8a9c99;border:1px solid #1a2422'}">${rp!=null?(aktif?('AKT\u0130F \u00b7 %'+rp):('GE\u00c7ERS\u0130Z \u00b7 %'+rp+' (<%1)')):'VER\u0130 BEKLEN\u0130YOR'}</span>
-      </div>
-      ${fib.asia_high?`<div style="display:flex;gap:0;border-bottom:1px solid #18211f">
-        <div style="flex:1;padding:9px 14px;border-right:1px solid #18211f"><div style="font-size:8px;color:#5e716f">ASIA HIGH</div><div class="sg" style="font-size:13px;color:#1ff0ad;margin-top:2px">$${fmtNum(Math.round(fib.asia_high))}</div></div>
-        <div style="flex:1;padding:9px 14px;border-right:1px solid #18211f"><div style="font-size:8px;color:#5e716f">ASIA LOW</div><div class="sg" style="font-size:13px;color:#ff5d6c;margin-top:2px">$${fmtNum(Math.round(fib.asia_low))}</div></div>
-        <div style="flex:1;padding:9px 14px"><div style="font-size:8px;color:#5e716f">RANGE</div><div class="sg" style="font-size:13px;color:${aktif?'#7af0c4':'#9fb0ad'};margin-top:2px">%${rp}</div></div>
-      </div>`:''}
-      <div style="padding:6px 15px 12px">
-        <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin:6px 0 4px">F\u0130B + OPS\u0130YON SEV\u0130YELER\u0130 (azalan)</div>
-        ${merdiven}
-      </div>
-    </div>
-    <div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">HAC\u0130M & AKI\u015e</span>
-        <span style="font-size:8.5px;color:#5e716f">Asia Range ba\u011flam\u0131</span>
-      </div>
-      ${hacimHtml}
-      <div style="margin-top:10px;padding-top:9px;border-top:1px solid #141d1b;font-size:9px;color:#7d908d;line-height:1.4">${esc(ms.yorum||'Spot/vadeli bask\u0131s\u0131 hareketin kal\u0131c\u0131l\u0131\u011f\u0131n\u0131 g\u00f6sterir.')}</div>
-    </div>
   </div>`;
 }
 
@@ -1427,10 +1320,10 @@ async function loadFng(){
 
 // ════════════ INIT ════════════
 async function boot(){
-  renderNav();renderRail();render();
+  renderNav();render();
   tickClock();setInterval(tickClock,1000);
   await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge(),loadIndicators(),loadOptScore(),loadOarFib(),loadPiyasaDurumu(),loadOpsiyonYorum(),loadBasariSkoru(),loadGrafikYorum()]);
-  renderRail();render();
+  render();
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
