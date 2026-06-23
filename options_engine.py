@@ -30,9 +30,9 @@ def _ncdf(x):
     return 0.5+s*(0.5-_npdf(x)*p)
 
 def _bs_greeks(S, K, T, sig, typ, r=0, q=0):
-    """Tam BS Greekleri — delta, gamma, vega, vanna, charm (Hull 11e)."""
+    """Tam BS Greekleri — delta, gamma, vega, theta, rho, vanna, charm (Hull 11e)."""
     if T<=0 or sig<=0 or S<=0 or K<=0:
-        return {"delta":0,"gamma":0,"vega":0,"vanna":0,"charm":0,"d1":0,"d2":0}
+        return {"delta":0,"gamma":0,"vega":0,"theta":0,"rho":0,"vanna":0,"charm":0,"d1":0,"d2":0}
     sqrtT=math.sqrt(T)
     d1=(math.log(S/K)+(r-q+0.5*sig*sig)*T)/(sig*sqrtT)
     d2=d1-sig*sqrtT
@@ -43,7 +43,13 @@ def _bs_greeks(S, K, T, sig, typ, r=0, q=0):
     vanna = -eqT*nd1*d2/sig
     core  = nd1*(2*(r-q)*T - d2*sig*sqrtT)/(2*T*sig*sqrtT)
     charm = (-eqT*(core+q*_ncdf(d1))) if typ=="call" else (-eqT*(core-q*_ncdf(-d1)))
-    return {"delta":delta,"gamma":gamma,"vega":vega,"vanna":vanna,"charm":charm,"d1":d1,"d2":d2}
+    # Theta (yıllık) + Rho — Hull 11e. r=q=0 altında theta call=put.
+    theta = (-S*eqT*nd1*sig/(2*sqrtT)
+             - r*K*math.exp(-r*T)*(_ncdf(d2) if typ=="call" else -_ncdf(-d2))
+             + q*S*eqT*(_ncdf(d1) if typ=="call" else -_ncdf(-d1)))
+    rho   = (K*T*math.exp(-r*T)*_ncdf(d2)) if typ=="call" else (-K*T*math.exp(-r*T)*_ncdf(-d2))
+    return {"delta":delta,"gamma":gamma,"vega":vega,"theta":theta,"rho":rho,
+            "vanna":vanna,"charm":charm,"d1":d1,"d2":d2}
 
 def _gamma(S,K,T,sig):
     if T<=0 or sig<=0 or S<=0 or K<=0: return 0
@@ -114,12 +120,17 @@ async def _tum_opsiyonlar(cl, spot, currency="BTC"):
         # gex.js ile birebir: TÜM greekler Black-Scholes'tan (tek tutarlı kaynak)
         bs=_bs_greeks(spot,K,T,iv,typ)
         gamma=bs["gamma"]; delta=bs["delta"]; vanna=bs["vanna"]; charm=bs["charm"]
+        theta=bs["theta"]; vega=bs["vega"]; rho=bs["rho"]
         gex = gamma*oi*spot*spot*0.01*sgn
         vex = vanna*oi*spot*0.01*sgn
         cex = charm*oi*spot*(1/365)*sgn
+        dex = delta*oi*spot*sgn        # USD notional delta
+        tex = theta*oi*(1/365)*sgn     # USD/gün (theta yıllık → /365)
+        vgx = vega*oi*0.01*sgn         # USD / 1% IV
+        rex = rho*oi*0.01*sgn          # USD / 1% faiz
         opts.append({"strike":K,"type":typ,"oi":oi,"iv":iv,
-                     "gex":gex,"vex":vex,"cex":cex,
-                     "gamma":gamma,"delta":delta,"vanna":vanna,"charm":charm,
+                     "gex":gex,"vex":vex,"cex":cex,"dex":dex,"tex":tex,"vgx":vgx,"rex":rex,
+                     "gamma":gamma,"delta":delta,"vanna":vanna,"charm":charm,"theta":theta,"vega":vega,"rho":rho,
                      "expiryTs":ts,"expiryLabel":_expiry_label(ts,now),"T":T})
     return opts
 
@@ -341,9 +352,19 @@ async def toplu_greekler(currency="BTC"):
     ng=sum(o.get("gex",0) for o in opts)
     nv=sum(o.get("vex",0) for o in opts)
     nc=sum(o.get("cex",0) for o in opts)
+    nd_=sum(o.get("dex",0) for o in opts)
+    nt=sum(o.get("tex",0) for o in opts)
+    nvega=sum(o.get("vgx",0) for o in opts)
+    nr=sum(o.get("rex",0) for o in opts)
     return {"spot":spot,
-            "net_gamma":round(ng/1e6,2),"net_vanna":round(nv/1e6,2),"net_charm":round(nc/1e6,2),
+            "net_delta":round(nd_/1e6,2),"net_gamma":round(ng/1e6,2),"net_theta":round(nt/1e6,3),
+            "net_vega":round(nvega/1e6,2),"net_rho":round(nr/1e6,3),
+            "net_vanna":round(nv/1e6,2),"net_charm":round(nc/1e6,2),
+            "delta_yorum":"Net delta pozitif — toplam yönsel maruziyet yukarı; spot düşüşünde dealer alımı (destekleyici)." if nd_>0 else "Net delta negatif — yönsel maruziyet aşağı; spot yükselişinde dealer satışı (baskılayıcı).",
             "gamma_yorum":"Dealer net LONG gamma — fiyat yükselince satıp düşünce alır, volatiliteyi bastırır (mean-reversion). Spot Call Wall'a yaklaştıkça delta-hedge baskısı artar." if ng>0 else "Dealer net SHORT gamma — fiyat hareketini güçlendirir (momentum). Volatilite genişleme eğiliminde.",
+            "theta_yorum":"Net theta pozitif — zaman akışı yazar (dealer) lehine; vade yaklaştıkça pin/Max Pain etkisi güçlenir." if nt>0 else "Net theta negatif — her gün prim erimesi opsiyon alıcısı aleyhine; gamma/oynaklık pahalı.",
+            "vega_yorum":"Net vega pozitif — IV artışı pozisyon lehine; volatilite genişlerken değer kazanır." if nvega>0 else "Net vega negatif — IV artışı aleyhine; vol düşüşünde (IV crush) pozisyon rahatlar.",
+            "rho_yorum":"Net rho pozitif — faiz artışı değeri yükseltir (kriptoda en zayıf greek; uzun vadede belirginleşir)." if nr>0 else "Net rho negatif — faiz artışı değeri düşürür; etki yalnızca uzun vadeli opsiyonlarda anlamlı.",
             "vanna_yorum":"Net vanna pozitif — IV yükselişi dealer'ı net alıma iter, spot ile aynı yönde hareket eder." if nv>0 else "Net vanna negatif — IV yükselişi dealer satışı getirir, spot'a ters baskı.",
             "charm_yorum":"Net charm pozitif — vade yaklaştıkça (özellikle haftalık expiry) dealer alım baskısı, pin riski yukarı." if nc>0 else "Net charm negatif — vade yaklaştıkça dealer satış baskısı, pin riski aşağı."}
 
