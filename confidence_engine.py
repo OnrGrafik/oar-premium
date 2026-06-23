@@ -471,13 +471,16 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
             agent_skorlar[ad] = sonuc
     agent_skorlar["backtest"] = backtest
 
-    # Ağırlıklı ortalama (güvenirlik katsayısıyla)
+    # Ağırlıklı ortalama — güven=0 olan (veri yok) agentler hariç tutulur
+    # Böylece 3 SHORT + 4 nötr/veri-yok → nötrler seyreltmez, SHORT kazanır
     agirlikli_toplam = 0.0
     toplam_etkin_agirlik = 0.0
     for ad, agirlik in AGIRLIKLAR.items():
         a = agent_skorlar.get(ad, {})
-        guven = a.get("guvenis", 50) / 100
-        etkin = agirlik * guven
+        guven = a.get("guvenis", 0)
+        if guven == 0:
+            continue  # veri yok → ağırlıktan çıkar
+        etkin = agirlik * (guven / 100)
         agirlikli_toplam += a.get("skor", 0) * etkin
         toplam_etkin_agirlik += etkin
 
