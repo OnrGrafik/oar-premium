@@ -1302,6 +1302,53 @@ async def knowledge_import(req: Request, _auth=Security(_require_key)):
     return {"status": "ok", "eklenen_chunk": res["eklenen"],
             "toplam_kitap": res["toplam_kitap"], "toplam_chunk": res["toplam_chunk"]}
 
+@app.post("/api/local/kitap-push")
+async def local_kitap_push(req: Request, _auth=Security(_require_key)):
+    """
+    Yerel istemciden kitap parçası push'u. /api/knowledge/import ile aynı işi
+    yapar ama esnek: documents/chunks/kitaplar listesi veya tek kitap kabul eder.
+    """
+    from kitap_db import import_chunks
+    try:
+        data = await req.json()
+    except Exception:
+        return {"status": "hata", "mesaj": "geçersiz JSON"}
+
+    # Çeşitli payload şekillerini normalize et
+    docs = []
+    if isinstance(data, list):
+        docs = data
+    elif isinstance(data, dict):
+        docs = (data.get("documents") or data.get("chunks")
+                or data.get("kitaplar") or [])
+        # Tek kitap/parça gönderilmişse
+        if not docs and (data.get("content") or data.get("title")):
+            docs = [data]
+
+    if not docs:
+        return {"status": "bos", "mesaj": "documents/chunks/kitaplar boş",
+                "alinan_anahtarlar": list(data.keys()) if isinstance(data, dict) else "list"}
+
+    # Her parçayı import_chunks'ın beklediği şemaya getir
+    norm = []
+    for i, d in enumerate(docs):
+        if not isinstance(d, dict):
+            continue
+        norm.append({
+            "title":     d.get("title") or d.get("baslik") or d.get("kitap") or "Bilinmeyen Kitap",
+            "category":  d.get("category") or d.get("kategori") or "kitap",
+            "chunk_idx": d.get("chunk_idx", d.get("idx", i)),
+            "content":   d.get("content") or d.get("metin") or d.get("text") or "",
+            "added_at":  d.get("added_at"),
+        })
+    norm = [d for d in norm if d["content"].strip()]
+    if not norm:
+        return {"status": "bos", "mesaj": "içerik (content) boş parçalar"}
+
+    res = import_chunks(norm)
+    return {"status": "ok", "eklenen_chunk": res["eklenen"],
+            "toplam_kitap": res["toplam_kitap"], "toplam_chunk": res["toplam_chunk"]}
+
 @app.get("/api/knowledge/kitaplar")
 async def knowledge_kitaplar():
     """Yüklü kitaplar — SQLite'tan."""
