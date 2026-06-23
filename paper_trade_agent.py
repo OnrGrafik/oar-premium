@@ -8,28 +8,42 @@ Gerçek para riski yok — sistemin kararlarının gerçek performansını
 ölçmenin tek dürüst yolu. Backtest geçmişe bakar; bu, ileriye doğru
 (forward test) gerçek zamanlı doğrulama yapar.
 
-SL/TP mantığı: rejimin ATR'ına göre dinamik.
-  • TREND     → geniş TP (2.5R), trend takip
-  • RANGE     → dar TP (1.2R), hızlı al-sat
-  • HIGH_VOL  → geniş SL (stop avı koruması)
+Sağlamlaştırmalar:
+  • High/Low mumu ile SL/TP kontrolü (sadece last price değil)
+  • Time-stop: MAX_SURE saat sonra kapatılmayan pozisyon mecburi kapanır
+  • Fee/slippage: gerçekçi net PnL için %0.07 round-trip düşülür
+  • Max açık pozisyon tavanı: sembol başına 1, toplam 3
+  • Risk tavanı: konfidans < KONFIDANS_ESIK ise trade açılmaz
 """
 
 import asyncio
-import httpx
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 import persistence as db
+from exchange_client import klines as _ec_klines, ticker_price as _ticker
 
-# Aynı yönde aynı sembolde zaten açık trade varsa yenisini açma
-KONFIDANS_ESIK = 60.0      # bu konfidansın altında trade açma
-POZISYON_USD   = 1000.0    # sanal pozisyon büyüklüğü
+KONFIDANS_ESIK = 60.0      # bu konfidansın altında trade açılmaz
+POZISYON_USD   = 1000.0    # sanal pozisyon büyüklüğü (USD)
+FEE_ROUNDTRIP  = 0.0007    # %0.07 round-trip fee + slippage
+MAX_SURE_SAAT  = 48        # time-stop: 48 saat sonra zorla kapat
+MAX_ACIK_TOPLAM = 3        # aynı anda max pozisyon sayısı
 
 
 async def _fiyat(sembol: str = "BTCUSDT") -> float:
-    async with httpx.AsyncClient(timeout=10) as c:
-        r = await c.get("https://api.binance.com/api/v3/ticker/price",
-                        params={"symbol": sembol})
-        return float(r.json()["price"])
+    return await _ticker(sembol, futures=False)
+
+
+async def _son_mum_hl(sembol: str) -> tuple[float, float]:
+    """Son 5 dakikalık mumun high ve low'unu döndür — SL/TP wick kontrolü için."""
+    try:
+        rows = await _ec_klines(sembol, "5m", 1, futures=False)
+        if rows:
+            return rows[-1][2], rows[-1][3]  # high, low
+    except Exception:
+        pass
+    fiyat = await _fiyat(sembol)
+    return fiyat, fiyat
 
 
 def _sl_tp_hesapla(yon: str, giris: float, atr_pct: float, rejim: str) -> tuple:
@@ -39,7 +53,7 @@ def _sl_tp_hesapla(yon: str, giris: float, atr_pct: float, rejim: str) -> tuple:
     """
     atr = (atr_pct or 1.5) / 100 * giris
 
-    # Risk çarpanları (SL_mult, TP_mult)
+    # (SL_mult, TP_mult) → R:R oranı
     carpanlar = {
         "TREND_UP":   (1.2, 2.5),
         "TREND_DOWN": (1.2, 2.5),
@@ -52,10 +66,20 @@ def _sl_tp_hesapla(yon: str, giris: float, atr_pct: float, rejim: str) -> tuple:
     if yon == "LONG":
         sl = giris - atr * sl_mult
         tp = giris + atr * tp_mult
-    else:  # SHORT
+    else:
         sl = giris + atr * sl_mult
         tp = giris - atr * tp_mult
     return round(sl, 2), round(tp, 2)
+
+
+def _net_pnl(yon: str, giris: float, cikis: float, miktar: float) -> tuple[float, float]:
+    """Fee düşüldükten sonra gerçekçi PnL. (pnl_pct, pnl_usd)"""
+    if yon == "LONG":
+        gross = (cikis - giris) / giris
+    else:
+        gross = (giris - cikis) / giris
+    net = gross - FEE_ROUNDTRIP
+    return round(net * 100, 3), round(miktar * net, 2)
 
 
 async def karardan_trade_ac(karar: dict, karar_id: int = None) -> dict:
@@ -73,7 +97,12 @@ async def karardan_trade_ac(karar: dict, karar_id: int = None) -> dict:
     if konfidans < KONFIDANS_ESIK:
         return {"acildi": False, "neden": f"Konfidans {konfidans} < {KONFIDANS_ESIK}"}
 
-    # Aynı yönde açık pozisyon var mı?
+    # Max toplam açık pozisyon
+    tumacik = db.acik_tradeler()
+    if len(tumacik) >= MAX_ACIK_TOPLAM:
+        return {"acildi": False, "neden": f"Max açık pozisyon tavanı ({MAX_ACIK_TOPLAM}) doldu"}
+
+    # Aynı sembol+yönde açık var mı?
     for t in db.acik_tradeler(sembol):
         if t["yon"] == yon:
             return {"acildi": False, "neden": f"Zaten açık {yon} pozisyon var (#{t['id']})"}
@@ -110,49 +139,84 @@ async def karardan_trade_ac(karar: dict, karar_id: int = None) -> dict:
     }
 
 
-async def acik_tradeleri_kontrol(sembol: str = None) -> list:
+async def acik_tradeleri_kontrol(sembol: Optional[str] = None) -> list:
     """
-    Tüm açık trade'leri canlı fiyata karşı kontrol eder.
-    SL veya TP'ye değen pozisyonları kapatır. Kapanan trade listesi döner.
+    Tüm açık trade'leri kontrol eder.
+    - 5m mumun HIGH/LOW ile SL/TP wicklerini yakalar
+    - 48 saat sonra time-stop uygular
+    Kapanan trade listesi döner.
     """
     acik = db.acik_tradeler(sembol)
     if not acik:
         return []
 
-    # Sembollere göre fiyatları topla
+    # Sembollere göre anlık fiyat + son mum H/L
     semboller = list({t["sembol"] for t in acik})
-    fiyatlar = {}
+    fiyatlar, highs, lows = {}, {}, {}
     for s in semboller:
         try:
-            fiyatlar[s] = await _fiyat(s)
+            h, l = await _son_mum_hl(s)
+            highs[s], lows[s] = h, l
+            fiyatlar[s] = (h + l) / 2
         except Exception:
-            pass
+            try:
+                f = await _fiyat(s)
+                fiyatlar[s] = highs[s] = lows[s] = f
+            except Exception:
+                pass
 
+    now = datetime.now(timezone.utc)
     kapanan = []
-    for t in acik:
-        fiyat = fiyatlar.get(t["sembol"])
-        if fiyat is None:
-            continue
-        yon, sl, tp = t["yon"], t["sl"], t["tp"]
-        sonuc = None
-        cikis = None
 
-        if yon == "LONG":
-            if sl and fiyat <= sl:
-                sonuc, cikis = "LOSS", sl
-            elif tp and fiyat >= tp:
-                sonuc, cikis = "WIN", tp
+    for t in acik:
+        s = t["sembol"]
+        if s not in fiyatlar:
+            continue
+
+        high = highs[s]
+        low  = lows[s]
+        yon, sl, tp = t["yon"], t["sl"], t["tp"]
+        miktar = t.get("miktar") or POZISYON_USD
+        sonuc = None
+        cikis_fiyat = None
+
+        # Time-stop kontrolü
+        try:
+            acilis = datetime.fromisoformat(t["acilis_tarih"])
+            if acilis.tzinfo is None:
+                acilis = acilis.replace(tzinfo=timezone.utc)
+            sure_saat = (now - acilis).total_seconds() / 3600
+        except Exception:
+            sure_saat = 0
+
+        if sure_saat >= MAX_SURE_SAAT:
+            cikis_fiyat = fiyatlar[s]
+            sonuc = "TIME_STOP"
+        elif yon == "LONG":
+            if sl and low <= sl:
+                sonuc, cikis_fiyat = "LOSS", sl
+            elif tp and high >= tp:
+                sonuc, cikis_fiyat = "WIN", tp
         else:  # SHORT
-            if sl and fiyat >= sl:
-                sonuc, cikis = "LOSS", sl
-            elif tp and fiyat <= tp:
-                sonuc, cikis = "WIN", tp
+            if sl and high >= sl:
+                sonuc, cikis_fiyat = "LOSS", sl
+            elif tp and low <= tp:
+                sonuc, cikis_fiyat = "WIN", tp
 
         if sonuc:
-            kapali = db.trade_kapat(t["id"], cikis, sonuc)
+            pnl_pct, pnl_usd = _net_pnl(yon, t["giris"], cikis_fiyat, miktar)
+            kapali = db.trade_kapat_net(t["id"], cikis_fiyat, sonuc, pnl_pct, pnl_usd)
             kapanan.append(kapali)
-            print(f"[PaperTrade] #{t['id']} {t['sembol']} {yon} kapandı: "
-                  f"{sonuc} @ {cikis} (PnL %{kapali.get('pnl_pct')})")
+            print(f"[PaperTrade] #{t['id']} {s} {yon} kapandı: "
+                  f"{sonuc} @ {cikis_fiyat} (Net PnL %{pnl_pct}, ${pnl_usd})")
+
+            # Öğrenme döngüsünü kapat
+            try:
+                from learning_engine import trade_sonucundan_ogren
+                karar_json = db.karar_detay_json(t["karar_id"]) if t.get("karar_id") else {}
+                trade_sonucundan_ogren(kapali, karar_json)
+            except Exception as le:
+                print(f"[PaperTrade] learning_engine hatası: {str(le)[:60]}")
 
     return kapanan
 

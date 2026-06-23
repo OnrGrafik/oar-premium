@@ -26,7 +26,7 @@ Karar eşikleri:
 import asyncio, httpx, os
 from datetime import datetime, timezone
 
-AGIRLIKLAR = {
+_AGIRLIKLAR_VARSAYILAN = {
     "oar":       0.30,
     "footprint": 0.20,
     "orderflow": 0.15,
@@ -35,6 +35,17 @@ AGIRLIKLAR = {
     "macro":     0.10,
     "backtest":  0.05,
 }
+
+def _etkin_agirliklar() -> dict:
+    """Learning engine varsa öğrenilmiş ağırlıkları kullan, yoksa varsayılan."""
+    try:
+        from learning_engine import agirliklar_al
+        return agirliklar_al()
+    except Exception:
+        return dict(_AGIRLIKLAR_VARSAYILAN)
+
+# Modül seviyesinde kısa isim — geriye dönük uyum için
+AGIRLIKLAR = _AGIRLIKLAR_VARSAYILAN
 
 KONFIDANS_ESIKLERI = {"high_conviction": 85, "trade": 60}
 
@@ -411,6 +422,15 @@ async def _macro_skoru() -> dict:
 
 
 def _backtest_skoru() -> dict:
+    # Önce forward test (paper trade) varsa onu kullan — gerçek veri
+    try:
+        from learning_engine import backtest_guven_skoru
+        sonuc = backtest_guven_skoru()
+        if sonuc.get("guvenis", 0) > 0:
+            return sonuc
+    except Exception:
+        pass
+    # Yoksa eski sinyal log bazlı backtest
     try:
         from leader_agent import backtest_sinyal_analizi
         bt = backtest_sinyal_analizi()
@@ -420,7 +440,7 @@ def _backtest_skoru() -> dict:
             "skor": skor,
             "yon": "LONG" if skor > 10 else "SHORT" if skor < -10 else "NEUTRAL",
             "aciklama": f"Genel WR %{wr:.1f} | {bt.get('toplam_sinyal', 0)} sinyal",
-            "guvenis": 60
+            "guvenis": 40   # log bazlı backtest daha az güvenilir
         }
     except Exception as e:
         return {"skor": 0, "yon": "NEUTRAL", "aciklama": f"Backtest hatası: {e}", "guvenis": 0}
@@ -477,9 +497,10 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
 
     # Ağırlıklı ortalama — güven=0 olan (veri yok) agentler hariç tutulur
     # Böylece 3 SHORT + 4 nötr/veri-yok → nötrler seyreltmez, SHORT kazanır
+    _agirliklar = _etkin_agirliklar()   # öğrenilmiş veya varsayılan
     agirlikli_toplam = 0.0
     toplam_etkin_agirlik = 0.0
-    for ad, agirlik in AGIRLIKLAR.items():
+    for ad, agirlik in _agirliklar.items():
         a = agent_skorlar.get(ad, {})
         guven = a.get("guvenis", 0)
         if guven == 0:
@@ -614,7 +635,7 @@ async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
                 "skor": a.get("skor", 0),
                 "yon": a.get("yon", "NEUTRAL"),
                 "aciklama": a.get("aciklama", "")[:200],
-                "agirlik_pct": round(AGIRLIKLAR.get(ad, 0.05) * 100),
+                "agirlik_pct": round(_agirliklar.get(ad, 0.05) * 100),
                 "guvenis": a.get("guvenis", 0)
             }
             for ad, a in agent_skorlar.items()

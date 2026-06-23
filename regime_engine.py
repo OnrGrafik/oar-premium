@@ -3,18 +3,12 @@ Regime Engine — OAR Premium
 ═══════════════════════════════════════════════════════
 Piyasa rejimini tespit eder: TREND_UP / TREND_DOWN / RANGE / HIGH_VOL / PANIC
 
-Binance'ten günlük OHLCV çeker (30 mum), ekstra API gerekmez.
-Confidence Engine'e rejim bağlamı sağlar — aynı OAR sinyali her rejimde
-farklı başarı şansı taşır.
+exchange_client üzerinden klines çeker (Binance→Bybit fallback, retry dahil).
 """
 
 import asyncio
-import httpx
-from datetime import datetime, timezone
 import math
-
-
-BINANCE_KLINES = "https://fapi.binance.com/fapi/v1/klines"
+from exchange_client import klines as _klines
 
 
 def _atr(candles: list, period: int = 14) -> float:
@@ -72,11 +66,7 @@ async def rejim_tespit(sembol: str = "BTCUSDT") -> dict:
         }
     """
     try:
-        async with httpx.AsyncClient(timeout=12) as c:
-            r = await c.get(BINANCE_KLINES, params={
-                "symbol": sembol, "interval": "1d", "limit": 35
-            })
-            data = r.json()
+        data = await _klines(sembol, "1d", 35, futures=False)
 
         if not isinstance(data, list) or len(data) < 20:
             return _varsayilan_rejim("Yetersiz veri")

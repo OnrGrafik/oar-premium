@@ -20,8 +20,9 @@ Seans saatleri (UTC):
   Value acceptance/rejection?
 """
 
-import asyncio, httpx
+import asyncio
 from datetime import datetime, timezone, timedelta
+from exchange_client import klines as _ec_klines
 
 SEANS_SAATLERI = {
     "asia":          (0, 4),
@@ -39,15 +40,10 @@ def _aktif_seans(saat: int) -> str:
 
 
 async def _ohlcv_al(sembol: str, interval: str = "15m", limit: int = 112) -> list:
-    """Binance'den son N mumu çek. [ts, o, h, l, c, vol]"""
+    """exchange_client üzerinden OHLCV. [open, high, low, close, vol]"""
     try:
-        async with httpx.AsyncClient(timeout=10) as cl:
-            r = await cl.get("https://api.binance.com/api/v3/klines",
-                             params={"symbol": sembol, "interval": interval, "limit": limit})
-            if r.status_code != 200:
-                return []
-            return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])]
-                    for x in r.json()]  # [open, high, low, close, vol]
+        rows = await _ec_klines(sembol, interval, limit, futures=False)
+        return [[r[1], r[2], r[3], r[4], r[5]] for r in rows]
     except Exception:
         return []
 

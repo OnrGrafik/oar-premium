@@ -16,7 +16,8 @@ import os as _os_data
 DATA_DIR = Path(_os_data.environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Security
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,6 +57,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── API Key Güvenliği ────────────────────────────────────────────
+# OAR_API_KEY env değişkeni ayarlıysa yazma endpoint'leri korunur.
+# Ayarlı değilse güvenlik devre dışı (geliştirme modu).
+_API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+_OAR_API_KEY = os.environ.get("OAR_API_KEY", "")
+
+def _require_key(key: str = Security(_API_KEY_HEADER)):
+    if not _OAR_API_KEY:
+        return   # env ayarlı değil → koruma yok (dev modu)
+    if key != _OAR_API_KEY:
+        raise HTTPException(status_code=401, detail="Geçersiz API Key")
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -791,6 +804,12 @@ async def health():
         "preview": f"{key[:10]}..." if len(key) > 10 else "YOK"
     }
 
+@app.get("/api/exchange/health")
+async def exchange_health():
+    """Binance + Bybit erişilebilirlik testi."""
+    from exchange_client import saglik_kontrol
+    return await saglik_kontrol()
+
 @app.get("/api/signals")
 async def get_signals(refresh: bool = False):
     """Güncel sinyaller — opsiyonel olarak tara"""
@@ -839,7 +858,7 @@ async def memory_add(content: str = Form(...), category: str = Form(default="gen
     return add_memory(content, category)
 
 @app.delete("/api/memory/{memory_id}")
-async def memory_delete(memory_id: int):
+async def memory_delete(memory_id: int, _auth=Security(_require_key)):
     return delete_memory(memory_id)
 
 # ─── LIVE AGENT ENDPOINTS ────────────────────────────────────────────────────
@@ -973,7 +992,7 @@ async def config_get():
     }
 
 @app.post("/api/config")
-async def config_set(req: Request):
+async def config_set(req: Request, _auth=Security(_require_key)):
     data = await req.json()
     cfg = _config_oku()
     if "vercel_url" in data:
@@ -1272,7 +1291,7 @@ async def theory_advanced_history():
     return {"testler": gecmis_sonuclar()}
 
 @app.post("/api/knowledge/import")
-async def knowledge_import(req: Request):
+async def knowledge_import(req: Request, _auth=Security(_require_key)):
     """Toplu kitap yükleme — SQLite DB (RAM dostu, 502 yok)."""
     from kitap_db import import_chunks
     data = await req.json()
@@ -1830,6 +1849,15 @@ async def paper_trades_kontrol():
     kapanan = await acik_tradeleri_kontrol()
     return {"kapanan": kapanan, "say": len(kapanan)}
 
+@app.get("/api/leader/ogrenme")
+async def ogrenme_raporu():
+    """Learning Engine: öğrenilmiş ağırlıklar + Wilson win rate."""
+    from learning_engine import agirlik_raporu, backtest_guven_skoru
+    return {
+        "agirliklar": agirlik_raporu(),
+        "backtest_guven": backtest_guven_skoru(),
+    }
+
 
 @app.get("/api/leader/oar-session")
 async def oar_session_endpoint(sembol: str = "BTCUSDT"):
@@ -2176,11 +2204,11 @@ async def knowledge_search(query: str = Form(...), category: str = Form(default=
     return {"results": results, "count": len(results)}
 
 @app.delete("/api/knowledge/document/{title}")
-async def knowledge_delete_doc(title: str):
+async def knowledge_delete_doc(title: str, _auth=Security(_require_key)):
     return delete_document(title)
 
 @app.delete("/api/knowledge/note/{note_id}")
-async def knowledge_delete_note(note_id: int):
+async def knowledge_delete_note(note_id: int, _auth=Security(_require_key)):
     return delete_note(note_id)
 
 

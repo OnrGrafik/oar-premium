@@ -167,7 +167,7 @@ def acik_tradeler(sembol: str = None) -> list:
 
 
 def trade_kapat(trade_id: int, cikis: float, sonuc: str) -> dict:
-    """Bir trade'i kapat — pnl hesapla."""
+    """Bir trade'i kapat — pnl içeride hesaplanır (fee hariç, geriye uyum için)."""
     init_db()
     with _lock, _conn() as c:
         row = c.execute("SELECT * FROM paper_trades WHERE id=?", (trade_id,)).fetchone()
@@ -192,6 +192,26 @@ def trade_kapat(trade_id: int, cikis: float, sonuc: str) -> dict:
         return t
 
 
+def trade_kapat_net(trade_id: int, cikis: float, sonuc: str,
+                    pnl_pct: float, pnl_usd: float) -> dict:
+    """Fee dahil net PnL dışarıdan verilmiş kapatma (paper_trade_agent kullanır)."""
+    init_db()
+    with _lock, _conn() as c:
+        row = c.execute("SELECT * FROM paper_trades WHERE id=?", (trade_id,)).fetchone()
+        if not row:
+            return {}
+        t = dict(row)
+        c.execute("""
+            UPDATE paper_trades
+            SET durum='CLOSED', cikis=?, pnl_pct=?, pnl_usd=?, sonuc=?, kapanis_tarih=?
+            WHERE id=?
+        """, (cikis, pnl_pct, pnl_usd, sonuc,
+              datetime.now(timezone.utc).isoformat(), trade_id))
+        t.update({"durum": "CLOSED", "cikis": cikis,
+                  "pnl_pct": pnl_pct, "pnl_usd": pnl_usd, "sonuc": sonuc})
+        return t
+
+
 def trade_gecmisi(limit: int = 100, sembol: str = None) -> list:
     init_db()
     with _conn() as c:
@@ -200,6 +220,20 @@ def trade_gecmisi(limit: int = 100, sembol: str = None) -> list:
         else:
             rows = c.execute("SELECT * FROM paper_trades ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
+
+
+def karar_detay_json(karar_id: int) -> dict:
+    """Bir kararın detay JSON'unu getir."""
+    init_db()
+    import json as _json
+    with _conn() as c:
+        row = c.execute("SELECT detay_json FROM kararlar WHERE id=?", (karar_id,)).fetchone()
+    if row and row[0]:
+        try:
+            return _json.loads(row[0])
+        except Exception:
+            pass
+    return {}
 
 
 def trade_istatistik(sembol: str = None) -> dict:
