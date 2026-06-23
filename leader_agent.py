@@ -769,6 +769,68 @@ def bot_katalog_al() -> dict:
     return BOT_KATALOG
 
 
+# ── CIO Karar Motoru ───────────────────────────────────────────────────────────
+async def lider_karar_uret(sembol: str = "BTCUSDT", api_key: str = "") -> dict:
+    """
+    Tüm agentları çalıştırarak LONG / SHORT / NO_TRADE kararı üretir.
+    Bu fonksiyon pasif rapor yazmaz — yalnızca kanıta dayalı karar verir.
+    """
+    from confidence_engine import confidence_karar, karar_ozet_metni
+
+    karar_verisi = await confidence_karar(sembol)
+    ozet = karar_ozet_metni(karar_verisi)
+
+    # AI ile karar gerekçelendirmesi (opsiyonel)
+    ai_aciklama = ""
+    if api_key:
+        try:
+            agent_ozet = "\n".join(
+                f"{ad.upper()}: skor={v['skor']:+.0f} yon={v['yon']} → {v['aciklama'][:100]}"
+                for ad, v in karar_verisi["agent_skorlar"].items()
+            )
+            zaman = karar_verisi["zaman_riski"]
+            prompt = f"""Sen OAR Premium'un CIO'sun (Chief Investment Officer).
+Görevin yalnızca LONG / SHORT / NO_TRADE kararı vermek ve gerekçeyi açıklamak.
+Özet yapma. Indikatör tanımı yapma. YALNIZCA karar ve kanıt.
+
+SEMBOL: {sembol}
+KARAR: {karar_verisi['karar']}  (Konfidans: {karar_verisi['konfidans']}/100)
+AĞIRLIKLI SKOR: {karar_verisi['ham_skor']:+.1f}
+
+AGENT VERİLERİ:
+{agent_ozet}
+
+ZAMAN RİSKİ: {zaman['seviye']} ({zaman['risk_skoru']}/100)
+{chr(10).join('• ' + e['aciklama'] for e in zaman.get('aktif_etkinlikler', [])[:3])}
+
+OAR SETUP'LAR: {', '.join(karar_verisi.get('agent_skorlar', {}).get('oar', {}).get('aciklama', '').split(' | ')[:3])}
+
+Maksimum 5 madde. Türkçe. Rakamları kullan. "sanırım" yazma."""
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            payload = {
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600}
+            }
+            async with httpx.AsyncClient(timeout=25) as cl:
+                r = await cl.post(url, json=payload)
+                if r.status_code == 200:
+                    ai_aciklama = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            ai_aciklama = f"AI açıklama alınamadı: {str(e)[:60]}"
+
+    sonuc = {**karar_verisi, "ozet_metin": ozet, "ai_aciklama": ai_aciklama}
+
+    # Kararı memory'e yaz (diğer agentlar okuyabilsin)
+    memory_yaz("karar", f"son_karar_{sembol}", {
+        "karar": karar_verisi["karar"],
+        "konfidans": karar_verisi["konfidans"],
+        "tarih": karar_verisi["tarih"]
+    }, kaynak="CIO_Engine")
+
+    return sonuc
+
+
 # ── Sinyal Toplayıcı — bot servisinden sinyalleri çek, OAR diskine yaz ─────────
 async def sinyal_toplayici_loop():
     """
