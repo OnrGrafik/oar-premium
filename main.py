@@ -890,6 +890,12 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] feature_engine: {str(e)[:80]}")
     try:
+        from paper_trade_agent import paper_trade_loop
+        asyncio.create_task(paper_trade_loop())
+        print("[Startup] ✅ Paper Trade Agent loop başlatıldı")
+    except Exception as e:
+        print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
+    try:
         from market_context import baglam_loop
         asyncio.create_task(baglam_loop())
     except Exception as e:
@@ -1794,6 +1800,35 @@ async def time_risk_endpoint():
     """Bugünkü piyasa zaman riski: FED, Triple Witching, BTC Options Expiry vb."""
     from time_context import time_risk_skoru
     return await time_risk_skoru()
+
+
+@app.get("/api/leader/paper-trades")
+async def paper_trades_endpoint():
+    """Paper Trade Agent: forward test performansı + açık pozisyonlar."""
+    from paper_trade_agent import ozet
+    return ozet()
+
+
+@app.get("/api/leader/paper-trades/gecmis")
+async def paper_trades_gecmis(limit: int = 100, sembol: str = None):
+    """Tüm paper trade geçmişi."""
+    import persistence as _db
+    return {"trades": _db.trade_gecmisi(limit, sembol)}
+
+
+@app.get("/api/leader/karar-gecmisi-db")
+async def karar_gecmisi_db(limit: int = 50, sembol: str = None):
+    """SQLite'tan CIO karar arşivi."""
+    import persistence as _db
+    return {"kararlar": _db.karar_gecmisi(limit, sembol)}
+
+
+@app.post("/api/leader/paper-trades/kontrol")
+async def paper_trades_kontrol():
+    """Açık pozisyonları hemen kontrol et (SL/TP)."""
+    from paper_trade_agent import acik_tradeleri_kontrol
+    kapanan = await acik_tradeleri_kontrol()
+    return {"kapanan": kapanan, "say": len(kapanan)}
 
 
 @app.get("/api/leader/oar-session")

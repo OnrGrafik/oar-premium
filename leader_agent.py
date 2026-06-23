@@ -828,6 +828,16 @@ Maksimum 5 madde. Türkçe. Rakamları kullan. "sanırım" yazma."""
         "tarih": karar_verisi["tarih"]
     }, kaynak="CIO_Engine")
 
+    # Kararı SQLite'a arşivle + paper trade tetikle (forward test)
+    try:
+        import persistence as _db
+        from paper_trade_agent import karardan_trade_ac
+        karar_id = _db.karar_kaydet(karar_verisi)
+        trade_sonuc = await karardan_trade_ac(karar_verisi, karar_id)
+        sonuc["paper_trade"] = trade_sonuc
+    except Exception as e:
+        sonuc["paper_trade"] = {"acildi": False, "neden": f"hata: {str(e)[:80]}"}
+
     return sonuc
 
 
