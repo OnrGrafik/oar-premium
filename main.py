@@ -1135,6 +1135,30 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
+    # 8. Son CIO kararı (memory'den)
+    try:
+        from leader_agent import memory_oku
+        mem = memory_oku("karar")
+        if mem:
+            for sembol_key, v in mem.items():
+                if isinstance(v, dict) and v.get("karar"):
+                    parcalar.append(
+                        f"Son CIO Karar [{sembol_key}]: {v['karar']} "
+                        f"(konfidans: {v.get('konfidans', '?')}/100, {v.get('tarih', '')[:16]})"
+                    )
+    except Exception:
+        pass
+
+    # 9. Zaman riski
+    try:
+        from time_context import time_risk_skoru
+        zr = await time_risk_skoru()
+        if zr.get("aktif_etkinlikler"):
+            etk = ", ".join(e["tip"] for e in zr["aktif_etkinlikler"][:3])
+            parcalar.append(f"Zaman Riski: {zr['seviye']} ({zr['risk_skoru']}/100) — {etk}")
+    except Exception:
+        pass
+
     return "\n".join(parcalar)
 
 
@@ -1692,6 +1716,31 @@ async def market_context_get(sembol: str = "BTCUSDT", refresh: bool = False):
     ctx = son_baglam()
     return ctx if ctx else await baglam_guncelle(sembol)
 
+@app.get("/api/leader/karar")
+async def leader_karar_endpoint(sembol: str = "BTCUSDT", ai: bool = True):
+    """
+    CIO Karar Motoru — LONG / SHORT / NO_TRADE kararı üretir.
+    Tüm agentları paralel çalıştırır ve ağırlıklı konfidans skoru hesaplar.
+    """
+    from leader_agent import lider_karar_uret
+    api_key = os.environ.get("GEMINI_API_KEY", "") if ai else ""
+    return await lider_karar_uret(sembol, api_key)
+
+
+@app.get("/api/leader/time-risk")
+async def time_risk_endpoint():
+    """Bugünkü piyasa zaman riski: FED, Triple Witching, BTC Options Expiry vb."""
+    from time_context import time_risk_skoru
+    return await time_risk_skoru()
+
+
+@app.get("/api/leader/oar-session")
+async def oar_session_endpoint(sembol: str = "BTCUSDT"):
+    """OAR Session Agent: Asia/London/NY analizi, SFP, Liquidity Sweep."""
+    from oar_session_agent import oar_analiz
+    return await oar_analiz(sembol)
+
+
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
     """Lider Agent ile sohbet — canlı veri + tüm sistem bağlamıyla cevap verir."""
@@ -1706,6 +1755,36 @@ async def leader_chat(req: Request):
     research = research_analizi()
     canli_baglam = await _lider_baglam_topla()
 
+    # Confidence Engine verisi — LONG/SHORT/NO_TRADE kararı
+    karar_baglami = ""
+    try:
+        from confidence_engine import confidence_karar, karar_ozet_metni
+        karar = await confidence_karar("BTCUSDT")
+        karar_baglami = karar_ozet_metni(karar)
+    except Exception as e:
+        karar_baglami = f"Karar motoru şu an aktif değil: {e}"
+
+    # OAR Session verisi
+    oar_baglami = ""
+    try:
+        from oar_session_agent import oar_analiz
+        oar = await oar_analiz("BTCUSDT")
+        oar_baglami = (f"Asia {oar['asia']['durum']} | "
+                       f"H:{oar['asia']['high']:,.0f} L:{oar['asia']['low']:,.0f} POC:{oar['asia']['poc']:,.0f} | "
+                       f"Seans: {oar['aktif_seans']} | "
+                       f"Setup: {', '.join(oar['setup_listesi'][:3]) or 'Yok'}")
+    except Exception:
+        pass
+
+    # Zaman riski
+    zaman_baglami = ""
+    try:
+        from time_context import time_risk_skoru
+        zr = await time_risk_skoru()
+        zaman_baglami = zr["ozet"]
+    except Exception:
+        pass
+
     # Kitap bilgisi ara (240+ trading kitabı SQLite'tan)
     kitap_baglam = ""
     kitap_var = False
@@ -1715,40 +1794,49 @@ async def leader_chat(req: Request):
         sonuclar = kitap_ara(soru, limit=4)
         if sonuclar:
             kitap_var = True
-            kitap_baglam = "\n\n══ İLGİLİ KİTAP BİLGİSİ (kütüphanedeki trading kitaplarından) ══\n"
+            kitap_baglam = "\n\n══ İLGİLİ KİTAP BİLGİSİ ══\n"
             for s in sonuclar:
                 kitap_baglam += f"\n[{s['title']}]: {s['content'][:400]}\n"
         elif stat.get("kitap_sayisi", 0) > 0:
-            kitap_baglam = f"\n\n(Kütüphanede {stat['kitap_sayisi']} kitap var ama bu soruyla doğrudan eşleşen bölüm bulunamadı.)"
+            kitap_baglam = f"\n\n(Kütüphanede {stat['kitap_sayisi']} kitap var.)"
     except Exception:
         pass
 
-    kitap_kural = ("Kütüphanedeki kitaplara ERİŞİMİN VAR — yukarıdaki 'KİTAP BİLGİSİ' bölümü sana o kitaplardan geldi, "
-                   "cevabında bu bilgiyi kullan ve hangi kitaptan geldiğini belirt." if kitap_var else
-                   "Bu soru için kitaplarda doğrudan eşleşme çıkmadı; genel bilginle cevapla, 'kitaplara erişemiyorum' DEME.")
+    kitap_kural = ("Yukarıdaki 'KİTAP BİLGİSİ' bölümünü kullan ve hangi kitaptan geldiğini belirt." if kitap_var else
+                   "Bu soru için kitaplarda eşleşme çıkmadı; genel bilginle cevapla.")
 
-    prompt = f"""Sen OAR Premium'un LİDER AGENT'ısın. Kripto trading sistemini yönetiyorsun.
-Altındaki agentlar: Research Agent (analiz) ve Backtest Agent (test).
-Yönettiğin botlar: {", ".join(BOT_KATALOG.keys())}
+    prompt = f"""Sen OAR Premium'un CIO'sun (Chief Investment Officer).
+Rolün: Pasif rapor yazmak değil, kanıta dayalı LONG / SHORT / NO_TRADE kararı vermek.
+Temel kural: Veriyi özetle değil, yorumla ve karar ver.
 
-══ CANLI VERİLER (şu an) ══
+══ CANLI CIO KARAR MOTORU ══
+{karar_baglami}
+
+══ OAR SESSION ANALİZİ ══
+{oar_baglami}
+
+══ ZAMAN RİSKİ ══
+{zaman_baglami}
+
+══ CANLI VERİLER ══
 {canli_baglam}
 {kitap_baglam}
-══ BACKTEST DURUMU ══
-{json.dumps(backtest, ensure_ascii=False)[:1200]}
+══ BACKTEST (sinyal performansı) ══
+{json.dumps(backtest, ensure_ascii=False)[:900]}
 
 ══ RESEARCH BULGULARI ══
-{json.dumps({"bulgular": research.get("bulgular", []), "oneriler": research.get("oneriler", [])[:3]}, ensure_ascii=False)[:800]}
+{json.dumps({"bulgular": research.get("bulgular", [])[:3], "oneriler": research.get("oneriler", [])[:2]}, ensure_ascii=False)[:600]}
 
 ══ KULLANICI SORUSU ══
 {soru}
 
-Kurallar:
-- Kesin rakamlarla, matematiksel konuş. Tahmin yapma.
-- Canlı verileri kullan (fiyat, opsiyon seviyeleri, korku endeksi).
-- Veri yoksa "henüz veri birikmedi" de, uydurma.
-- {kitap_kural}
-- Türkçe, net, madde gerektiren yerde madde kullan."""
+DAVRANŞ KURALLARI:
+1. Soruda trade kararı isteniyorsa MUTLAKA LONG/SHORT/NO_TRADE de ve konfidans ver.
+2. Kesin rakam kullan. "Yaklaşık" veya "sanırım" YAZMA.
+3. Canlı fiyat/opsiyon/OAR verilerini referans al.
+4. Çakışma varsa (ör. OAR bullish ama Options bearish) bunu açıkla, neden öne çıktığını söyle.
+5. {kitap_kural}
+6. Türkçe. Kısa, net. Madde gerektiriyorsa madde kullan."""
 
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
