@@ -872,22 +872,47 @@ _leader_task = None
 @app.on_event("startup")
 async def startup_event():
     global _leader_task
+    import gc
     api_key = os.environ.get("GEMINI_API_KEY", "")
-    # ── KALICILIK KONTROLÜ — deployda veriler korunuyor mu? ──
+
+    # ── STARTUP: büyük JSON dosyalarını anında küçült (512MB OOM önlemi) ──
+    try:
+        rapor_f = DATA_DIR / "rapor_gecmisi.json"
+        if rapor_f.exists() and rapor_f.stat().st_size > 400_000:  # >400KB
+            gecmis = json.loads(rapor_f.read_text(encoding="utf-8"))
+            raporlar = gecmis.get("raporlar", [])
+            if len(raporlar) > 300:
+                arsiv_f = DATA_DIR / "rapor_arsiv.json"
+                arsiv = {"raporlar": []}
+                if arsiv_f.exists():
+                    try:
+                        arsiv = json.loads(arsiv_f.read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                arsiv["raporlar"].extend(raporlar[:-300])
+                arsiv_f.write_text(json.dumps(arsiv, ensure_ascii=False), encoding="utf-8")
+                gecmis["raporlar"] = raporlar[-300:]
+                rapor_f.write_text(json.dumps(gecmis, ensure_ascii=False), encoding="utf-8")
+                del arsiv, gecmis, raporlar
+                gc.collect()
+                print(f"[Startup] rapor_gecmisi.json küçültüldü → {rapor_f.stat().st_size//1024}KB")
+    except Exception as e:
+        print(f"[Startup] rapor küçültme hatası: {str(e)[:80]}")
+
+    # ── KALICILIK KONTROLÜ ──
     try:
         kalici = {}
         for ad, dosya in [("sinyaller","oar_signals_log.json"),("hafıza","agent_memory.json"),
                           ("raporlar","rapor_gecmisi.json"),("başarı","basari_skoru.json"),
-                          ("kitaplar","kitaplar/kitaplar.db"),("teoriler","otomatik_hipotezler.json")]:
+                          ("teoriler","otomatik_hipotezler.json")]:
             f = DATA_DIR / dosya
             if f.exists():
                 kalici[ad] = f"{f.stat().st_size//1024}KB"
         print(f"[Kalıcılık] /var/data korunan veriler: {kalici}")
-        if not kalici:
-            print("[Kalıcılık] ⚠ Disk boş — ilk açılış veya disk mount sorunu olabilir")
     except Exception as e:
         print(f"[Kalıcılık] kontrol hatası: {str(e)[:60]}")
-    # Her loop ayrı try/except — biri çökse bile uygulama ayakta kalır (502 önler)
+
+    # Her loop ayrı try/except — biri çökse bile uygulama ayakta kalır
     def guvenli_task(coro_fn, ad):
         try:
             asyncio.create_task(coro_fn())

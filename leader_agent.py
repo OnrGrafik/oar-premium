@@ -1366,7 +1366,7 @@ Win Rate: %{backtest.get('genel_win_rate',0)}
 
 async def saatlik_backtest_loop():
     """Her saat: kombo sinyal tara + sinyal analizini güncelle."""
-    await asyncio.sleep(180)
+    await asyncio.sleep(1800)  # 30 dk — startup spike'ından kaçın
     while True:
         try:
             kombolar = await kombo_sinyal_tara()
@@ -1398,7 +1398,7 @@ async def saatlik_backtest_loop():
 
 async def saatlik_research_loop():
     """Her saat: piyasa yenilikleri + research analizi."""
-    await asyncio.sleep(240)
+    await asyncio.sleep(2100)  # 35 dk — startup spike'ından kaçın
     while True:
         try:
             yenilik  = await piyasa_yenilikleri()
