@@ -947,7 +947,9 @@ function scrKnowledge(){
         <div><div style="font-size:11px;color:#c4d2cf">${k}</div>
         <div style="font-size:9px;color:#5e716f">${v} kitap</div></div>
       </div>
-    </div>`).join('')||'<div style="font-size:10px;color:#5e716f;grid-column:span 2">Kategori verisi yükleniyor...</div>';
+    </div>`).join('')||(ST.kitapStat===undefined
+      ?'<div style="font-size:10px;color:#5e716f;grid-column:span 2">Kategori verisi yükleniyor...</div>'
+      :'<div style="font-size:10px;color:#ffb13c;grid-column:span 2;line-height:1.6">Henüz kitap yüklenmemiş. Bilgisayardan yüklemek için:<br><code style="color:#7af0c4;font-size:10px">python kitap_yukle.py kitap_indeksi.json</code><br><span style="color:#5e716f">(önce <code style="color:#9fb0ad">kitap_hazirla.py</code> ile kitap_indeksi.json üretilir)</span></div>');
 
   // Shared memory akışı (feed'den)
   const memAkis=(ST.feed||[]).slice(0,6).map(f=>`
