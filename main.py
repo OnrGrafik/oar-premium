@@ -1063,6 +1063,19 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] lider_anlik_yorum: {str(e)[:80]}")
 
+    # Grup 6 — KOMUTA MERKEZİ (top-20 güvenilirlik taraması, 5 dk)
+    try:
+        from seed_oar_rules import tohumla
+        tohumla()  # OAR master stratejiyi kural bankasına idempotent tohumla
+    except Exception as e:
+        print(f"[Startup] seed_oar_rules: {str(e)[:80]}")
+    try:
+        from komuta_merkezi import komuta_loop
+        asyncio.create_task(komuta_loop())
+        print("[Startup] ✅ Komuta Merkezi taraması başlatıldı")
+    except Exception as e:
+        print(f"[Startup] komuta_merkezi: {str(e)[:80]}")
+
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
@@ -2011,6 +2024,21 @@ async def leader_karar_endpoint(sembol: str = "BTCUSDT", ai: bool = True):
     from leader_agent import lider_karar_uret
     api_key = os.environ.get("GEMINI_API_KEY", "") if ai else ""
     return await lider_karar_uret(sembol, api_key)
+
+
+@app.get("/api/komuta-merkezi")
+async def komuta_merkezi_endpoint(refresh: bool = False):
+    """
+    KOMUTA MERKEZİ — Top-20 coin güvenilirlik skoru, 4 kutuya dağıtılmış.
+    Varsayılan: son kaydedilmiş tarama (hızlı). refresh=true → canlı yeniden tara.
+    """
+    from komuta_merkezi import son_tarama, komuta_taramasi
+    if refresh:
+        return await komuta_taramasi(20)
+    son = son_tarama()
+    if son.get("durum") == "henuz_tarama_yok":
+        return await komuta_taramasi(20)
+    return son
 
 
 @app.get("/api/leader/time-risk")

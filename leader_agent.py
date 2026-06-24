@@ -48,7 +48,7 @@ def _oar_kural_baglami() -> str:
     """Leader Agent promptuna kullanıcı tanımlı kuralları ekle."""
     try:
         from oar_rules import agent_baglami
-        return agent_baglami(max_kural=8)
+        return agent_baglami(max_kural=12)
     except Exception:
         return ""
 
