@@ -1032,12 +1032,18 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] feature_engine: {str(e)[:80]}")
 
-    # Grup 5 — background scanner (360s bekler) + telegram
+    # Grup 5 — background scanner (360s bekler) + telegram + lider yorum
     await asyncio.sleep(5)
     global scanner_task, telegram_task, telegram_komut_task
     scanner_task = asyncio.create_task(background_scanner())
     telegram_task = asyncio.create_task(telegram_rapor_loop())
     telegram_komut_task = asyncio.create_task(telegram_komut_loop())
+    try:
+        from lider_anlik_yorum import lider_anlik_yorum_loop
+        asyncio.create_task(lider_anlik_yorum_loop())
+        print("[Startup] Lider Anlık Yorum döngüsü başlatıldı")
+    except Exception as e:
+        print(f"[Startup] lider_anlik_yorum: {str(e)[:80]}")
 
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
