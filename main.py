@@ -2305,6 +2305,38 @@ async def knowledge_add_document(
             raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"PDF hatası ({file.filename}): {str(e)[:120]}")
+    elif any(fname.endswith(x) for x in [".jpg", ".jpeg", ".png", ".gif", ".webp"]):
+        # ── GÖRSEL ÖĞRETME: grafiği vision ile analiz et, açıklamasını kaydet ──
+        # Bir grafik resminin metni yoktur; ham byte'ı UTF-8 decode etmek çöp üretir.
+        # Bunun yerine Gemini'ye grafiği okuturuz → metinsel analiz → bilgi tabanı.
+        try:
+            mt = ("image/jpeg" if fname.endswith((".jpg", ".jpeg")) else
+                  "image/png"  if fname.endswith(".png") else
+                  "image/gif"  if fname.endswith(".gif") else "image/webp")
+            b64 = base64.standard_b64encode(raw).decode()
+            api_key = get_gemini_key()
+            vision_prompt = (
+                f"Bu bir trading grafiği/teknik analiz görseli ('{file.filename}'). "
+                "Detaylı analiz et ve KALICI bilgi olarak saklanmak üzere şunları çıkar: "
+                "(1) hangi enstrüman/zaman dilimi, (2) fiyat seviyeleri, fib/destek/direnç noktaları, "
+                "(3) görünen indikatörler ve değerleri, (4) hacim/footprint/delta gözlemleri, "
+                "(5) grafiğin gösterdiği setup/sinyal veya örüntü. "
+                "Net, maddeli, rakamlı yaz — bu metin daha sonra strateji öğrenmek için kullanılacak."
+            )
+            contents = [{"role": "user", "parts": [
+                {"inline_data": {"mime_type": mt, "data": b64}},
+                {"text": vision_prompt},
+            ]}]
+            aciklama = await call_gemini(api_key, contents, SYSTEM_PROMPT)
+            if not aciklama or not aciklama.strip():
+                raise HTTPException(status_code=400,
+                    detail="Görsel analiz edilemedi (Gemini boş döndü). Tekrar deneyin.")
+            content = f"[GÖRSEL ANALİZİ — {file.filename}]\n\n{aciklama}"
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400,
+                detail=f"Görsel öğrenme hatası ({file.filename}): {str(e)[:120]}")
     else:
         try:
             content = raw.decode("utf-8", errors="ignore")
@@ -2314,6 +2346,11 @@ async def knowledge_add_document(
     if not content.strip():
         raise HTTPException(status_code=400, detail="Dosya boş veya okunamadı")
     result = add_document(title, content, category, source=file.filename)
+    # Frontend net teyit için: kaç bölüm + analiz önizlemesi döndür
+    if isinstance(result, dict):
+        result.setdefault("title", title)
+        if 'aciklama' in dir():
+            result["onizleme"] = (content[:280] + "…") if len(content) > 280 else content
     return result
 
 @app.post("/api/knowledge/search")

@@ -1323,7 +1323,13 @@ async function dosyaOgret(){
     const r=await fetch('/api/knowledge/document',{method:'POST',body:fd});
     const d=await r.json();
     ST.chat.pop();
-    if(r.ok){ST.chat.push({role:'agent',txt:'✅ Öğrendim: **'+(d.title||f.name)+'** ('+(d.chunks||'?')+' parça, '+(d.total_words||'?')+' kelime). Artık stratejini sorularında kullanacağım.'});}
+    if(r.ok){
+      const isImg=/\.(png|jpg|jpeg|gif|webp)$/i.test(f.name);
+      let msg='✅ Öğrendim: **'+(d.title||f.name)+'**';
+      if(isImg&&d.onizleme){msg+=' — Grafik analiz edildi:\n\n'+d.onizleme;}
+      else{msg+=' ('+(d.chunks||'?')+' parça, '+(d.total_words||'?')+' kelime). Artık stratejini sorularında kullanacağım.';}
+      ST.chat.push({role:'agent',txt:msg});
+    }
     else{ST.chat.push({role:'agent',txt:'❌ '+((d&&d.detail)||'Yükleme başarısız')});}
   }catch(e){ST.chat.pop();ST.chat.push({role:'agent',txt:'❌ Hata: '+e});}
   chatDosyaTemizle();updateChatOnly();
