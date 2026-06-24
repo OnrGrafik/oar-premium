@@ -146,18 +146,29 @@ def _telegram_filtrele(r: dict) -> str | None:
     return "\n".join(satirlar)
 
 
-async def _telegram_saglik_raporu() -> str:
+async def _telegram_bot_raporu() -> str:
     """
-    /test komutuna cevap: botların anlık sağlık durumu.
-    Sistem sağlığı, sistem uptime değil — sadece bot servisleri.
+    /bot komutuna cevap: sistem sağlığı özeti.
+    Exchange bağlantıları, aktif servisler, son BTC/ETH sinyali.
     """
-    from bots import list_sources, fetch_source_signals
-    satirlar = ["Bot Saglik Durumu\n"]
+    satirlar = [f"OAR Sistem Saglik — {datetime.now(timezone.utc).strftime('%H:%M UTC')}\n"]
+
+    # Exchange bağlantısı
     try:
+        from exchange_client import saglik_kontrol
+        saglik = await saglik_kontrol()
+        for ad, durum in saglik.items():
+            emoji = "OK" if durum == "OK" else "HATA"
+            satirlar.append(f"{emoji} {ad}: {durum if durum != 'OK' else 'bagli'}")
+    except Exception as e:
+        satirlar.append(f"Exchange kontrol hatasi: {str(e)[:60]}")
+
+    # Bot kaynakları
+    try:
+        from bots import list_sources, fetch_source_signals
         sources = list_sources()
-        if not sources:
-            satirlar.append("Kayitli bot yok.")
-        else:
+        if sources:
+            satirlar.append(f"\nBot Kaynaklari ({len(sources)}):")
             results = await asyncio.gather(
                 *[fetch_source_signals(s) for s in sources],
                 return_exceptions=True,
@@ -165,21 +176,23 @@ async def _telegram_saglik_raporu() -> str:
             for src, res in zip(sources, results):
                 ad = src.get("name", "?")
                 if isinstance(res, Exception) or not isinstance(res, list):
-                    satirlar.append(f"KAPALI {ad}")
+                    satirlar.append(f"  KAPALI {ad}")
                 else:
                     son = res[-1] if res else None
                     son_zaman = son.get("time", "—")[:16] if son else "sinyal yok"
-                    satirlar.append(f"OK {ad} — son: {son_zaman}")
+                    satirlar.append(f"  OK {ad} — son: {son_zaman}")
+        else:
+            satirlar.append("\nKayitli bot kaynagi yok.")
     except Exception as e:
-        satirlar.append(f"Bot listesi alinamadi: {str(e)[:80]}")
+        satirlar.append(f"Bot kaynak hatasi: {str(e)[:60]}")
 
-    # Son birkaç BTC/ETH sinyali
+    # Son BTC/ETH sinyali
     try:
         from leader_agent import rapor_gecmisi_al
         son_sinyaller = [
             r for r in rapor_gecmisi_al(limit=50)
             if r.get("tip") == "karar"
-            and str(r.get("icerik", {}).get("sembol", "")).upper().replace("USDT","") in ("BTC","ETH")
+            and str(r.get("icerik", {}).get("sembol", "")).upper().replace("USDT", "") in ("BTC", "ETH")
             and r.get("icerik", {}).get("karar") in ("LONG", "SHORT")
         ][-3:]
         if son_sinyaller:
@@ -188,8 +201,10 @@ async def _telegram_saglik_raporu() -> str:
                 ic = s.get("icerik", {})
                 satirlar.append(
                     f"  {ic.get('karar')} {ic.get('sembol','')} "
-                    f"%{ic.get('konfidans',0)} — {s.get('tarih','')[:16]}"
+                    f"%{ic.get('konfidans', 0)} — {s.get('tarih', '')[:16]}"
                 )
+        else:
+            satirlar.append("\nHenuz BTC/ETH sinyali yok.")
     except Exception:
         pass
 
@@ -239,7 +254,7 @@ async def telegram_komut_loop():
     if not token:
         return
     await asyncio.sleep(90)
-    print("[Telegram] komut dinleyici aktif (/test)")
+    print("[Telegram] komut dinleyici aktif (/bot)")
     while True:
         try:
             async with httpx.AsyncClient(timeout=15) as cl:
@@ -255,8 +270,8 @@ async def telegram_komut_loop():
                     _tg_update_offset = upd["update_id"] + 1
                     msg = upd.get("message") or upd.get("channel_post") or {}
                     metin = msg.get("text", "").strip()
-                    if metin.lower() in ("/test", "/test@oarbot"):
-                        rapor = await _telegram_saglik_raporu()
+                    if metin.lower() in ("/bot", "/bot@oarbot"):
+                        rapor = await _telegram_bot_raporu()
                         await _telegram_gonder(rapor)
         except Exception as e:
             print(f"[Telegram] komut loop hata: {str(e)[:80]}")
