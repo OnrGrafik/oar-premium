@@ -1371,25 +1371,29 @@ async def saatlik_backtest_loop():
         try:
             kombolar = await kombo_sinyal_tara()
             backtest = backtest_sinyal_analizi()
-            
-            icerik = {
-                "metin": f"🧪 BACKTEST SAATLİK\nYeni kombo sinyal: {len(kombolar)}\nGenel WR: %{backtest.get('genel_win_rate',0)}",
-                "yeni_kombolar": [{"sembol": k["symbol"], "yon": k["direction"], "pattern": k["pattern"], "detay": k["detail"]} for k in kombolar],
-                "bot_stats": backtest.get("bot_stats", {}),
-            }
-            ai = await _hizli_ai(
-                f"Sen Backtest Agent'sın. Bu saat {len(kombolar)} kombo sinyal üretildi: "
-                f"{json.dumps([{'s':k['symbol'],'y':k['direction'],'p':k['pattern']} for k in kombolar], ensure_ascii=False)[:300]}\n"
-                f"Bot performansları: {json.dumps(backtest.get('bot_stats',{}), ensure_ascii=False)[:500]}\n"
-                f"3-5 cümlede tam yorum: (1) bu saatki kombo sinyallerin kalitesi ve yönü, "
-                f"(2) hangi bot öne çıkıyor/geride kalıyor rakamlarla, (3) dikkat edilecek nokta veya "
-                f"filtre önerisi. Türkçe, rakamlarla, uydurma.")
-            if ai:
-                icerik["ai_dusunce"] = ai
-                icerik["metin"] += f"\n\n🤖 {ai}"
-            rapor_gecmisi_ekle("backtest", icerik)
-            print(f"[BacktestSaatlik] ✅ {len(kombolar)} kombo")
-            del kombolar, backtest, icerik
+
+            # Sinyal yoksa rapor üretme — Telegram'a "sinyal yok" mesajı gitmesin
+            if not kombolar:
+                print(f"[BacktestSaatlik] kombo sinyal yok, rapor atlandı")
+            else:
+                icerik = {
+                    "metin": f"BACKTEST: {len(kombolar)} kombo sinyal | WR %{backtest.get('genel_win_rate',0)}",
+                    "yeni_kombolar": [{"sembol": k["symbol"], "yon": k["direction"],
+                                       "pattern": k["pattern"]} for k in kombolar],
+                    "bot_stats": backtest.get("bot_stats", {}),
+                }
+                ai = await _hizli_ai(
+                    f"Sen Backtest Agent'sın. Bu saat {len(kombolar)} kombo sinyal üretildi: "
+                    f"{json.dumps([{'s':k['symbol'],'y':k['direction'],'p':k['pattern']} for k in kombolar], ensure_ascii=False)[:300]}\n"
+                    f"Bot performansları: {json.dumps(backtest.get('bot_stats',{}), ensure_ascii=False)[:500]}\n"
+                    f"3-5 cümlede yorum: hangi sinyaller öne çıkıyor, hangi bot geride, dikkat noktası. "
+                    f"Türkçe, rakamlarla, uydurma.")
+                if ai:
+                    icerik["ai_dusunce"] = ai
+                rapor_gecmisi_ekle("backtest", icerik)
+                print(f"[BacktestSaatlik] ✅ {len(kombolar)} kombo")
+                del icerik
+            del kombolar, backtest
         except Exception as e:
             print(f"[BacktestSaatlik] Hata: {str(e)[:80]}")
         import gc; gc.collect()
