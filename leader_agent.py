@@ -849,7 +849,7 @@ async def sinyal_toplayici_loop():
     İki servis ayrı disklerde olduğu için bu köprü zorunlu.
     """
     bot_url = os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")
-    await asyncio.sleep(15)  # başlangıçta bekle
+    await asyncio.sleep(240)  # başlangıçta bekle — startup spike'ından kaçın
     while True:
         try:
             async with httpx.AsyncClient(timeout=15) as cl:
@@ -870,7 +870,7 @@ async def sinyal_toplayici_loop():
                                 mevcut_keys.add(key)
                                 yeni_sayisi += 1
 
-                        sinyaller = sinyaller[-1000:]  # son 1000 sinyal tut
+                        sinyaller = sinyaller[-300:]  # son 300 sinyal tut (512MB limit)
                         _save(SIGLOG_FILE, {"signals": sinyaller})
                         if yeni_sayisi:
                             print(f"[SinyalToplayici] +{yeni_sayisi} yeni sinyal (toplam {len(sinyaller)})")
@@ -1318,7 +1318,7 @@ async def piyasa_yenilikleri() -> dict:
 # ── SAATLİK RAPOR LOOP'LARI ────────────────────────────────────────────────────
 async def saatlik_lider_raporu_loop(api_key: str = ""):
     """Her saat başı: sistem denetimi + bot sağlığı + çakışma + özet rapor."""
-    await asyncio.sleep(120)
+    await asyncio.sleep(900)  # 15 dk — startup spike'ından kaçın
     while True:
         try:
             denetim   = await sistem_denetimi()

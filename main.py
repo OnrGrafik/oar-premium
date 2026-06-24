@@ -81,7 +81,7 @@ telegram_task = None
 
 async def background_scanner():
     """Her 15 dakikada piyasayı otomatik tara"""
-    await asyncio.sleep(10)  # Başlangıçta 10sn bekle
+    await asyncio.sleep(360)  # 6 dk bekle — diğer tasklar oturuncaya kadar
     import gc
     while True:
         try:
@@ -188,12 +188,7 @@ async def telegram_rapor_loop():
             print(f"[Telegram] rapor loop hata: {str(e)[:100]}")
         await asyncio.sleep(300)  # 5 dakika
 
-@app.on_event("startup")
-async def startup_event():
-    global scanner_task, telegram_task
-    scanner_task = asyncio.create_task(background_scanner())
-    telegram_task = asyncio.create_task(telegram_rapor_loop())
-    print("🧠 Otonom tarayıcı başlatıldı (her 15dk)")
+# background_scanner ve telegram_rapor_loop aşağıdaki ana startup_event içinden başlatılıyor
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -912,37 +907,36 @@ async def startup_event():
     except Exception as e:
         print(f"[Kalıcılık] kontrol hatası: {str(e)[:60]}")
 
-    # Her loop ayrı try/except — biri çökse bile uygulama ayakta kalır
-    def guvenli_task(coro_fn, ad):
-        try:
-            asyncio.create_task(coro_fn())
-        except Exception as e:
-            print(f"[Startup] {ad} başlatılamadı: {str(e)[:80]}")
+    # ── TASK BAŞLATMA: sıralı + aralıklı (512MB OOM önlemi) ──────────────────
+    # Her grup arasında kısa bir gecikme — modüller kademeli yüklensin.
+    # İlk 5 dakika sadece hafif tasklar; ağır olanlar 5dk+ sonra başlıyor.
+
+    # Grup 1 — hafif / bekleme ağırlıklı (hemen başlasın)
     try:
         from leader_agent import (
             sinyal_toplayici_loop, sinyal_degerlendirici_loop,
             saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop
         )
         _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
-        asyncio.create_task(sinyal_toplayici_loop())
-        asyncio.create_task(sinyal_degerlendirici_loop())
-        asyncio.create_task(saatlik_lider_raporu_loop(api_key))
-        asyncio.create_task(saatlik_backtest_loop())
-        asyncio.create_task(saatlik_research_loop())
+        asyncio.create_task(sinyal_toplayici_loop())       # kendi içinde 240s bekler
+        asyncio.create_task(sinyal_degerlendirici_loop())  # kendi içinde 60s bekler
+        asyncio.create_task(saatlik_lider_raporu_loop(api_key))  # kendi içinde 900s bekler
+        asyncio.create_task(saatlik_backtest_loop())       # kendi içinde 1800s bekler
+        asyncio.create_task(saatlik_research_loop())       # kendi içinde 2100s bekler
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
-    try:
-        from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
-        asyncio.create_task(zenginlestirici_loop())
-        asyncio.create_task(pattern_sinyal_loop())
-    except Exception as e:
-        print(f"[Startup] feature_engine: {str(e)[:80]}")
+
+    # Grup 2 — hafif
+    await asyncio.sleep(5)
     try:
         from paper_trade_agent import paper_trade_loop
         asyncio.create_task(paper_trade_loop())
         print("[Startup] ✅ Paper Trade Agent loop başlatıldı")
     except Exception as e:
         print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
+
+    # Grup 3 — orta
+    await asyncio.sleep(5)
     try:
         from market_context import baglam_loop
         asyncio.create_task(baglam_loop())
@@ -958,7 +952,23 @@ async def startup_event():
         asyncio.create_task(hipotez_loop())
     except Exception as e:
         print(f"[Startup] theory_engine: {str(e)[:80]}")
-    print("[LiderAgent] ✅ Startup tamamlandı (dayanıklı mod)")
+
+    # Grup 4 — ağır (feature engine kendi içinde 90s + 300s bekler)
+    await asyncio.sleep(5)
+    try:
+        from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
+        asyncio.create_task(zenginlestirici_loop())
+        asyncio.create_task(pattern_sinyal_loop())
+    except Exception as e:
+        print(f"[Startup] feature_engine: {str(e)[:80]}")
+
+    # Grup 5 — background scanner (360s bekler) + telegram
+    await asyncio.sleep(5)
+    global scanner_task, telegram_task
+    scanner_task = asyncio.create_task(background_scanner())
+    telegram_task = asyncio.create_task(telegram_rapor_loop())
+
+    print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
 @app.get("/api/leader/report")
