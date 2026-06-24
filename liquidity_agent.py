@@ -177,6 +177,82 @@ def _sweep_tespit(candles: list, eq_seviyeleri: dict) -> list:
     return sweeplar
 
 
+# ─── Fixed Range Volume Profile ──────────────────────────────────
+
+def _fixed_range_vp(candles: list, bins: int = 24) -> dict:
+    """
+    Fixed Range Volume Profile — son N mumun hacmini fiyat seviyelerine dağıtır.
+
+    Hesaplananlar:
+      POC  — Point of Control: en fazla hacmin biriktiği fiyat seviyesi
+      VAH  — Value Area High: toplam hacmin %70'inin üst sınırı
+      VAL  — Value Area Low: toplam hacmin %70'inin alt sınırı
+      HVN  — High Volume Nodes: en yüksek hacimli 3 bölge (destek/direnç)
+      LVN  — Low Volume Nodes: en düşük hacimli 3 bölge (hızlı geçiş bölgesi)
+    """
+    if len(candles) < 5:
+        return {}
+
+    yuksek = max(c[2] for c in candles)
+    dusuk = min(c[3] for c in candles)
+    if yuksek <= dusuk:
+        return {}
+
+    adim = (yuksek - dusuk) / bins
+    vol_bins = [0.0] * bins
+
+    for c in candles:
+        h, l, v = c[2], c[3], c[5]
+        hl = h - l
+        if hl == 0 or v == 0:
+            continue
+        for b in range(bins):
+            bin_low  = dusuk + b * adim
+            bin_high = bin_low + adim
+            overlap_low  = max(bin_low, l)
+            overlap_high = min(bin_high, h)
+            if overlap_high > overlap_low:
+                vol_bins[b] += v * (overlap_high - overlap_low) / hl
+
+    # POC
+    poc_bin = vol_bins.index(max(vol_bins))
+    poc = round(dusuk + (poc_bin + 0.5) * adim, 2)
+
+    # Value Area (toplam hacmin %70'i, POC'tan dışa doğru genişle)
+    total_vol = sum(vol_bins)
+    target = total_vol * 0.70
+    va = {poc_bin}
+    accumulated = vol_bins[poc_bin]
+    sol, sag = poc_bin - 1, poc_bin + 1
+
+    while accumulated < target:
+        sv = vol_bins[sol] if sol >= 0 else -1
+        rv = vol_bins[sag] if sag < bins else -1
+        if sv < 0 and rv < 0:
+            break
+        if sv >= rv and sol >= 0:
+            accumulated += sv; va.add(sol); sol -= 1
+        else:
+            accumulated += rv; va.add(sag); sag += 1
+
+    vah = round(dusuk + (max(va) + 1) * adim, 2)
+    val = round(dusuk + min(va) * adim, 2)
+
+    # HVN / LVN
+    sirali = sorted(enumerate(vol_bins), key=lambda x: x[1], reverse=True)
+    hvn = [round(dusuk + (i + 0.5) * adim, 2) for i, _ in sirali[:3]]
+    lvn = [round(dusuk + (i + 0.5) * adim, 2) for i, v in sirali if v > 0][-3:]
+
+    return {
+        "poc": poc,
+        "vah": vah,
+        "val": val,
+        "hvn": hvn,          # Yüksek hacimli bölgeler — destek/direnç
+        "lvn": lvn,          # Düşük hacimli bölgeler — hızlı geçiş
+        "toplam_hacim": round(total_vol, 0),
+    }
+
+
 # ─── ATR yardımcısı ───────────────────────────────────────────────
 
 def _atr(candles: list, period: int = 14) -> float:
@@ -225,6 +301,7 @@ async def liquidity_analiz(
         son_sfp = _son_sfp(sfp_listesi, len(candles) - 1)
         stops = _stop_cluster(candles, atr)
         sweeplar = _sweep_tespit(candles, eq)
+        frvp = _fixed_range_vp(candles)
 
         # Özet
         ozet_parcalar = []
@@ -236,6 +313,8 @@ async def liquidity_analiz(
             ozet_parcalar.append(f"SFP: {son_sfp['tip']} @ {son_sfp.get('sfp_seviye', '?')}")
         if sweeplar:
             ozet_parcalar.append(f"Sweep: {sweeplar[0]['tip']}")
+        if frvp.get("poc"):
+            ozet_parcalar.append(f"POC: {frvp['poc']} | VAH: {frvp['vah']} | VAL: {frvp['val']}")
         if not ozet_parcalar:
             ozet_parcalar.append("Belirgin likidite yapısı yok")
 
@@ -246,6 +325,7 @@ async def liquidity_analiz(
             "son_sfp":      son_sfp,
             "stop_cluster": stops,
             "sweep":        sweeplar,
+            "frvp":         frvp,          # Fixed Range Volume Profile
             "ozet":         " | ".join(ozet_parcalar),
             "sembol":       sembol,
             "timeframe":    timeframe,
@@ -260,6 +340,7 @@ def _varsayilan(sembol: str, timeframe: str, hata: str = "") -> dict:
         "eqh": [], "eql": [],
         "sfp_listesi": [], "son_sfp": None,
         "stop_cluster": [], "sweep": [],
+        "frvp": {},
         "ozet": f"Likidite analizi başarısız: {hata}",
         "sembol": sembol, "timeframe": timeframe,
     }

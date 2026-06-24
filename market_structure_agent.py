@@ -21,6 +21,87 @@ from exchange_client import klines as _klines
 
 # ─── Yardımcı hesaplamalar ────────────────────────────────────────
 
+def _ema(closes: list, period: int) -> float:
+    if len(closes) < period:
+        return closes[-1] if closes else 0.0
+    k = 2 / (period + 1)
+    ema = sum(closes[:period]) / period
+    for p in closes[period:]:
+        ema = p * k + ema * (1 - k)
+    return ema
+
+
+def _rsi_ind(closes: list, period: int = 14) -> float:
+    if len(closes) < period + 1:
+        return 50.0
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        d = closes[i] - closes[i - 1]
+        gains.append(max(d, 0))
+        losses.append(max(-d, 0))
+    ag = sum(gains[-period:]) / period
+    al = sum(losses[-period:]) / period
+    if al == 0:
+        return 100.0
+    return round(100 - 100 / (1 + ag / al), 2)
+
+
+def _macd_ind(closes: list) -> dict:
+    """EMA12 - EMA26 MACD; signal EMA9; histogram."""
+    if len(closes) < 35:
+        return {"hist": 0.0, "line": 0.0, "signal": 0.0, "yon": "NOTR"}
+    line = _ema(closes, 12) - _ema(closes, 26)
+    macd_seri = []
+    for i in range(9, 0, -1):
+        seg = closes[:-i]
+        if len(seg) >= 26:
+            macd_seri.append(_ema(seg, 12) - _ema(seg, 26))
+    macd_seri.append(line)
+    signal = _ema(macd_seri, 9) if len(macd_seri) >= 9 else line
+    hist = line - signal
+    return {
+        "hist":   round(hist, 4),
+        "line":   round(line, 4),
+        "signal": round(signal, 4),
+        "yon":    "YUKARI" if hist > 0 else "ASAGI",
+    }
+
+
+def _bollinger_ind(closes: list, period: int = 20) -> dict:
+    """Bollinger Bantları: üst, orta, alt, %B, bant genişliği."""
+    if len(closes) < period:
+        p = closes[-1] if closes else 0.0
+        return {"ust": p, "orta": p, "alt": p, "pct_b": 0.5, "bw": 0.0, "pozisyon": "ICERIDE"}
+    son = closes[-period:]
+    orta = sum(son) / period
+    std = math.sqrt(sum((x - orta) ** 2 for x in son) / period)
+    ust = orta + 2 * std
+    alt = orta - 2 * std
+    fiyat = closes[-1]
+    pct_b = (fiyat - alt) / (ust - alt) if ust != alt else 0.5
+    bw = (ust - alt) / orta * 100 if orta else 0.0
+
+    if fiyat > ust:
+        pozisyon = "USTU"        # Aşırı uzatılmış — olası tersine dönüş
+    elif fiyat < alt:
+        pozisyon = "ALTI"        # Aşırı satım — olası tepki
+    elif pct_b > 0.7:
+        pozisyon = "UST_BANT"
+    elif pct_b < 0.3:
+        pozisyon = "ALT_BANT"
+    else:
+        pozisyon = "ICERIDE"
+
+    return {
+        "ust":      round(ust, 2),
+        "orta":     round(orta, 2),
+        "alt":      round(alt, 2),
+        "pct_b":    round(pct_b, 3),   # 0=alt bant, 1=üst bant
+        "bw":       round(bw, 2),       # Düşük bw = sıkışma (breakout yakın)
+        "pozisyon": pozisyon,
+    }
+
+
 def _swing_highs_lows(candles: list, pencere: int = 3) -> dict:
     """
     Basit pivot swing high / low tespiti.
@@ -195,6 +276,11 @@ async def market_structure_analiz(
         adx = _adx(candles)
         range_oran = _range_genisligi(candles, 20)
 
+        # Yeni indikatörler
+        rsi = _rsi_ind(closes)
+        macd = _macd_ind(closes)
+        bb = _bollinger_ind(closes)
+
         pivotlar = _swing_highs_lows(candles, pencere=3)
         swing_highs = pivotlar["swing_highs"]
         swing_lows = pivotlar["swing_lows"]
@@ -214,7 +300,7 @@ async def market_structure_analiz(
         elif range_oran < 1.5 and atr_pct < 1.0:
             yapi = "COMPRESSION"
             guven = 75
-            nedenler.append(f"Sıkışma: band/ATR={range_oran:.1f}, ATR%={atr_pct:.1f}")
+            nedenler.append(f"Sıkışma: band/ATR={range_oran:.1f}, ATR%={atr_pct:.1f} | BB bw={bb['bw']:.1f}%")
 
         elif adx > 25 and zincir == "HH_HL":
             yapi = "TREND_UP"
@@ -230,6 +316,33 @@ async def market_structure_analiz(
             yapi = "RANGE"
             guven = 60
             nedenler.append(f"Range: ADX={adx:.0f}, zincir={zincir}, band/ATR={range_oran:.1f}")
+
+        # RSI teyidi — güveni artırır veya azaltır
+        if yapi == "TREND_UP":
+            if rsi > 50 and macd["yon"] == "YUKARI":
+                guven = min(90, guven + 8)
+                nedenler.append(f"RSI={rsi} + MACD yukarı — trend teyit")
+            elif rsi < 40:
+                guven = max(40, guven - 10)
+                nedenler.append(f"RSI={rsi} zayıf — trend yorgunluğu dikkat")
+        elif yapi == "TREND_DOWN":
+            if rsi < 50 and macd["yon"] == "ASAGI":
+                guven = min(90, guven + 8)
+                nedenler.append(f"RSI={rsi} + MACD aşağı — trend teyit")
+            elif rsi > 60:
+                guven = max(40, guven - 10)
+                nedenler.append(f"RSI={rsi} güçlü — aşağı trend zayıflıyor")
+
+        # Bollinger sıkışması RANGE/COMPRESSION güvenini artırır
+        if bb["bw"] < 3.0 and yapi in ("RANGE", "COMPRESSION"):
+            guven = min(85, guven + 5)
+            nedenler.append(f"BB sıkışma: bant genişliği=%{bb['bw']:.1f} (breakout yakın)")
+
+        # Bollinger aşırı bölge uyarısı
+        if bb["pozisyon"] == "USTU":
+            nedenler.append(f"BB: Fiyat üst bandın üstünde (aşırı uzatılmış, %B={bb['pct_b']:.2f})")
+        elif bb["pozisyon"] == "ALTI":
+            nedenler.append(f"BB: Fiyat alt bandın altında (aşırı satım, %B={bb['pct_b']:.2f})")
 
         if bos_choch["choch"] != "YOK":
             nedenler.append(f"CHoCH tespit: {bos_choch['choch']}")
@@ -249,6 +362,10 @@ async def market_structure_analiz(
             "fiyat":       fiyat,
             "sma20":       round(sma20, 2),
             "sma50":       round(sma50, 2),
+            # ── Yeni indikatörler ──
+            "rsi":         rsi,
+            "macd":        macd,
+            "bollinger":   bb,
             "guven":       guven,
             "aciklama":    " | ".join(nedenler),
             "timeframe":   timeframe,
@@ -290,6 +407,9 @@ def _varsayilan(hata: str, sembol: str, timeframe: str) -> dict:
         "adx": 0.0, "atr_pct": 0.0, "range_oran": 0.0,
         "swing_highs": [], "swing_lows": [],
         "fiyat": 0.0, "sma20": 0.0, "sma50": 0.0,
+        "rsi": 50.0,
+        "macd": {"hist": 0.0, "line": 0.0, "signal": 0.0, "yon": "NOTR"},
+        "bollinger": {"ust": 0.0, "orta": 0.0, "alt": 0.0, "pct_b": 0.5, "bw": 0.0, "pozisyon": "ICERIDE"},
         "guven": 0, "aciklama": f"Market structure hatası: {hata}",
         "timeframe": timeframe, "sembol": sembol,
     }
