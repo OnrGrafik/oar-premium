@@ -203,17 +203,17 @@ async def telegram_rapor_loop():
         return
     await asyncio.sleep(60)
     gf = DATA_DIR / "telegram_gonderilen.json"
-    # Sıfırla — eski hash formatı farklıydı, eski girişler yanlış raporları geçirebilir
-    gonderildi: set = set()
-    gf.write_text("[]", encoding="utf-8")
+    try:
+        gonderildi = set(json.loads(gf.read_text(encoding="utf-8"))) if gf.exists() else set()
+    except Exception:
+        gonderildi = set()
     print("[Telegram] sinyal bildirimi aktif (sadece BTC/ETH, min konfidans %70)")
     while True:
         try:
             from leader_agent import rapor_gecmisi_al
             for r in reversed(rapor_gecmisi_al(limit=50)):
-                tip = str(r.get("tip", "")).lower()
-                # Sadece "karar" tipini işle — diğerlerini hash'e bile alma
-                if tip != "karar":
+                # tip kontrolü hash'ten önce — "karar" dışı hiçbir şey işlenmez
+                if str(r.get("tip", "")).lower() != "karar":
                     continue
                 ic = r.get("icerik") or {}
                 anahtar = hashlib.md5(
