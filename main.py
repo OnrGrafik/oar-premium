@@ -78,6 +78,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ─── Arka Plan Tarayıcı ──────────────────────────────────────────────────────
 scanner_task = None
 telegram_task = None
+telegram_komut_task = None
+_tg_update_offset = 0   # Telegram getUpdates offset
 
 async def background_scanner():
     """Her 15 dakikada piyasayı otomatik tara"""
@@ -91,111 +93,179 @@ async def background_scanner():
         gc.collect()  # 512MB instance — tarama sonrası belleği temizle
         await asyncio.sleep(900)  # 15 dakika
 
+_IZIN_VERILEN_SEMBOLLER = {"BTCUSDT", "ETHUSDT", "BTC", "ETH"}
+_MIN_KONFIDANS = 70   # Bu altı gönderilmez
+
+
 def _telegram_filtrele(r: dict) -> str | None:
     """
-    Raporu filtreler. Sadece 3 kategoride mesaj üretir:
-    1. Piyasa sinyali / trade fikri (konfidans yüksek CIO kararı)
-    2. Opsiyon takip güncellemesi (IV anomali, gamma rejim değişikliği)
-    3. Agent sistem önerisi / iyileştirme (AI düşüncesi)
-    Diğer tüm rutin raporları (servis uptime, bot stats, win rate) filtreler.
+    Sadece BTC/ETH yüksek konfidanslı LONG/SHORT sinyali gönderir.
+    Sistem sağlığı, bot durumu, backtest, "sinyal üretilemedi" gibi
+    rutin raporlar kesinlikle gönderilmez.
     """
     tip = str(r.get("tip", "")).lower()
     ic = r.get("icerik") or {}
+
+    # Sadece "karar" tipi raporlar değerlendirilir; diğer her şey atlanır
+    if tip != "karar":
+        return None
+
+    karar = ic.get("karar", "")
+    konf  = ic.get("konfidans", 0)
+    sembol = str(ic.get("sembol", "")).upper().replace("/", "").replace("-", "")
+
+    # BTC veya ETH değilse gönderme
+    kok = sembol.replace("USDT", "").replace("PERP", "")
+    if kok not in ("BTC", "ETH"):
+        return None
+
+    # Gerçek LONG/SHORT kararı ve yeterli konfidans
+    if karar not in ("LONG", "SHORT") or konf < _MIN_KONFIDANS:
+        return None
+
+    yon_emoji = "📈 LONG" if karar == "LONG" else "📉 SHORT"
+    satirlar = [
+        f"🔔 OAR — {yon_emoji}  {sembol}",
+        f"Konfidans: %{konf}",
+    ]
+    rejim = ic.get("rejim", {})
+    if isinstance(rejim, dict) and rejim.get("rejim"):
+        satirlar.append(f"Rejim: {rejim['rejim']}  |  ATR %{rejim.get('atr_pct', 0)}")
+    nedenler = ic.get("nedenler", [])
+    if nedenler:
+        satirlar.append("Nedenler: " + " · ".join(str(n) for n in nedenler[:4]))
+    stop = ic.get("stop") or ic.get("stop_loss")
+    hedef = ic.get("hedef") or ic.get("take_profit")
+    if stop:
+        satirlar.append(f"Stop: {stop}")
+    if hedef:
+        satirlar.append(f"Hedef: {hedef}")
     ai = ic.get("ai_dusunce", "")
-    b = []
+    if ai:
+        satirlar.append(f"\n{ai[:250]}")
+    return "\n".join(satirlar)
 
-    # ── 1. Trade Sinyali ──────────────────────────────────────────────
-    if tip == "karar":
-        karar = ic.get("karar", "")
-        konf = ic.get("konfidans", 0)
-        sembol = ic.get("sembol", "BTC")
-        rejim = ic.get("rejim", {})
-        vol = ic.get("volatilite", {})
-        # Sadece yüksek konfidanslı gerçek sinyal
-        if karar in ("LONG", "SHORT") and konf >= 60:
-            yon_emoji = "📈 LONG" if karar == "LONG" else "📉 SHORT"
-            b.append(f"🎯 {yon_emoji} — {sembol}")
-            b.append(f"Konfidans: %{konf}")
-            if rejim:
-                b.append(f"Rejim: {rejim.get('rejim','—')}  |  ATR %{rejim.get('atr_pct',0)}")
-            if vol.get("iv_pct"):
-                b.append(f"IV: %{vol['iv_pct']}  |  Günlük ±%{vol.get('expected_move_pct',0)}  |  {vol.get('durum','')}")
-            nedenleri = ic.get("nedenler", [])
-            if nedenleri:
-                b.append("Nedenler: " + " · ".join(str(n) for n in nedenleri[:3]))
-            if ai:
-                b.append(f"\n🤖 {ai[:300]}")
-            return "🔔 OAR — Yüksek Konfidanslı Sinyal\n\n" + "\n".join(b)
-        return None  # düşük konfidans → gönderme
 
-    # ── 2. Opsiyon / Volatilite Güncellemesi ─────────────────────────
-    if tip in ("options", "opsiyon", "volatilite"):
-        gex = ic.get("gamma_rejim", "")
-        iv = ic.get("iv_pct") or ic.get("avg_iv_pct")
-        cw = ic.get("call_wall")
-        pw = ic.get("put_wall")
-        zg = ic.get("zero_gamma")
-        if not any([gex, iv, cw]):
-            return None
-        b.append(f"Gamma Rejimi: {gex}" if gex else "")
-        if iv: b.append(f"ATM IV: %{iv}")
-        if cw: b.append(f"Call Wall: ${cw:,.0f}")
-        if pw: b.append(f"Put Wall: ${pw:,.0f}")
-        if zg: b.append(f"Zero Gamma: ${zg:,.0f}")
-        if ai: b.append(f"\n🤖 {ai[:200]}")
-        return "📊 OAR — Opsiyon Güncellemesi\n\n" + "\n".join(x for x in b if x)
+async def _telegram_saglik_raporu() -> str:
+    """
+    /test komutuna cevap: botların anlık sağlık durumu.
+    Sistem sağlığı, sistem uptime değil — sadece bot servisleri.
+    """
+    from bots import list_sources, fetch_source_signals
+    satirlar = ["Bot Saglik Durumu\n"]
+    try:
+        sources = list_sources()
+        if not sources:
+            satirlar.append("Kayitli bot yok.")
+        else:
+            results = await asyncio.gather(
+                *[fetch_source_signals(s) for s in sources],
+                return_exceptions=True,
+            )
+            for src, res in zip(sources, results):
+                ad = src.get("name", "?")
+                if isinstance(res, Exception) or not isinstance(res, list):
+                    satirlar.append(f"KAPALI {ad}")
+                else:
+                    son = res[-1] if res else None
+                    son_zaman = son.get("time", "—")[:16] if son else "sinyal yok"
+                    satirlar.append(f"OK {ad} — son: {son_zaman}")
+    except Exception as e:
+        satirlar.append(f"Bot listesi alinamadi: {str(e)[:80]}")
 
-    # ── 3. Agent sistem önerisi (AI analizi olan herhangi rapor) ──────
-    if ai and len(ai) > 80:
-        # Sadece gerçek içerik olan ai yorumu
-        ozet = ai[:400]
-        return f"💡 OAR — Agent Önerisi ({tip.upper()})\n\n{ozet}"
+    # Son birkaç BTC/ETH sinyali
+    try:
+        from leader_agent import rapor_gecmisi_al
+        son_sinyaller = [
+            r for r in rapor_gecmisi_al(limit=50)
+            if r.get("tip") == "karar"
+            and str(r.get("icerik", {}).get("sembol", "")).upper().replace("USDT","") in ("BTC","ETH")
+            and r.get("icerik", {}).get("karar") in ("LONG", "SHORT")
+        ][-3:]
+        if son_sinyaller:
+            satirlar.append("\nSon BTC/ETH Sinyalleri:")
+            for s in reversed(son_sinyaller):
+                ic = s.get("icerik", {})
+                satirlar.append(
+                    f"  {ic.get('karar')} {ic.get('sembol','')} "
+                    f"%{ic.get('konfidans',0)} — {s.get('tarih','')[:16]}"
+                )
+    except Exception:
+        pass
 
-    return None  # filtrele
+    return "\n".join(satirlar)
 
 
 async def telegram_rapor_loop():
-    """Filtrelenmiş bildirimleri gönderir: sadece sinyal, opsiyon update, sistem önerisi."""
+    """Sadece BTC/ETH yüksek konfidanslı sinyal gönderir."""
     if not (os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")):
         print("[Telegram] yapılandırılmadı (ENV yok) — bildirim döngüsü pasif")
         return
-    await asyncio.sleep(25)
+    await asyncio.sleep(60)
     gf = DATA_DIR / "telegram_gonderilen.json"
     try:
         gonderildi = set(json.loads(gf.read_text(encoding="utf-8"))) if gf.exists() else set()
     except Exception:
         gonderildi = set()
-    print("[Telegram] filtreli bildirim döngüsü aktif")
+    print("[Telegram] sinyal bildirimi aktif (sadece BTC/ETH, min konfidans %70)")
     while True:
         try:
             from leader_agent import rapor_gecmisi_al
-            yeni = 0
-            for r in reversed(rapor_gecmisi_al(limit=20)):
+            for r in reversed(rapor_gecmisi_al(limit=30)):
                 ic = r.get("icerik") or {}
                 anahtar = hashlib.md5(
-                    (str(r.get("tip","")) + str(ic.get("metin","")) + str(ic.get("karar",""))).encode()
+                    (str(r.get("tip","")) + str(ic.get("sembol","")) +
+                     str(ic.get("karar","")) + str(ic.get("konfidans",""))).encode()
                 ).hexdigest()
                 if anahtar in gonderildi:
                     continue
+                gonderildi.add(anahtar)   # her durumda işaretle (yeniden deneme yok)
                 mesaj = _telegram_filtrele(r)
-                if mesaj and await _telegram_gonder(mesaj):
-                    gonderildi.add(anahtar); yeni += 1
-                else:
-                    gonderildi.add(anahtar)  # filtrelenmiş olanı da işaretle
-            if yeni or True:  # her döngüde yaz (boş seti temizle)
-                gf.write_text(json.dumps(list(gonderildi)[-500:], ensure_ascii=False), encoding="utf-8")
+                if mesaj:
+                    await _telegram_gonder(mesaj)
+            gf.write_text(json.dumps(list(gonderildi)[-300:], ensure_ascii=False), encoding="utf-8")
         except Exception as e:
             print(f"[Telegram] rapor loop hata: {str(e)[:100]}")
         await asyncio.sleep(300)  # 5 dakika
+
+
+async def telegram_komut_loop():
+    """/test komutunu dinler — getUpdates polling."""
+    global _tg_update_offset
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        return
+    await asyncio.sleep(90)
+    print("[Telegram] komut dinleyici aktif (/test)")
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=15) as cl:
+                r = await cl.get(
+                    f"https://api.telegram.org/bot{token}/getUpdates",
+                    params={"offset": _tg_update_offset, "timeout": 10, "limit": 10},
+                )
+                if r.status_code != 200:
+                    await asyncio.sleep(30)
+                    continue
+                updates = r.json().get("result", [])
+                for upd in updates:
+                    _tg_update_offset = upd["update_id"] + 1
+                    msg = upd.get("message") or upd.get("channel_post") or {}
+                    metin = msg.get("text", "").strip()
+                    if metin.lower() in ("/test", "/test@oarbot"):
+                        rapor = await _telegram_saglik_raporu()
+                        await _telegram_gonder(rapor)
+        except Exception as e:
+            print(f"[Telegram] komut loop hata: {str(e)[:80]}")
+        await asyncio.sleep(20)
 
 # background_scanner ve telegram_rapor_loop aşağıdaki ana startup_event içinden başlatılıyor
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    if scanner_task:
-        scanner_task.cancel()
-    if telegram_task:
-        telegram_task.cancel()
+    for task in (scanner_task, telegram_task, telegram_komut_task):
+        if task:
+            task.cancel()
 
 # ─── Çoklu API Sistemi: Gemini → Gemini Lite → Groq ─────────────────────────
 GEMINI_MODEL      = "gemini-2.5-flash"
@@ -964,9 +1034,10 @@ async def startup_event():
 
     # Grup 5 — background scanner (360s bekler) + telegram
     await asyncio.sleep(5)
-    global scanner_task, telegram_task
+    global scanner_task, telegram_task, telegram_komut_task
     scanner_task = asyncio.create_task(background_scanner())
     telegram_task = asyncio.create_task(telegram_rapor_loop())
+    telegram_komut_task = asyncio.create_task(telegram_komut_loop())
 
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
