@@ -199,6 +199,25 @@ async def _veri_topla(sembol: str, kok: str) -> dict:
         veri["market_rejim"] = "BILINMIYOR"
         hata_listesi.append(f"market_ctx: {str(e)[:60]}")
 
+    # 7. RESMİ TRADE KARARI (trading_supervisor — 3 zorunlu soru)
+    #    Lider tüm veriyi harmanladıktan SONRA kararı buradan alır.
+    #    supervisor sadece karar üretir; mesaj atmaz, başka iş yapmaz.
+    try:
+        from trading_supervisor import supervisor_karar
+        karar = await supervisor_karar(sembol, mod="scalper")
+        veri["supervisor"] = {
+            "karar": karar.get("karar", "NO_TRADE"),
+            "yon":   karar.get("yon", "YOK"),
+            "guven": karar.get("guven", 0),
+            "stop":  karar.get("stop"),
+            "hedef": karar.get("hedef"),
+            "rr":    karar.get("rr", 0.0),
+            "mod":   karar.get("mod", "scalper"),
+        }
+    except Exception as e:
+        veri["supervisor"] = {}
+        hata_listesi.append(f"supervisor: {str(e)[:60]}")
+
     if hata_listesi:
         veri["_hatalar"] = hata_listesi
 
@@ -261,6 +280,12 @@ def _degisim_tespit(yeni: dict, onceki: dict, durum: dict, kok: str) -> list:
     if abs(yeni_skor - onceki_skor) >= ESIK["oar_skor"]:
         tetikler.append(f"OAR Skor: {onceki_skor} → {yeni_skor}")
 
+    # Resmi trade kararı değişimi (Supervisor) — en güçlü tetikleyici
+    yeni_kr = yeni.get("supervisor", {}).get("karar", "")
+    onceki_kr = onceki.get("supervisor", {}).get("karar", "")
+    if yeni_kr and onceki_kr and yeni_kr != onceki_kr:
+        tetikler.append(f"KARAR degisti: {onceki_kr} → {yeni_kr}")
+
     return tetikler
 
 
@@ -276,6 +301,7 @@ async def _ai_yorum(veri: dict, tetikler: list) -> str:
     flow = veri.get("flow", {})
     yapi = veri.get("yapi", {})
     seans = veri.get("seans", {})
+    sup = veri.get("supervisor", {})
 
     prompt = f"""Sen BTC/ETH kripto piyasası Lider Analist Agent'sın.
 Aşağıdaki anlık piyasa verisine göre 3-5 cümlelik sert ve net bir yorum yap.
@@ -293,6 +319,7 @@ Opsiyon: {opsiyonlar.get('gamma_rejim','veri yok')} | Call Wall: ${opsiyonlar.ge
 Kısa vadeli (0-7g): CW ${opsiyonlar.get('kisa_cw') or '?':} | PW ${opsiyonlar.get('kisa_pw') or '?':}
 Market Rejim: {veri.get('market_rejim','?')} | Move Source: {veri.get('move_source','?')} | OAR Skor: {veri.get('oar_skor',0)}/100
 Seans: {seans.get('aktif','?')} | Asia={seans.get('asia_yon','?')} London={seans.get('london_yon','?')} NY={seans.get('ny_yon','?')} | Yönlendirme: {seans.get('yonlendirme','?')}
+RESMİ KARAR (Supervisor): {sup.get('karar','?')} | Yön: {sup.get('yon','?')} | Güven: %{sup.get('guven',0)} | Stop: {sup.get('stop')} | Hedef: {sup.get('hedef')} | R:R 1:{sup.get('rr',0)}
 
 Yorumunda şunlara değin (uygunsa):
 1. Bu değişimin ne anlama geldiği (momentum mu, trap mı, rejim değişimi mi?)
@@ -325,6 +352,7 @@ def _telegram_mesaj_olustur(veri: dict, tetikler: list, ai_yorum: str) -> str:
     flow = veri.get("flow", {})
     opsiyonlar = veri.get("opsiyonlar", {})
     seans = veri.get("seans", {})
+    sup = veri.get("supervisor", {})
 
     flow_emoji = {"BULLISH_FLOW": "Alici", "BEARISH_FLOW": "Satici", "NEUTRAL_FLOW": "Notr"}.get(
         flow.get("karar", ""), "?")
@@ -336,6 +364,17 @@ def _telegram_mesaj_olustur(veri: dict, tetikler: list, ai_yorum: str) -> str:
         "",
         f"Tetikleyen: {' | '.join(tetikler)}",
     ]
+
+    # Resmi trade kararı (Supervisor) — lider'in nihai kararı
+    sup_karar = sup.get("karar", "")
+    if sup_karar and sup_karar != "NO_TRADE":
+        kr_satir = [f"KARAR: {sup_karar}  (Guven %{sup.get('guven',0)})"]
+        if sup.get("stop") is not None:  kr_satir.append(f"  Stop: ${sup['stop']:,.0f}")
+        if sup.get("hedef") is not None: kr_satir.append(f"  Hedef: ${sup['hedef']:,.0f}")
+        if sup.get("rr"):                kr_satir.append(f"  R:R 1:{sup['rr']}")
+        satirlar.append("\n".join(kr_satir))
+    elif sup_karar == "NO_TRADE":
+        satirlar.append("KARAR: NO_TRADE (kurallar gecmedi)")
 
     if opsiyonlar:
         cw = opsiyonlar.get("call_wall")
