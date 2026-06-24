@@ -2036,8 +2036,11 @@ async def komuta_merkezi_endpoint(refresh: bool = False):
     if refresh:
         return await komuta_taramasi(20)
     son = son_tarama()
+    # Cache yoksa CANLI tarama TETİKLEME (512MB OOM önlemi) — arka plan döngüsü
+    # ilk taramayı yazana kadar "hazırlanıyor" döndür. Manuel için ?refresh=true.
     if son.get("durum") == "henuz_tarama_yok":
-        return await komuta_taramasi(20)
+        return {"kutular": {"yuksek": [], "guvenli": [], "orta": [], "az": []},
+                "durum": "hazirlaniyor", "tarih": None}
     return son
 
 

@@ -41,7 +41,7 @@ KUTU_ETIKET = {
 ATLA = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "WBTC", "STETH", "WETH", "WSTETH", "WEETH"}
 
 TELEGRAM_DEBOUNCE_DK = 30
-CHUNK = 5  # rate-limit koruması
+CHUNK = 2  # rate-limit + 512MB OOM koruması (tepe belleği düşük tut)
 
 
 def _now() -> str:
@@ -129,7 +129,10 @@ async def komuta_taramasi(n: int = 20, telegram: bool = True) -> dict:
     coinler = _semboller_top(piyasa, n)
     meta = {c["sembol"]: c for c in coinler}
 
-    # Skorları chunk'lı paralel hesapla
+    # Skorları küçük chunk'lar halinde hesapla — her chunk sonrası belleği boşalt
+    # (512MB instance: confidence_karar coin başına 7 agent + DataFrame yükler,
+    #  tepe belleği düşük tutmak için CHUNK küçük + gc.collect + chunk arası nefes).
+    import gc
     skorlar = []
     for i in range(0, len(coinler), CHUNK):
         grup = coinler[i:i + CHUNK]
@@ -142,6 +145,9 @@ async def komuta_taramasi(n: int = 20, telegram: bool = True) -> dict:
                 r["degisim_24h"] = m.get("degisim_24h")
                 r["rank"] = m.get("rank")
                 skorlar.append(r)
+        del res, grup
+        gc.collect()
+        await asyncio.sleep(1)  # chunk arası nefes — API + bellek
 
     # Kutulara dağıt + skora göre azalan sırala
     kutular = {ad: [] for ad in KUTU_ESIKLERI}
@@ -225,15 +231,22 @@ def son_tarama() -> dict:
 
 
 # ── Periyodik Döngü ────────────────────────────────────────────────
-async def komuta_loop(aralik_sn: int = 300):
-    """main.py startup'ta create_task ile başlatılır."""
-    await asyncio.sleep(60)  # başlangıç spike'ından kaçın
+async def komuta_loop(aralik_sn: int = 900):
+    """
+    main.py startup'ta create_task ile başlatılır.
+    512MB OOM önlemi: startup spike'ı geçtikten çok sonra başla (10 dk),
+    aralık 15 dk, her tur sonrası gc.collect.
+    """
+    import gc
+    await asyncio.sleep(600)  # diğer ağır loop'lar yerleşsin, startup spike'ı geçsin
     while True:
         try:
             await komuta_taramasi(20)
             print("[KomutaMerkezi] Tarama tamamlandı")
         except Exception as e:
             print(f"[KomutaMerkezi] Hata: {str(e)[:80]}")
+        finally:
+            gc.collect()
         await asyncio.sleep(aralik_sn)
 
 
