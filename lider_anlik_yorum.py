@@ -199,7 +199,126 @@ async def _veri_topla(sembol: str, kok: str) -> dict:
         veri["market_rejim"] = "BILINMIYOR"
         hata_listesi.append(f"market_ctx: {str(e)[:60]}")
 
-    # 7. RESMİ TRADE KARARI (trading_supervisor — 3 zorunlu soru)
+    # 7. KIYOTAKA — Kurumsal Volume Profile + TPO + Likidasyonlar
+    try:
+        from kiyotaka_engine import canli_ozet, get_liquidations
+        from datetime import timedelta as _td
+        kiyo_key = os.environ.get("KIYOTAKA_API_KEY", "")
+        if kiyo_key:
+            hs = int(_simdi().timestamp()) - 3600
+            ozet, liq = await asyncio.gather(
+                canli_ozet(sembol, kiyo_key),
+                get_liquidations(sembol, hs, 3600, kiyo_key),
+                return_exceptions=True,
+            )
+            kiyo = {}
+            if isinstance(ozet, dict):
+                kiyo.update({
+                    "vpfr_poc": ozet.get("vpfr_poc"),
+                    "vpfr_vah": ozet.get("vpfr_vah"),
+                    "vpfr_val": ozet.get("vpfr_val"),
+                    "tpo_poc":  ozet.get("tpo_poc"),
+                    "ibr_high": ozet.get("tpo_ibr_high"),
+                    "ibr_low":  ozet.get("tpo_ibr_low"),
+                    "poor_highs": ozet.get("poor_highs", []),
+                    "poor_lows":  ozet.get("poor_lows", []),
+                })
+            if isinstance(liq, dict) and not liq.get("error"):
+                kiyo.update({
+                    "long_liq":  liq.get("long_liq_usd", 0),
+                    "short_liq": liq.get("short_liq_usd", 0),
+                    "liq_dominant": liq.get("dominant", "NEUTRAL"),
+                    "liq_total": liq.get("total_liq_usd", 0),
+                })
+            veri["kiyotaka"] = kiyo
+        else:
+            veri["kiyotaka"] = {"_durum": "KIYOTAKA_API_KEY yok"}
+    except Exception as e:
+        veri["kiyotaka"] = {}
+        hata_listesi.append(f"kiyotaka: {str(e)[:60]}")
+
+    # 8. Likidite yapısı (liquidity_agent — SFP, Sweep, FRVP)
+    try:
+        from liquidity_agent import liquidity_analiz
+        lik = await liquidity_analiz(sembol, "15m", 100)
+        frvp = lik.get("frvp", {})
+        veri["likidite"] = {
+            "son_sfp": (lik.get("son_sfp") or {}).get("tip") if lik.get("son_sfp") else None,
+            "sweep":   lik.get("sweep", [{}])[0].get("tip") if lik.get("sweep") else None,
+            "frvp_poc": frvp.get("poc"),
+            "frvp_vah": frvp.get("vah"),
+            "frvp_val": frvp.get("val"),
+            "hvn": frvp.get("hvn", []),
+            "lvn": frvp.get("lvn", []),
+        }
+    except Exception as e:
+        veri["likidite"] = {}
+        hata_listesi.append(f"likidite: {str(e)[:60]}")
+
+    # 9. Ek hacim indikatörleri (indicator_engine — OBV, A/D, CMF, MFI, VWAP, RVOL)
+    try:
+        from indicator_engine import analiz as _ind_analiz
+        ind = await _ind_analiz(sembol, "5m")
+        ig = ind.get("indikatorler", {})
+        veri["indikatorler"] = {
+            "skor":  ind.get("skor", {}).get("skor"),
+            "yon":   ind.get("skor", {}).get("yon"),
+            "OBV":   ig.get("OBV", {}).get("yon"),
+            "CMF":   ig.get("CMF", {}).get("deger"),
+            "MFI":   ig.get("MFI", {}).get("deger"),
+            "RVOL":  ig.get("RVOL", {}).get("deger"),
+            "VWAP":  ig.get("VWAP", {}).get("pozisyon"),
+            "AD":    ig.get("A/D", {}).get("yon"),
+            "MoveSource": ig.get("Move Source", {}).get("kaynak"),
+        }
+    except Exception as e:
+        veri["indikatorler"] = {}
+        hata_listesi.append(f"indikator: {str(e)[:60]}")
+
+    # 10. Makro veriler (macro_engine — Fed, CPI, NFP, PPI vs.) — sembolden bağımsız
+    try:
+        from macro_engine import makro_veri
+        mk = await makro_veri()
+        veri["makro"] = {
+            "btc_yorum":  mk.get("btcYorum", ""),
+            "kaynak":     mk.get("kaynak_ozet", ""),
+        }
+    except Exception as e:
+        veri["makro"] = {}
+        hata_listesi.append(f"makro: {str(e)[:60]}")
+
+    # 11. Makro takvim riski (time_context — FOMC, Triple Witching, Expiry)
+    try:
+        from time_context import time_risk_skoru
+        tr = await time_risk_skoru()
+        veri["takvim"] = {
+            "risk_skor": tr.get("risk_skoru", 0),
+            "seviye":    tr.get("seviye", "DUSUK"),
+            "etkinlik":  tr.get("ozet", ""),
+        }
+    except Exception as e:
+        veri["takvim"] = {}
+        hata_listesi.append(f"takvim: {str(e)[:60]}")
+
+    # 12. Bot sinyalleri (bots — dış kaynak sinyalleri)
+    try:
+        from bots import get_recent_signals
+        sigler = get_recent_signals(20)
+        kok_sigler = [s for s in sigler
+                      if kok in str(s.get("symbol", "")).upper()][:3]
+        veri["botlar"] = {
+            "son_sinyaller": [
+                {"bot": s.get("bot"), "yon": s.get("signal", s.get("direction")),
+                 "fiyat": s.get("price")}
+                for s in kok_sigler
+            ],
+            "toplam_son": len(sigler),
+        }
+    except Exception as e:
+        veri["botlar"] = {}
+        hata_listesi.append(f"botlar: {str(e)[:60]}")
+
+    # 13. RESMİ TRADE KARARI (trading_supervisor — 3 zorunlu soru)
     #    Lider tüm veriyi harmanladıktan SONRA kararı buradan alır.
     #    supervisor sadece karar üretir; mesaj atmaz, başka iş yapmaz.
     try:
@@ -280,6 +399,19 @@ def _degisim_tespit(yeni: dict, onceki: dict, durum: dict, kok: str) -> list:
     if abs(yeni_skor - onceki_skor) >= ESIK["oar_skor"]:
         tetikler.append(f"OAR Skor: {onceki_skor} → {yeni_skor}")
 
+    # Kiyotaka likidasyon baskısı değişimi
+    yeni_liq = yeni.get("kiyotaka", {}).get("liq_dominant", "")
+    onceki_liq = onceki.get("kiyotaka", {}).get("liq_dominant", "")
+    if yeni_liq and onceki_liq and yeni_liq != onceki_liq and "NEUTRAL" not in (yeni_liq, onceki_liq):
+        tetikler.append(f"Likidasyon baskisi: {onceki_liq} → {yeni_liq}")
+
+    # Indikatör skoru yön değişimi (LONG ↔ SHORT)
+    yeni_iy = (yeni.get("indikatorler", {}).get("yon") or "")
+    onceki_iy = (onceki.get("indikatorler", {}).get("yon") or "")
+    def _yon_kok(y): return "LONG" if "LONG" in y else "SHORT" if "SHORT" in y else "NOTR"
+    if yeni_iy and onceki_iy and _yon_kok(yeni_iy) != _yon_kok(onceki_iy) and "NOTR" not in (_yon_kok(yeni_iy), _yon_kok(onceki_iy)):
+        tetikler.append(f"Indikator yonu: {onceki_iy} → {yeni_iy}")
+
     # Resmi trade kararı değişimi (Supervisor) — en güçlü tetikleyici
     yeni_kr = yeni.get("supervisor", {}).get("karar", "")
     onceki_kr = onceki.get("supervisor", {}).get("karar", "")
@@ -302,30 +434,59 @@ async def _ai_yorum(veri: dict, tetikler: list) -> str:
     yapi = veri.get("yapi", {})
     seans = veri.get("seans", {})
     sup = veri.get("supervisor", {})
+    kiyo = veri.get("kiyotaka", {})
+    lik = veri.get("likidite", {})
+    ind = veri.get("indikatorler", {})
+    makro = veri.get("makro", {})
+    takvim = veri.get("takvim", {})
+    botlar = veri.get("botlar", {})
+
+    bb = yapi.get("bollinger", {})
+    macd = yapi.get("macd", {})
 
     prompt = f"""Sen BTC/ETH kripto piyasası Lider Analist Agent'sın.
-Aşağıdaki anlık piyasa verisine göre 3-5 cümlelik sert ve net bir yorum yap.
-Gereksiz giriş cümlesi yok. Doğrudan verilere değin.
+Aşağıdaki TÜM veri kaynaklarını harmanlayarak 4-6 cümlelik sert ve net bir yorum yap.
+Gereksiz giriş cümlesi yok. Doğrudan verilere değin, çelişen sinyalleri vurgula.
 
 Sembol: {veri['sembol']}
 Fiyat: ${veri.get('fiyat', 0):,.0f}
 Tetikleyen değişimler: {' | '.join(tetikler)}
 
---- VERİ ---
-Piyasa Yapısı (1h): {yapi.get('yapi','?')} | ADX: {yapi.get('adx',0)} | BOS: {yapi.get('bos','?')} | CHoCH: {yapi.get('choch','?')} | Zincir: {yapi.get('zincir','?')}
+--- PİYASA YAPISI ---
+Yapı (1h): {yapi.get('yapi','?')} | ADX: {yapi.get('adx',0)} | BOS: {yapi.get('bos','?')} | CHoCH: {yapi.get('choch','?')} | Zincir: {yapi.get('zincir','?')}
+RSI: {yapi.get('rsi','?')} | MACD: {macd.get('yon','?')} (hist {macd.get('hist','?')}) | Bollinger: {bb.get('pozisyon','?')} (%B {bb.get('pct_b','?')}, bw %{bb.get('bw','?')})
+
+--- HACİM & ORDER FLOW ---
 Order Flow: {flow.get('karar','?')} (puan: {flow.get('puan',0):+d}) | CVD: {flow.get('cvd_yon','?')} | CB Premium: {flow.get('cb_premium','?')} (%{flow.get('cb_pct',0):+.3f})
 OI Değişim: %{veri.get('oi_degisim_pct',0):+.2f} | Funding: %{veri.get('funding_pct',0):+.4f}
-Opsiyon: {opsiyonlar.get('gamma_rejim','veri yok')} | Call Wall: ${opsiyonlar.get('call_wall') or '?':} | Put Wall: ${opsiyonlar.get('put_wall') or '?':} | Zero Gamma: ${opsiyonlar.get('zero_gamma') or '?':} | Max Pain: ${opsiyonlar.get('max_pain') or '?':}
+Indikatör Skoru: {ind.get('skor','?')} ({ind.get('yon','?')}) | OBV: {ind.get('OBV','?')} | CMF: {ind.get('CMF','?')} | MFI: {ind.get('MFI','?')} | RVOL: {ind.get('RVOL','?')} | VWAP: {ind.get('VWAP','?')} | A/D: {ind.get('AD','?')} | Move Source: {ind.get('MoveSource','?')}
+
+--- LİKİDİTE (kendi hesabımız) ---
+Son SFP: {lik.get('son_sfp','?')} | Sweep: {lik.get('sweep','?')} | FRVP POC: {lik.get('frvp_poc','?')} | VAH: {lik.get('frvp_vah','?')} | VAL: {lik.get('frvp_val','?')}
+
+--- KIYOTAKA (kurumsal Volume Profile + Likidasyon) ---
+VPFR POC: {kiyo.get('vpfr_poc','?')} | VAH: {kiyo.get('vpfr_vah','?')} | VAL: {kiyo.get('vpfr_val','?')} | TPO POC: {kiyo.get('tpo_poc','?')}
+IB: {kiyo.get('ibr_low','?')}-{kiyo.get('ibr_high','?')} | Poor Highs: {kiyo.get('poor_highs',[])} | Poor Lows: {kiyo.get('poor_lows',[])}
+Likidasyon: Long ${kiyo.get('long_liq',0):,.0f} / Short ${kiyo.get('short_liq',0):,.0f} → Baskın: {kiyo.get('liq_dominant','?')}
+
+--- OPSİYON ---
+{opsiyonlar.get('gamma_rejim','veri yok')} | Call Wall: ${opsiyonlar.get('call_wall') or '?':} | Put Wall: ${opsiyonlar.get('put_wall') or '?':} | Zero Gamma: ${opsiyonlar.get('zero_gamma') or '?':} | Max Pain: ${opsiyonlar.get('max_pain') or '?':}
 Kısa vadeli (0-7g): CW ${opsiyonlar.get('kisa_cw') or '?':} | PW ${opsiyonlar.get('kisa_pw') or '?':}
+
+--- BAĞLAM & MAKRO ---
 Market Rejim: {veri.get('market_rejim','?')} | Move Source: {veri.get('move_source','?')} | OAR Skor: {veri.get('oar_skor',0)}/100
 Seans: {seans.get('aktif','?')} | Asia={seans.get('asia_yon','?')} London={seans.get('london_yon','?')} NY={seans.get('ny_yon','?')} | Yönlendirme: {seans.get('yonlendirme','?')}
-RESMİ KARAR (Supervisor): {sup.get('karar','?')} | Yön: {sup.get('yon','?')} | Güven: %{sup.get('guven',0)} | Stop: {sup.get('stop')} | Hedef: {sup.get('hedef')} | R:R 1:{sup.get('rr',0)}
+Makro: {makro.get('btc_yorum','?')} | Takvim Risk: {takvim.get('seviye','?')} ({takvim.get('risk_skor',0)}) {takvim.get('etkinlik','')[:120]}
+Bot Sinyalleri: {botlar.get('son_sinyaller',[])}
+
+--- RESMİ KARAR (Supervisor — 3 zorunlu soru) ---
+{sup.get('karar','?')} | Yön: {sup.get('yon','?')} | Güven: %{sup.get('guven',0)} | Stop: {sup.get('stop')} | Hedef: {sup.get('hedef')} | R:R 1:{sup.get('rr',0)}
 
 Yorumunda şunlara değin (uygunsa):
-1. Bu değişimin ne anlama geldiği (momentum mu, trap mı, rejim değişimi mi?)
-2. Opsiyon seviyeleri fiyatı nereye çekiyor/itiyor?
-3. CB Premium veya CVD bir yön teyidi veriyor mu yoksa çelişiyor mu?
-4. Kısa vadeli için dikkat edilecek en kritik seviye veya senario
+1. Tüm veri kaynakları HİZALI mı yoksa ÇELİŞİYOR mu? En güçlü teyit ve en büyük çelişki hangisi?
+2. Volume Profile (POC/VAH/VAL) ve opsiyon seviyeleri fiyatı nereye çekiyor/itiyor?
+3. Likidasyon baskısı ve CVD/CB Premium yön teyidi veriyor mu?
+4. Resmi karara katılıyor musun; kısa vadeli en kritik seviye veya senaryo
 
 Türkçe, rakamlarla, uydurma."""
 
@@ -353,6 +514,10 @@ def _telegram_mesaj_olustur(veri: dict, tetikler: list, ai_yorum: str) -> str:
     opsiyonlar = veri.get("opsiyonlar", {})
     seans = veri.get("seans", {})
     sup = veri.get("supervisor", {})
+    kiyo = veri.get("kiyotaka", {})
+    lik = veri.get("likidite", {})
+    ind = veri.get("indikatorler", {})
+    takvim = veri.get("takvim", {})
 
     flow_emoji = {"BULLISH_FLOW": "Alici", "BEARISH_FLOW": "Satici", "NEUTRAL_FLOW": "Notr"}.get(
         flow.get("karar", ""), "?")
@@ -391,6 +556,26 @@ def _telegram_mesaj_olustur(veri: dict, tetikler: list, ai_yorum: str) -> str:
     if flow.get("cb_premium") not in ("NOTR", "BILINMIYOR", None, ""):
         satirlar.append(
             f"CB Premium: {flow['cb_premium']} (%{flow.get('cb_pct',0):+.3f})")
+
+    # Kiyotaka kurumsal volume profile + likidasyon
+    if kiyo.get("vpfr_poc"):
+        kiyo_satir = [f"Kiyotaka VPFR: POC ${kiyo['vpfr_poc']:,.0f}"]
+        if kiyo.get("vpfr_vah"): kiyo_satir.append(f"VAH ${kiyo['vpfr_vah']:,.0f}")
+        if kiyo.get("vpfr_val"): kiyo_satir.append(f"VAL ${kiyo['vpfr_val']:,.0f}")
+        satirlar.append("  ".join(kiyo_satir))
+    if kiyo.get("liq_total"):
+        satirlar.append(
+            f"Likidasyon: ${kiyo['liq_total']/1e6:.1f}M → Baskin: {kiyo.get('liq_dominant','?')}")
+
+    # Kendi FRVP + indikatör skoru
+    if lik.get("frvp_poc"):
+        satirlar.append(f"FRVP POC: ${lik['frvp_poc']:,.0f}")
+    if ind.get("skor") is not None:
+        satirlar.append(f"Indikator Skor: {ind['skor']} ({ind.get('yon','?')})")
+
+    # Makro takvim riski (yüksekse uyar)
+    if takvim.get("seviye") in ("KRİTİK", "YÜKSEK"):
+        satirlar.append(f"⚠ Takvim Riski: {takvim['seviye']} ({takvim.get('risk_skor',0)})")
 
     if ai_yorum:
         satirlar.append("")
