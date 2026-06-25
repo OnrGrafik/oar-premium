@@ -118,10 +118,15 @@ def main():
                 api_key = line.split("=",1)[1].strip().strip('"').strip("'")
                 os.environ["GEMINI_API_KEY"] = api_key
 
-    IS_RENDER = os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID")
+    # Production = Render (eski) veya Railway (yeni)
+    IS_RENDER = bool(
+        os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID")
+        or os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_SERVICE_ID")
+        or os.environ.get("RAILWAY_PROJECT_ID")
+    )
     if not api_key:
         if IS_RENDER:
-            print("❌ GEMINI_API_KEY Render Environment Variables'a eklenmeli!")
+            print("❌ GEMINI_API_KEY platform Environment Variables'a eklenmeli!")
             sys.exit(1)
         print("\n" + "─"*56)
         print("  ⚠️  GOOGLE GEMINI API KEY GEREKLİ")
@@ -157,10 +162,16 @@ def main():
             print("   ✅ Groq yedek kaydedildi")
 
     # ── HAFIZA BİRLEŞTİRME (tüm eski versiyonlardan kayıpsız) ──
-    # Render persistent disk varsa onu kullan
-    _render_disk = Path("/var/data")
-    current_data = _render_disk if _render_disk.exists() else Path("data")
-    current_data.mkdir(exist_ok=True)
+    # Kalıcı disk önceliği: DATA_DIR env > Railway /data > Render /var/data > yerel data
+    if os.environ.get("DATA_DIR"):
+        current_data = Path(os.environ["DATA_DIR"])
+    elif Path("/data").exists():          # Railway volume (önerilen mount: /data)
+        current_data = Path("/data")
+    elif Path("/var/data").exists():      # Render persistent disk (eski)
+        current_data = Path("/var/data")
+    else:
+        current_data = Path("data")
+    current_data.mkdir(parents=True, exist_ok=True)
     os.environ["DATA_DIR"] = str(current_data)
     old_dirs = find_all_data_folders()
     if old_dirs:

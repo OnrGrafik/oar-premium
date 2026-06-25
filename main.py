@@ -991,7 +991,7 @@ async def startup_event():
             f = DATA_DIR / dosya
             if f.exists():
                 kalici[ad] = f"{f.stat().st_size//1024}KB"
-        print(f"[Kalıcılık] /var/data korunan veriler: {kalici}")
+        print(f"[Kalıcılık] {DATA_DIR} korunan veriler: {kalici}")
     except Exception as e:
         print(f"[Kalıcılık] kontrol hatası: {str(e)[:60]}")
 
@@ -1063,6 +1063,19 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] lider_anlik_yorum: {str(e)[:80]}")
 
+    # Grup 6 — KOMUTA MERKEZİ (top-20 güvenilirlik taraması, 5 dk)
+    try:
+        from seed_oar_rules import tohumla
+        tohumla()  # OAR master stratejiyi kural bankasına idempotent tohumla
+    except Exception as e:
+        print(f"[Startup] seed_oar_rules: {str(e)[:80]}")
+    try:
+        from komuta_merkezi import komuta_loop
+        asyncio.create_task(komuta_loop())
+        print("[Startup] ✅ Komuta Merkezi taraması başlatıldı")
+    except Exception as e:
+        print(f"[Startup] komuta_merkezi: {str(e)[:80]}")
+
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
@@ -1122,7 +1135,7 @@ async def config_get():
     cfg = _config_oku()
     return {
         "vercel_url": cfg.get("vercel_url", os.environ.get("VERCEL_URL", "https://project-vtcqr.vercel.app")),
-        "bot_url": cfg.get("bot_url", os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")),
+        "bot_url": cfg.get("bot_url", os.environ.get("BOT_URL", "")),
     }
 
 @app.post("/api/config")
@@ -1232,7 +1245,17 @@ async def _telegram_gonder(metin: str, thread_id: str = None) -> bool:
     try:
         async with httpx.AsyncClient(timeout=15) as cl:
             r = await cl.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
-            return r.status_code == 200
+            if r.status_code == 200:
+                return True
+            # Fallback: forum/topic id geçersizse ("message thread not found")
+            # thread'siz olarak ana sohbete tekrar gönder — mesaj düşmesin.
+            if r.status_code == 400 and "message_thread_id" in payload:
+                low = (r.text or "").lower()
+                if "thread" in low:
+                    payload.pop("message_thread_id", None)
+                    r2 = await cl.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
+                    return r2.status_code == 200
+            return False
     except Exception:
         return False
 
@@ -2011,6 +2034,24 @@ async def leader_karar_endpoint(sembol: str = "BTCUSDT", ai: bool = True):
     from leader_agent import lider_karar_uret
     api_key = os.environ.get("GEMINI_API_KEY", "") if ai else ""
     return await lider_karar_uret(sembol, api_key)
+
+
+@app.get("/api/komuta-merkezi")
+async def komuta_merkezi_endpoint(refresh: bool = False):
+    """
+    KOMUTA MERKEZİ — Top-20 coin güvenilirlik skoru, 4 kutuya dağıtılmış.
+    Varsayılan: son kaydedilmiş tarama (hızlı). refresh=true → canlı yeniden tara.
+    """
+    from komuta_merkezi import son_tarama, komuta_taramasi
+    if refresh:
+        return await komuta_taramasi(20)
+    son = son_tarama()
+    # Cache yoksa CANLI tarama TETİKLEME (512MB OOM önlemi) — arka plan döngüsü
+    # ilk taramayı yazana kadar "hazırlanıyor" döndür. Manuel için ?refresh=true.
+    if son.get("durum") == "henuz_tarama_yok":
+        return {"kutular": {"yuksek": [], "guvenli": [], "orta": [], "az": []},
+                "durum": "hazirlaniyor", "tarih": None}
+    return son
 
 
 @app.get("/api/leader/time-risk")

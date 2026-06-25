@@ -48,7 +48,7 @@ def _oar_kural_baglami() -> str:
     """Leader Agent promptuna kullanıcı tanımlı kuralları ekle."""
     try:
         from oar_rules import agent_baglami
-        return agent_baglami(max_kural=8)
+        return agent_baglami(max_kural=12)
     except Exception:
         return ""
 
@@ -595,7 +595,7 @@ def research_analizi() -> dict:
 # ── Bot Sağlık Kontrolü ────────────────────────────────────────────────────────
 async def bot_saglik_kontrol() -> dict:
     """Her botun Render endpoint'ini kontrol et."""
-    bot_url = os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")
+    bot_url = os.environ.get("BOT_URL", "")
     saglik = {}
 
     endpoints = ["/", "/signals"]
@@ -848,7 +848,11 @@ async def sinyal_toplayici_loop():
     OAR'ın kendi diskindeki SIGLOG_FILE'a merge eder.
     İki servis ayrı disklerde olduğu için bu köprü zorunlu.
     """
-    bot_url = os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")
+    bot_url = os.environ.get("BOT_URL", "").rstrip("/")
+    if not bot_url:
+        print("[SinyalToplayici] BOT_URL tanımlı değil — sinyal köprüsü pasif. "
+              "Railway'de Sinyal-Bot servisinin URL'ini BOT_URL değişkenine ekle.")
+        return
     await asyncio.sleep(240)  # başlangıçta bekle — startup spike'ından kaçın
     while True:
         try:
@@ -1063,8 +1067,8 @@ async def sistem_denetimi() -> dict:
     sonuc = {"tarih": _now(), "servisler": {}}
     
     kontroller = [
-        ("render_bot",     os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com") + "/"),
-        ("render_bot_signals", os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com") + "/signals?limit=1"),
+        ("render_bot",     os.environ.get("BOT_URL", "") + "/"),
+        ("render_bot_signals", os.environ.get("BOT_URL", "") + "/signals?limit=1"),
         ("vercel_levels",  None),  # config'den okunacak
         ("vercel_macro",   None),
         ("binance",        "https://api.binance.com/api/v3/ping"),
