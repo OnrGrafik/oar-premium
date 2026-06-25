@@ -217,17 +217,19 @@ def _klavye(oid: str) -> dict:
     ]]}
 
 
-async def oneri_gonder_telegram(o: dict) -> bool:
-    """Öneriyi inline butonlarla Telegram'a gönderir."""
+async def oneri_gonder_telegram(o: dict, thread_id=None, chat_id=None) -> bool:
+    """Öneriyi inline butonlarla Telegram'a gönderir.
+    thread_id/chat_id verilirse o sohbete/konuya gönderir (komutun geldiği yer);
+    yoksa ENV TELEGRAM_CHAT_ID/THREAD_ID kullanılır."""
     import httpx
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat  = os.environ.get("TELEGRAM_CHAT_ID", "")
+    chat  = str(chat_id) if chat_id else os.environ.get("TELEGRAM_CHAT_ID", "")
     if not token or not chat:
         return False
     payload = {"chat_id": chat, "text": _liste_metni(o), "parse_mode": "HTML",
                "disable_web_page_preview": True,
                "reply_markup": json.dumps(_klavye(o["id"]))}
-    tid = os.environ.get("TELEGRAM_THREAD_ID", "")
+    tid = thread_id if thread_id is not None else os.environ.get("TELEGRAM_THREAD_ID", "")
     if tid:
         try: payload["message_thread_id"] = int(tid)
         except Exception: pass
