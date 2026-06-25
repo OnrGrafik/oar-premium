@@ -991,7 +991,7 @@ async def startup_event():
             f = DATA_DIR / dosya
             if f.exists():
                 kalici[ad] = f"{f.stat().st_size//1024}KB"
-        print(f"[Kalıcılık] /var/data korunan veriler: {kalici}")
+        print(f"[Kalıcılık] {DATA_DIR} korunan veriler: {kalici}")
     except Exception as e:
         print(f"[Kalıcılık] kontrol hatası: {str(e)[:60]}")
 
@@ -1245,7 +1245,17 @@ async def _telegram_gonder(metin: str, thread_id: str = None) -> bool:
     try:
         async with httpx.AsyncClient(timeout=15) as cl:
             r = await cl.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
-            return r.status_code == 200
+            if r.status_code == 200:
+                return True
+            # Fallback: forum/topic id geçersizse ("message thread not found")
+            # thread'siz olarak ana sohbete tekrar gönder — mesaj düşmesin.
+            if r.status_code == 400 and "message_thread_id" in payload:
+                low = (r.text or "").lower()
+                if "thread" in low:
+                    payload.pop("message_thread_id", None)
+                    r2 = await cl.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
+                    return r2.status_code == 200
+            return False
     except Exception:
         return False
 
