@@ -273,17 +273,19 @@ function komutaKutulariHtml(){
     const yRenk=yon==='LONG'?'#1ff0ad':yon==='SHORT'?'#ff5d6c':'#5e716f';
     const flash=(km.gecisler||[]).includes(c.sembol);
     const d24=c.degisim_24h;
-    return `<div title="${esc((c.nedenler||[]).join(' | '))}" style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:6px;background:${flash?'#11201b':'#0a0f0f'};border:1px solid ${flash?renk:'#18211f'};margin-bottom:6px">
-      ${flash?'<span style="font-size:11px">🚨</span>':''}
-      <span style="font-weight:700;font-size:11px;color:#eaf4f2;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((c.sembol||'').replace('USDT',''))}</span>
-      <span style="font-size:9px;font-weight:700;color:${yRenk};border:1px solid ${yRenk}55;padding:1px 5px;border-radius:4px">${yon}</span>
-      ${d24!=null?`<span style="font-size:9px;color:${d24>=0?'#1ff0ad':'#ff5d6c'};width:42px;text-align:right">${d24>=0?'+':''}${(+d24).toFixed(1)}%</span>`:''}
-      <span style="font-size:11px;font-weight:700;color:${renk};width:30px;text-align:right">${c.konfidans!=null?Math.round(c.konfidans):'—'}</span>
+    return `<div title="${esc((c.nedenler||[]).join(' | '))}" style="display:flex;align-items:center;gap:5px;padding:5px 7px;border-radius:6px;background:${flash?'#11201b':'#0a0f0f'};border:1px solid ${flash?renk:'#18211f'}">
+      ${flash?'<span style="font-size:10px">🚨</span>':''}
+      <span style="font-weight:700;font-size:10.5px;color:#eaf4f2;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((c.sembol||'').replace('USDT',''))}</span>
+      <span style="font-size:8px;font-weight:700;color:${yRenk};border:1px solid ${yRenk}55;padding:1px 4px;border-radius:4px">${yon}</span>
+      ${d24!=null?`<span style="font-size:8.5px;color:${d24>=0?'#1ff0ad':'#ff5d6c'};width:38px;text-align:right">${d24>=0?'+':''}${(+d24).toFixed(1)}%</span>`:''}
+      <span style="font-size:11px;font-weight:700;color:${renk};width:26px;text-align:right">${c.konfidans!=null?Math.round(c.konfidans):'—'}</span>
     </div>`;
   };
   const sutun=(s)=>{
     const liste=kutular[s.ad]||[];
-    const icerik=liste.length?liste.map(c=>kart(c,s.renk)).join(''):'<div style="font-size:10px;color:#5e716f;padding:8px 0">— coin yok —</div>';
+    const icerik=liste.length
+      ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${liste.map(c=>kart(c,s.renk)).join('')}</div>`
+      : '<div style="font-size:10px;color:#5e716f;padding:8px 0">— coin yok —</div>';
     return `<div style="background:#070b0b;border:1px solid #141d1b;border-top:2px solid ${s.renk};border-radius:7px;padding:11px 12px;min-height:120px">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px">
         <span class="sg" style="font-size:9px;letter-spacing:.1em;color:${s.renk};font-weight:700">${s.baslik}</span>
@@ -366,8 +368,6 @@ function scrLeader(){
     </div>`:''}
   </div>
 
-  ${komutaKutulariHtml()}
-
   <!-- GRAFİK ALTI LİVE AÇIKLAMA (Lider gözlemi, kendini günceller) -->
   <div class="card" style="padding:14px 16px;margin-bottom:13px;border-left:2px solid #1ff0ad">
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
@@ -388,7 +388,9 @@ function scrLeader(){
       ${ov.cvd_yon?`<span style="font-size:10px;color:${ov.cvd_yon==='YUKARI'?'#1ff0ad':'#ff5d6c'};margin-left:auto">Opsiyon CVD ${ov.cvd_yon}</span>`:''}
     </div>
     <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${esc(oy.yorum||'Opsiyon analizi yükleniyor... (Deribit verileri + opsiyon kitapları)')}</div>
-  </div>`;
+  </div>
+
+  ${komutaKutulariHtml()}`;
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
