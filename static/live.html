@@ -460,7 +460,9 @@ function scrTheory(){
 // ─── OPTIONS & GEX ───
 // ─── OPSİYON MASASI (Options Desk teması — veri sözleşmesi değişmedi) ───
 let _optVade='all';
+let _optCur='BTC';
 function optVadeSec(v){_optVade=v;loadOptionsFull();render();}
+function optCurSec(c){_optCur=c;loadOptionsFull();render();}
 
 // OD palet (SVG + body'ye eklenen tooltip CSS değişkeni çözemez → hex)
 const OD={bg:'#07090a',surf:'#0c1112',line:'#18211f',lineS:'#131918',lineH:'#1a2422',text:'#cdd9d8',t2:'#b8c6c3',dim:'#8a9c99',mute:'#5e716f',acc:'#1ff0ad',pos:'#1ff0ad',neg:'#ff5d6c',neu:'#9fb0ad',buy:'#56a8ff',sell:'#ff8a3c'};
@@ -709,13 +711,14 @@ function scrOptions(){
   const t=ST.optTopo||{},g=ST.optGreek||{},sk=ST.optSkew||{},cvd=ST.optCvd||{},dag=ST.optDagilim||{},oy=ST.opsiyonYorum||{};
   const lv=t.levels||{},spot=t.spot,dg=dag.dagilim||{};
   const chip=(v,l)=>`<button class="od-chip ${_optVade===v?'on':''}" onclick="optVadeSec('${v}')">${l}</button>`;
+  const curChip=(c)=>`<button class="od-chip ${_optCur===c?'on':''}" onclick="optCurSec('${c}')">${c}</button>`;
   const flowC=(l,v)=>`<div class="od-flow-c"><span class="od-flow-l">${l}</span><span class="od-flow-v">${fmtNum(v||0)}</span></div>`;
   const netGex=g.net_gamma!=null?((g.net_gamma>=0?'+':'')+g.net_gamma+'M'):'—';
   return `<div class="od">
     <div class="od-top">
       <h1 class="od-title">Opsiyon Masası</h1>
-      <span class="od-sub">Deribit · Black-Scholes · ${spot?'BTC $'+fmtNum(Math.round(spot)):'yükleniyor'}</span>
-      <div class="od-vade">${chip('all','Tümü')}${chip('0-7d','0-7g')}${chip('8-45d','8-45g')}${chip('45d+','45+g')}</div>
+      <span class="od-sub">Deribit · Black-Scholes · ${spot?_optCur+' $'+fmtNum(Math.round(spot)):'yükleniyor'}</span>
+      <div class="od-vade">${curChip('BTC')}${curChip('ETH')}<span style="width:10px;display:inline-block"></span>${chip('all','Tümü')}${chip('0-7d','0-7g')}${chip('8-45d','8-45g')}${chip('45d+','45+g')}</div>
     </div>
 
     <section class="od-sec">
@@ -759,7 +762,7 @@ function scrOptions(){
       ${odPozisyon(lv,spot,g,oy)}
     </section>
 
-    <div class="od-foot"><div><div style="font-weight:500;margin-bottom:4px">Opsiyon Masası · BTC · Deribit</div><div style="color:${OD.mute}">Black-Scholes · Hull 11e · ${(t.strikes||[]).length} kullanım</div></div><div class="od-foot-pg">— BTC Gamma —</div></div>
+    <div class="od-foot"><div><div style="font-weight:500;margin-bottom:4px">Opsiyon Masası · ${_optCur} · Deribit</div><div style="color:${OD.mute}">Black-Scholes · Hull 11e · ${(t.strikes||[]).length} kullanım</div></div><div class="od-foot-pg">— ${_optCur} Gamma —</div></div>
   </div>`;
 }
 
@@ -1491,14 +1494,14 @@ async function loadTheoryHipotez(){
 async function loadTheories(){return loadTheoryHipotez();}
 async function loadOptions(){ return loadOptionsFull(); }
 async function loadOptionsFull(){
-  const v=_optVade;
+  const v=_optVade, c=_optCur;
   const[topo,greek,skew,cvd,dag,yorum]=await Promise.all([
-    jget('/api/options/topografya?currency=BTC&vade='+v),
-    jget('/api/options/greekler?currency=BTC'),
-    jget('/api/options/skew?currency=BTC'),
-    jget('/api/options/cvd-uclu?currency=BTC'),
-    jget('/api/options/islem-dagilimi?currency=BTC'),
-    jget('/api/opsiyon-yorum?currency=BTC')
+    jget('/api/options/topografya?currency='+c+'&vade='+v),
+    jget('/api/options/greekler?currency='+c),
+    jget('/api/options/skew?currency='+c),
+    jget('/api/options/cvd-uclu?currency='+c),
+    jget('/api/options/islem-dagilimi?currency='+c),
+    jget('/api/opsiyon-yorum?currency='+c)
   ]);
   if(topo&&!topo.error)ST.optTopo=topo;
   if(greek&&!greek.error)ST.optGreek=greek;
