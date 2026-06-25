@@ -2611,6 +2611,14 @@ async def knowledge_add_document(
     if not title.strip():
         title = (file.filename or "Doküman").rsplit(".", 1)[0]
 
+    # ── Yönetişim kapısı (Görev 5): allowlist + boyut limiti ──
+    import governance
+    _gec, _sebep = governance.dosya_kapisi(file.filename or "", len(raw))
+    if not _gec:
+        governance.audit_yaz("dosya_yukle", file.filename or "?", sonuc="reddedildi",
+                             detay={"sebep": _sebep})
+        raise HTTPException(status_code=400, detail=f"Dosya reddedildi: {_sebep}")
+
     if fname.endswith(".pdf"):
         try:
             content = extract_pdf_text(raw)
@@ -2662,7 +2670,10 @@ async def knowledge_add_document(
 
     if not content.strip():
         raise HTTPException(status_code=400, detail="Dosya boş veya okunamadı")
-    result = add_document(title, content, category, source=file.filename)
+    # Untrusted veri: yüklenen içerik DAİMA veri olarak işaretlenir (talimat değil).
+    result = add_document(title, content, category, source=file.filename, untrusted=True)
+    governance.audit_yaz("dosya_yukle", file.filename or title, sonuc="ok",
+                         detay={"baslik": title, "kategori": category})
     # Frontend net teyit için: kaç bölüm + analiz önizlemesi döndür
     if isinstance(result, dict):
         result.setdefault("title", title)

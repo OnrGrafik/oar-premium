@@ -71,7 +71,9 @@ def tohumla() -> dict:
         if baslik in mevcut_basliklar:
             atlanan.append(baslik)
             continue
-        oar_rules.kural_ekle(baslik, icerik, tip=tip, etiketler=etiketler, oncelik=oncelik)
+        # Master kurallar önceden onaylı bootstrap → doğrudan AKTIF (ADAY değil).
+        oar_rules.kural_ekle(baslik, icerik, tip=tip, etiketler=etiketler,
+                             oncelik=oncelik, durum="AKTIF")
         eklenen.append(baslik)
     return {"eklenen": eklenen, "atlanan": atlanan, "istatistik": oar_rules.istatistik()}
 
