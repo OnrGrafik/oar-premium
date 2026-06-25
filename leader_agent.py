@@ -1430,6 +1430,12 @@ async def saatlik_research_loop():
             if ai:
                 icerik["ai_dusunce"] = ai
                 icerik["metin"] += f"\n\n🤖 {ai}"
+                # Öneri motoru: ÖNERİ cümlelerini Telegram onayına gönder
+                try:
+                    from oneri_motoru import oneri_tara_ve_gonder
+                    await oneri_tara_ve_gonder(ai, "research")
+                except Exception as e:
+                    print(f"[ResearchSaatlik] oneri hata: {str(e)[:60]}")
             rapor_gecmisi_ekle("research", icerik)
             print("[ResearchSaatlik] ✅")
             del yenilik, research, icerik

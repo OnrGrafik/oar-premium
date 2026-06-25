@@ -136,12 +136,26 @@ def _strateji_onerisi(skor: float, rejim: dict | None) -> dict:
     return {"yon": yon, "strateji": strateji, "not": not_}
 
 
+def _config():
+    """Öneri motorunun onayladığı config override'larını oku (yoksa boş)."""
+    try:
+        from oneri_motoru import config_oku
+        return config_oku().get("risk_skoru", {}) or {}
+    except Exception:
+        return {}
+
+
 async def risk_skoru_hesapla(sembol: str = "BTCUSDT",
                              hipotez_edge: float | None = None) -> dict:
     """
     Tüm bileşenleri toplayıp birleşik risk-on/risk-off skorunu döndürür.
     Bileşenlerden biri patlasa da diğerleriyle devam eder (kısmi başarı).
+    Onaylanmış öneri override'ları (ağırlık/eşik/risk çarpanı) burada uygulanır.
     """
+    cfg = _config()
+    # Onaylı öneriyle ezilebilen eşikler
+    guclu_trend_esik = float(cfg.get("guclu_trend_esik", 40))
+    guclu_ters_esik  = float(cfg.get("guclu_ters_esik", -40))
     kok = "BTC" if sembol.upper().startswith("BTC") else \
           ("ETH" if sembol.upper().startswith("ETH") else "BTC")
 
@@ -163,6 +177,11 @@ async def risk_skoru_hesapla(sembol: str = "BTCUSDT",
 
     # ── Dinamik ağırlık: makro olay penceresinde risk iştahını kıs ────────────
     agirlik = dict(TEMEL_AGIRLIK)
+    # Onaylı öneri ağırlık override'ları
+    for k, v in (cfg.get("agirlik", {}) or {}).items():
+        if k in agirlik:
+            try: agirlik[k] = float(v)
+            except Exception: pass
     olay = aktif_olay_penceresi() if aktif_olay_penceresi else None
     risk_carpani = 1.0
     olay_not = None
@@ -171,7 +190,9 @@ async def risk_skoru_hesapla(sembol: str = "BTCUSDT",
         agirlik["makro"] += 0.15
         agirlik["rejim"] -= 0.10
         agirlik["gamma"] -= 0.05
-        risk_carpani = olay.get("risk_carpani", 0.5)
+        # Onaylı öneri: makro olay risk çarpanını ezebilir
+        risk_carpani = float(cfg.get("makro_olay_risk_carpani",
+                                     olay.get("risk_carpani", 0.5)))
         olay_not = olay.get("aciklama")
 
     toplam_a = sum(agirlik.values())
@@ -194,8 +215,9 @@ async def risk_skoru_hesapla(sembol: str = "BTCUSDT",
         "agirliklar":  {k: round(v, 3) for k, v in agirlik.items()},
         "risk_carpani": round(risk_carpani, 2),
         "makro_olay":  olay_not,
-        "guclu_ters":  skor <= -40,
-        "guclu_trend": skor >= 40,
+        "guclu_ters":  skor <= guclu_ters_esik,
+        "guclu_trend": skor >= guclu_trend_esik,
+        "esikler":     {"trend": guclu_trend_esik, "ters": guclu_ters_esik},
     }
 
 
