@@ -283,19 +283,68 @@ async def telegram_komut_loop():
             async with httpx.AsyncClient(timeout=15) as cl:
                 r = await cl.get(
                     f"https://api.telegram.org/bot{token}/getUpdates",
-                    params={"offset": _tg_update_offset, "timeout": 10, "limit": 10},
+                    params={"offset": _tg_update_offset, "timeout": 10, "limit": 10,
+                            "allowed_updates": json.dumps(["message", "channel_post",
+                                                           "callback_query"])},
                 )
                 if r.status_code != 200:
+                    # 409 = webhook kurulu (polling engelli); diğer kodları da logla
+                    print(f"[Telegram] getUpdates {r.status_code}: {(r.text or '')[:120]}")
                     await asyncio.sleep(30)
                     continue
                 updates = r.json().get("result", [])
                 for upd in updates:
                     _tg_update_offset = upd["update_id"] + 1
+
+                    # ── Öneri onay/red butonları (callback_query) ──────────────
+                    cb = upd.get("callback_query")
+                    if cb:
+                        data = (cb.get("data") or "")
+                        cb_id = cb.get("id")
+                        cb_msg = cb.get("message") or {}
+                        cb_chat = (cb_msg.get("chat") or {}).get("id")
+                        cb_thread = cb_msg.get("message_thread_id")
+                        yanit = "OK"
+                        if data.startswith("oneri:"):
+                            try:
+                                from oneri_motoru import callback_isle
+                                yanit = await callback_isle(data)
+                            except Exception as e:
+                                yanit = f"hata: {str(e)[:60]}"
+                        # Butona tıklayana bildirim + AYNI sohbet/konuya sonuç
+                        try:
+                            await cl.post(
+                                f"https://api.telegram.org/bot{token}/answerCallbackQuery",
+                                json={"callback_query_id": cb_id, "text": yanit[:200]})
+                        except Exception:
+                            pass
+                        await _telegram_gonder(yanit, thread_id=cb_thread, chat_id=cb_chat)
+                        continue
+
                     msg = upd.get("message") or upd.get("channel_post") or {}
                     metin = msg.get("text", "").strip()
-                    if metin.lower() in ("/bot", "/bot@oarbot"):
+                    # Komut geldiği sohbet + konuya (forum topic) yanıt ver
+                    m_chat = (msg.get("chat") or {}).get("id")
+                    m_thread = msg.get("message_thread_id")
+                    komut = metin.lower().split("@")[0]
+                    if komut == "/bot":
                         rapor = await _telegram_bot_raporu()
-                        await _telegram_gonder(rapor)
+                        await _telegram_gonder(rapor, thread_id=m_thread, chat_id=m_chat)
+                    elif komut == "/oneriler":
+                        try:
+                            from oneri_motoru import bekleyenler, oneri_gonder_telegram
+                            bek = bekleyenler()
+                            if not bek:
+                                await _telegram_gonder("✅ Bekleyen sistem geliştirme önerisi yok.",
+                                                       thread_id=m_thread, chat_id=m_chat)
+                            else:
+                                await _telegram_gonder(f"💡 {len(bek)} bekleyen öneri:",
+                                                       thread_id=m_thread, chat_id=m_chat)
+                                for o in bek[:5]:
+                                    await oneri_gonder_telegram(o, thread_id=m_thread, chat_id=m_chat)
+                        except Exception as e:
+                            await _telegram_gonder(f"Öneri listesi hatası: {str(e)[:80]}",
+                                                   thread_id=m_thread, chat_id=m_chat)
         except Exception as e:
             print(f"[Telegram] komut loop hata: {str(e)[:80]}")
         await asyncio.sleep(20)
@@ -1238,6 +1287,56 @@ async def options_gex(currency: str = "BTC"):
     from options_engine import gex_ozet
     return await gex_ozet(currency)
 
+@app.get("/api/leader/risk-skoru")
+async def leader_risk_skoru(symbol: str = "BTCUSDT"):
+    """Birleşik risk-on/risk-off skoru (makro+rejim+gamma+hipotez)."""
+    try:
+        from risk_skoru import risk_skoru_hesapla
+        return await risk_skoru_hesapla(symbol)
+    except Exception as e:
+        return {"error": f"risk skoru alınamadı: {str(e)[:120]}", "skor": 0.0}
+
+
+@app.get("/api/leader/utbot-onay")
+async def leader_utbot_onay(symbol: str = "ETHUSDT", yon: str = "LONG"):
+    """
+    UTBot kararını Lider Agent onaylar (eksik #2): sinyal mantıklı mı?
+    Güçlü risk skoruna TERS bir yön (ör. skor<=-40 iken LONG) → VETO.
+    Makro olay penceresinde de yeni işlem onayı kısılır.
+
+    Döner: {onay: bool, neden: str, skor: float, strateji: str}
+    """
+    yon = (yon or "").upper()
+    try:
+        from risk_skoru import risk_skoru_hesapla
+        r = await risk_skoru_hesapla(symbol)
+    except Exception as e:
+        # Lider değerlendiremiyorsa engelleme — UTBot kendi mantığıyla devam eder
+        return {"onay": True, "neden": f"lider değerlendiremedi ({str(e)[:60]})",
+                "skor": 0.0, "strateji": "?"}
+
+    skor = r.get("skor", 0.0)
+    neden = []
+    onay = True
+
+    if yon == "LONG" and r.get("guclu_ters"):
+        onay = False
+        neden.append(f"Skor {skor:+.0f} güçlü RISK-OFF → LONG mantıksız")
+    elif yon == "SHORT" and r.get("guclu_trend"):
+        onay = False
+        neden.append(f"Skor {skor:+.0f} güçlü RISK-ON → SHORT mantıksız")
+
+    if r.get("makro_olay"):
+        onay = False
+        neden.append(f"Makro olay penceresi ({r['makro_olay']}) → yeni işlem askıda")
+
+    if onay:
+        neden.append(f"Skor {skor:+.0f} {r.get('yon','')} — {yon} ile uyumlu/nötr")
+
+    return {"onay": onay, "neden": "; ".join(neden), "skor": skor,
+            "strateji": r.get("strateji", ""), "yon_skoru": r.get("yon", "")}
+
+
 @app.get("/api/vercel/orderflow")
 async def vercel_orderflow(currency: str = "BTC"):
     return await _vercel_get(f"/api/orderflow?currency={currency}")
@@ -1255,9 +1354,10 @@ async def vercel_macro():
 # ── Telegram Bildirimleri ─────────────────────────────────────────────────────
 # Token/chat ENV'den okunur (kodda SABİT TUTULMAZ): TELEGRAM_BOT_TOKEN,
 # TELEGRAM_CHAT_ID, opsiyonel TELEGRAM_THREAD_ID (forum konu/topic id).
-async def _telegram_gonder(metin: str, thread_id: str = None) -> bool:
+async def _telegram_gonder(metin: str, thread_id: str = None,
+                           chat_id: str = None) -> bool:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat  = os.environ.get("TELEGRAM_CHAT_ID", "")
+    chat  = str(chat_id) if chat_id else os.environ.get("TELEGRAM_CHAT_ID", "")
     if not token or not chat:
         return False
     payload = {"chat_id": chat, "text": metin[:4000], "disable_web_page_preview": True}
@@ -2086,6 +2186,43 @@ async def komuta_merkezi_endpoint(refresh: bool = False):
         return {"kutular": {"yuksek": [], "guvenli": [], "orta": [], "az": []},
                 "durum": "hazirlaniyor", "tarih": None}
     return son
+
+
+@app.get("/api/leader/oneriler")
+async def leader_oneriler(durum: str = ""):
+    """Sistem geliştirme önerileri (Research/Lider → Telegram onay akışı)."""
+    from oneri_motoru import _load, ONERI_FILE, config_oku
+    kayit = _load(ONERI_FILE, {"oneriler": []})
+    oneriler = kayit["oneriler"]
+    if durum:
+        oneriler = [o for o in oneriler if o.get("durum") == durum.upper()]
+    return {"oneriler": oneriler[:50], "config": config_oku()}
+
+
+@app.post("/api/leader/oneri")
+async def leader_oneri_ekle(request: Request):
+    """Manuel öneri ekle ve Telegram'a butonlu gönder (test/elle giriş)."""
+    body = await request.json()
+    metin = (body.get("metin") or "").strip()
+    kaynak = body.get("kaynak", "manuel")
+    if not metin:
+        return {"hata": "metin gerekli"}
+    from oneri_motoru import oneri_olustur, oneri_gonder_telegram
+    o = oneri_olustur(kaynak, metin)
+    if not o:
+        return {"durum": "mukerrer_veya_kisa"}
+    await oneri_gonder_telegram(o)
+    return {"durum": "olusturuldu", "oneri": o}
+
+
+@app.post("/api/leader/oneri/{oid}/{aksiyon}")
+async def leader_oneri_karar(oid: str, aksiyon: str):
+    """Öneriyi UI'dan onayla/reddet (aksiyon: onay | red)."""
+    from oneri_motoru import onayla, reddet
+    o = onayla(oid) if aksiyon == "onay" else reddet(oid)
+    if not o:
+        return {"hata": "öneri bulunamadı"}
+    return {"durum": o["durum"], "oneri": o}
 
 
 @app.get("/api/leader/time-risk")
