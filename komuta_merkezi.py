@@ -41,7 +41,7 @@ KUTU_ETIKET = {
 ATLA = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "WBTC", "STETH", "WETH", "WSTETH", "WEETH"}
 
 TELEGRAM_DEBOUNCE_DK = 30
-CHUNK = 2  # rate-limit + 512MB OOM koruması (tepe belleği düşük tut)
+CHUNK = 6  # RAM serbest (Railway) — daha yüksek paralellik, hızlı tarama
 
 
 def _now() -> str:
@@ -231,14 +231,14 @@ def son_tarama() -> dict:
 
 
 # ── Periyodik Döngü ────────────────────────────────────────────────
-async def komuta_loop(aralik_sn: int = 900):
+async def komuta_loop(aralik_sn: int = 300):
     """
     main.py startup'ta create_task ile başlatılır.
-    512MB OOM önlemi: startup spike'ı geçtikten çok sonra başla (10 dk),
-    aralık 15 dk, her tur sonrası gc.collect.
+    RAM serbest (Railway): hızlı ilk tarama (90s) ve 5 dk tazeleme aralığı.
+    Her tur sonrası yine gc.collect (temizlik ucuz).
     """
     import gc
-    await asyncio.sleep(600)  # diğer ağır loop'lar yerleşsin, startup spike'ı geçsin
+    await asyncio.sleep(90)  # startup'ın hemen ardından ilk tarama
     while True:
         try:
             await komuta_taramasi(20)

@@ -1536,8 +1536,10 @@ async function loadFng(){
 async function boot(){
   renderNav();render();
   tickClock();setInterval(tickClock,1000);
-  await Promise.all([loadSignals(),loadReport(),loadContext(),loadTheories(),loadFeed(),loadKnowledge(),loadIndicators(),loadOptScore(),loadOarFib(),loadPiyasaDurumu(),loadKomuta(),loadOpsiyonYorum(),loadBasariSkoru(),loadGrafikYorum(),loadKarar(),loadPaper(),loadHipotez()]);
-  render();
+  // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
+  // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
+  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez];
+  _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}

@@ -853,7 +853,7 @@ async def sinyal_toplayici_loop():
         print("[SinyalToplayici] BOT_URL tanımlı değil — sinyal köprüsü pasif. "
               "Railway'de Sinyal-Bot servisinin URL'ini BOT_URL değişkenine ekle.")
         return
-    await asyncio.sleep(240)  # başlangıçta bekle — startup spike'ından kaçın
+    await asyncio.sleep(45)   # RAM serbest — sinyalleri erken çek
     while True:
         try:
             async with httpx.AsyncClient(timeout=15) as cl:

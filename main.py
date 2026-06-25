@@ -15,6 +15,29 @@ from pathlib import Path
 import os as _os_data
 DATA_DIR = Path(_os_data.environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# ── Hafif TTL Cache (yavaş AI/Deribit endpoint'leri için) ──────────────────
+# Ağır hesap (Gemini + GEX + indikatör) TTL içinde tek sefer çalışır; sonraki
+# istekler (sekme açılışı, çoklu istemci) anında cache'ten döner.
+import time as _time_cache, asyncio as _asyncio_cache
+_TTL_CACHE: dict = {}
+_TTL_LOCKS: dict = {}
+async def _ttl_cached(key: str, ttl: int, coro_factory):
+    """key için cache taze ise döndür; değilse coro_factory() çalıştırıp cache'le.
+    Aynı key'e eşzamanlı istekler tek hesaplamayı paylaşır (lock)."""
+    now = _time_cache.time()
+    hit = _TTL_CACHE.get(key)
+    if hit and (now - hit[0]) < ttl:
+        return hit[1]
+    lock = _TTL_LOCKS.setdefault(key, _asyncio_cache.Lock())
+    async with lock:
+        hit = _TTL_CACHE.get(key)
+        if hit and (_time_cache.time() - hit[0]) < ttl:
+            return hit[1]
+        sonuc = await coro_factory()
+        _TTL_CACHE[key] = (_time_cache.time(), sonuc)
+        return sonuc
+
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -1015,7 +1038,7 @@ async def startup_event():
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 
     # Grup 2 — hafif
-    await asyncio.sleep(5)
+    await asyncio.sleep(2)
     try:
         from paper_trade_agent import paper_trade_loop
         asyncio.create_task(paper_trade_loop())
@@ -1024,7 +1047,7 @@ async def startup_event():
         print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
 
     # Grup 3 — orta
-    await asyncio.sleep(5)
+    await asyncio.sleep(2)
     try:
         from market_context import baglam_loop
         asyncio.create_task(baglam_loop())
@@ -1042,7 +1065,7 @@ async def startup_event():
         print(f"[Startup] theory_engine: {str(e)[:80]}")
 
     # Grup 4 — ağır (feature engine kendi içinde 90s + 300s bekler)
-    await asyncio.sleep(5)
+    await asyncio.sleep(2)
     try:
         from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
         asyncio.create_task(zenginlestirici_loop())
@@ -1051,7 +1074,7 @@ async def startup_event():
         print(f"[Startup] feature_engine: {str(e)[:80]}")
 
     # Grup 5 — background scanner (360s bekler) + telegram + lider yorum
-    await asyncio.sleep(5)
+    await asyncio.sleep(2)
     global scanner_task, telegram_task, telegram_komut_task
     scanner_task = asyncio.create_task(background_scanner())
     telegram_task = asyncio.create_task(telegram_rapor_loop())
@@ -1620,6 +1643,10 @@ Kitap bilgisi varsa referans ver."""
 
 @app.get("/api/opsiyon-yorum")
 async def opsiyon_yorum(currency: str = "BTC"):
+    return await _ttl_cached(f"opsiyon-yorum:{currency}", 150,
+                             lambda: _opsiyon_yorum_hesapla(currency))
+
+async def _opsiyon_yorum_hesapla(currency: str = "BTC"):
     """Opsiyon genel durum — veri paralel çekilir + hızlı döner; AI yorumu cache'li/arka planda."""
     from options_engine import alarm_levels, opsiyon_cvd
     # Paralel veri çekme (sıralı bekleme yerine)
@@ -1646,6 +1673,10 @@ async def opsiyon_yorum(currency: str = "BTC"):
 
 @app.get("/api/grafik-yorum")
 async def grafik_yorum(symbol: str = "BTCUSDT"):
+    return await _ttl_cached(f"grafik-yorum:{symbol}", 150,
+                             lambda: _grafik_yorum_hesapla(symbol))
+
+async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
     """ASIA RANGE grafiği altı LIVE açıklama — indikatör+opsiyon+kitap, Lider gözlemi."""
     import httpx
     cur = "BTC" if "BTC" in symbol else "ETH"
@@ -1728,6 +1759,9 @@ Kitap: {kitap_notu[:300]}{setup_metin}
 
 @app.get("/api/piyasa-durumu")
 async def piyasa_durumu():
+    return await _ttl_cached("piyasa-durumu", 150, _piyasa_durumu_hesapla)
+
+async def _piyasa_durumu_hesapla():
     """Komuta Merkezi 'Piyasa Durumu' — opsiyon + makro + indikatör + kitap harmanı, AI yorumu."""
     import httpx
     from market_context import son_baglam
