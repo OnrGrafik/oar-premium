@@ -607,6 +607,28 @@ async def lider_anlik_yorum_loop():
 
                 tetikler = _degisim_tespit(yeni, onceki, durum, kok)
 
+                # ── İşlem fikri takibi: tersine dönüş yönetimi (eksik #4) ──────
+                guncel_fiyat = yeni.get("fiyat", 0) or 0
+                sup = yeni.get("supervisor", {}) or {}
+                sup_karar = (sup.get("karar") or "").upper()
+                try:
+                    import lider_islem_takip as lit  # type: ignore
+                    from main import _telegram_gonder  # type: ignore
+                    # Yeni yönlü KARAR → fikri kaydet
+                    if sup_karar in ("LONG", "SHORT") and guncel_fiyat > 0:
+                        lit.islem_kaydet(kok, sup_karar, guncel_fiyat,
+                                         stop=sup.get("stop"), hedef=sup.get("hedef"))
+                    # Açık fikir tersine döndü mü?
+                    oneri = lit.reversal_kontrol(
+                        kok, guncel_fiyat,
+                        yeni_karar=sup_karar if sup_karar in ("LONG", "SHORT") else None)
+                    if oneri:
+                        await _telegram_gonder(oneri["mesaj"])
+                        print(f"[LiderYorum] {kok} reversal → {oneri['aksiyon']} "
+                              f"(pnl {oneri['pnl_pct']:+.2f}%)")
+                except Exception as e:
+                    print(f"[LiderYorum] {kok} reversal hata: {str(e)[:80]}")
+
                 if tetikler and _son_gonderi_gecti_mi(durum, kok):
                     ai = await _ai_yorum(yeni, tetikler)
                     mesaj = _telegram_mesaj_olustur(yeni, tetikler, ai)
