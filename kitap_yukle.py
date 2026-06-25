@@ -4,7 +4,7 @@
   OAR Premium — Kitap İndeksi Yükleyici (BİLGİSAYARINDA ÇALIŞIR)
 ═══════════════════════════════════════════════════════════════════
 kitap_hazirla.py'nin ürettiği kitap_indeksi.json dosyasını
-Render'daki sisteme PARÇA PARÇA yükler (timeout olmaz).
+Railway'deki sisteme PARÇA PARÇA yükler (timeout olmaz).
 
 ÖNCE:  python kitap_hazirla.py <kitap_klasoru>   → kitap_indeksi.json üretir
 SONRA: python kitap_yukle.py kitap_indeksi.json  → sisteme yükler
@@ -14,10 +14,10 @@ KULLANIM:
   python kitap_yukle.py kitap_indeksi.json
 
   (URL değiştirmek için:)
-  python kitap_yukle.py kitap_indeksi.json https://oar-premium.onrender.com
+  python kitap_yukle.py kitap_indeksi.json https://oar-premium.up.railway.app
 
   (Sistemde OAR_API_KEY ayarlıysa anahtarı ver:)
-  python kitap_yukle.py kitap_indeksi.json https://oar-premium.onrender.com MYKEY
+  python kitap_yukle.py kitap_indeksi.json https://oar-premium.up.railway.app MYKEY
   veya ortam değişkeni:  set OAR_API_KEY=MYKEY
 """
 import sys, os, json, time
@@ -34,7 +34,7 @@ def main():
         sys.exit(1)
 
     dosya = sys.argv[1]
-    base = sys.argv[2] if len(sys.argv) > 2 else "https://oar-premium.onrender.com"
+    base = sys.argv[2] if len(sys.argv) > 2 else "https://oar-premium.up.railway.app"
     base = base.rstrip("/")
     api_key = sys.argv[3] if len(sys.argv) > 3 else os.environ.get("OAR_API_KEY", "")
     headers = {"X-API-Key": api_key} if api_key else {}

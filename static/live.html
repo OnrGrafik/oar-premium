@@ -1251,7 +1251,7 @@ function scrLive(){
 // ─── SİSTEM / DEVOPS ───
 function scrSystemKutular(){
   const d=ST.devops||{};
-  const dep=d.render_deploys||{}, env=d.render_env||{}, gh=d.github_commits||{};
+  const dep=d.railway_durum||{}, gh=d.github_commits||{};
 
   const durRenk=s=>({live:'#1ff0ad',succeeded:'#1ff0ad',build_in_progress:'#ffb13c',update_in_progress:'#ffb13c',deactivated:'#5e716f',build_failed:'#ff5d6c',canceled:'#ff5d6c',failed:'#ff5d6c'}[s]||'#9fb0ad');
   const zf=t=>{if(!t)return'';try{return new Date(t).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return t.slice(0,16);}};
@@ -1259,15 +1259,21 @@ function scrSystemKutular(){
   const baglantiUyari=(o,ad)=>`<div class="card" style="padding:16px;border-color:#3a2a1a">
     <div style="font-size:11px;color:#ffb13c">⚠ ${ad} bağlı değil</div>
     <div style="font-size:10px;color:#7d908d;margin-top:6px;line-height:1.6">${o.neden||''}</div>
-    <div style="font-size:9.5px;color:#5e716f;margin-top:8px;line-height:1.7">Render Dashboard → Environment'a şu değişkenleri ekle:<br>
-    <span style="color:#8a9c99">RENDER_API_KEY</span> · <span style="color:#8a9c99">RENDER_SERVICE_ID</span> · <span style="color:#8a9c99">GITHUB_TOKEN</span> · <span style="color:#8a9c99">GITHUB_REPO</span></div>
+    <div style="font-size:9.5px;color:#5e716f;margin-top:8px;line-height:1.7">Railway → Variables (deploy geçmişi için opsiyonel):<br>
+    <span style="color:#8a9c99">RAILWAY_API_TOKEN</span> · <span style="color:#8a9c99">GITHUB_TOKEN</span> · <span style="color:#8a9c99">GITHUB_REPO</span></div>
   </div>`;
 
   let depHtml;
-  if(!dep.bagli){depHtml=baglantiUyari(dep,'Render API');}
+  if(!dep.bagli){depHtml=baglantiUyari(dep,'Railway');}
   else{
+    const rt=dep.runtime||{};
+    const rtHtml=(rt.service||rt.environment)?`<div style="padding:10px 15px;border-bottom:1px solid #18211f;font-size:9.5px;color:#7d908d;line-height:1.7">
+      <span style="color:#1ff0ad">${esc(rt.service||'')}</span> · ${esc(rt.environment||'')} ${rt.region?'· '+esc(rt.region):''}<br>
+      ${rt.branch?'<span style="color:#56a8ff">'+esc(rt.branch)+'</span> ':''}${rt.public_url?'· <span style="color:#8a9c99">'+esc(rt.public_url)+'</span>':''}
+    </div>`:'';
     depHtml=`<div class="card" style="overflow:hidden">
-      <div class="sg" style="padding:12px 15px;border-bottom:1px solid #18211f;font-size:9.5px;letter-spacing:.14em;color:#5e716f">SON DEPLOYLAR</div>
+      <div class="sg" style="padding:12px 15px;border-bottom:1px solid #18211f;font-size:9.5px;letter-spacing:.14em;color:#5e716f">RAILWAY DEPLOY</div>
+      ${rtHtml}
       ${(dep.deploys||[]).map(x=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 15px;border-bottom:1px solid #131918">
         <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${durRenk(x.durum)};box-shadow:0 0 7px ${durRenk(x.durum)}"></span>
         <div style="min-width:0;flex:1">

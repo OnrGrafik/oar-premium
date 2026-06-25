@@ -1135,7 +1135,7 @@ async def config_get():
     cfg = _config_oku()
     return {
         "vercel_url": cfg.get("vercel_url", os.environ.get("VERCEL_URL", "https://project-vtcqr.vercel.app")),
-        "bot_url": cfg.get("bot_url", os.environ.get("BOT_URL", "https://oar-sinyal-bot.onrender.com")),
+        "bot_url": cfg.get("bot_url", os.environ.get("BOT_URL", "")),
     }
 
 @app.post("/api/config")
