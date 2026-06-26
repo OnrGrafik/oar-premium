@@ -211,7 +211,25 @@ def cek(sembol: str, veri_tipi: str, bas: str, bit: str,
     }
 
 
+def _on_kontrol():
+    """Ağır deps eksikse çıplak ModuleNotFoundError yerine net yönerge ver."""
+    eksik = []
+    for mod in ("requests", "pandas", "pyarrow"):
+        try:
+            __import__(mod)
+        except ImportError:
+            eksik.append(mod)
+    if eksik:
+        print("⚠ Bu LOKAL bir araçtır (Railway/canlı runtime için değil).")
+        print(f"  Eksik kütüphane: {', '.join(eksik)}")
+        print("  Kendi bilgisayarında kur:  pip install -r requirements-dev.txt")
+        print("  (Railway shell'de: /opt/venv/bin/pip ... — ama bu iş büyük disk ister, "
+              "Railway uygun değildir.)")
+        raise SystemExit(1)
+
+
 def main():
+    _on_kontrol()
     ap = argparse.ArgumentParser(description="OAR yerel tarihsel veri çekme (Binance public dump)")
     ap.add_argument("--symbol", required=True, help="örn. BTCUSDT")
     ap.add_argument("--type", required=True, choices=sorted(VERI_TIPLERI), help="klines | aggTrades")

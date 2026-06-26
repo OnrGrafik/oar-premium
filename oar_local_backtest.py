@@ -163,7 +163,24 @@ def calistir(sembol: str, bas: str, bit: str, eval_saat: int = 4,
     }
 
 
+def _on_kontrol():
+    """Ağır deps eksikse net yönerge ver (çıplak ModuleNotFoundError yerine)."""
+    eksik = []
+    for mod in ("pandas", "pyarrow"):
+        try:
+            __import__(mod)
+        except ImportError:
+            eksik.append(mod)
+    if eksik:
+        print("⚠ Bu LOKAL bir araçtır (Railway/canlı runtime için değil).")
+        print(f"  Eksik kütüphane: {', '.join(eksik)}")
+        print("  Kendi bilgisayarında kur:  pip install -r requirements-dev.txt")
+        print("  Önce data_ingest.py ile klines+aggTrades verisini çekmiş olmalısın.")
+        raise SystemExit(1)
+
+
 def main():
+    _on_kontrol()
     ap = argparse.ArgumentParser(description="OAR yerel derin-geçmiş backtest (Kiyotaka'sız)")
     ap.add_argument("--symbol", default="BTCUSDT")
     ap.add_argument("--from", dest="bas", required=True, help="YYYY-MM")
