@@ -188,6 +188,8 @@ def main():
     ap.add_argument("--eval", type=int, default=4, help="değerlendirme saati")
     ap.add_argument("--esik", type=float, default=0.5, help="WIN/LOSS eşiği (yüzde)")
     ap.add_argument("--folds", type=int, default=4)
+    ap.add_argument("--yukle", default="", help="canlı sistem URL'i (sonucu hafızaya POST et)")
+    ap.add_argument("--api-key", default="", help="canlı sistem OAR_API_KEY (yükleme için)")
     args = ap.parse_args()
 
     res = calistir(args.symbol, args.bas, args.bit, eval_saat=args.eval, esik_pct=args.esik)
@@ -203,14 +205,50 @@ def main():
     wf = walk_forward(lambda _p: sg, ["yerel"], fold_sayisi=args.folds, is_oran=0.7)
     print(rapor(wf))
 
-    # Kalıcı kayıt (canlı sayfa istersse okuyabilir)
+    # Kompakt kayıt — her koşu BİRİKİR (üzerine yazmaz), sistem hafızası için.
+    kayit = {
+        "sembol": res["sembol"],
+        "aralik": res["aralik"],
+        "tarih": datetime.now(timezone.utc).isoformat(),
+        "sinyal_sayisi": res["sinyal_sayisi"],
+        "gun_sayisi": res["gun_sayisi"],
+        "fold_sayisi": wf.get("fold_sayisi"),
+        "secilen_param": wf.get("en_cok_secilen_param"),
+        "oos_metrik": wf.get("toplu_oos_metrik", {}),  # puan, wr, sharpe, pnl...
+        "kaynak": "yerel_derin_gecmis",
+    }
+    yol = _gecmise_ekle(kayit)
+    print(f"[LocalBT] Hafızaya eklendi (birikimli): {yol}")
+
+    # İsteğe bağlı: sonucu CANLI sisteme yükle → canlı panel + kalıcı hafıza
+    if args.yukle:
+        kod, cevap = _sisteme_yukle(args.yukle, kayit, args.api_key)
+        print(f"[LocalBT] Canlı sisteme yükleme: HTTP {kod} {cevap}")
+
+
+def _gecmise_ekle(kayit: dict, maxn: int = 500):
+    """Her koşuyu birikimli geçmiş dosyasına ekler (üzerine yazmaz)."""
     import json
-    out = _hist_dir() / f"local_backtest_{args.symbol}.json"
-    out.write_text(json.dumps({"ozet": {k: v for k, v in res.items() if k != "sinyaller"},
-                               "walk_forward": wf,
-                               "tarih": datetime.now(timezone.utc).isoformat()},
-                              ensure_ascii=False, indent=2))
-    print(f"[LocalBT] Kaydedildi: {out}")
+    yol = _hist_dir() / "yerel_backtest_gecmis.json"
+    try:
+        gecmis = json.loads(yol.read_text()) if yol.exists() else []
+    except Exception:
+        gecmis = []
+    gecmis.append(kayit)
+    yol.write_text(json.dumps(gecmis[-maxn:], ensure_ascii=False, indent=2))
+    return yol
+
+
+def _sisteme_yukle(url: str, kayit: dict, api_key: str = ""):
+    """Yerel backtest kaydını canlı sistemin hafızasına POST eder."""
+    import requests
+    h = {"X-API-Key": api_key} if api_key else {}
+    try:
+        r = requests.post(url.rstrip("/") + "/api/backtest/yerel-ekle",
+                          json=kayit, headers=h, timeout=30)
+        return r.status_code, r.text[:200]
+    except Exception as e:
+        return 0, str(e)[:200]
 
 
 if __name__ == "__main__":
