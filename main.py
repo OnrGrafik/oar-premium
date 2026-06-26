@@ -1092,6 +1092,11 @@ async def startup_event():
         asyncio.create_task(saatlik_lider_raporu_loop(api_key))  # kendi içinde 900s bekler
         asyncio.create_task(saatlik_backtest_loop())       # kendi içinde 1800s bekler
         asyncio.create_task(saatlik_research_loop())       # kendi içinde 2100s bekler
+        # GERÇEK otonom backtest motoru (Binance+OI+GEX+VPFR) — eskiden hiç
+        # başlatılmıyordu, bu yüzden "backtest agent ilerleme sıfır" idi.
+        from oar_autonomous_backtest import otonom_backtest_loop
+        asyncio.create_task(otonom_backtest_loop())         # kendi içinde 600s sonra başlar
+        print("[Startup] Otonom backtest motoru başlatıldı")
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 

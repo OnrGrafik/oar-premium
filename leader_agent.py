@@ -28,17 +28,23 @@ from datetime import datetime, timezone, timedelta
 def _oar_backtest_ozet() -> str:
     """En son OAR tam backtest sonucunu kısa özet olarak döner."""
     try:
-        from historical_backtest import oar_gecmis_testler
-        testler = oar_gecmis_testler(5)
-        if not testler:
+        # GERÇEK OAR backtest sonucu oar_autonomous_backtest motorundadır
+        # (historical_backtest'te 'oar_gecmis_testler' diye bir fonksiyon hiç yoktu
+        #  → eski hali her zaman ImportError verip "okunamadı" dönüyordu).
+        from oar_autonomous_backtest import son_sonuc
+        s = son_sonuc()
+        en_iyi = s.get("en_iyi")
+        if not en_iyi:
             return "OAR backtest henüz yok."
-        en_iyi = max(testler, key=lambda t: t.get("sharpe", 0))
+        st = en_iyi.get("stats", {}) or {}
+        son_run = (s.get("son_5_run") or [{}])[-1]
         return (
-            f"OAR Backtest ({en_iyi['sembol']} {en_iyi['gun']}g): "
-            f"WR %{en_iyi['win_rate']} | Sharpe {en_iyi['sharpe']} | "
-            f"PnL {en_iyi['toplam_pnl_pct']:+.1f}% | "
-            f"MaxDD -%{en_iyi['max_drawdown']} | "
-            f"Fib kırılım: {json.dumps(en_iyi.get('by_fib', {}), ensure_ascii=False)[:200]}"
+            f"OAR Backtest ({son_run.get('sembol','BTCUSDT')} {son_run.get('gun','?')}g, "
+            f"{s.get('toplam_run',0)} koşu): En iyi '{en_iyi.get('id','?')}' "
+            f"Puan {en_iyi.get('puan',0)} | WR %{st.get('wr',0)} | "
+            f"Sharpe {st.get('sharpe',0)} | PnL {st.get('pnl',0):+.1f}% | "
+            f"MaxDD -%{st.get('max_dd',0)} | "
+            f"Fib: {json.dumps(st.get('by_fib', {}), ensure_ascii=False)[:200]}"
         )
     except Exception as e:
         return f"OAR backtest okunamadı: {e}"

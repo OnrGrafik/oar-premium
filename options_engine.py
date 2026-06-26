@@ -342,6 +342,39 @@ async def strike_topografya(currency="BTC", vade="all"):
             "max_call_oi":max((s["callOI"] for s in strikes),default=0),
             "max_put_oi":max((s["putOI"] for s in strikes),default=0)}
 
+def _birlesik_greek_yorum(nd, ng, nt, nvega, nv, nc):
+    """
+    Tüm Yunan harflerini BİRLEŞTİREN toplu yorum (deterministik).
+    Birincil sürücü gamma rejimidir; delta/vanna/charm/vega ile sentezlenir.
+    """
+    long_gamma = ng > 0
+    if long_gamma:
+        rejim = ("Dealer NET LONG GAMMA: piyasa baskılayıcı/mean-reversion rejiminde. "
+                 "Sıçramalar satılır, düşüşler alınır → dar range ve düşük gerçekleşen "
+                 "volatilite beklenir.")
+    else:
+        rejim = ("Dealer NET SHORT GAMMA: piyasa hızlandırıcı/momentum rejiminde. "
+                 "Hareketler delta-hedge ile güçlenir → volatilite genişlemesi ve "
+                 "ani kırılım (squeeze) riski yüksek.")
+    yon = "yukarı" if nd > 0 else "aşağı"
+    vanna = ("IV artışı dealer'ı alıma iter (spot ile aynı yön — destekleyici)" if nv > 0
+             else "IV artışı dealer satışı getirir (spot'a ters baskı)")
+    charm = ("vade yaklaştıkça pin/alım baskısı yukarı" if nc > 0
+             else "vade yaklaştıkça pin/satış baskısı aşağı")
+    vol = ("Dealer vol'e LONG (IV genişlemesinden fayda)" if nvega > 0
+           else "Dealer vol'e SHORT (IV düşüşü/crush lehte; theta toplar, pin etkisi güçlü)")
+    if long_gamma and nd > 0:
+        net = "TOPLU: Stabil/destekli — keskin trend olası değil; seviye savunması ön planda."
+    elif long_gamma and nd <= 0:
+        net = "TOPLU: Baskılı ama yönsel maruziyet aşağı — range içi zayıf eğilim."
+    elif not long_gamma and nd > 0:
+        net = "TOPLU: Patlayıcı yukarı kurulum — short gamma + yukarı delta, yukarı squeeze riski."
+    else:
+        net = "TOPLU: Patlayıcı aşağı kurulum — short gamma + aşağı delta, düşüş ivmesi riski."
+    return (f"{rejim} Yönsel maruziyet {yon} (net delta). Vanna: {vanna}. "
+            f"Charm: {charm}. {vol}. {net}")
+
+
 async def toplu_greekler(currency="BTC"):
     """Net Gamma, Net Vanna, Net Charm — dealer pozisyonu (USD, gex.js formülü)."""
     async with httpx.AsyncClient(timeout=30) as cl:
@@ -366,7 +399,8 @@ async def toplu_greekler(currency="BTC"):
             "vega_yorum":"Net vega pozitif — IV artışı pozisyon lehine; volatilite genişlerken değer kazanır." if nvega>0 else "Net vega negatif — IV artışı aleyhine; vol düşüşünde (IV crush) pozisyon rahatlar.",
             "rho_yorum":"Net rho pozitif — faiz artışı değeri yükseltir (kriptoda en zayıf greek; uzun vadede belirginleşir)." if nr>0 else "Net rho negatif — faiz artışı değeri düşürür; etki yalnızca uzun vadeli opsiyonlarda anlamlı.",
             "vanna_yorum":"Net vanna pozitif — IV yükselişi dealer'ı net alıma iter, spot ile aynı yönde hareket eder." if nv>0 else "Net vanna negatif — IV yükselişi dealer satışı getirir, spot'a ters baskı.",
-            "charm_yorum":"Net charm pozitif — vade yaklaştıkça (özellikle haftalık expiry) dealer alım baskısı, pin riski yukarı." if nc>0 else "Net charm negatif — vade yaklaştıkça dealer satış baskısı, pin riski aşağı."}
+            "charm_yorum":"Net charm pozitif — vade yaklaştıkça (özellikle haftalık expiry) dealer alım baskısı, pin riski yukarı." if nc>0 else "Net charm negatif — vade yaklaştıkça dealer satış baskısı, pin riski aşağı.",
+            "birlesik_yorum": _birlesik_greek_yorum(nd_, ng, nt, nvega, nv, nc)}
 
 async def iv_skew(currency="BTC"):
     """ATM IV vade yapısı (log-moneyness interp) + gerçek 25Δ Risk Reversal (Hull §20.3)."""
