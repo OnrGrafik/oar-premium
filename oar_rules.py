@@ -35,7 +35,8 @@ def _save(d): RULES_FILE.write_text(json.dumps(d, ensure_ascii=False, indent=2))
 
 # ── KURAL EKLE ───────────────────────────────────────────
 def kural_ekle(baslik: str, icerik: str, tip: str = "GENEL",
-               etiketler: list = None, oncelik: int = 1) -> dict:
+               etiketler: list = None, oncelik: int = 1,
+               yazar: str = None, rol: str = None, durum: str = "ADAY") -> dict:
     """
     Yeni kural ekle.
     baslik:   Kısa başlık (örn. "2.272'den Short Koşulu")
@@ -43,7 +44,21 @@ def kural_ekle(baslik: str, icerik: str, tip: str = "GENEL",
     tip:      SETUP / FILTRE / SWING / MAKRO / GENEL
     etiketler: ["btc","fib","gex"] gibi
     oncelik:  1-5 (5 = en kritik)
+    yazar/rol: RBAC — yazar/rol verildiyse (API yolu) yetki zorunlu.
+               Verilmezse (dahili/seed bootstrap çağrısı) kontrol atlanır.
+    durum:    "ADAY" (BEKLEMEDE — varsayılan) → walk-forward geçmeden Leader
+              prompt'una (agent_baglami) DAHİL EDİLMEZ. Seed/onaylı kurallar
+              "AKTIF" geçer. (Geriye uyum: durum'suz eski kurallar AKTIF sayılır.)
+    Yetkisiz ekleme PermissionError fırlatır ve audit'e "reddedildi" yazar.
     """
+    # RBAC — yalnız kimlikli (API) ekleme denetlenir.
+    if yazar is not None or rol is not None:
+        import governance
+        if not governance.yetkili_mi(yazar, rol):
+            governance.audit_yaz("kural_ekle", baslik, yazar, rol,
+                                  sonuc="reddedildi", detay={"sebep": "yetkisiz"})
+            raise PermissionError(f"Yetkisiz kural ekleme denemesi (yazar={yazar}, rol={rol})")
+
     db = _load()
     kural_id = f"rule_{len(db['rules'])+1:04d}"
     kural = {
@@ -55,10 +70,17 @@ def kural_ekle(baslik: str, icerik: str, tip: str = "GENEL",
         "oncelik":  min(max(int(oncelik), 1), 5),
         "tarih":    _now(),
         "aktif":    True,
+        "durum":    durum if durum in ("ADAY", "AKTIF") else "ADAY",
         "gorsel":   None,  # görsel varsa dosya adı
     }
     db["rules"].append(kural)
     _save(db)
+    try:
+        import governance
+        governance.audit_yaz("kural_ekle", kural_id, yazar, rol, sonuc="ok",
+                             detay={"baslik": baslik, "durum": kural["durum"]})
+    except Exception:
+        pass
     return kural
 
 # ── GÖRSEL EKLE ──────────────────────────────────────────
@@ -124,8 +146,10 @@ def agent_baglami(max_kural: int = 10) -> str:
     """
     Leader Agent'ın prompt'una eklenecek kural özeti.
     En yüksek öncelikli kuralları döner.
+    ⚠️ Yalnız durum=="AKTIF" kurallar girer; ADAY (backtest beklemede) kurallar
+    SIZDIRILMAZ. (Geriye uyum: durum alanı olmayan eski kurallar AKTIF sayılır.)
     """
-    kurallar = kurallari_getir()[:max_kural]
+    kurallar = [k for k in kurallari_getir() if k.get("durum", "AKTIF") == "AKTIF"][:max_kural]
     if not kurallar:
         return ""
 
@@ -136,6 +160,51 @@ def agent_baglami(max_kural: int = 10) -> str:
             f"[{k['tip']} P{k['oncelik']}] {k['baslik']}{gors}:\n  {k['icerik']}"
         )
     return "\n".join(satirlar)
+
+# ── BACKTEST KAPISI: ADAY → AKTIF ─────────────────────────
+def aday_kurallar() -> list:
+    """Henüz backtest geçmemiş (durum=ADAY) kurallar."""
+    return [k for k in kurallari_getir(aktif_only=False)
+            if k.get("durum", "AKTIF") == "ADAY"]
+
+
+def kural_aktiflestir(kural_id: str, oos_puan: float = None,
+                      rejim_uyumlu: bool = True, esik: float = 50.0,
+                      yazar: str = None, rol: str = None) -> dict:
+    """
+    Bir ADAY kuralı AKTIF'e çevirir — YALNIZCA walk-forward OOS kapısını geçerse.
+
+    Görev 4 (walk_forward) çıktısındaki OOS puanı + hypothesis_activation rejim
+    uyumu BİRLİKTE aranır:
+      - oos_puan >= esik  (OOS başarısı; in-sample DEĞİL)
+      - rejim_uyumlu      (hypothesis_activation rejim-aktivasyon mantığıyla uyum)
+    İkisi de sağlanırsa durum="AKTIF" olur ve agent_baglami'ye girer.
+
+    Döner: {ok, durum, sebep}. Her sonuç audit'e yazılır.
+    """
+    db = _load()
+    hedef = next((k for k in db["rules"] if k["id"] == kural_id), None)
+    if not hedef:
+        return {"ok": False, "sebep": "kural bulunamadı"}
+
+    gecti = (oos_puan is not None and oos_puan >= esik) and rejim_uyumlu
+    if gecti:
+        hedef["durum"] = "AKTIF"
+        _save(db)
+        sonuc, sebep = "ok", f"OOS {oos_puan} ≥ {esik} + rejim uyumlu → AKTIF"
+    else:
+        sebep = (f"OOS {oos_puan} < {esik}" if (oos_puan is None or oos_puan < esik)
+                 else "rejim uyumsuz") + " → ADAY kalır"
+        sonuc = "reddedildi"
+
+    try:
+        import governance
+        governance.audit_yaz("kural_aktiflestir", kural_id, yazar, rol, sonuc=sonuc,
+                             detay={"oos_puan": oos_puan, "rejim_uyumlu": rejim_uyumlu})
+    except Exception:
+        pass
+    return {"ok": gecti, "durum": hedef["durum"], "sebep": sebep}
+
 
 # ── GÖRSEL BASE64 OKU (AI için) ───────────────────────────
 def gorsel_base64(dosya_adi: str) -> str:

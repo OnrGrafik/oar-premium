@@ -67,8 +67,19 @@ def tfidf_score(query_tokens: list, doc_tokens: list, all_docs_tokens: list) -> 
 
 # ─── Doküman Ekleme ──────────────────────────────────────────────────────────
 def add_document(title: str, content: str, category: str = "genel",
-                 source: str = "") -> dict:
-    """Dokümanı bilgi bankasına ekle (parçalara böl)"""
+                 source: str = "", untrusted: bool = False) -> dict:
+    """
+    Dokümanı bilgi bankasına ekle (parçalara böl).
+    untrusted=True (Leader upload yolu): içerik prompt-injection'a karşı
+    governance.veri_olarak_sarmala ile 'VERİ' olarak işaretlenir (talimat değil).
+    Varsayılan False → mevcut çağrılar etkilenmez (regresyon yok).
+    """
+    if untrusted:
+        try:
+            import governance
+            content = governance.veri_olarak_sarmala(content, kaynak=source or title)
+        except Exception:
+            pass
     kb     = load_kb()
     chunks = chunk_text(content, chunk_size=400, overlap=80)
 

@@ -1,0 +1,12 @@
+# OAR — YEREL/GELİŞTİRME bağımlılıkları (Render runtime'a SOKULMAZ)
+# ════════════════════════════════════════════════════════════════
+# Render (512MB) yalnız requirements.txt'i kurar. Aşağıdaki ağır
+# veri/backtest bağımlılıkları yalnızca lokal runner içindir:
+#   data_ingest.py, data_integrity.py, footprint_engine.py, walk_forward.py
+# Canlı main.py hattı bunların HİÇBİRİNİ import etmez.
+#
+# Kurulum (yerel):  pip install -r requirements-dev.txt
+-r requirements.txt
+pandas>=2.0
+pyarrow>=14.0
+requests>=2.31
