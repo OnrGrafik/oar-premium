@@ -557,15 +557,27 @@ def research_analizi() -> dict:
                 "beklenen_iyilesme": "Eşik artışı ile false signal azalır"
             })
 
-    # ── Geliştirme önerileri
-    if len(bot_stats) > 0:
-        en_iyi_bot = max(bot_stats, key=lambda b: bot_stats[b]["win_rate"]) if bot_stats else None
-        if en_iyi_bot:
-            oneriler.append(f"En güvenilir bot: {en_iyi_bot} (%{bot_stats[en_iyi_bot]['win_rate']} win rate) — bu botun sinyallerine ağırlık ver")
+    # ── Geliştirme önerileri — YALNIZ ölçülen veriden türetilir.
+    # (Eskiden 3 adet sabit/hardcoded "feature wishlist" tavsiyesi vardı; veriyle
+    #  ilgisiz oldukları için kaldırıldı. Artık her öneri bir istatistiğe dayanır.)
+    if bot_stats:
+        en_iyi_bot = max(bot_stats, key=lambda b: bot_stats[b]["win_rate"])
+        eb = bot_stats[en_iyi_bot]
+        oneriler.append(
+            f"En güvenilir bot: {en_iyi_bot} (%{eb['win_rate']} WR, n={eb['total']}) — "
+            f"{'istatistiksel anlamlı, ağırlık artır' if eb['total'] >= 30 else 'ÖRNEKLEM AZ (n<30), temkinli'}")
 
-    oneriler.append("CVD Scanner + Asia Ekstrem kombinasyonu test edilmeli: aynı coin/yön teyidi")
-    oneriler.append("Witching Day (vadeli işlem son gün) etkisi analiz edilmeli — max pain seviyesiyle birleştir")
-    oneriler.append("Korelasyon botu risk-off rejim bildirdiğinde diğer botların LONG sinyallerini filtrele")
+        # İstatistiksel yetersiz örneklem (küçük n → WR güveni düşük)
+        zayif = [f"{b} (n={s['total']})" for b, s in bot_stats.items() if s["total"] < 20]
+        if zayif:
+            oneriler.append("Yetersiz örneklem (n<20), WR güvenilmez — daha çok veri: " + ", ".join(zayif[:6]))
+
+        # Yüksek WR + yeterli örneklem → istatistiksel anlamlı edge
+        for b, s in bot_stats.items():
+            if s["total"] >= 30 and s["win_rate"] >= 60:
+                oneriler.append(f"Anlamlı edge: {b} (%{s['win_rate']} WR, n={s['total']}) — canlı ağırlık yükseltilebilir")
+    else:
+        oneriler.append("Yeterli kapanmış sinyal yok — istatistiksel öneri için veri toplanmalı.")
 
     sonuc = {
         "tarih": _now(),

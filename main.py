@@ -2048,6 +2048,11 @@ REJİM: {json.dumps(baglam.get('rejim',{}), ensure_ascii=False)[:150]}
 KİTAPLAR: {kitap_notu[:400]}
 
 Bu verilerin TAMAMINI sentezle. Örn: "Makro risk-off + negatif GEX + Asia sweep hipotezi → güçlü short edge".
+
+KURALLAR (ZORUNLU — bilimsel/matematiksel temel):
+- Her cümle YUKARIDAKİ somut sayısal verilere dayanmalı; ilgili rakamı/metriği (WR, Sharpe, GEX, skor, rejim) cümlede ANDIR.
+- Verinin DESTEKLEMEDİĞİ hiçbir öneri/tahmin yazma. Spekülasyon, genel tavsiye, "şu da test edilmeli" tipi mesnetsiz fikir YASAK.
+- 'oneri' alanı: yalnız ÖLÇÜLEN bir eksiklik/edge'e dayanan somut iyileştirme (örn. düşük WR'li fib, yetersiz örneklem). Veri yoksa "yetersiz veri" yaz.
 JSON döndür (başka şey yazma):
 {{"gunluk":"bugünkü tüm-sayfa sentezi, hangi koşulda trade 1-2 cümle","haftalik":"haftalık bias + hangi saatler/durumlar 1-2 cümle","oneri":"OAR'a eklenecek özellik veya canlı takip önerisi 1-2 cümle","lider":"Lider sistem geliştirme + tüm veri kaynaklarını birleştiren teori 2-3 cümle"}}"""
         try:
