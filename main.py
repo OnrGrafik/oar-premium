@@ -1007,6 +1007,37 @@ async def backtest_otonom():
         return {"hata": str(e)[:120], "en_iyi": None, "toplam_run": 0,
                 "rapor": "Otonom backtest sonucu okunamadı."}
 
+# Yerel derin-geçmiş backtest sonuçları (oar_local_backtest --yukle ile gelir)
+_YEREL_BT_FILE = DATA_DIR / "yerel_backtest_gecmis.json"
+
+@app.get("/api/backtest/yerel")
+async def backtest_yerel():
+    """PC'de koşulan yerel derin-geçmiş backtest geçmişi (birikimli sistem hafızası)."""
+    try:
+        kayitlar = json.loads(_YEREL_BT_FILE.read_text()) if _YEREL_BT_FILE.exists() else []
+    except Exception:
+        kayitlar = []
+    return {"toplam": len(kayitlar), "kayitlar": kayitlar[-50:]}
+
+@app.post("/api/backtest/yerel-ekle")
+async def backtest_yerel_ekle(req: Request, _auth=Security(_require_key)):
+    """Yerel backtest kaydını sistem hafızasına KALICI ekler (birikimli, üzerine yazmaz)."""
+    try:
+        kayit = await req.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Geçersiz JSON")
+    if not isinstance(kayit, dict) or not kayit.get("sembol"):
+        raise HTTPException(status_code=400, detail="kayit.sembol zorunlu")
+    from datetime import datetime, timezone
+    try:
+        gecmis = json.loads(_YEREL_BT_FILE.read_text()) if _YEREL_BT_FILE.exists() else []
+    except Exception:
+        gecmis = []
+    kayit["_eklendi"] = datetime.now(timezone.utc).isoformat()
+    gecmis.append(kayit)
+    _YEREL_BT_FILE.write_text(json.dumps(gecmis[-500:], ensure_ascii=False, indent=2))
+    return {"durum": "ok", "toplam": len(gecmis)}
+
 @app.get("/api/memory")
 async def get_memory():
     return get_accuracy_stats()
