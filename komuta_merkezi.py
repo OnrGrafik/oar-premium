@@ -1,8 +1,8 @@
 """
-KOMUTA MERKEZİ — Top-20 Coin Güvenilirlik Skor Motoru
+KOMUTA MERKEZİ — Top-50 Coin Güvenilirlik Skor Motoru
 ═══════════════════════════════════════════════════════════════════
 Mevcut confidence_engine.confidence_karar() 0-100 konfidans skorunu
-4 güvenilirlik kutusuna eşler ve top-20 coini tarar:
+4 güvenilirlik kutusuna eşler ve top-50 coini tarar:
 
     Az Güvenilir    0-45
     Orta Güvenilir  46-65
@@ -38,7 +38,9 @@ KUTU_ETIKET = {
     "yuksek":  "Yüksek Güvenilir",
 }
 # Binance vadeli işlemde olmayan / stablecoin sembolleri ele
-ATLA = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "WBTC", "STETH", "WETH", "WSTETH", "WEETH"}
+ATLA = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "USDD", "USDE", "PYUSD",
+        "GUSD", "FRAX", "USDP", "LUSD", "USTC", "WBTC", "STETH", "WETH", "WSTETH",
+        "WEETH", "WBETH", "RETH", "CBBTC", "SUSDE", "BUIDL"}
 
 TELEGRAM_DEBOUNCE_DK = 30
 CHUNK = 6  # RAM serbest (Railway) — daha yüksek paralellik, hızlı tarama
@@ -144,7 +146,7 @@ def _semboller_top(piyasa: list, n: int) -> list:
     return out
 
 
-async def komuta_taramasi(n: int = 20, telegram: bool = True) -> dict:
+async def komuta_taramasi(n: int = 50, telegram: bool = True) -> dict:
     """
     Top-N coini tara, 4 kutuya dağıt, Güvenli→Yüksek geçişlerinde Telegram at.
     """
@@ -274,7 +276,7 @@ async def komuta_loop(aralik_sn: int = 300):
     await asyncio.sleep(90)  # startup'ın hemen ardından ilk tarama
     while True:
         try:
-            await komuta_taramasi(20)
+            await komuta_taramasi(50)
             print("[KomutaMerkezi] Tarama tamamlandı")
         except Exception as e:
             print(f"[KomutaMerkezi] Hata: {str(e)[:80]}")
@@ -284,4 +286,4 @@ async def komuta_loop(aralik_sn: int = 300):
 
 
 if __name__ == "__main__":
-    print(json.dumps(asyncio.run(komuta_taramasi(20, telegram=False)), ensure_ascii=False, indent=2)[:2000])
+    print(json.dumps(asyncio.run(komuta_taramasi(50, telegram=False)), ensure_ascii=False, indent=2)[:2000])

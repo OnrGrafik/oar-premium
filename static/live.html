@@ -258,7 +258,7 @@ function render(){
 // ─── KOMUTA MERKEZİ (v3) ───
 let _kcoin='BTCUSDT';  // grafik kaldırıldı; _kcoin yalnız grafik-yorum endpoint'i için
 
-// ─── KOMUTA MERKEZİ: 4 GÜVENİLİRLİK KUTUSU (Top-20 coin) ───
+// ─── KOMUTA MERKEZİ: 4 GÜVENİLİRLİK KUTUSU (Top-50 coin) ───
 function komutaKutulariHtml(){
   const km=ST.komuta||{};
   const kutular=km.kutular||{};
@@ -280,7 +280,7 @@ function komutaKutulariHtml(){
     const kartBorder=flash?renk:(yon==='LONG'?'#1c4434':yon==='SHORT'?'#4a2026':'#18211f');
     return `<div title="${esc((c.nedenler||[]).join(' | '))}" style="display:flex;align-items:center;gap:5px;padding:5px 7px;border-radius:6px;background:${kartBg};border:1px solid ${kartBorder};border-left:3px solid ${yRenk}">
       ${flash?'<span style="font-size:10px">🚨</span>':''}
-      <span style="font-weight:700;font-size:10.5px;color:#eaf4f2;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((c.sembol||'').replace('USDT',''))}</span>
+      <span style="font-weight:700;font-size:10.5px;color:${yRenk};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((c.sembol||'').replace('USDT',''))}</span>
       <span style="font-size:8px;font-weight:700;color:${yRenk};border:1px solid ${yRenk}55;padding:1px 4px;border-radius:4px">${yon}</span>
       ${d24!=null?`<span style="font-size:8.5px;color:${d24>=0?'#1ff0ad':'#ff5d6c'};width:38px;text-align:right">${d24>=0?'+':''}${(+d24).toFixed(1)}%</span>`:''}
       <span style="font-size:11px;font-weight:700;color:${renk};width:26px;text-align:right">${c.konfidans!=null?Math.round(c.konfidans):'—'}</span>
@@ -301,7 +301,7 @@ function komutaKutulariHtml(){
   };
   return `<div class="card" style="padding:14px 16px;margin-bottom:13px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">GÜVENİLİRLİK SKOR TABLOSU — Top 20</span>
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">GÜVENİLİRLİK SKOR TABLOSU — Top 50</span>
       ${km.tarih?`<span style="font-size:9px;color:#5e716f;margin-left:auto">⟳ ${new Date(km.tarih).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</span>`:'<span style="font-size:9px;color:#5e716f;margin-left:auto">yükleniyor...</span>'}
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
