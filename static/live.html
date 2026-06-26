@@ -103,6 +103,7 @@ a{color:inherit;text-decoration:none}
 .od-greeks{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:20px 0}
 .od-greek{padding:22px 30px 22px 0;border-right:1px solid var(--od-line)}
 .od-greek:last-child{border-right:none;padding-right:0}
+.od-greek-agg{margin-top:16px;padding:14px 18px;border-left:3px solid var(--od-acc,#6af);background:rgba(100,160,255,.06);border-radius:6px;font-size:12px;line-height:1.6;color:var(--od-text,#cfd6e4)}
 .od-glyph{font-family:var(--od-serif);font-style:italic;font-size:24px;color:var(--od-accent);margin-bottom:6px;line-height:1}
 .od-glabel{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--od-mute);margin-bottom:12px}
 .od-gnum{font-family:var(--od-serif);font-size:36px;line-height:1;color:var(--od-text);margin-bottom:8px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
@@ -667,10 +668,13 @@ function odGreeks(g){
     ['𝒱','Net Vega',g.net_vega,g.vega_yorum,'M$/1%IV'],
     ['ρ','Net Rho',g.net_rho,g.rho_yorum,'M$/1%'],
   ];
-  return '<div class="od-greeks">'+cells.map(c=>{const sym=c[0],lab=c[1],v=c[2],foot=c[3],unit=c[4];
+  const grid='<div class="od-greeks">'+cells.map(c=>{const sym=c[0],lab=c[1],v=c[2],foot=c[3],unit=c[4];
     const val=v==null?'—':((v>=0?'+':'')+v);const col=v==null?OD.text:v<0?OD.neg:v>0?OD.pos:OD.text;
     return `<div class="od-greek"><div class="od-glyph">${sym}</div><div class="od-glabel">${lab}</div><div class="od-gnum" style="color:${col}">${val}${v!=null?'<span style="color:'+OD.dim+';font-size:14px"> '+unit+'</span>':''}</div><div class="od-gfoot">${esc(foot||'')}</div></div>`;
   }).join('')+'</div>';
+  // Tüm Yunan harfleri birleşince → toplu (aggregated) yorum
+  const birlesik=g.birlesik_yorum?`<div class="od-greek-agg">⚹ Birleşik Greek Okuması: ${esc(g.birlesik_yorum)}</div>`:'';
+  return grid+birlesik;
 }
 
 // ── v. Volatilite Yüzeyi ──
