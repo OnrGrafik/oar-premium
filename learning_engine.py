@@ -110,6 +110,76 @@ def trade_sonucundan_ogren(trade: dict, karar_detay: dict):
 
     _kaydet(agirliklar)
 
+    # Yeterli geçmiş birikince EMA drift'ini KANIT'a bağla: her agent'ın tüm
+    # geçmişteki Wilson doğruluğundan ağırlık türet (hardcoded prior'dan çık).
+    try:
+        agirliklari_yeniden_hesapla()
+    except Exception:
+        pass
+
+
+def agirliklari_yeniden_hesapla(min_ornek: int = 10) -> dict:
+    """
+    TÜM kapanmış paper trade geçmişinden her agent'ın KANIT'lanmış doğruluğunu
+    (Wilson alt sınırı, %90) hesaplar ve ağırlıkları buna göre kurar.
+    — Sabit prior yerine VERİ konuşur: yüksek doğruluklu agent → yüksek ağırlık.
+    — Yetersiz örneklemli agent (n<min_ornek) → varsayılan prior (shrinkage).
+    — Hiç anlamlı kanıt yoksa mevcut (EMA/prior) ağırlıklar korunur.
+    """
+    try:
+        import persistence as db
+    except Exception:
+        return _yukle()
+
+    trades = db.trade_gecmisi(limit=5000)
+    kapali = [t for t in trades if t.get("durum") == "CLOSED" and t.get("karar_id")]
+
+    say = {ad: [0, 0] for ad in _VARSAYILAN}   # agent -> [dogru, toplam_sinyal]
+    detay_cache = {}
+    for t in kapali:
+        kid = t["karar_id"]
+        if kid not in detay_cache:
+            detay_cache[kid] = db.karar_detay_json(kid) or {}
+        agent_skorlar = detay_cache[kid].get("agent_skorlar", {})
+        yon = t.get("yon")
+        if not yon:
+            continue
+        trade_kazandi = (t.get("pnl_pct", 0) or 0) > 0
+        for ad, a in agent_skorlar.items():
+            if ad not in say or (a.get("guvenis", 0) or 0) == 0:
+                continue
+            skor = a.get("skor", 0)
+            if skor == 0:
+                continue
+            agent_dogru = (yon == "LONG" and skor > 0) or (yon == "SHORT" and skor < 0)
+            say[ad][1] += 1
+            if agent_dogru == trade_kazandi:   # agent doğru tarafı işaret etti
+                say[ad][0] += 1
+
+    # Wilson edge (50 üstü = coin-flip'ten iyi) → ham ağırlık
+    ham = {}
+    for ad, (dogru, toplam) in say.items():
+        if toplam >= min_ornek:
+            wilson = wilson_alt_sinir(dogru, toplam)      # 0-100
+            ham[ad] = max(0.0, (wilson - 50.0) / 50.0)    # 0..1 edge
+        else:
+            ham[ad] = None                                 # yetersiz veri
+
+    if all(v is None for v in ham.values()) or not any(v for v in ham.values() if v):
+        return _yukle()   # henüz anlamlı kanıt yok — mevcut ağırlıklar kalsın
+
+    birlesik = {}
+    for ad in _VARSAYILAN:
+        if ham[ad] is None:
+            birlesik[ad] = _VARSAYILAN[ad]          # az örneklem → prior
+        else:
+            birlesik[ad] = max(ham[ad], _MIN_A)     # edge yoksa alt tavan
+    birlesik = {k: min(_MAX_A, max(_MIN_A, v)) for k, v in birlesik.items()}
+    toplam = sum(birlesik.values())
+    birlesik = {k: round(v / toplam, 4) for k, v in birlesik.items()}
+    _kaydet(birlesik)
+    return birlesik
+
 
 # ─── Wilson Win Rate ──────────────────────────────────────────────
 
