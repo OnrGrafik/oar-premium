@@ -263,11 +263,12 @@ function komutaKutulariHtml(){
   const km=ST.komuta||{};
   const kutular=km.kutular||{};
   // Soldan sağa: Yüksek → Güvenli → Orta → Az
+  // Göreli (percentile) kovalar — sabit eşik değil, taranan 20 coine göre güç sırası
   const sira=[
-    {ad:'yuksek',  baslik:'YÜKSEK GÜVENİLİR', renk:'#1ff0ad', aralik:'85-100'},
-    {ad:'guvenli', baslik:'GÜVENLİ',          renk:'#7af0c4', aralik:'66-84'},
-    {ad:'orta',    baslik:'ORTA GÜVENİLİR',   renk:'#ffb13c', aralik:'46-65'},
-    {ad:'az',      baslik:'AZ GÜVENİLİR',     renk:'#5e716f', aralik:'0-45'},
+    {ad:'yuksek',  baslik:'YÜKSEK GÜVENİLİR', renk:'#1ff0ad', aralik:'Üst %15'},
+    {ad:'guvenli', baslik:'GÜVENLİ',          renk:'#7af0c4', aralik:'%15–40'},
+    {ad:'orta',    baslik:'ORTA GÜVENİLİR',   renk:'#ffb13c', aralik:'%40–75'},
+    {ad:'az',      baslik:'AZ GÜVENİLİR',     renk:'#5e716f', aralik:'Alt %25'},
   ];
   const kart=(c,renk)=>{
     const yon=c.yon||'NO_TRADE';

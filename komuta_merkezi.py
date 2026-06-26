@@ -62,12 +62,40 @@ def _save(path, data):
 
 
 def skoru_kutula(konfidans: float) -> str:
-    """0-100 konfidansı kutu anahtarına çevir."""
+    """0-100 konfidansı MUTLAK kutu anahtarına çevir (referans/yedek)."""
     k = max(0, min(100, konfidans or 0))
     for ad, (alt, ust) in KUTU_ESIKLERI.items():
         if alt <= k <= ust:
             return ad
     return "az"
+
+
+# Göreli (percentile) kova dilimleri — taranan coin kümesine göre.
+# Sabit eşik yerine GÖRELİ GÜÇ: en yüksek konfidanslı coinler üstte. Böylece
+# zayıf piyasada bile dağılım olur, hepsi "AZ GÜVENİLİR"de yığılmaz.
+# (üst sınır kümülatif percentile; sıralı listede rank=(i+1)/n ile karşılaştırılır)
+KUTU_PCT = [("yuksek", 0.15), ("guvenli", 0.40), ("orta", 0.75), ("az", 1.01)]
+KUTU_PCT_ETIKET = {"yuksek": "Üst %15", "guvenli": "%15–40", "orta": "%40–75", "az": "Alt %25"}
+
+
+def kutula_goreli(skorlar: list) -> list:
+    """
+    Coinleri konfidansa göre sırala, percentile dilimine göre kova ata.
+    Her dict'in 'kutu' alanını GÖRELİ kovayla günceller; mutlak kovayı
+    'kutu_mutlak'ta saklar. Dağılım garanti (n=20 → ~3/5/7/5).
+    """
+    n = len(skorlar)
+    if n == 0:
+        return skorlar
+    sirali = sorted(skorlar, key=lambda s: s.get("konfidans", 0), reverse=True)
+    for i, s in enumerate(sirali):
+        s.setdefault("kutu_mutlak", s.get("kutu"))
+        rank = i / n   # 0-tabanlı: en yüksek skor (i=0) → rank 0 → 'yuksek'
+        for ad, ust in KUTU_PCT:
+            if rank <= ust:
+                s["kutu"] = ad
+                break
+    return skorlar
 
 
 async def _coin_skoru(sembol: str) -> dict | None:
@@ -149,18 +177,23 @@ async def komuta_taramasi(n: int = 20, telegram: bool = True) -> dict:
         gc.collect()
         await asyncio.sleep(1)  # chunk arası nefes — API + bellek
 
+    # GÖRELİ (percentile) kovalama — sabit eşik yerine taranan kümeye göre güç sırası
+    kutula_goreli(skorlar)
+
     # Kutulara dağıt + skora göre azalan sırala
     kutular = {ad: [] for ad in KUTU_ESIKLERI}
     for s in sorted(skorlar, key=lambda x: x.get("konfidans", 0), reverse=True):
         kutular[s["kutu"]].append(s)
 
-    # Geçiş tespiti + Telegram
+    # Geçiş tespiti + Telegram (göreli kova üzerinden)
     gecisler = await _gecis_kontrol(skorlar, telegram)
 
     cikti = {
         "kutular": kutular,
         "kutu_etiket": KUTU_ETIKET,
-        "esikler": KUTU_ESIKLERI,
+        "esikler": KUTU_ESIKLERI,        # mutlak referans (geriye uyum)
+        "mod": "goreli",                  # kova ataması percentile/göreli
+        "kutu_pct_etiket": KUTU_PCT_ETIKET,
         "gecisler": gecisler,
         "coin_sayisi": len(skorlar),
         "tarih": _now(),
