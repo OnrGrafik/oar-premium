@@ -1029,6 +1029,29 @@ function hipotezHtml(){
   const bekHtml=bek.length?`<div style="font-size:8.5px;color:#5e716f;margin-top:6px">Beklemede: ${bek.map(b=>'Fib '+b.fib+' (WR%'+b.win_rate+')').join(' · ')}</div>`:'';
   return rk+aktifHtml+bekHtml;
 }
+function btOtonomHtml(){
+  const b=ST.btOtonom||{};
+  if(b.hata) return `<div style="font-size:11px;color:#ff5d6c;padding:6px 0">${esc(b.hata)}</div>`;
+  const ei=b.en_iyi;
+  if(!ei) return `<div style="font-size:11px;color:#5e716f;padding:6px 0">Otonom backtest henüz çalışmadı (ilk koşu startup'tan ~10 dk sonra).</div>`;
+  const s=ei.stats||{}, p=ei.params||{};
+  const col=v=>v>=0?'#1ff0ad':'#ff5d6c';
+  const chip=(lab,val,c)=>`<span style="background:#0a0f0f;border:1px solid #1a2422;border-radius:5px;padding:3px 8px;color:${c||'#9fb0ad'}">${lab}: ${val}</span>`;
+  const fibs=Object.entries(s.by_fib||{}).sort((a,b)=>(b[1].wr||0)-(a[1].wr||0))
+    .map(([fk,fv])=>`<span style="background:#0a140f;border:1px solid #15301f;border-radius:5px;padding:2px 7px;color:#7af0c4">Fib ${esc(fk)}: WR%${fv.wr||0} (${fv.n||0})</span>`).join(' ');
+  const son=(b.son_5_run||[{}])[b.son_5_run?.length-1]||{};
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:9.5px;margin-bottom:8px">
+      ${chip('En iyi',esc(ei.id||'?'),'#7af0c4')}
+      ${chip('Puan',(ei.puan||0)+'/100',ei.puan>=65?'#1ff0ad':'#ffb13c')}
+      ${chip('WR','%'+(s.wr||0),'#7af0c4')}
+      ${chip('Sharpe',s.sharpe||0)}
+      ${chip('PnL','%'+(s.pnl||0),col(s.pnl||0))}
+      ${chip('MaxDD','-%'+(s.max_dd||0),'#ff5d6c')}
+      ${chip('Koşu',b.toplam_run||0)}
+    </div>
+    <div style="font-size:9px;color:#5e716f;margin-bottom:6px">Son güncelleme: ${esc((b.son_guncelleme||'—').slice(0,16).replace('T',' '))} · ${esc(son.sembol||'BTCUSDT')} ${esc(String(son.gun||'?'))}g · sebep: ${esc(son.sebep||'—')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;font-size:9px">${fibs||'<span style="color:#5e716f">Fib kırılımı yok</span>'}</div>`;
+}
 function paperTradeHtml(){
   const p=ST.paper||{};
   const st=p.istatistik||{};
@@ -1210,6 +1233,13 @@ function scrLive(){
       <button onclick="loadHipotez().then(updateCioPaperOnly)" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
     </div>
     <div id="hipotez-panel">${hipotezHtml()}</div>
+  </div>
+  <div class="card" style="padding:14px 16px;margin-bottom:13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">BACKTEST BULGULARI — Otonom motor (Binance+OI+GEX+VPFR), sürekli güncellenir</span>
+      <button onclick="loadBacktestOtonom().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
+    </div>
+    <div id="bt-otonom-panel">${btOtonomHtml()}</div>
   </div>
   <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:13px;height:calc(100vh - 250px);min-height:420px">
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
@@ -1430,6 +1460,7 @@ async function loadContext(){const d=await jget('/api/market-context');if(d)ST.c
 async function loadKarar(){const d=await jget('/api/leader/karar?sembol=BTCUSDT&ai=false');if(d&&!d.detail)ST.karar=d;}
 async function loadPaper(){const d=await jget('/api/leader/paper-trades');if(d&&!d.detail)ST.paper=d;}
 async function loadHipotez(){const d=await jget('/api/leader/aktif-hipotezler?symbol=BTCUSDT');if(d&&!d.detail)ST.hipotez=d;}
+async function loadBacktestOtonom(){const d=await jget('/api/backtest/otonom');if(d)ST.btOtonom=d;}
 // ── Komuta Merkezi: indikatör + opsiyon skoru + grafik ──
 async function loadIndicators(){const d=await jget('/api/indicators?symbol=BTCUSDT&interval=5m');if(d&&!d.hata)ST.indicators=d;}
 async function loadOptScore(){const d=await jget('/api/options/gex?currency=BTC');if(d&&!d.error)ST.optScore=d;}
@@ -1547,13 +1578,13 @@ async function boot(){
   tickClock();setInterval(tickClock,1000);
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez];
+  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadKomuta();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadPaper();await loadHipotez();
+  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadKomuta();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadPaper();await loadHipotez();await loadBacktestOtonom();
     if(ST.tab==='live'){updateFeedOnly();updateCioPaperOnly();}
     else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);

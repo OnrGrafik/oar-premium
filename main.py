@@ -996,6 +996,17 @@ async def backtest(symbol: str = "BTCUSDT", timeframe: str = "4h"):
     result = await quick_backtest(symbol, timeframe)
     return result
 
+@app.get("/api/backtest/otonom")
+async def backtest_otonom():
+    """Otonom backtest motorunun (oar_autonomous_backtest) son bulguları —
+    canlı 'Backtest Bulguları' paneli bunu okur."""
+    try:
+        from oar_autonomous_backtest import son_sonuc
+        return son_sonuc()
+    except Exception as e:
+        return {"hata": str(e)[:120], "en_iyi": None, "toplam_run": 0,
+                "rapor": "Otonom backtest sonucu okunamadı."}
+
 @app.get("/api/memory")
 async def get_memory():
     return get_accuracy_stats()
