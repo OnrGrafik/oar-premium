@@ -231,11 +231,13 @@ def _gecmise_ekle(kayit: dict, maxn: int = 500):
     import json
     yol = _hist_dir() / "yerel_backtest_gecmis.json"
     try:
-        gecmis = json.loads(yol.read_text()) if yol.exists() else []
+        gecmis = json.loads(yol.read_text(encoding="utf-8")) if yol.exists() else []
     except Exception:
         gecmis = []
     gecmis.append(kayit)
-    yol.write_text(json.dumps(gecmis[-maxn:], ensure_ascii=False, indent=2))
+    # encoding="utf-8" ZORUNLU: Windows varsayılan cp1254 emoji (🚫 ⚠️…) yazamaz.
+    yol.write_text(json.dumps(gecmis[-maxn:], ensure_ascii=False, indent=2),
+                   encoding="utf-8")
     return yol
 
 
