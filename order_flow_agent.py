@@ -212,43 +212,47 @@ async def order_flow_analiz(
     # ── Puanlama: -100 / +100 ──────────────────────────────────
     puan = 0
 
-    # CVD (+/-30)
+    # ── ÖNEM SIRALI puanlama — HİÇBİR İKİ FAKTÖR EŞİT DEĞİL ──────────
+    # Order-flow biliminde sinyal gücü sırası (en doğrudan → en yavaş):
+    #   CVD(30) > Coinbase Premium(22) > OI(18) > Taker(14) > Funding(10)
+    # Önemli faktör daha çok, önemsiz daha az puan; eşit ağırlık yok.
+
+    # 1) CVD — agresör delta, en doğrudan akış sinyali (±30)
     if cvd["yon"] == "BULLISH":
         puan += 30
     elif cvd["yon"] == "BEARISH":
         puan -= 30
 
-    # OI (+/-20): fiyat yukarı + OI artıyor → long onayı
-    if oi["artiyor"]:
-        # OI tek başına yön vermiyor; CVD ile birleşir
-        if cvd["yon"] == "BULLISH":
-            puan += 20
-        elif cvd["yon"] == "BEARISH":
-            puan -= 20
-        else:
-            puan += 5  # belirsiz ama OI artışı ilgi anlamında
-    elif oi["yon"] == "AZALIYOR":
-        puan -= 10  # pozisyon kapatma
-
-    # Funding (+/-15): aşırı pozisyonlanma ters sinyal
-    if fr["taraflilik"] == "ASIRI_LONG":
-        puan -= 10  # contrarian — long kalabalık
-    elif fr["taraflilik"] == "ASIRI_SHORT":
-        puan += 15  # short squeeze potansiyeli
-    elif fr["taraflilik"] == "HAFIF_LONG":
-        puan += 5
-
-    # Coinbase Premium (+/-20)
+    # 2) Coinbase Premium — spot/kurumsal taraf teyidi (±22)
     if cb_prem["yon"] == "POZITIF":
-        puan += 20
+        puan += 22
     elif cb_prem["yon"] == "NEGATIF":
-        puan -= 20
+        puan -= 22
 
-    # Taker (+/-15)
+    # 3) OI — pozisyonlanma; yönünü CVD ile kazanır (±18, tek başına zayıf +6/-9)
+    if oi["artiyor"]:
+        if cvd["yon"] == "BULLISH":
+            puan += 18
+        elif cvd["yon"] == "BEARISH":
+            puan -= 18
+        else:
+            puan += 6   # belirsiz ama OI artışı = ilgi
+    elif oi["yon"] == "AZALIYOR":
+        puan -= 9       # pozisyon kapatma
+
+    # 4) Taker oranı — anlık agresif alış/satış baskısı (±14)
     if son_taker > 0.55:
-        puan += 15
+        puan += 14
     elif son_taker < 0.45:
-        puan -= 15
+        puan -= 14
+
+    # 5) Funding — kalabalık/contrarian, en yavaş sinyal (±10, asimetrik squeeze)
+    if fr["taraflilik"] == "ASIRI_SHORT":
+        puan += 10   # short squeeze potansiyeli
+    elif fr["taraflilik"] == "ASIRI_LONG":
+        puan -= 7    # long kalabalık — contrarian
+    elif fr["taraflilik"] == "HAFIF_LONG":
+        puan += 3
 
     puan = max(-100, min(100, puan))
 
