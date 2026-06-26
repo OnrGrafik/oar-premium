@@ -12,6 +12,15 @@ import time
 import hashlib
 from pathlib import Path
 
+# ── Railway kalıcı disk yönlendirmesi (Render→Railway geçişi) ──────────────
+# Render'da kalıcı disk /var/data idi; Railway'de kalıcı disk = Volume ve mount
+# yolu RAILWAY_VOLUME_MOUNT_PATH env'i ile gelir. DATA_DIR elle ayarlanmamışsa
+# onu Volume yoluna eşitleriz — böylece TÜM modüller (hepsi os.environ["DATA_DIR"]
+# okur) otomatik kalıcı diske yazar; redeploy'da veri kaybı olmaz.
+# Bu blok diğer modül import'larından ÖNCE çalışmalı (en üstte durması şart).
+if not os.environ.get("DATA_DIR") and os.environ.get("RAILWAY_VOLUME_MOUNT_PATH"):
+    os.environ["DATA_DIR"] = os.environ["RAILWAY_VOLUME_MOUNT_PATH"]
+
 import os as _os_data
 DATA_DIR = Path(_os_data.environ.get("DATA_DIR") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
