@@ -90,7 +90,7 @@ async def klines(
         base = ("https://fapi.binance.com/fapi/v1/klines" if futures
                 else "https://api.binance.com/api/v3/klines")
         params = {"symbol": symbol, "interval": interval, "limit": limit}
-        if start_ms:
+        if start_ms is not None:   # 0 da geçerli başlangıç (falsy-0 hatasından kaçın)
             params["startTime"] = start_ms
         data = await _get(base, params)
         if isinstance(data, list) and data:
@@ -108,7 +108,7 @@ async def klines(
             "interval": byb_iv,
             "limit": min(limit, 1000),
         }
-        if start_ms:
+        if start_ms is not None:
             params["start"] = start_ms
         data = await _get("https://api.bybit.com/v5/market/kline", params)
         rows = (data.get("result", {}) or {}).get("list", [])

@@ -36,8 +36,10 @@ async def dogrula_binance():
             try:
                 # Son mum
                 son = await klines(sym, "1d", 2, futures=futures)
-                # En eski mum (startTime=0 → borsa en eski veriyi döndürür)
-                ilk = await klines(sym, "1d", 1, futures=futures, start_ms=0)
+                # En eski mum: çok eski bir başlangıç ver (2017-07-14) → borsa,
+                # listeleme tarihinden itibaren ilk mumu döndürür. (0 KULLANMA:
+                # exchange_client eskiden 0'ı falsy sayıp yok sayıyordu.)
+                ilk = await klines(sym, "1d", 1, futures=futures, start_ms=1500000000000)
                 if not son or not ilk:
                     _satir(f"{sym} {etiket}", False, "BOŞ yanıt")
                     continue
