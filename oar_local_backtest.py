@@ -186,7 +186,7 @@ def main():
     ap.add_argument("--from", dest="bas", required=True, help="YYYY-MM")
     ap.add_argument("--to", dest="bit", required=True, help="YYYY-MM")
     ap.add_argument("--eval", type=int, default=4, help="değerlendirme saati")
-    ap.add_argument("--esik", type=float, default=0.5, help="WIN/LOSS eşiği %")
+    ap.add_argument("--esik", type=float, default=0.5, help="WIN/LOSS eşiği (yüzde)")
     ap.add_argument("--folds", type=int, default=4)
     args = ap.parse_args()
 
