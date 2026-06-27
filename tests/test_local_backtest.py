@@ -8,7 +8,38 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from oar_local_backtest import (
     fib_seviyeleri, asia_gecerli, fib_yonu, temas_eden_fib,
     cvd_teyit, poc_teyit, degerlendir, _cvd_delta, _sinyaller_uret,
+    tp_sl_seviyeleri, degerlendir_tpsl, FEE_PCT, SLIP_PCT,
 )
+
+
+def test_tp_sl_short_long():
+    f = fib_seviyeleri(100.0, 200.0)  # mid(0.5)=150
+    # SHORT girişi 1.618=261.8 → TP=150 (altta), SL=2.272=327.2 (üstte)
+    tp, sl = tp_sl_seviyeleri(1.618, 261.8, f)
+    assert tp == 150.0 and sl == 327.2
+    # LONG girişi -0.618=38.2 → TP=150 (üstte), SL=-1.272=-27.2 yok→ altındaki fib
+    tp2, sl2 = tp_sl_seviyeleri(-0.618, 38.2, f)
+    assert tp2 == 150.0 and sl2 < 38.2
+
+
+def test_degerlendir_tpsl_short_tp_win():
+    # SHORT giriş 100, TP 95, SL 105. Fiyat 94'e iner → TP vurur, brüt +%6
+    out, net = degerlendir_tpsl(100, "SHORT", 95, 105, [98, 94])
+    assert out == "WIN"
+    assert abs(net - (5.0 - FEE_PCT - SLIP_PCT)) < 1e-6   # (100-95)/100*100=5
+
+
+def test_degerlendir_tpsl_short_sl_loss():
+    # SHORT giriş 100, SL 105 önce vurulur → brüt -%5 → net negatif → LOSS
+    out, net = degerlendir_tpsl(100, "SHORT", 95, 105, [106])
+    assert out == "LOSS" and net < 0
+
+
+def test_degerlendir_tpsl_maliyet_dusulur():
+    # TP/SL vurulmaz, son fiyat girişe eşit → brüt 0, net = -(fee+slip) → LOSS
+    out, net = degerlendir_tpsl(100, "LONG", 110, 90, [100])
+    assert out == "LOSS"
+    assert abs(net - (-(FEE_PCT + SLIP_PCT))) < 1e-6
 
 
 def test_fib_seviyeleri_indikatorle_ayni():

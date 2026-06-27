@@ -61,6 +61,48 @@ MASTER_KURALLAR = [
         "destekliyor mu. Bu üç onaydan en az ikisi varsa dönüş (Reversal) işlemini onayla.",
         "SETUP", ["reversal", "footprint", "cvd", "oi"], 5,
     ),
+    # ── Kullanıcının OAR Asia Range kılavuzundan (Word) birebir kodlanan kurallar ──
+    (
+        "OAR Asia Range — Geçerlilik ve Geçersizlik",
+        "OAR Asia Range, TR 03:00-07:00 (UTC 00:00-04:00) Asya aralığına Fib çekilen "
+        "günlük scalp sistemidir. GEÇERLİLİK: Asya genliği %1 ve üzeri hareket etmişse "
+        "trade GÜVENLİ; %1 altındaysa GÜVENSİZ, işlem alma. GEÇERSİZLİK: NY Close "
+        "seansında fiyat ekstrem fib noktalarındaysa o range NY Close'da (en geç CBDR "
+        "başında) geçersiz olur; yeni range beklenir. Fib: 2.618 2.272 1.618 1.377 "
+        "1.0 0.5 0.0 -0.377 -0.618 -1.272 -1.618 (fiyat = asia_low + (asia_high-asia_low)*oran).",
+        "SETUP", ["asia", "fib", "gecerlilik"], 5,
+    ),
+    (
+        "OAR Asia Range — SHORT Kurulumu (Tepe Likidite Alımı)",
+        "Fiyat Asia-High üstü ÜST ekstrem fib'e (≥1.0) gelince: POC üstü ve VWAP 2. bandı "
+        "üstündeyse tepe likiditesi alma eğilimidir. Whale delta SHORT iken true/retail "
+        "LONG (zıt) ve OI yüksekse güçlüdür. VPFR günlük yoğun hacim bölgesi 'kırmızı SR "
+        "kutusu' = direnç. 0.377 civarından likidite alınıp footprint/VPFR SR olarak "
+        "çalışır; fiyat range içine girip POC/VWAP retest sonrası VWAP 2. alt bandına iner. "
+        "GİRİŞ: tepe testi sonrası VWAP bandına dönüşle SHORT. STOP: VPFR hacim bölgesi "
+        "ya da fib seviyesi üstü. TP: VWAP alt 2. bandı / range ortası (fib 0.5). "
+        "TEYİT: footprint absorpsiyon + CVD bearish.",
+        "SETUP", ["asia", "short", "vpfr", "vwap", "cvd"], 5,
+    ),
+    (
+        "OAR Asia Range — LONG Kurulumu (EQ/Dip Güçlenme)",
+        "Fiyat Asia-EQ (orta) veya ALT ekstrem fib'de (≤0.0) güçleniyor ve VWAP+POC'u "
+        "aşmaya çalışıyorsa: footprint ve CVD'de güçlenme (alış) görülürse LONG. "
+        "STOP: VAL ve VWAP 2. alt bandı altı. Footprint/CVD 'devam' dedikçe poz tutulur. "
+        "ÇIKIŞ/KAR-AL: 0.377-0.618 bandında sert satış (footprint FA), VPFR'da direnç, "
+        "VWAP içine giriş ve aşağı ivmelenme görülünce.",
+        "SETUP", ["asia", "long", "eq", "footprint", "cvd"], 5,
+    ),
+    (
+        "OAR Asia Range — Fib Bölge Mantığı + RSI/Premium Teyidi",
+        "Asia-High/Low kırılınca 0.377 fib temasında zayıflık/likidite alımı → range içine "
+        "doğru hareket. 0.377-0.618 arasında fiyat gücü ölçülür, devam yönü belirlenir. "
+        "Ekstrem seviyeleri geçmişse temaslar footprint+hacim bantları+VPFR ile kovalanır. "
+        "Fiyat range içindeyse dipten al/tepeden sat (hacimle izlenir). RSI: 70 üstü aşırı "
+        "alım sonrası RSI MA-Based altına inip 70 civarı + VPFR kırmızı SR kutusunu test "
+        "edip RED yerse → trend zayıflığı, SHORT bias için ek konfirmasyon.",
+        "SETUP", ["asia", "fib", "rsi", "vpfr"], 4,
+    ),
 ]
 
 

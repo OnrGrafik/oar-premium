@@ -98,8 +98,13 @@ def poc_teyit(yon: str, fiyat: float, poc: float) -> bool:
     return fiyat >= poc if yon == "SHORT" else fiyat <= poc
 
 
+# ── Gerçekçi işlem maliyeti (işin kuralları — uydurma değil) ────────────────
+FEE_PCT = 0.11    # round-trip taker komisyon (Binance ~%0.055 × 2)
+SLIP_PCT = 0.02   # tahmini kayma (slippage)
+
+
 def degerlendir(giris: float, sonraki: list, yon: str, esik_pct: float = 0.5):
-    """Girişten sonraki fiyat serisinde ±esik → (outcome, pct)."""
+    """(Eski/basit) Girişten sonraki fiyat serisinde ±esik → (outcome, pct)."""
     if not sonraki:
         return "FLAT", 0.0
     son = sonraki[-1]
@@ -109,6 +114,46 @@ def degerlendir(giris: float, sonraki: list, yon: str, esik_pct: float = 0.5):
     if pct <= -esik_pct:
         return "LOSS", round(pct, 3)
     return "FLAT", round(pct, 3)
+
+
+def tp_sl_seviyeleri(oran: float, giris: float, fibs: dict):
+    """
+    OAR TP/SL (kılavuz): hedef range ortası (fib 0.5), stop bir sonraki fib.
+    SHORT (üst ekstrem): TP=0.5 (altta), SL=girişin hemen üstündeki fib.
+    LONG  (alt ekstrem): TP=0.5 (üstte), SL=girişin hemen altındaki fib.
+    """
+    mid = fibs.get(0.5)
+    if oran >= 1.0:  # SHORT
+        tp = mid if (mid and mid < giris) else giris * 0.995
+        ust = [v for v in fibs.values() if v > giris]
+        sl = min(ust) if ust else giris * 1.01
+    else:            # LONG
+        tp = mid if (mid and mid > giris) else giris * 1.005
+        alt = [v for v in fibs.values() if v < giris]
+        sl = max(alt) if alt else giris * 0.99
+    return tp, sl
+
+
+def degerlendir_tpsl(giris: float, yon: str, tp: float, sl: float, sonraki: list):
+    """
+    Bar bar: TP mi SL mi önce vurulur? Maliyet (fee+slippage) düşülür.
+    Döner: (outcome, net_pct). outcome ∈ WIN/LOSS (net kâra göre).
+    """
+    cikis = sonraki[-1] if sonraki else giris
+    for c in sonraki:
+        if yon == "SHORT":
+            if c <= tp:
+                cikis = tp; break
+            if c >= sl:
+                cikis = sl; break
+        else:
+            if c >= tp:
+                cikis = tp; break
+            if c <= sl:
+                cikis = sl; break
+    gross = (giris - cikis) / giris * 100 if yon == "SHORT" else (cikis - giris) / giris * 100
+    net = round(gross - FEE_PCT - SLIP_PCT, 4)
+    return ("WIN" if net > 0 else "LOSS"), net
 
 
 # ─── Parquet yükleme (lazy pandas) ───────────────────────────────────────────
@@ -248,9 +293,10 @@ def _sinyaller_uret(gunler: dict, param: tuple) -> list:
             if poc_filtre and not poc_teyit(yon, fiyat, poc):
                 continue
             ileri = close_list[j + 1: j + 1 + eval_saat * 60]
-            out, pct = degerlendir(fiyat, ileri, yon, esik_pct=0.5)
+            tp, sl = tp_sl_seviyeleri(oran, fiyat, fibs)
+            out, net = degerlendir_tpsl(fiyat, yon, tp, sl, ileri)  # fee+slippage dahil
             sinyaller.append({"ts": int(ts), "fib": oran, "yon": yon,
-                              "outcome": out, "pct": pct})
+                              "outcome": out, "pct": net})
             gun_sinyal_alindi = True
     return sinyaller
 
@@ -277,15 +323,35 @@ def calistir(sembol, bas, bit, folds=4):
                       fold_sayisi=folds, is_oran=0.7)
 
     toplam_sinyal = sum(len(v) for v in param_sinyal.values())
+    # Ay bazında işlem tablosu (en çok seçilen parametrenin sinyalleri)
+    en_param = wf.get("en_cok_secilen_param")
+    aylik = _aylik_islem(param_sinyal.get(en_param, []))
     return {
         "sembol": sembol, "aralik": f"{bas}..{bit}",
         "gun_sayisi": len(gunler),
         "param_sinyal_sayilari": {k: len(v) for k, v in param_sinyal.items()},
         "toplam_sinyal": toplam_sinyal,
+        "en_param": en_param,
+        "aylik_islem": aylik,
+        "yillik_islem": {"toplam": sum(a["toplam"] for a in aylik.values()),
+                         "win": sum(a["win"] for a in aylik.values())},
         "walk_forward": wf,
         "butunluk": {"klines_ok": ok_k, "aggtrades_ok": ok_a},
         "veri": {"klines_satir": int(len(klines)), "aggtrades_ay": len(aggt_yollari)},
     }
+
+
+def _aylik_islem(sinyaller: list) -> dict:
+    """ts'li sinyalleri YYYY-MM bazında WIN/LOSS sayar."""
+    from datetime import datetime as _dt, timezone as _tz
+    aylik = {}
+    for s in sinyaller:
+        ay = _dt.fromtimestamp(s["ts"] / 1000, tz=_tz.utc).strftime("%Y-%m")
+        d = aylik.setdefault(ay, {"toplam": 0, "win": 0})
+        d["toplam"] += 1
+        if s.get("outcome") == "WIN":
+            d["win"] += 1
+    return dict(sorted(aylik.items()))
 
 
 def main():
@@ -317,6 +383,13 @@ def main():
     print(f"[OAR-BT] {res['sembol']} {res['aralik']}: {res['gun_sayisi']} gün | "
           f"sinyal/param: {res['param_sinyal_sayilari']} | bütünlük={res['butunluk']}")
     print(rapor(wf))
+    # Ay bazında işlem tablosu (en iyi param) — fee+slippage dahil net WIN
+    yi = res["yillik_islem"]
+    print(f"── AY BAZINDA İŞLEM (param={res['en_param']}) — YIL TOPLAM: "
+          f"{yi['toplam']} işlem, {yi['win']} net-WIN ──")
+    for ay, d in res["aylik_islem"].items():
+        wr = round(d["win"] / d["toplam"] * 100, 1) if d["toplam"] else 0
+        print(f"   {ay}: {d['toplam']:>2} işlem | net-WR %{wr}")
 
     import json
     oos = wf.get("toplu_oos_metrik", {})
@@ -327,7 +400,9 @@ def main():
         "toplam_sinyal": res["toplam_sinyal"],
         "en_iyi_param": wf.get("en_cok_secilen_param"),
         "oos_metrik": oos,
-        "strateji": "OAR_ASIA_RANGE",
+        "yillik_islem": res["yillik_islem"],
+        "aylik_islem": res["aylik_islem"],
+        "strateji": "OAR_ASIA_RANGE_TPSL",   # fee+slippage+TP/SL dahil
         "kaynak": "yerel_derin_gecmis",
     }
     yol = _gecmise_ekle(kayit)
