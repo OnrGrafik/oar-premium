@@ -225,6 +225,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     saat = (k["open_time"] % GUN_MS) / SAAT_MS
     k = k.assign(gun=gun_arr, saat=saat)
 
+    htf = _htf_hesapla(klines)   # HTF anchored VWAP (W/M/Q), no-lookahead
     gunler = {}
     for gun, kg in k.groupby("gun"):
         asia = kg[(kg["saat"] >= ASIA_BAS_UTC) & (kg["saat"] < ASIA_BIT_UTC)]
@@ -237,6 +238,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
             "post_ts": post["open_time"].tolist(),
             "post_close": post["close"].tolist(),
             "cvd_map": {}, "poc": None,
+            "htf": htf.get(int(gun), {}),
         }
 
     # 2) aggTrades AY AY → gün-bazlı birikim (dk-delta + fiyat-hacim)
@@ -303,6 +305,43 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
             g["retail_ls_map"] = {int(d): float(v) for d, v in
                                   zip(mg["dk"], mg["count_long_short_ratio"].astype(float))}
     return gunler
+
+
+def _htf_hesapla(klines):
+    """
+    HTF anchored VWAP (haftalık/aylık/çeyreklik) — klines'tan, LOOKAHEAD'siz.
+    Her gün için, periyot başından ÖNCEKİ GÜNE kadar biriken VWAP değeri.
+    Döner: {gun: {"vwap_w":.., "vwap_m":.., "vwap_q":..}}
+    """
+    import pandas as pd
+    from datetime import datetime as _dt, timezone as _tz
+    k = klines
+    gun = (k["open_time"] // GUN_MS).astype("int64")
+    hlc3 = (k["high"] + k["low"] + k["close"]) / 3.0
+    dfg = pd.DataFrame({"gun": gun, "pv": hlc3 * k["volume"], "v": k["volume"]})
+    gunluk = dfg.groupby("gun", as_index=False).agg(pv=("pv", "sum"), v=("v", "sum")).sort_values("gun")
+
+    out = {}
+    cum = {"w": [0.0, 0.0], "m": [0.0, 0.0], "q": [0.0, 0.0]}
+    prev = {"w": None, "m": None, "q": None}
+    for r in gunluk.itertuples():
+        d = _dt.fromtimestamp(int(r.gun) * 86400, tz=_tz.utc)
+        ic = d.isocalendar()
+        anahtar = {"w": (ic[0], ic[1]), "m": (d.year, d.month),
+                   "q": (d.year, (d.month - 1) // 3)}
+        for key in ("w", "m", "q"):
+            if prev[key] != anahtar[key]:
+                cum[key] = [0.0, 0.0]
+                prev[key] = anahtar[key]
+        # Bugünü EKLEMEDEN önceki birikim → no-lookahead VWAP
+        out[int(r.gun)] = {
+            f"vwap_{key}": (cum[key][0] / cum[key][1] if cum[key][1] else None)
+            for key in ("w", "m", "q")
+        }
+        for key in ("w", "m", "q"):
+            cum[key][0] += float(r.pv)
+            cum[key][1] += float(r.v)
+    return out
 
 
 def _dk_deger(harita: dict, ts: int):
@@ -422,6 +461,12 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                     zit = (whale > 1.0 and retail < 1.0)   # whale long + retail short
                 kayit["oi_yuksek"] = bool(oi_z >= 1.0)
                 kayit["whale_retail_zit"] = bool(zit)
+            # HTF VWAP yakınlığı (haftalık/aylık/çeyreklik confluence)
+            htf = g.get("htf") or {}
+            htf_vwaplar = [htf.get("vwap_w"), htf.get("vwap_m"), htf.get("vwap_q")]
+            if any(v is not None for v in htf_vwaplar):
+                yakin = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in htf_vwaplar)
+                kayit["htf_vwap_yakin"] = bool(yakin)
             adaylar.append(kayit)
     return adaylar
 
