@@ -114,6 +114,9 @@ def test_kesif_coklu_havuzlar(monkeypatch):
     monkeypatch.setattr(lb, "_aggt_ay_yollari", lambda s, b, e: ["dummy"])
     monkeypatch.setattr(lb, "_metrics_oku", lambda s, b, e: None)
     monkeypatch.setattr(lb, "_gun_hazirla", lambda k, y, m=None: {})
+    # Önbelleği izole et: test diske yazmasın/okumasın, hep yeniden hesaplasın
+    monkeypatch.setattr(lb, "_aday_cache_oku", lambda s, b, e: None)
+    monkeypatch.setattr(lb, "_aday_cache_yaz", lambda s, b, e, a: None)
 
     def sahte_aday(gunler, **kw):
         # yıl/sembol başına 30 aday (10 LOSS taban + cvd edge)
