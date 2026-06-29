@@ -487,6 +487,32 @@ def kesif_calistir(sembol, bas, bit, **kw):
             "kesif": kesfet(adaylar, **kw)}
 
 
+def _aday_cache_yol(sym, y_bas, y_bit):
+    """Bir (sembol, yıl-aralığı) aday havuzunun disk önbellek yolu."""
+    d = _hist_dir() / "_kesif_cache"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{sym}_{y_bas}_{y_bit}_aday.json"
+
+
+def _aday_cache_oku(sym, y_bas, y_bit):
+    import json
+    yol = _aday_cache_yol(sym, y_bas, y_bit)
+    if yol.exists():
+        try:
+            with open(yol, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+    return None
+
+
+def _aday_cache_yaz(sym, y_bas, y_bit, adaylar):
+    import json
+    yol = _aday_cache_yol(sym, y_bas, y_bit)
+    with open(yol, "w", encoding="utf-8") as f:
+        json.dump(adaylar, f)
+
+
 def _yil_araligi(bas, bit):
     return list(range(int(bas.split("-")[0]), int(bit.split("-")[0]) + 1))
 
@@ -511,8 +537,16 @@ def kesif_coklu(semboller, bas, bit, **kw):
             sira += 1
             y_bas = bas if yil == by else f"{yil}-01"
             y_bit = bit if yil == ey else f"{yil}-12"
-            print(f"[KEŞİF {sira}/{toplam_is}] {sym} {yil} işleniyor "
+            print(f"[KEŞİF {sira}/{toplam_is}] {sym} {yil} "
                   f"(havuzda {len(havuz)} aday)…", flush=True)
+            # Önbellek: bu (sembol,yıl) daha önce işlendiyse diskten yükle, yeniden hesaplama
+            onbellek = _aday_cache_oku(sym, y_bas, y_bit)
+            if onbellek is not None:
+                havuz.extend(onbellek)
+                print(f"   ⏩ {sym} {yil}: önbellekten {len(onbellek)} aday yüklendi "
+                      f"(yeniden işlenmedi)", flush=True)
+                ozet.append(f"{sym} {yil}: {len(onbellek)} aday (önbellek)")
+                continue
             klines = _klines_oku(sym, y_bas, y_bit)
             yollar = _aggt_ay_yollari(sym, y_bas, y_bit)
             if klines is None or not yollar:
@@ -523,8 +557,10 @@ def kesif_coklu(semboller, bas, bit, **kw):
             adlar = aday_sinyaller_uret(gunler)
             for a in adlar:
                 a["sembol"] = sym
+            _aday_cache_yaz(sym, y_bas, y_bit, adlar)   # çökme olsa bile bu yıl korunur
             havuz.extend(adlar)
-            print(f"   ✓ {sym} {yil}: {len(gunler)} gün → {len(adlar)} aday sinyal", flush=True)
+            print(f"   ✓ {sym} {yil}: {len(gunler)} gün → {len(adlar)} aday sinyal "
+                  f"(önbelleğe yazıldı)", flush=True)
             ozet.append(f"{sym} {yil}: {len(adlar)} aday")
             del klines, gunler
     return {"semboller": semboller, "aralik": f"{bas}..{bit}",
