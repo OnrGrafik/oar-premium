@@ -58,8 +58,8 @@ def whale_retail_zit(s):
 # Her biri ilgili veri/feature geldiğinde gerçek mantıkla doldurulacak ve
 # AKTIF_BLOKLAR'a eklenecek. None döndükçe keşif motoru bunları KULLANMAZ.
 def htf_vwap(s):
-    """HTF (haftalık/aylık/çeyreklik) VWAP yakınlığı/teyidi."""
-    return s.get("htf_vwap_ok")
+    """HTF (haftalık/aylık/çeyreklik) anchored VWAP yakınlığı (≤%0.5 confluence)."""
+    return s.get("htf_vwap_yakin")
 
 
 def htf_vpfr(s):
@@ -121,6 +121,7 @@ AKTIF_BLOKLAR = [
     "footprint_absorpsiyon", "footprint_balina",
     "footprint_yuksek_hacim", "footprint_trapped",
     "oi_yuksek", "whale_retail_zit",   # metrics indirilmişse devreye girer, yoksa atlanır
+    "htf_vwap",                         # klines'tan hesaplanır (her zaman var)
 ]
 
 

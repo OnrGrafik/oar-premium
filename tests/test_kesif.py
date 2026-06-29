@@ -144,3 +144,11 @@ def test_oi_whale_retail_bloklari():
     assert oi_yuksek({}) is None
     assert whale_retail_zit({}) is None
     assert "oi_yuksek" in AKTIF_BLOKLAR and "whale_retail_zit" in AKTIF_BLOKLAR
+
+
+def test_htf_vwap_blok():
+    from oar_sinyaller import htf_vwap, AKTIF_BLOKLAR
+    assert htf_vwap({"htf_vwap_yakin": True}) is True
+    assert htf_vwap({"htf_vwap_yakin": False}) is False
+    assert htf_vwap({}) is None          # klines yoksa/hesaplanmadıysa
+    assert "htf_vwap" in AKTIF_BLOKLAR
