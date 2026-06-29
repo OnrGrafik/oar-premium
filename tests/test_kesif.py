@@ -112,7 +112,8 @@ def test_kesif_coklu_havuzlar(monkeypatch):
     # Loader'ları ve aday üreticiyi sahteleyip havuzlama + sembol etiketini test et
     monkeypatch.setattr(lb, "_klines_oku", lambda s, b, e: object())
     monkeypatch.setattr(lb, "_aggt_ay_yollari", lambda s, b, e: ["dummy"])
-    monkeypatch.setattr(lb, "_gun_hazirla", lambda k, y: {})
+    monkeypatch.setattr(lb, "_metrics_oku", lambda s, b, e: None)
+    monkeypatch.setattr(lb, "_gun_hazirla", lambda k, y, m=None: {})
 
     def sahte_aday(gunler, **kw):
         # yıl/sembol başına 30 aday (10 LOSS taban + cvd edge)
@@ -132,3 +133,14 @@ def test_kesif_coklu_havuzlar(monkeypatch):
     assert res["havuz_boyutu"] == 120
     assert len(res["veri_ozeti"]) == 4
     assert res["kesif"]["toplam_aday"] >= 1
+
+
+# ─── OI / whale-retail blokları ──────────────────────────────────────────────
+def test_oi_whale_retail_bloklari():
+    from oar_sinyaller import oi_yuksek, whale_retail_zit, AKTIF_BLOKLAR
+    assert oi_yuksek({"oi_yuksek": True}) is True
+    assert whale_retail_zit({"whale_retail_zit": False}) is False
+    # metrics yoksa feature yok → None (keşifte atlanır)
+    assert oi_yuksek({}) is None
+    assert whale_retail_zit({}) is None
+    assert "oi_yuksek" in AKTIF_BLOKLAR and "whale_retail_zit" in AKTIF_BLOKLAR
