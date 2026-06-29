@@ -60,7 +60,14 @@ AGGTRADES_COLS = [
     "timestamp", "is_buyer_maker", "is_best_match",
 ]
 
-VERI_TIPLERI = {"klines", "aggTrades"}
+# Futures metrics (GÜNLÜK dump): OI + whale (top-trader L/S) + retail (global L/S) + taker
+METRICS_COLS = [
+    "create_time", "symbol", "sum_open_interest", "sum_open_interest_value",
+    "count_toptrader_long_short_ratio", "sum_toptrader_long_short_ratio",
+    "count_long_short_ratio", "sum_taker_long_short_vol_ratio",
+]
+
+VERI_TIPLERI = {"klines", "aggTrades", "metrics"}
 
 
 def hist_dir() -> Path:
@@ -139,7 +146,9 @@ def _checksum_dogrula(zip_yol: Path, url: str) -> bool:
 def _csv_oku(zip_yol: Path, veri_tipi: str):
     """Zip içindeki tek CSV'yi satır listesi (dict) olarak döndürür."""
     import pandas as pd  # lazy
-    kolonlar = KLINES_COLS if veri_tipi == "klines" else AGGTRADES_COLS
+    kolonlar = (KLINES_COLS if veri_tipi == "klines"
+                else METRICS_COLS if veri_tipi == "metrics"
+                else AGGTRADES_COLS)
     with zipfile.ZipFile(zip_yol) as z:
         ad = z.namelist()[0]
         with z.open(ad) as fh:
@@ -159,7 +168,9 @@ def _csv_oku(zip_yol: Path, veri_tipi: str):
 
 def _parquete_yaz(df, parquet_yol: Path, veri_tipi: str) -> int:
     """Tekilleştir + parquet yaz. Yazılan satır sayısını döndürür."""
-    anahtar = "open_time" if veri_tipi == "klines" else "timestamp"
+    anahtar = ("open_time" if veri_tipi == "klines"
+               else "create_time" if veri_tipi == "metrics"
+               else "timestamp")
     if anahtar in df.columns:
         df = df.drop_duplicates(subset=[anahtar]).sort_values(anahtar)
     parquet_yol.parent.mkdir(parents=True, exist_ok=True)
@@ -167,9 +178,43 @@ def _parquete_yaz(df, parquet_yol: Path, veri_tipi: str) -> int:
     return len(df)
 
 
+def _metrics_ay_cek(sembol: str, yil: int, ay: int, tmp_dir: Path) -> dict:
+    """
+    Futures metrics GÜNLÜK dump'tır → bir ayın tüm günlerini indir, tek aylık
+    parquet'e birleştir. (OI + whale/retail L/S + taker.)
+    """
+    import calendar
+    import pandas as pd
+    govde = f"{sembol}-metrics-{yil:04d}-{ay:02d}"
+    pq = _parquet_yolu("binance", sembol, "metrics", yil, govde)
+    if pq.exists():
+        return {"ay": f"{yil}-{ay:02d}", "durum": "ATLANDI (mevcut)", "yol": str(pq)}
+    parcalar = []
+    for gun in range(1, calendar.monthrange(yil, ay)[1] + 1):
+        ym = f"{yil:04d}-{ay:02d}-{gun:02d}"
+        url = f"{BASE_URL}/futures/um/daily/metrics/{sembol}/{sembol}-metrics-{ym}.zip"
+        zip_yol = tmp_dir / f"{sembol}-metrics-{ym}.zip"
+        try:
+            if not _indir(url, zip_yol):
+                continue  # o gün yok (404) → atla
+            if not _checksum_dogrula(zip_yol, url):
+                continue
+            parcalar.append(_csv_oku(zip_yol, "metrics"))
+        finally:
+            if zip_yol.exists():
+                zip_yol.unlink()
+    if not parcalar:
+        return {"ay": f"{yil}-{ay:02d}", "durum": "YOK (404 — gün dosyası yok)"}
+    df = pd.concat(parcalar, ignore_index=True)
+    n = _parquete_yaz(df, pq, "metrics")
+    return {"ay": f"{yil}-{ay:02d}", "durum": "İNDİRİLDİ", "satir": n, "yol": str(pq)}
+
+
 def ay_cek(borsa: str, market: str, sembol: str, veri_tipi: str,
            interval: str, yil: int, ay: int, tmp_dir: Path) -> dict:
     """Tek ay için: indir→doğrula→parquet. Resumable (varsa atlar)."""
+    if veri_tipi == "metrics":
+        return _metrics_ay_cek(sembol, yil, ay, tmp_dir)
     url, govde = _dump_yolu(borsa, market, sembol, veri_tipi, interval, yil, ay)
     pq = _parquet_yolu(borsa, sembol, veri_tipi, yil, govde)
     if pq.exists():
@@ -195,7 +240,7 @@ def cek(sembol: str, veri_tipi: str, bas: str, bit: str,
     bas/bit: 'YYYY-MM' (dahil). Eksik ayları çeker, mevcutları atlar.
     """
     if veri_tipi not in VERI_TIPLERI:
-        raise ValueError(f"veri_tipi 'klines' veya 'aggTrades' olmalı, geldi: {veri_tipi}")
+        raise ValueError(f"veri_tipi {sorted(VERI_TIPLERI)} içinden olmalı, geldi: {veri_tipi}")
     tmp_dir = hist_dir() / "_tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     sonuclar = []

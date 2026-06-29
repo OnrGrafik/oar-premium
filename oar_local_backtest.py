@@ -176,6 +176,24 @@ def _klines_oku(sembol, bas, bit, borsa="binance"):
     return pd.concat(parcalar, ignore_index=True) if parcalar else None
 
 
+def _metrics_oku(sembol, bas, bit, borsa="binance"):
+    """Futures metrics (OI + whale/retail L/S) — küçük; tüm aralık yüklenir. Yoksa None."""
+    import pandas as pd
+    from data_ingest import _aylar
+    kok = _hist_dir() / borsa / sembol / "metrics"
+    parcalar = []
+    for yil, ay in _aylar(bas, bit):
+        yol = kok / f"{yil:04d}" / f"{sembol}-metrics-{yil:04d}-{ay:02d}.parquet"
+        if yol.exists():
+            parcalar.append(pd.read_parquet(yol))
+    if not parcalar:
+        return None
+    df = pd.concat(parcalar, ignore_index=True)
+    # create_time → epoch ms
+    df["ts_ms"] = pd.to_datetime(df["create_time"], errors="coerce").astype("int64") // 1_000_000
+    return df
+
+
 def _aggt_ay_yollari(sembol, bas, bit, borsa="binance"):
     """aggTrades aylık parquet yollarını döndürür (streaming için — concat YOK)."""
     from data_ingest import _aylar
@@ -189,9 +207,10 @@ def _aggt_ay_yollari(sembol, bas, bit, borsa="binance"):
 
 
 # ─── Gün-bazlı ön hesap — STREAMING (bellek-güvenli) ─────────────────────────
-def _gun_hazirla(klines, aggt_yollari):
+def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     """
-    Her gün için Asya H/L, fib, post-asia barlar + dakikalık CVD + günlük POC.
+    Her gün için Asya H/L, fib, post-asia barlar + dakikalık CVD + günlük POC
+    (+ varsa OI/whale/retail metrics haritaları).
     aggTrades AY AY okunur; tüm yıl asla RAM'e alınmaz (yalnız küçük gün-özetleri).
     Döner: {gun_idx: {...}}
     """
@@ -265,6 +284,24 @@ def _gun_hazirla(klines, aggt_yollari):
         pxd = poc_px.get(gun)
         if pxd:
             g["poc"] = max(pxd, key=pxd.get)
+
+    # 4) Metrics (OI + whale/retail L/S) — varsa gün-bazlı dk haritaları
+    if metrics_df is not None and len(metrics_df):
+        m = metrics_df.copy()
+        m["gun"] = (m["ts_ms"] // GUN_MS).astype("int64")
+        m["dk"] = (m["ts_ms"] // 60_000).astype("int64")
+        for gun, mg in m.groupby("gun"):
+            g = gunler.get(int(gun))
+            if g is None:
+                continue
+            oi = mg["sum_open_interest"].astype(float)
+            g["oi_map"] = {int(d): float(v) for d, v in zip(mg["dk"], oi)}
+            g["oi_ort"] = float(oi.mean())
+            g["oi_std"] = float(oi.std()) or 1.0
+            g["whale_ls_map"] = {int(d): float(v) for d, v in
+                                 zip(mg["dk"], mg["sum_toptrader_long_short_ratio"].astype(float))}
+            g["retail_ls_map"] = {int(d): float(v) for d, v in
+                                  zip(mg["dk"], mg["count_long_short_ratio"].astype(float))}
     return gunler
 
 
@@ -363,7 +400,7 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             ileri = close_list[j + 1: j + 1 + eval_saat * 60]
             tp, sl = tp_sl_seviyeleri(oran, fiyat, fibs)
             out, net = degerlendir_tpsl(fiyat, yon, tp, sl, ileri)
-            adaylar.append({
+            kayit = {
                 "ts": int(ts), "yon": yon, "fib": oran, "fiyat": fiyat, "poc": poc,
                 "cvd_delta": cvd_d, "cvd_esik": 0.0,
                 "bar_delta": bar_delta, "vol_z": round(vol_z, 3),
@@ -371,7 +408,21 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                 "balina": bool(balina_esik > 0 and abs(bar_delta) >= balina_esik),
                 "absorp": bool(absorp), "reclaim": bool(reclaim),
                 "outcome": out, "pct": net,
-            })
+            }
+            # OI / whale-retail (metrics varsa) — yoksa alan eklenmez → blok None → atlanır
+            oi_map = g.get("oi_map")
+            if oi_map:
+                oi = _dk_deger(oi_map, ts)
+                oi_z = (oi - g.get("oi_ort", 0)) / g.get("oi_std", 1.0)
+                whale = _dk_deger(g.get("whale_ls_map", {}), ts)   # >1 long, <1 short
+                retail = _dk_deger(g.get("retail_ls_map", {}), ts)
+                if yon == "SHORT":
+                    zit = (whale < 1.0 and retail > 1.0)   # whale short + retail long
+                else:
+                    zit = (whale > 1.0 and retail < 1.0)   # whale long + retail short
+                kayit["oi_yuksek"] = bool(oi_z >= 1.0)
+                kayit["whale_retail_zit"] = bool(zit)
+            adaylar.append(kayit)
     return adaylar
 
 
@@ -382,7 +433,7 @@ def kesif_calistir(sembol, bas, bit, **kw):
     aggt_yollari = _aggt_ay_yollari(sembol, bas, bit)
     if klines is None or not aggt_yollari:
         return {"hata": "parquet yok — önce data_ingest ile klines+aggTrades çek."}
-    gunler = _gun_hazirla(klines, aggt_yollari)
+    gunler = _gun_hazirla(klines, aggt_yollari, _metrics_oku(sembol, bas, bit))
     adaylar = aday_sinyaller_uret(gunler)
     return {"sembol": sembol, "aralik": f"{bas}..{bit}", "aday_sinyal": len(adaylar),
             "kesif": kesfet(adaylar, **kw)}
@@ -413,7 +464,7 @@ def kesif_coklu(semboller, bas, bit, **kw):
             if klines is None or not yollar:
                 ozet.append(f"{sym} {yil}: veri yok")
                 continue
-            gunler = _gun_hazirla(klines, yollar)
+            gunler = _gun_hazirla(klines, yollar, _metrics_oku(sym, y_bas, y_bit))
             adlar = aday_sinyaller_uret(gunler)
             for a in adlar:
                 a["sembol"] = sym

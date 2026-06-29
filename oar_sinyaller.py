@@ -43,6 +43,17 @@ def fib_ekstrem(s) -> bool:
     return o >= 1.0 or o <= 0.0
 
 
+# ─── OI / WHALE-RETAIL BLOKLARI (futures metrics verisi gelince aktif) ───────
+def oi_yuksek(s):
+    """Open Interest yüksek mi (günlük z ≥ 1) — güçlü ilgi/pozisyonlanma."""
+    return s.get("oi_yuksek")
+
+
+def whale_retail_zit(s):
+    """Whale ve retail zıt tarafta mı (SHORT: whale short+retail long; LONG tersi)."""
+    return s.get("whale_retail_zit")
+
+
 # ─── GELECEK BLOKLAR (veri eklenince doldurulacak — şimdilik None) ────────────
 # Her biri ilgili veri/feature geldiğinde gerçek mantıkla doldurulacak ve
 # AKTIF_BLOKLAR'a eklenecek. None döndükçe keşif motoru bunları KULLANMAZ.
@@ -95,6 +106,8 @@ BLOKLAR = {
     "footprint_balina": footprint_balina,
     "footprint_yuksek_hacim": footprint_yuksek_hacim,
     "footprint_trapped": footprint_trapped,
+    "oi_yuksek": oi_yuksek,
+    "whale_retail_zit": whale_retail_zit,
     # Gelecek (veri eklenince): None döndükçe keşifte kullanılmaz
     "htf_vwap": htf_vwap,
     "htf_vpfr": htf_vpfr,
@@ -107,6 +120,7 @@ AKTIF_BLOKLAR = [
     "cvd_yon", "poc_taraf",
     "footprint_absorpsiyon", "footprint_balina",
     "footprint_yuksek_hacim", "footprint_trapped",
+    "oi_yuksek", "whale_retail_zit",   # metrics indirilmişse devreye girer, yoksa atlanır
 ]
 
 
