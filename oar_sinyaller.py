@@ -57,8 +57,23 @@ def htf_vpfr(s):
 
 
 def footprint_absorpsiyon(s):
-    """Footprint absorpsiyon/trapped/balina teyidi."""
-    return s.get("fp_absorp")
+    """Yüksek hacim ama fiyat ilerlemiyor → absorpsiyon (aday gen'de hesaplanır)."""
+    return s.get("absorp")
+
+
+def footprint_balina(s):
+    """Giriş dakikasında balina deltası (günlük |delta| 80. persentil üstü)."""
+    return s.get("balina")
+
+
+def footprint_yuksek_hacim(s):
+    """Giriş yüksek hacimli dakikada mı (vol z ≥ 1)."""
+    return s.get("vol_yuksek")
+
+
+def footprint_trapped(s):
+    """Sweep sonrası geri dönüş (tuzağa düşenler) — fade'i destekler."""
+    return s.get("reclaim")
 
 
 def dvol_rejim(s):
@@ -76,15 +91,23 @@ BLOKLAR = {
     "cvd_guclu": cvd_guclu,
     "poc_taraf": poc_taraf,
     "fib_ekstrem": fib_ekstrem,
+    "footprint_absorpsiyon": footprint_absorpsiyon,
+    "footprint_balina": footprint_balina,
+    "footprint_yuksek_hacim": footprint_yuksek_hacim,
+    "footprint_trapped": footprint_trapped,
+    # Gelecek (veri eklenince): None döndükçe keşifte kullanılmaz
     "htf_vwap": htf_vwap,
     "htf_vpfr": htf_vpfr,
-    "footprint_absorpsiyon": footprint_absorpsiyon,
     "dvol_rejim": dvol_rejim,
     "makro_korelasyon": makro_korelasyon,
 }
 
 # Şu an VERİSİ olan, keşifte kullanılabilecek bloklar (öğrendikçe genişler).
-AKTIF_BLOKLAR = ["cvd_yon", "cvd_guclu", "poc_taraf", "fib_ekstrem"]
+AKTIF_BLOKLAR = [
+    "cvd_yon", "poc_taraf",
+    "footprint_absorpsiyon", "footprint_balina",
+    "footprint_yuksek_hacim", "footprint_trapped",
+]
 
 
 def blok_uygula(sinyal: dict, blok_adi: str):
