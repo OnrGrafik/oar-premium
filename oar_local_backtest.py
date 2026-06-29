@@ -376,7 +376,7 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
 
 
 def kesif_calistir(sembol, bas, bit, **kw):
-    """Aday sinyalleri üret → keşif motorunu çalıştır (en iyi blok kombinasyonu)."""
+    """Tek sembol/aralık: aday sinyalleri üret → keşif motoru."""
     from oar_kesif import kesfet
     klines = _klines_oku(sembol, bas, bit)
     aggt_yollari = _aggt_ay_yollari(sembol, bas, bit)
@@ -386,6 +386,43 @@ def kesif_calistir(sembol, bas, bit, **kw):
     adaylar = aday_sinyaller_uret(gunler)
     return {"sembol": sembol, "aralik": f"{bas}..{bit}", "aday_sinyal": len(adaylar),
             "kesif": kesfet(adaylar, **kw)}
+
+
+def _yil_araligi(bas, bit):
+    return list(range(int(bas.split("-")[0]), int(bit.split("-")[0]) + 1))
+
+
+def kesif_coklu(semboller, bas, bit, **kw):
+    """
+    ÇOK-YILLI BİRLEŞİK KEŞİF: birden çok sembol × birden çok yılın adaylarını TEK
+    havuzda toplar → keşif motoru tek seferde çalışır (daha çok sinyal, daha güvenilir
+    holdout). Bellek-güvenli: her (sembol, yıl) ayrı işlenir (aggTrades stream), yalnız
+    küçük aday sözlükleri birikir; ham veri her yıl sonunda bırakılır.
+    HOLDOUT zamanca en yeni dilim olur (eski yıllarda öğren, en yeni yılda doğrula).
+    """
+    from oar_kesif import kesfet
+    by, ey = int(bas.split("-")[0]), int(bit.split("-")[0])
+    havuz = []
+    ozet = []
+    for sym in semboller:
+        for yil in _yil_araligi(bas, bit):
+            y_bas = bas if yil == by else f"{yil}-01"
+            y_bit = bit if yil == ey else f"{yil}-12"
+            klines = _klines_oku(sym, y_bas, y_bit)
+            yollar = _aggt_ay_yollari(sym, y_bas, y_bit)
+            if klines is None or not yollar:
+                ozet.append(f"{sym} {yil}: veri yok")
+                continue
+            gunler = _gun_hazirla(klines, yollar)
+            adlar = aday_sinyaller_uret(gunler)
+            for a in adlar:
+                a["sembol"] = sym
+            havuz.extend(adlar)
+            ozet.append(f"{sym} {yil}: {len(adlar)} aday")
+            del klines, gunler
+    return {"semboller": semboller, "aralik": f"{bas}..{bit}",
+            "havuz_boyutu": len(havuz), "veri_ozeti": ozet,
+            "kesif": kesfet(havuz, **kw)}
 
 
 def calistir(sembol, bas, bit, folds=4):
@@ -464,10 +501,13 @@ def main():
 
     if args.kesif:
         from oar_kesif import rapor as kesif_rapor
-        res = kesif_calistir(args.symbol, args.bas, args.bit)
-        if res.get("hata"):
-            print("HATA:", res["hata"]); return
-        print(f"[KEŞİF] {res['sembol']} {res['aralik']}: {res['aday_sinyal']} aday sinyal")
+        # --symbol virgülle çoklu olabilir; aralık çok yıllı olabilir → birleşik keşif
+        semboller = [s.strip() for s in args.symbol.split(",") if s.strip()]
+        res = kesif_coklu(semboller, args.bas, args.bit)
+        print(f"[KEŞİF] {'+'.join(semboller)} {res['aralik']}: "
+              f"havuz {res['havuz_boyutu']} aday sinyal")
+        for satir in res["veri_ozeti"]:
+            print("   •", satir)
         print(kesif_rapor(res["kesif"]))
         return
 

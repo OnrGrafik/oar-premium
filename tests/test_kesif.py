@@ -98,3 +98,37 @@ def test_kesfet_edge_kombinasyon_one_cikar():
 def test_kesfet_bos_sinyal():
     res = kesfet([], min_trade=1)
     assert res["toplam_aday"] == 0 and res["en_iyiler"] == []
+
+
+# ─── Çok-yıllı birleşik keşif (havuzlama mantığı, veri monkeypatch) ──────────
+def test_yil_araligi():
+    import oar_local_backtest as lb
+    assert lb._yil_araligi("2019-01", "2023-12") == [2019, 2020, 2021, 2022, 2023]
+    assert lb._yil_araligi("2024-03", "2024-09") == [2024]
+
+
+def test_kesif_coklu_havuzlar(monkeypatch):
+    import oar_local_backtest as lb
+    # Loader'ları ve aday üreticiyi sahteleyip havuzlama + sembol etiketini test et
+    monkeypatch.setattr(lb, "_klines_oku", lambda s, b, e: object())
+    monkeypatch.setattr(lb, "_aggt_ay_yollari", lambda s, b, e: ["dummy"])
+    monkeypatch.setattr(lb, "_gun_hazirla", lambda k, y: {})
+
+    def sahte_aday(gunler, **kw):
+        # yıl/sembol başına 30 aday (10 LOSS taban + cvd edge)
+        out = []
+        for i in range(30):
+            win = i % 2 == 0
+            out.append({"ts": i, "yon": "SHORT", "cvd_delta": -5 if win else 5,
+                        "cvd_esik": 0, "fiyat": 100, "poc": None, "fib": 1.618,
+                        "outcome": "WIN" if win else "LOSS",
+                        "pct": 0.5 if win else -0.5})
+        return out
+    monkeypatch.setattr(lb, "aday_sinyaller_uret", sahte_aday)
+
+    res = lb.kesif_coklu(["BTCUSDT", "ETHUSDT"], "2019-01", "2020-12",
+                         min_trade=5, holdout_orani=0.2, ust_n=3)
+    # 2 sembol × 2 yıl × 30 = 120 aday havuzda
+    assert res["havuz_boyutu"] == 120
+    assert len(res["veri_ozeti"]) == 4
+    assert res["kesif"]["toplam_aday"] >= 1
