@@ -315,7 +315,8 @@ def _htf_hesapla(klines):
     Döner: {gun: {"vwap_w":.., "vwap_m":.., "vwap_q":..}}
     """
     import pandas as pd
-    from datetime import datetime as _dt, timezone as _tz
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    _EPOCH = _dt(1970, 1, 1, tzinfo=_tz.utc)
     k = klines
     gun = (k["open_time"] // GUN_MS).astype("int64")
     hlc3 = (k["high"] + k["low"] + k["close"]) / 3.0
@@ -326,7 +327,8 @@ def _htf_hesapla(klines):
     cum = {"w": [0.0, 0.0], "m": [0.0, 0.0], "q": [0.0, 0.0]}
     prev = {"w": None, "m": None, "q": None}
     for r in gunluk.itertuples():
-        d = _dt.fromtimestamp(int(r.gun) * 86400, tz=_tz.utc)
+        # epoch + gün (platform-bağımsız; Windows fromtimestamp OSError'ını önler)
+        d = _EPOCH + _td(days=int(r.gun))
         ic = d.isocalendar()
         anahtar = {"w": (ic[0], ic[1]), "m": (d.year, d.month),
                    "q": (d.year, (d.month - 1) // 3)}
