@@ -245,7 +245,8 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     cvd_dk = defaultdict(lambda: defaultdict(float))   # gun → {dk: net delta}
     vol_dk = defaultdict(lambda: defaultdict(float))   # gun → {dk: toplam hacim}
     poc_px = defaultdict(lambda: defaultdict(float))   # gun → {fiyat_bin: hacim}
-    for yol in aggt_yollari:
+    for i, yol in enumerate(aggt_yollari, 1):
+        print(f"      · aggTrades {yol.name} ({i}/{len(aggt_yollari)}) işleniyor…", flush=True)
         a = pd.read_parquet(yol, columns=["timestamp", "price", "quantity", "is_buyer_maker"])
         a["gun"] = (a["timestamp"] // GUN_MS).astype("int64")
         a["dk"] = (a["timestamp"] // 60_000).astype("int64")
@@ -500,13 +501,20 @@ def kesif_coklu(semboller, bas, bit, **kw):
     by, ey = int(bas.split("-")[0]), int(bit.split("-")[0])
     havuz = []
     ozet = []
+    yillar = _yil_araligi(bas, bit)
+    toplam_is = len(semboller) * len(yillar)
+    sira = 0
     for sym in semboller:
-        for yil in _yil_araligi(bas, bit):
+        for yil in yillar:
+            sira += 1
             y_bas = bas if yil == by else f"{yil}-01"
             y_bit = bit if yil == ey else f"{yil}-12"
+            print(f"[KEŞİF {sira}/{toplam_is}] {sym} {yil} işleniyor "
+                  f"(havuzda {len(havuz)} aday)…", flush=True)
             klines = _klines_oku(sym, y_bas, y_bit)
             yollar = _aggt_ay_yollari(sym, y_bas, y_bit)
             if klines is None or not yollar:
+                print(f"   ⚠ {sym} {yil}: veri yok — atlandı", flush=True)
                 ozet.append(f"{sym} {yil}: veri yok")
                 continue
             gunler = _gun_hazirla(klines, yollar, _metrics_oku(sym, y_bas, y_bit))
@@ -514,6 +522,7 @@ def kesif_coklu(semboller, bas, bit, **kw):
             for a in adlar:
                 a["sembol"] = sym
             havuz.extend(adlar)
+            print(f"   ✓ {sym} {yil}: {len(gunler)} gün → {len(adlar)} aday sinyal", flush=True)
             ozet.append(f"{sym} {yil}: {len(adlar)} aday")
             del klines, gunler
     return {"semboller": semboller, "aralik": f"{bas}..{bit}",
@@ -599,6 +608,9 @@ def main():
         from oar_kesif import rapor as kesif_rapor
         # --symbol virgülle çoklu olabilir; aralık çok yıllı olabilir → birleşik keşif
         semboller = [s.strip() for s in args.symbol.split(",") if s.strip()]
+        print(f"[KEŞİF BAŞLADI] {'+'.join(semboller)} {args.bas}..{args.bit} — "
+              f"aggTrades gün gün işlenecek (büyük aralıkta uzun sürer, ilerleme aşağıda).",
+              flush=True)
         res = kesif_coklu(semboller, args.bas, args.bit)
         print(f"[KEŞİF] {'+'.join(semboller)} {res['aralik']}: "
               f"havuz {res['havuz_boyutu']} aday sinyal")
