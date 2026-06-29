@@ -221,7 +221,8 @@ def _gun_hazirla(klines, aggt_yollari):
         }
 
     # 2) aggTrades AY AY → gün-bazlı birikim (dk-delta + fiyat-hacim)
-    cvd_dk = defaultdict(lambda: defaultdict(float))   # gun → {dk: delta}
+    cvd_dk = defaultdict(lambda: defaultdict(float))   # gun → {dk: net delta}
+    vol_dk = defaultdict(lambda: defaultdict(float))   # gun → {dk: toplam hacim}
     poc_px = defaultdict(lambda: defaultdict(float))   # gun → {fiyat_bin: hacim}
     for yol in aggt_yollari:
         a = pd.read_parquet(yol, columns=["timestamp", "price", "quantity", "is_buyer_maker"])
@@ -235,11 +236,13 @@ def _gun_hazirla(klines, aggt_yollari):
         a["pbin"] = np.round(p / faktor) * faktor
         for (gun, dk), v in a.groupby(["gun", "dk"])["delta"].sum().items():
             cvd_dk[int(gun)][int(dk)] += float(v)
+        for (gun, dk), v in a.groupby(["gun", "dk"])["quantity"].sum().items():
+            vol_dk[int(gun)][int(dk)] += float(v)
         for (gun, pb), v in a.groupby(["gun", "pbin"])["quantity"].sum().items():
             poc_px[int(gun)][float(pb)] += float(v)
         del a   # ay DataFrame'ini hemen bırak
 
-    # 3) Finalize: dakikalık CVD (cumsum) + POC (argmax)
+    # 3) Finalize: dakikalık CVD (cumsum) + POC (argmax) + footprint istatistikleri
     for gun, g in gunler.items():
         dkd = cvd_dk.get(gun)
         if dkd:
@@ -249,10 +252,29 @@ def _gun_hazirla(klines, aggt_yollari):
                 kum += dkd[dk]
                 cvd_map[dk] = kum
             g["cvd_map"] = cvd_map
+            g["delta_map"] = {int(d): float(v) for d, v in dkd.items()}  # ham dk-delta
+        vd = vol_dk.get(gun)
+        if vd:
+            g["vol_map"] = {int(d): float(v) for d, v in vd.items()}
+            voller = list(vd.values())
+            g["vol_ort"] = float(np.mean(voller))
+            g["vol_std"] = float(np.std(voller)) or 1.0
+            absd = sorted(abs(x) for x in dkd.values()) if dkd else []
+            # balina eşiği: günlük |delta| 80. persentil
+            g["delta_abs_esik"] = absd[int(len(absd) * 0.8)] if absd else 0.0
         pxd = poc_px.get(gun)
         if pxd:
             g["poc"] = max(pxd, key=pxd.get)
     return gunler
+
+
+def _dk_deger(harita: dict, ts: int):
+    """ts dakikasındaki değer; o dk yoksa en yakın küçük dk (yoksa 0)."""
+    dk = int(ts // 60_000)
+    if dk in harita:
+        return harita[dk]
+    adaylar = [d for d in harita if d <= dk]
+    return harita[max(adaylar)] if adaylar else 0.0
 
 
 def _cvd_delta(cvd_map, ts, pencere):
@@ -299,6 +321,71 @@ def _sinyaller_uret(gunler: dict, param: tuple) -> list:
                               "outcome": out, "pct": net})
             gun_sinyal_alindi = True
     return sinyaller
+
+
+def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
+                        tol: float = 0.10, min_range: float = 1.0) -> list:
+    """
+    FİLTRESİZ feature-zengin aday sinyaller (keşif motoru için).
+    Her geçerli günde, her ekstrem fib'in İLK temasında bir aday üretir; her aday
+    footprint/CVD/POC feature'ları + net TP/SL outcome taşır. Blokların filtreleyeceği
+    ham havuz budur (oar_sinyaller + oar_kesif).
+    """
+    adaylar = []
+    for gun, g in gunler.items():
+        if not asia_gecerli(g["a_h"], g["a_l"], min_range):
+            continue
+        fibs = g["fibs"]; poc = g.get("poc"); cvd_map = g.get("cvd_map", {})
+        delta_map = g.get("delta_map", {}); vol_map = g.get("vol_map", {})
+        vol_ort = g.get("vol_ort", 0.0); vol_std = g.get("vol_std", 1.0) or 1.0
+        balina_esik = g.get("delta_abs_esik", 0.0)
+        ts_list, close_list = g["post_ts"], g["post_close"]
+        alinan = set()
+        for j, (ts, fiyat) in enumerate(zip(ts_list, close_list)):
+            oran = temas_eden_fib(fiyat, fibs, tol)
+            if oran is None or oran in alinan:
+                continue
+            alinan.add(oran)
+            yon = fib_yonu(oran)
+            seviye = fibs[oran]
+            bar_delta = _dk_deger(delta_map, ts)
+            vol = _dk_deger(vol_map, ts)
+            vol_z = (vol - vol_ort) / vol_std
+            cvd_d = _cvd_delta(cvd_map, ts, cvd_pencere)
+            ilk5 = close_list[j + 1: j + 6] + [fiyat]
+            ileri15 = close_list[j + 1: j + 16]
+            if yon == "SHORT":
+                absorp = (vol_z >= 1.0) and (max(ilk5) <= fiyat * 1.001)
+                reclaim = any(c < seviye * 0.997 for c in ileri15)
+            else:
+                absorp = (vol_z >= 1.0) and (min(ilk5) >= fiyat * 0.999)
+                reclaim = any(c > seviye * 1.003 for c in ileri15)
+            ileri = close_list[j + 1: j + 1 + eval_saat * 60]
+            tp, sl = tp_sl_seviyeleri(oran, fiyat, fibs)
+            out, net = degerlendir_tpsl(fiyat, yon, tp, sl, ileri)
+            adaylar.append({
+                "ts": int(ts), "yon": yon, "fib": oran, "fiyat": fiyat, "poc": poc,
+                "cvd_delta": cvd_d, "cvd_esik": 0.0,
+                "bar_delta": bar_delta, "vol_z": round(vol_z, 3),
+                "vol_yuksek": bool(vol_z >= 1.0),
+                "balina": bool(balina_esik > 0 and abs(bar_delta) >= balina_esik),
+                "absorp": bool(absorp), "reclaim": bool(reclaim),
+                "outcome": out, "pct": net,
+            })
+    return adaylar
+
+
+def kesif_calistir(sembol, bas, bit, **kw):
+    """Aday sinyalleri üret → keşif motorunu çalıştır (en iyi blok kombinasyonu)."""
+    from oar_kesif import kesfet
+    klines = _klines_oku(sembol, bas, bit)
+    aggt_yollari = _aggt_ay_yollari(sembol, bas, bit)
+    if klines is None or not aggt_yollari:
+        return {"hata": "parquet yok — önce data_ingest ile klines+aggTrades çek."}
+    gunler = _gun_hazirla(klines, aggt_yollari)
+    adaylar = aday_sinyaller_uret(gunler)
+    return {"sembol": sembol, "aralik": f"{bas}..{bit}", "aday_sinyal": len(adaylar),
+            "kesif": kesfet(adaylar, **kw)}
 
 
 def calistir(sembol, bas, bit, folds=4):
@@ -361,6 +448,8 @@ def main():
     ap.add_argument("--to", dest="bit", default="", help="YYYY-MM")
     ap.add_argument("--folds", type=int, default=4)
     ap.add_argument("--ozet", action="store_true", help="birikmiş tüm backtest geçmişini yazdır")
+    ap.add_argument("--kesif", action="store_true",
+                    help="keşif modu: en iyi blok kombinasyonunu bul (OOS+holdout)")
     ap.add_argument("--yukle", default="", help="canlı sistem URL'i (sonucu hafızaya POST et)")
     ap.add_argument("--api-key", default="", help="canlı sistem OAR_API_KEY (yükleme için)")
     args = ap.parse_args()
@@ -372,6 +461,15 @@ def main():
         print("HATA: --from ve --to zorunlu (veya --ozet kullan).")
         return
     _on_kontrol()
+
+    if args.kesif:
+        from oar_kesif import rapor as kesif_rapor
+        res = kesif_calistir(args.symbol, args.bas, args.bit)
+        if res.get("hata"):
+            print("HATA:", res["hata"]); return
+        print(f"[KEŞİF] {res['sembol']} {res['aralik']}: {res['aday_sinyal']} aday sinyal")
+        print(kesif_rapor(res["kesif"]))
+        return
 
     res = calistir(args.symbol, args.bas, args.bit, folds=args.folds)
     if res.get("hata"):

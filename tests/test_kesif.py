@@ -6,8 +6,27 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from oar_sinyaller import cvd_yon, cvd_guclu, poc_taraf, fib_ekstrem, blok_uygula
+from oar_sinyaller import (cvd_yon, cvd_guclu, poc_taraf, fib_ekstrem, blok_uygula,
+                           footprint_absorpsiyon, footprint_balina,
+                           footprint_yuksek_hacim, footprint_trapped, AKTIF_BLOKLAR)
 from oar_kesif import _filtre, _holdout_ayir, kesfet
+
+
+def test_footprint_bloklari():
+    assert footprint_absorpsiyon({"absorp": True}) is True
+    assert footprint_balina({"balina": False}) is False
+    assert footprint_yuksek_hacim({"vol_yuksek": True}) is True
+    assert footprint_trapped({"reclaim": True}) is True
+    # feature yoksa None (veri yok → keşifte atlanır)
+    assert footprint_absorpsiyon({}) is None
+
+
+def test_aktif_havuz_footprint_icerir():
+    assert "footprint_balina" in AKTIF_BLOKLAR
+    assert "footprint_trapped" in AKTIF_BLOKLAR
+    # degenerate (her zaman True) bloklar aktif havuzda olmamalı
+    assert "fib_ekstrem" not in AKTIF_BLOKLAR
+    assert "cvd_guclu" not in AKTIF_BLOKLAR
 
 
 # ─── Blok birim testleri ─────────────────────────────────────────────────────
