@@ -4,8 +4,7 @@ Lider İşlem Takip — OAR Premium
 İstek (eksik #4):
   "Lider agent'in BTC-ETH için Telegram'a attığı işlem fikirleri tersine
    dönmüşse ya kâr alıp trailing stop devam etsin ya da işlemi tamamen
-   kapatsın. Bu mantık UTBot'ta var (işlem tersine dönmüşse kâr alıp
-   trailing stop devam etme) — lider de aynı mantığı kullansın."
+   kapatsın."
 
 Bu modül lider'in Telegram'a attığı yönlü KARAR'ları (LONG/SHORT) kaydeder ve
 her döngüde güncel fiyatla karşılaştırarak tersine dönüş tespitinde öneri üretir:
@@ -15,7 +14,7 @@ her döngüde güncel fiyatla karşılaştırarak tersine dönüş tespitinde ö
   • Yön geçersizleşti (stop kırıldı / fikir ters döndü) → TAMAMEN_KAPAT
        "İşlemi tamamen kapat."
 
-UTBot'taki xATR trailing mantığının fiyat-yüzdesi karşılığıdır (lider tarafında
+xATR trailing mantığının fiyat-yüzdesi karşılığıdır (lider tarafında
 ATR serisi tutmadan, giriş + zirve PnL üzerinden trailing).
 """
 
@@ -166,8 +165,7 @@ def reversal_kontrol(kok: str, guncel_fiyat: float,
             "mesaj": (f"🎯 <b>{kok} {yon} — kâr koruması</b>\n"
                       f"Zirve {zirve:+.2f}%'ten {pnl:+.2f}%'e geri çekildi "
                       f"(≥%{TRAILING_GERI_PCT}).\n"
-                      f"Öneri: <b>Kârın bir kısmını AL, kalanı TRAILING STOP ile sürdür</b> "
-                      f"(UTBot mantığı)."),
+                      f"Öneri: <b>Kârın bir kısmını AL, kalanı TRAILING STOP ile sürdür</b>."),
         }
 
     return None

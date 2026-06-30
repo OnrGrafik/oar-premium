@@ -1353,46 +1353,6 @@ async def leader_risk_skoru(symbol: str = "BTCUSDT"):
         return {"error": f"risk skoru alınamadı: {str(e)[:120]}", "skor": 0.0}
 
 
-@app.get("/api/leader/utbot-onay")
-async def leader_utbot_onay(symbol: str = "ETHUSDT", yon: str = "LONG"):
-    """
-    UTBot kararını Lider Agent onaylar (eksik #2): sinyal mantıklı mı?
-    Güçlü risk skoruna TERS bir yön (ör. skor<=-40 iken LONG) → VETO.
-    Makro olay penceresinde de yeni işlem onayı kısılır.
-
-    Döner: {onay: bool, neden: str, skor: float, strateji: str}
-    """
-    yon = (yon or "").upper()
-    try:
-        from risk_skoru import risk_skoru_hesapla
-        r = await risk_skoru_hesapla(symbol)
-    except Exception as e:
-        # Lider değerlendiremiyorsa engelleme — UTBot kendi mantığıyla devam eder
-        return {"onay": True, "neden": f"lider değerlendiremedi ({str(e)[:60]})",
-                "skor": 0.0, "strateji": "?"}
-
-    skor = r.get("skor", 0.0)
-    neden = []
-    onay = True
-
-    if yon == "LONG" and r.get("guclu_ters"):
-        onay = False
-        neden.append(f"Skor {skor:+.0f} güçlü RISK-OFF → LONG mantıksız")
-    elif yon == "SHORT" and r.get("guclu_trend"):
-        onay = False
-        neden.append(f"Skor {skor:+.0f} güçlü RISK-ON → SHORT mantıksız")
-
-    if r.get("makro_olay"):
-        onay = False
-        neden.append(f"Makro olay penceresi ({r['makro_olay']}) → yeni işlem askıda")
-
-    if onay:
-        neden.append(f"Skor {skor:+.0f} {r.get('yon','')} — {yon} ile uyumlu/nötr")
-
-    return {"onay": onay, "neden": "; ".join(neden), "skor": skor,
-            "strateji": r.get("strateji", ""), "yon_skoru": r.get("yon", "")}
-
-
 @app.get("/api/vercel/orderflow")
 async def vercel_orderflow(currency: str = "BTC"):
     return await _vercel_get(f"/api/orderflow?currency={currency}")

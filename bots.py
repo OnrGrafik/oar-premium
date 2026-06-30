@@ -53,7 +53,7 @@ def delete_source(source_id: int) -> dict:
 # ─── Sinyal Çekme ────────────────────────────────────────────────────────────
 def _extract_signals(data, source_name: str) -> list:
     """Esnek parser: çeşitli JSON formatlarından sinyal çıkar.
-    Render bot (UTBot/STC), Vercel API, GitHub raw JSON, OAR botları desteklenir."""
+    Render bot, Vercel API, GitHub raw JSON, OAR botları desteklenir."""
     signals = []
     items = []
 
