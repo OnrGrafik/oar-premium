@@ -25,20 +25,24 @@ from oar_sinyaller import blok_uygula, AKTIF_BLOKLAR
 
 def _filtre(sinyaller: list, bloklar: list):
     """
-    Tüm bloklardan geçen sinyaller. Bir blok None (veri yok) dönerse bu
-    kombinasyon UYGULANAMAZ → None döner (keşifte atlanır).
+    Kombinasyondan geçen sinyaller. Bir blok bir sinyal için None (veri yok)
+    dönerse O SİNYAL bu kombinasyon için değerlendirilemez → ATLANIR; komple
+    kombinasyon düşmez. Böylece kısmi-veri bloklar (oi/whale/oi_tuzak) eldeki
+    veri altkümesinde ADİL test edilir. Hiç veri yoksa boş liste döner
+    (min_trade eşiği eler). Her zaman liste döner (None değil).
     """
     out = []
     for s in sinyaller:
-        gecti = True
+        gecti = True          # True=geç, False=elendi, None=veri yok (atla)
         for ad in bloklar:
             r = blok_uygula(s, ad)
             if r is None:
-                return None        # veri yok → kombinasyon geçersiz
+                gecti = None
+                break
             if not r:
                 gecti = False
                 break
-        if gecti:
+        if gecti is True:
             out.append(s)
     return out
 
@@ -96,7 +100,7 @@ def kesfet(sinyaller: list, blok_havuzu: list = None,
     for k in range(min_k, max_k + 1):
         for kombo in itertools.combinations(blok_havuzu, k):
             f = _filtre(arama, list(kombo))
-            if f is None or len(f) < min_trade:
+            if len(f) < min_trade:
                 continue
             wf = walk_forward(lambda _p: f, ["x"], fold_sayisi=fold, is_oran=is_oran)
             oos = wf.get("toplu_oos_metrik", {})

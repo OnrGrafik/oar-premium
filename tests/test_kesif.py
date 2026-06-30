@@ -46,10 +46,29 @@ def test_blok_uygula_veri_yok_none():
     assert blok_uygula({}, "olmayan_blok") is None
 
 
-def test_filtre_none_veri_yok():
+def test_filtre_veri_yok_sinyal_atlanir():
     sinyaller = [{"ts": 1, "yon": "SHORT", "cvd_delta": -1}]
-    # htf_vwap verisi yok → kombinasyon uygulanamaz → None
-    assert _filtre(sinyaller, ["htf_vwap"]) is None
+    # htf_vwap verisi yok → bu sinyal atlanır (komple kombinasyon düşmez) → boş liste
+    assert _filtre(sinyaller, ["htf_vwap"]) == []
+
+
+def test_filtre_kismi_veri_altkume():
+    # İki sinyal: biri oi verili (geçer), biri oi'siz (atlanır) → sadece geçeni döner
+    sinyaller = [
+        {"ts": 1, "yon": "SHORT", "oi_yuksek": True, "reclaim": True},   # oi_tuzak True
+        {"ts": 2, "yon": "SHORT"},                                       # oi yok → atla
+    ]
+    f = _filtre(sinyaller, ["oi_tuzak"])
+    assert len(f) == 1 and f[0]["ts"] == 1
+
+
+def test_oi_tuzak_blok():
+    from oar_sinyaller import oi_tuzak, AKTIF_BLOKLAR
+    assert oi_tuzak({"oi_yuksek": True, "reclaim": True}) is True
+    assert oi_tuzak({"oi_yuksek": True, "reclaim": False}) is False
+    assert oi_tuzak({"oi_yuksek": False, "reclaim": True}) is False
+    assert oi_tuzak({"reclaim": True}) is None        # oi verisi yok
+    assert "oi_tuzak" in AKTIF_BLOKLAR
 
 
 def test_holdout_ayir_zaman():

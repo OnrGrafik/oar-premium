@@ -54,6 +54,19 @@ def whale_retail_zit(s):
     return s.get("whale_retail_zit")
 
 
+def oi_tuzak(s):
+    """
+    OI tuzağı: süpürme anında OI yüksek (pozisyon birikti) + reclaim (fiyat döndü)
+    → tuzağa düşen pozisyonlar (MM trap), fade'i güçlendirir. Mevcut feature'lardan
+    türer (oi_yuksek + reclaim) — yeniden işleme gerekmez. OI verisi yoksa None.
+    """
+    oi = s.get("oi_yuksek")
+    rc = s.get("reclaim")
+    if oi is None or rc is None:
+        return None
+    return bool(oi and rc)
+
+
 # ─── GELECEK BLOKLAR (veri eklenince doldurulacak — şimdilik None) ────────────
 # Her biri ilgili veri/feature geldiğinde gerçek mantıkla doldurulacak ve
 # AKTIF_BLOKLAR'a eklenecek. None döndükçe keşif motoru bunları KULLANMAZ.
@@ -108,6 +121,7 @@ BLOKLAR = {
     "footprint_trapped": footprint_trapped,
     "oi_yuksek": oi_yuksek,
     "whale_retail_zit": whale_retail_zit,
+    "oi_tuzak": oi_tuzak,
     # Gelecek (veri eklenince): None döndükçe keşifte kullanılmaz
     "htf_vwap": htf_vwap,
     "htf_vpfr": htf_vpfr,
@@ -120,7 +134,7 @@ AKTIF_BLOKLAR = [
     "cvd_yon", "poc_taraf",
     "footprint_absorpsiyon", "footprint_balina",
     "footprint_yuksek_hacim", "footprint_trapped",
-    "oi_yuksek", "whale_retail_zit",   # metrics indirilmişse devreye girer, yoksa atlanır
+    "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
     "htf_vwap",                         # klines'tan hesaplanır (her zaman var)
 ]
 
