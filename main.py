@@ -1156,6 +1156,10 @@ async def startup_event():
         from oar_altcoin_sistem import dongu as oar_altcoin_dongu
         asyncio.create_task(oar_altcoin_dongu())
         print("[Startup] ✅ OAR Altcoin Sistem loop başlatıldı")
+        # OAR Swing Sistem (BTC+ETH 4h, değer alanı terk + %15 kırılım range/fib)
+        from oar_swing import dongu as oar_swing_dongu
+        asyncio.create_task(oar_swing_dongu())
+        print("[Startup] ✅ OAR Swing Sistem loop başlatıldı")
     except Exception as e:
         print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
 
@@ -2287,6 +2291,14 @@ async def oar_altcoin_endpoint():
     """OAR Altcoin Sistem: açık (DEVAM) + bu haftanın kapananları + haftalık K/Z."""
     from oar_altcoin_sistem import durum_ozet
     return durum_ozet()
+
+
+@app.get("/api/oar-swing")
+async def oar_swing_endpoint(sembol: str = "BTCUSDT", interval: str = "4h"):
+    """OAR Swing: değer alanı terk + %15 kırılım → range/fib anchor (canlı tara)."""
+    from oar_swing import tara
+    k = await tara(sembol, interval)
+    return k or {"durum": "swing_kurulum_yok", "sembol": sembol}
 
 
 @app.get("/api/leader/karar-gecmisi-db")
