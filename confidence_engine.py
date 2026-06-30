@@ -332,7 +332,15 @@ async def _options_skoru(sembol_kisa: str) -> dict:
                             f"https://api.binance.com/api/v3/ticker/price?symbol={sembol_kisa}USDT")
                         fiyat = float(r.json()["price"])
 
-                    if fiyat > zg:
+                    mesafe_zg = abs(fiyat - zg) / fiyat * 100
+                    if mesafe_zg < 0.7:
+                        # ZG sınırı: pozitif↔negatif gamma geçiş bölgesi — rejim
+                        # DEĞİŞİKLİĞİ/kırılım riski (Hull §19: zero gamma = flip).
+                        # Yön baskısı verme, kırılım uyarısı ver.
+                        nedenler.append(
+                            f"⚠ ZG SINIRI %{mesafe_zg:.1f} (${zg:,.0f}) — gamma rejim "
+                            f"DEĞİŞİMİ/kırılım bölgesi: yön belirsiz, volatilite genişleyebilir")
+                    elif fiyat > zg:
                         skor += 20
                         nedenler.append(f"Fiyat Zero Gamma üstünde (${zg:,.0f}) — dealer LONG gamma")
                     else:

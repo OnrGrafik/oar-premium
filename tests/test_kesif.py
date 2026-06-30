@@ -145,6 +145,21 @@ def test_kesfet_edge_kombinasyon_one_cikar():
         assert b and "ort_net" in b and "wr" in b and "rr" in b
 
 
+def test_equity_sim():
+    from oar_kesif import _equity_sim
+    # 2 işlem: +%1 sonra +%1 net, 3x compound → 1000*(1.03)*(1.03)=1060.9
+    s = [{"ts": 1, "pct": 1.0}, {"ts": 2, "pct": 1.0}]
+    e = _equity_sim(s, kaldirac=3.0, baslangic=1000.0)
+    assert e["n"] == 2 and e["final"] == 1060.9 and e["iflas"] is False
+    # 1x aynı işlemler → 1000*1.01*1.01=1020.1
+    e1 = _equity_sim(s, kaldirac=1.0)
+    assert e1["final"] == 1020.1
+    # drawdown: +%10 sonra -%10 net (3x) → tepe sonrası düşüş ölçülür
+    d = _equity_sim([{"ts": 1, "pct": 10.0}, {"ts": 2, "pct": -10.0}], kaldirac=1.0)
+    assert d["max_dd_pct"] == 10.0     # 1100→990 = %10 DD
+    assert _equity_sim([], 3.0)["final"] == 1000.0
+
+
 def test_beklenti_hesap():
     from oar_kesif import _beklenti
     assert _beklenti([]) == {}
