@@ -1310,13 +1310,7 @@ function scrLive(){
     <div style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">CIO KARAR MOTORU — 7 Agent · Ağırlıklı Konfidans</div>
     <div id="cio-panel">${cioKararHtml()}</div>
   </div>
-  <div class="card" style="padding:14px 16px;margin-bottom:13px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">PAPER TRADE — Forward Test (sanal, gerçek para yok)</span>
-      <button onclick="loadPaper().then(updateCioPaperOnly)" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
-    </div>
-    <div id="paper-panel">${paperTradeHtml()}</div>
-  </div>
+  <!-- Generic CIO Paper Trade paneli kaldırıldı (artık OAR Paper-Trade kutusu var, sadece OAR) -->
   <div class="card" style="padding:14px 16px;margin-bottom:13px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <span style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">REJİM-UYUMLU HİPOTEZ AKTİVASYONU — kompozit rejim × backtest</span>
