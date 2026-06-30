@@ -1148,6 +1148,10 @@ async def startup_event():
         from paper_trade_agent import paper_trade_loop
         asyncio.create_task(paper_trade_loop())
         print("[Startup] ✅ Paper Trade Agent loop başlatıldı")
+        # OAR-CORE paper-trade kutusu (BTC+ETH, $1000 5x, aylık hafıza)
+        from oar_paper_box import dongu as oar_paper_dongu
+        asyncio.create_task(oar_paper_dongu())
+        print("[Startup] ✅ OAR Paper-Trade kutusu loop başlatıldı")
     except Exception as e:
         print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
 
@@ -2265,6 +2269,13 @@ async def paper_trades_gecmis(limit: int = 100, sembol: str = None):
     """Tüm paper trade geçmişi."""
     import persistence as _db
     return {"trades": _db.trade_gecmisi(limit, sembol)}
+
+
+@app.get("/api/oar-paper")
+async def oar_paper_endpoint():
+    """OAR-CORE paper-trade kutusu: bakiye, açık pozisyonlar, bu ayın işlemleri."""
+    from oar_paper_box import durum_ozet
+    return durum_ozet()
 
 
 @app.get("/api/leader/karar-gecmisi-db")
