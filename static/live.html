@@ -1032,6 +1032,43 @@ function hipotezHtml(){
   const bekHtml=bek.length?`<div style="font-size:8.5px;color:#5e716f;margin-top:6px">Beklemede: ${bek.map(b=>'Fib '+b.fib+' (WR%'+b.win_rate+')').join(' · ')}</div>`:'';
   return rk+aktifHtml+bekHtml;
 }
+function oarPaperHtml(){
+  const d=ST.oarPaper||{};
+  if(!d.bakiye&&d.bakiye!==0) return `<div style="font-size:11px;color:#5e716f;padding:6px 0">OAR paper-trade henüz başlamadı (ilk tik startup'tan ~30 sn sonra).</div>`;
+  const col=v=>v>=0?'#1ff0ad':'#ff5d6c';
+  const get=v=>d.getiri_pct||0;
+  const chip=(lab,val,c)=>`<span style="background:#0a0f0f;border:1px solid #1a2422;border-radius:5px;padding:3px 8px;color:${c||'#9fb0ad'}">${lab}: ${val}</span>`;
+  const yonBadge=y=>`<span style="background:${y==='LONG'?'#082417':'#2a0d11'};color:${y==='LONG'?'#1ff0ad':'#ff5d6c'};border-radius:4px;padding:1px 6px;font-weight:700">${y}</span>`;
+  // Açık pozisyonlar
+  const acik=Object.entries(d.acik_pozisyonlar||{}).map(([s,p])=>
+    `<span style="background:#0a140f;border:1px solid #15301f;border-radius:5px;padding:2px 7px">${esc(s.replace('USDT',''))} ${yonBadge(p.yon)} @${p.giris} <span style="color:#5e716f">TP ${p.tp}/SL ${p.sl}</span></span>`).join(' ')
+    ||'<span style="color:#5e716f">açık pozisyon yok</span>';
+  // İşlem tablosu (bu ay)
+  const satir=t=>`<tr style="border-top:1px solid #121a18">
+      <td style="padding:3px 6px">${esc(t.sembol.replace('USDT',''))}</td>
+      <td style="padding:3px 6px">${yonBadge(t.yon)}</td>
+      <td style="padding:3px 6px;color:#9fb0ad">${t.giris}→${t.cikis}</td>
+      <td style="padding:3px 6px;color:${t.sonuc==='TP'?'#1ff0ad':t.sonuc==='SL'?'#ff5d6c':'#ffb13c'}">${esc(t.sonuc)}</td>
+      <td style="padding:3px 6px;text-align:right;color:${col(t.pnl_usd)}">${t.pnl_usd>=0?'+':''}$${t.pnl_usd} <span style="color:#5e716f">(%${t.equity_pct})</span></td>
+      <td style="padding:3px 6px;text-align:right;color:#7af0c4">$${t.bakiye_sonra}</td></tr>`;
+  const tablo=(d.islemler||[]).length
+    ? `<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-top:6px">
+        <tr style="color:#5e716f;text-align:left"><th style="padding:3px 6px">Coin</th><th style="padding:3px 6px">Yön</th><th style="padding:3px 6px">Giriş→Çıkış</th><th style="padding:3px 6px">Sonuç</th><th style="padding:3px 6px;text-align:right">PnL</th><th style="padding:3px 6px;text-align:right">Bakiye</th></tr>
+        ${(d.islemler||[]).map(satir).join('')}</table>`
+    : '<div style="font-size:10px;color:#5e716f;padding:8px 0">Bu ay henüz kapanan işlem yok — sinyal bekleniyor.</div>';
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:9.5px;margin-bottom:8px">
+      ${chip('Bakiye','$'+d.bakiye,col(get()))}
+      ${chip('Getiri','%'+get(),col(get()))}
+      ${chip('Kaldıraç',d.kaldirac+'x','#ffb13c')}
+      ${chip('Bu ay işlem',d.bu_ay_islem||0)}
+      ${chip('WR','%'+(d.bu_ay_wr||0),'#7af0c4')}
+      ${chip('Bu ay PnL','$'+(d.bu_ay_pnl_usd||0),col(d.bu_ay_pnl_usd||0))}
+      ${chip('Başladı',esc(d.basladi||'—'),'#5e716f')}
+    </div>
+    <div style="font-size:9.5px;margin-bottom:4px">Açık: ${acik}</div>
+    ${tablo}`;
+}
+
 function btOtonomHtml(){
   const b=ST.btOtonom||{};
   if(b.hata) return `<div style="font-size:11px;color:#ff5d6c;padding:6px 0">${esc(b.hata)}</div>`;
@@ -1243,6 +1280,13 @@ function scrLive(){
       <button onclick="loadBacktestOtonom().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
     </div>
     <div id="bt-otonom-panel">${btOtonomHtml()}</div>
+  </div>
+  <div class="card" style="padding:14px 16px;margin-bottom:13px;border:1px solid #15301f">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 OAR PAPER-TRADE — BTC+ETH · $1000 · 5x · OAR-CORE sinyali (canlı forward-test, bu ay)</span>
+      <button onclick="loadOarPaper().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
+    </div>
+    <div id="oar-paper-panel">${oarPaperHtml()}</div>
   </div>
   <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:13px;height:calc(100vh - 250px);min-height:420px">
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
@@ -1464,6 +1508,7 @@ async function loadKarar(){const d=await jget('/api/leader/karar?sembol=BTCUSDT&
 async function loadPaper(){const d=await jget('/api/leader/paper-trades');if(d&&!d.detail)ST.paper=d;}
 async function loadHipotez(){const d=await jget('/api/leader/aktif-hipotezler?symbol=BTCUSDT');if(d&&!d.detail)ST.hipotez=d;}
 async function loadBacktestOtonom(){const d=await jget('/api/backtest/otonom');if(d)ST.btOtonom=d;}
+async function loadOarPaper(){const d=await jget('/api/oar-paper');if(d&&!d.detail)ST.oarPaper=d;}
 // ── Komuta Merkezi: indikatör + opsiyon skoru + grafik ──
 async function loadIndicators(){const d=await jget('/api/indicators?symbol=BTCUSDT&interval=5m');if(d&&!d.hata)ST.indicators=d;}
 async function loadOptScore(){const d=await jget('/api/options/gex?currency=BTC');if(d&&!d.error)ST.optScore=d;}
@@ -1581,13 +1626,13 @@ async function boot(){
   tickClock();setInterval(tickClock,1000);
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom];
+  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom,loadOarPaper];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadKomuta();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadPaper();await loadHipotez();await loadBacktestOtonom();
+  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadKomuta();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadPaper();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();
     if(ST.tab==='live'){updateFeedOnly();updateCioPaperOnly();}
     else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);
