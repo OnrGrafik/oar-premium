@@ -219,13 +219,22 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     from collections import defaultdict
     from footprint_engine import aggressor_delta
 
-    # 1) Klines → günlük Asya/fib/post (küçük)
+    # 0) Bozuk satırları ele: open_time geçerli ms aralığında olmalı (~2014–2033).
+    #    Aksi halde devasa/negatif gün indeksi tarih taşması yapar (OverflowError).
+    OT_MIN, OT_MAX = 1_400_000_000_000, 2_000_000_000_000
     k = klines
+    gecerli = (k["open_time"] >= OT_MIN) & (k["open_time"] < OT_MAX)
+    if not bool(gecerli.all()):
+        atilan = int((~gecerli).sum())
+        print(f"      ⚠ {atilan} bozuk klines satırı (geçersiz open_time) atlandı", flush=True)
+        k = k[gecerli]
+
+    # 1) Klines → günlük Asya/fib/post (küçük)
     gun_arr = (k["open_time"] // GUN_MS).astype("int64")
     saat = (k["open_time"] % GUN_MS) / SAAT_MS
     k = k.assign(gun=gun_arr, saat=saat)
 
-    htf = _htf_hesapla(klines)   # HTF anchored VWAP (W/M/Q), no-lookahead
+    htf = _htf_hesapla(k)        # HTF anchored VWAP (W/M/Q), no-lookahead (filtreli k)
     gunler = {}
     for gun, kg in k.groupby("gun"):
         asia = kg[(kg["saat"] >= ASIA_BAS_UTC) & (kg["saat"] < ASIA_BIT_UTC)]
@@ -327,8 +336,11 @@ def _htf_hesapla(klines):
     cum = {"w": [0.0, 0.0], "m": [0.0, 0.0], "q": [0.0, 0.0]}
     prev = {"w": None, "m": None, "q": None}
     for r in gunluk.itertuples():
+        g = int(r.gun)
+        if not (10000 <= g <= 50000):   # ~1997–2106; dışı bozuk veri → atla (taşma önle)
+            continue
         # epoch + gün (platform-bağımsız; Windows fromtimestamp OSError'ını önler)
-        d = _EPOCH + _td(days=int(r.gun))
+        d = _EPOCH + _td(days=g)
         ic = d.isocalendar()
         anahtar = {"w": (ic[0], ic[1]), "m": (d.year, d.month),
                    "q": (d.year, (d.month - 1) // 3)}
@@ -337,7 +349,7 @@ def _htf_hesapla(klines):
                 cum[key] = [0.0, 0.0]
                 prev[key] = anahtar[key]
         # Bugünü EKLEMEDEN önceki birikim → no-lookahead VWAP
-        out[int(r.gun)] = {
+        out[g] = {
             f"vwap_{key}": (cum[key][0] / cum[key][1] if cum[key][1] else None)
             for key in ("w", "m", "q")
         }
