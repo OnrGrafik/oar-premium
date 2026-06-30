@@ -1160,6 +1160,10 @@ async def startup_event():
         from oar_swing import dongu as oar_swing_dongu
         asyncio.create_task(oar_swing_dongu())
         print("[Startup] ✅ OAR Swing Sistem loop başlatıldı")
+        # Kitapları otomatik tara+yükle (kitaplar_kaynak klasörü → FTS5 DB)
+        from kitap_otomatik import otomatik_yukle
+        asyncio.create_task(otomatik_yukle())
+        print("[Startup] ✅ Kitap otomatik yükleyici başlatıldı")
     except Exception as e:
         print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
 
@@ -2291,6 +2295,44 @@ async def oar_altcoin_endpoint():
     """OAR Altcoin Sistem: açık (DEVAM) + bu haftanın kapananları + haftalık K/Z."""
     from oar_altcoin_sistem import durum_ozet
     return durum_ozet()
+
+
+@app.get("/api/veri-teshis")
+async def veri_teshis(sembol: str = "BTCUSDT"):
+    """
+    BTC/coin yorumunun kullandığı tüm veri kaynaklarını tek tek test eder ve
+    hangisi çekilemiyor raporlar. 'BTC yorumu dolmuyor' teşhisi için.
+    """
+    sonuc = {"sembol": sembol}
+    kok = sembol.replace("USDT", "")
+
+    async def _dene(ad, coro):
+        try:
+            r = await coro
+            ok = bool(r) if not isinstance(r, dict) else not r.get("error") and not r.get("hata")
+            sonuc[ad] = "OK" if ok else f"BOŞ/HATA: {str(r)[:80]}"
+        except Exception as e:
+            sonuc[ad] = f"HATA: {str(e)[:80]}"
+
+    from exchange_client import klines as _k, ticker_price as _t, saglik_kontrol
+    sonuc["borsa_saglik"] = await saglik_kontrol()
+    await _dene("klines_1h", _k(sembol, "1h", 50, futures=False))
+    await _dene("klines_15m", _k(sembol, "15m", 50, futures=False))
+    await _dene("ticker", _t(sembol, futures=False))
+    try:
+        from oar_session_agent import oar_analiz
+        a = await oar_analiz(sembol)
+        sonuc["oar_analiz"] = f"OK (skor {a.get('skor')}, yon {a.get('yon')})" if a.get("skor") is not None else f"BOŞ: {str(a)[:80]}"
+    except Exception as e:
+        sonuc["oar_analiz"] = f"HATA: {str(e)[:80]}"
+    if kok in ("BTC", "ETH"):
+        try:
+            from options_engine import gex_ozet
+            g = await gex_ozet(kok)
+            sonuc["opsiyon_gex"] = "OK" if not g.get("error") else f"HATA: {g.get('error')}"
+        except Exception as e:
+            sonuc["opsiyon_gex"] = f"HATA: {str(e)[:80]}"
+    return sonuc
 
 
 @app.get("/api/oar-swing")
