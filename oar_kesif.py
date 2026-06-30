@@ -47,6 +47,33 @@ def _filtre(sinyaller: list, bloklar: list):
     return out
 
 
+def _equity_sim(sinyaller: list, kaldirac: float = 3.0, baslangic: float = 1000.0) -> dict:
+    """
+    Gerçek işlem sırasında (zamanca) tüm bakiyeyi her işleme koyup compound eden
+    equity simülasyonu. net pct fiyat hareketi (fee+slip düşülmüş); equity getirisi
+    kaldirac × net. UYARI: %100-bakiye + sıralı varsayımı; gerçek pozisyon
+    boyutlandırması bu sayıyı çok düşürür. Edge'in büyüklüğünü gösterir, hesap
+    projeksiyonu DEĞİL. max_dd = en büyük tepe-dip düşüşü.
+    """
+    ss = sorted(sinyaller, key=lambda s: s.get("ts", 0))
+    eq = tepe = baslangic
+    max_dd = 0.0
+    iflas = False
+    for s in ss:
+        net = float(s.get("pct", 0.0) or 0.0) / 100.0
+        eq *= (1.0 + kaldirac * net)
+        if eq <= 0:
+            eq = 0.0; iflas = True; break
+        if eq > tepe:
+            tepe = eq
+        dd = (tepe - eq) / tepe if tepe > 0 else 0.0
+        if dd > max_dd:
+            max_dd = dd
+    return {"baslangic": baslangic, "kaldirac": kaldirac, "n": len(ss),
+            "final": round(eq, 2), "kat": round(eq / baslangic, 2) if baslangic else 0,
+            "max_dd_pct": round(max_dd * 100, 1), "iflas": iflas}
+
+
 def _holdout_ayir(sinyaller: list, holdout_orani: float):
     """Zamanca son holdout_orani dilimi = dokunulmamış HOLDOUT; öncesi ARAMA."""
     if not sinyaller:
@@ -127,8 +154,12 @@ def kesfet(sinyaller: list, blok_havuzu: list = None,
         # Sağlamlık: OOS'ta iyi + holdout'ta da ayakta mı?
         a["saglam"] = (a["oos_puan"] >= 50 and a["holdout_puan"] >= 50)
         # Net beklenti/kârlılık: tüm filtreli havuz (2021-2025 realize) + holdout
-        a["beklenti"] = _beklenti(_filtre(sinyaller, a["bloklar"]) or [])
+        ff = _filtre(sinyaller, a["bloklar"])
+        a["beklenti"] = _beklenti(ff)
         a["holdout_beklenti"] = _beklenti(hf)
+        # $1000 equity simülasyonu (1x ve 3x, compound, gerçek işlem sırası)
+        a["equity_1x"] = _equity_sim(ff, kaldirac=1.0)
+        a["equity_3x"] = _equity_sim(ff, kaldirac=3.0)
 
     return {
         "toplam_aday": len(adaylar),
@@ -165,5 +196,14 @@ def rapor(sonuc: dict) -> str:
                 f"({karli}) | birikimli net %{b['toplam_net']} | "
                 f"PF {pf if pf is not None else '∞'} | R:R {rr if rr is not None else '∞'} "
                 f"| ort kazanç %{b['ort_kazanc']} / ort kayıp %{b['ort_kayip']}"
+            )
+        e1 = a.get("equity_1x") or {}; e3 = a.get("equity_3x") or {}
+        if e1 and e3:
+            ifl = " ⚠İFLAS" if e3.get("iflas") else ""
+            sat.append(
+                f"       ↳ $1000 (compound, %100-bakiye): "
+                f"1x→${e1['final']:,} ({e1['kat']}x, maxDD %{e1['max_dd_pct']}) | "
+                f"3x→${e3['final']:,} ({e3['kat']}x, maxDD %{e3['max_dd_pct']}){ifl} "
+                f"— illüstratif; gerçek pozisyon boyutu bunu düşürür"
             )
     return "\n".join(sat)
