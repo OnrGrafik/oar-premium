@@ -145,6 +145,21 @@ async def _veri_topla(sembol: str, kok: str) -> dict:
         veri["yapi"] = {}
         hata_listesi.append(f"structure: {str(e)[:60]}")
 
+    # 3b. Piyasa Yapısı (4h) — yanıltıcı olmaması için üst zaman dilimi bağlamı
+    try:
+        from market_structure_agent import market_structure_analiz
+        yapi4 = await market_structure_analiz(sembol, "4h", 60)
+        veri["yapi_4h"] = {
+            "yapi":   yapi4.get("yapi", "UNKNOWN"),
+            "adx":    yapi4.get("adx", 0),
+            "bos":    yapi4.get("bos", "YOK"),
+            "choch":  yapi4.get("choch", "YOK"),
+            "zincir": yapi4.get("zincir", "BELIRSIZ"),
+        }
+    except Exception as e:
+        veri["yapi_4h"] = {}
+        hata_listesi.append(f"structure_4h: {str(e)[:60]}")
+
     # 4. Opsiyon Verisi (sadece BTC ve ETH)
     try:
         from options_engine import gex_ozet, alarm_levels
@@ -523,12 +538,24 @@ def _telegram_mesaj_olustur(veri: dict, tetikler: list, ai_yorum: str) -> str:
         flow.get("karar", ""), "?")
     gex = opsiyonlar.get("gamma_rejim", "—")
 
+    yapi = veri.get("yapi", {})
+    yapi4 = veri.get("yapi_4h", {})
+
     satirlar = [
         f"OAR — {kok} Anlik Yorum",
         f"${fiyat:,.0f}  |  Seans: {seans.get('aktif','?')}  |  Flow: {flow_emoji}",
         "",
         f"Tetikleyen: {' | '.join(tetikler)}",
     ]
+
+    # Çoklu zaman dilimi bağlamı (1h + 4h) — kısa vadeli sinyal yanıltmasın
+    def _tf_ozet(y):
+        if not y:
+            return "veri yok"
+        return (f"{y.get('yapi','?')} · trend {y.get('zincir','?')} · "
+                f"BOS {y.get('bos','?')}/CHoCH {y.get('choch','?')} · ADX {y.get('adx',0)}")
+    satirlar.append(f"1H: {_tf_ozet(yapi)}")
+    satirlar.append(f"4H: {_tf_ozet(yapi4)}")
 
     # Resmi trade kararı (Supervisor) — lider'in nihai kararı
     sup_karar = sup.get("karar", "")
