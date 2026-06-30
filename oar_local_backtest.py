@@ -456,7 +456,12 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
         balina_esik = g.get("delta_abs_esik", 0.0)
         ts_list, close_list = g["post_ts"], g["post_close"]
         alinan = set()
+        bd_run = 0.0; bd_lvl = None      # girişe kadarki en büyük |delta| barı (no-lookahead)
         for j, (ts, fiyat) in enumerate(zip(ts_list, close_list)):
+            # Çalışan "büyük delta seviyesi" — yalnız [0..j] barları (geleceğe bakmaz)
+            _d = _dk_deger(delta_map, ts)
+            if abs(_d) > abs(bd_run):
+                bd_run = _d; bd_lvl = fiyat
             oran = temas_eden_fib(fiyat, fibs, tol)
             if oran is None or oran in alinan:
                 continue
@@ -487,6 +492,13 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                 "absorp": bool(absorp), "reclaim": bool(reclaim),
                 "outcome": out, "pct": net,
             }
+            # footprint_kalicilik (no-lookahead): girişe kadarki büyük |delta| seviyesi
+            # fade-uyumlu tarafta tutmuş mu (SHORT→fiyat seviyenin altında=direnç tuttu).
+            if bd_lvl is not None and balina_esik > 0 and abs(bd_run) >= balina_esik:
+                if yon == "SHORT":
+                    kayit["kalicilik"] = bool(fiyat <= bd_lvl * 1.001)
+                else:
+                    kayit["kalicilik"] = bool(fiyat >= bd_lvl * 0.999)
             # OI / whale-retail (metrics varsa) — yoksa alan eklenmez → blok None → atlanır
             oi_map = g.get("oi_map")
             if oi_map:
