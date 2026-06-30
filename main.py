@@ -1794,6 +1794,10 @@ async def _opsiyon_yorum_hesapla(currency: str = "BTC"):
         "zero_gamma": genel.get("zero_gamma"), "max_pain": genel.get("max_pain"),
         "opsiyon_cvd": cvd.get("guncel"), "cvd_yon": cvd.get("yon"),
     }
+    # Anahtar yoksa sonsuz "hesaplanıyor"da kalmasın — net mesaj dön
+    if not os.environ.get("GEMINI_API_KEY", ""):
+        return {"veri": veri,
+                "yorum": "⚠ AI opsiyon yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."}
     # AI yorumu: taze cache varsa onu dön; yoksa arka planda üret, sayfayı bloklama
     c = _OPSIYON_YORUM_CACHE.get(currency)
     taze = c and (time.time() - c["ts"] < _OPSIYON_YORUM_TTL)
@@ -1856,6 +1860,8 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
 
     api_key = os.environ.get("GEMINI_API_KEY", "")
     yorum = ""
+    if not api_key:
+        yorum = "⚠ AI grafik yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."
     if api_key:
         setup_metin = ""
         if trade.get("setuplar"):
@@ -1945,6 +1951,8 @@ async def _piyasa_durumu_hesapla():
     api_key = os.environ.get("GEMINI_API_KEY", "")
     yorum = ""
     bolumler = {"teknik": "", "temel": "", "psikoloji": ""}
+    if not api_key:
+        yorum = "⚠ AI piyasa yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."
     if api_key:
         prompt = f"""Sen OAR Premium piyasa analistisin. BTC için ÜÇ BAŞLIKTA piyasa durumu analizi yap.
 Bilimsel, matematiksel, Türkçe. Önemli rakam/seviyeleri **çift yıldız** ile vurgula.
