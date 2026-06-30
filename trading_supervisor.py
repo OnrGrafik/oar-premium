@@ -241,11 +241,44 @@ def _likidite_filtresi(likidite: dict) -> dict:
 
 # ─── Ana Karar Motoru ─────────────────────────────────────────────
 
+def _oar_kapi_uygula(karar: str, yon: str, oar_yon):
+    """
+    OAR OTORİTE KAPISI (saf) — Faz 5: her şey OAR'a göre.
+    Trade yalnız OAR sistemi AYNI yönü onaylarsa geçer; aksi halde NO_TRADE.
+    Döner: (karar, yon, mesaj, onay_mi).
+    """
+    if karar == "NO_TRADE":
+        return karar, yon, None, False
+    if oar_yon not in ("LONG", "SHORT"):
+        return "NO_TRADE", "YOK", "OAR onayı yok → NO_TRADE", False
+    if oar_yon != yon:
+        return "NO_TRADE", "YOK", f"OAR {oar_yon} ≠ sistem {yon} → OAR'a karşı işlem yok", False
+    return karar, yon, f"OAR {oar_yon} yön teyitli", True
+
+
+async def _oar_otorite(sembol: str):
+    """OAR sisteminin yönü (OAR-CORE confluence öncelikli, yoksa OAR agent yönü)."""
+    try:
+        from oar_session_agent import oar_analiz
+        a = await oar_analiz(sembol)
+    except Exception as e:
+        return None, f"OAR analiz alınamadı: {str(e)[:50]}"
+    core = [s for s in (a.get("setup_listesi") or []) if "OAR-CORE" in s]
+    if core:
+        yon = "LONG" if "LONG" in core[0] else "SHORT" if "SHORT" in core[0] else a.get("yon")
+        return (yon if yon in ("LONG", "SHORT") else None), "OAR-CORE confluence"
+    yon = a.get("yon")
+    if yon in ("LONG", "SHORT"):
+        return yon, f"OAR agent {yon} (skor {a.get('skor', 0)})"
+    return None, "OAR NEUTRAL/sinyal yok"
+
+
 async def supervisor_karar(
     sembol: str = "BTCUSDT",
     mod: str = "scalper",
     seans_filtresi_aktif: bool = True,
     likidite_zorunlu: bool = False,
+    oar_otorite: bool = True,
 ) -> dict:
     """
     Tüm agent'ları çalıştırır ve final TRADE/NO_TRADE kararı verir.
@@ -349,6 +382,17 @@ async def supervisor_karar(
     else:
         yon = edge.get("yon", "YOK")
         karar = f"TRADE_{yon}" if yon in ("LONG", "SHORT") else "NO_TRADE"
+
+    # ── OAR OTORİTESİ (Faz 5): trade yalnız OAR onaylarsa açılır ────────
+    # Diğer kurallar bağlam/stop/RR sağlar ama OAR'a karşı işlem açtırmaz.
+    # Opsiyon ve makro filtrelerine DOKUNULMAZ (kullanıcı talebi).
+    if oar_otorite:
+        oar_yon, oar_neden = await _oar_otorite(sembol)
+        karar, yon, oar_mesaj, oar_onay = _oar_kapi_uygula(karar, yon, oar_yon)
+        if oar_mesaj:
+            (onay_listesi if oar_onay else red_listesi).append(f"[OAR] {oar_neden} — {oar_mesaj}")
+        if oar_onay:
+            guven = min(100, guven + 10)
 
     ozet_parcalar = [
         f"{'✅' if karar != 'NO_TRADE' else '❌'} {karar} | Güven: %{guven} | Sembol: {sembol} | Mod: {mod}",
