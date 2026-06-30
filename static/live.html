@@ -1306,21 +1306,10 @@ function scrLive(){
         <span class="sg" style="font-weight:600;font-size:15px;color:${i.col}">${i.v}</span>
         <span style="font-size:10px;color:#5e716f">${i.d}</span></div></div>`).join('')}
   </div>
-  <div class="card" style="padding:14px 16px;margin-bottom:13px">
-    <div style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">CIO KARAR MOTORU — 7 Agent · Ağırlıklı Konfidans</div>
-    <div id="cio-panel">${cioKararHtml()}</div>
-  </div>
-  <!-- Generic CIO Paper Trade paneli kaldırıldı (artık OAR Paper-Trade kutusu var, sadece OAR) -->
+  <!-- CIO KARAR MOTORU ve REJİM-UYUMLU HİPOTEZ panelleri kaldırıldı (sadece OAR) -->
   <div class="card" style="padding:14px 16px;margin-bottom:13px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">REJİM-UYUMLU HİPOTEZ AKTİVASYONU — kompozit rejim × backtest</span>
-      <button onclick="loadHipotez().then(updateCioPaperOnly)" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
-    </div>
-    <div id="hipotez-panel">${hipotezHtml()}</div>
-  </div>
-  <div class="card" style="padding:14px 16px;margin-bottom:13px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#5e716f">BACKTEST BULGULARI — Otonom motor (Binance+OI+GEX+VPFR), sürekli güncellenir</span>
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">OAR BACKTEST BULGULARI — Otonom OAR motoru (Asia Range fib + OI + GEX + VPFR), sürekli OAR backtest</span>
       <button onclick="loadBacktestOtonom().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
     </div>
     <div id="bt-otonom-panel">${btOtonomHtml()}</div>
@@ -1361,7 +1350,7 @@ function scrLive(){
     </div>
   </div>
 
-  <div style="margin-top:22px">${scrTheory()}</div>
+  <!-- Theory Lab kaldırıldı (OAR tezi üretmiyordu; sadece OAR) -->
 
   <div style="margin-top:18px">
     <div class="sg" style="font-size:9.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:11px">AGENT BOTLAR — verileri işleyen agentler</div>
