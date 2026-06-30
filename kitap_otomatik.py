@@ -15,7 +15,12 @@ from pathlib import Path
 
 
 def _kaynak_klasorler():
+    import os
     kl = [Path("kitaplar_kaynak")]
+    # Env ile elle yol göster (örn: C:\Users\ONURKLNC\Desktop\Data\kitaplar)
+    env_yol = os.environ.get("KITAP_KAYNAK_DIR", "").strip()
+    if env_yol:
+        kl.append(Path(env_yol))
     try:
         from data_ingest import hist_dir
         kl.append(hist_dir() / "kitaplar_kaynak")
@@ -49,10 +54,13 @@ def tara_ve_yukle() -> dict:
     toplam_parca = 0
     atlanan = 0
     for klasor in klasorler:
-        for p in sorted(klasor.iterdir()):
-            if p.suffix.lower() not in (".pdf", ".txt", ".md"):
+        # ÖZYİNELEMELİ tara (alt klasörler dahil); kategori = bulunduğu alt klasör adı
+        for p in sorted(klasor.rglob("*")):
+            if not p.is_file() or p.suffix.lower() not in (".pdf", ".txt", ".md"):
                 continue
             baslik = p.stem
+            # kategori: dosyanın bulunduğu alt klasör adı (kök ise 'genel')
+            kategori = p.parent.name if p.parent != klasor else "genel"
             if baslik in mevcut:
                 atlanan += 1
                 continue
@@ -62,7 +70,7 @@ def tara_ve_yukle() -> dict:
                 if len(metin) < 100:
                     continue
                 parcalar = _parcala(metin)
-                docs = [{"title": baslik, "category": "genel", "chunk_idx": i,
+                docs = [{"title": baslik, "category": kategori, "chunk_idx": i,
                          "content": parca,
                          "added_at": datetime.now(timezone.utc).isoformat()}
                         for i, parca in enumerate(parcalar)]
@@ -70,7 +78,7 @@ def tara_ve_yukle() -> dict:
                 mevcut.add(baslik)
                 yeni_kitap += 1
                 toplam_parca += len(parcalar)
-                print(f"[Kitap] otomatik yüklendi: {baslik} ({len(parcalar)} parça)")
+                print(f"[Kitap] otomatik yüklendi: [{kategori}] {baslik} ({len(parcalar)} parça)")
             except Exception as e:
                 print(f"[Kitap] {p.name} yüklenemedi: {str(e)[:60]}")
     return {"durum": "tamam", "yuklenen": yeni_kitap, "parca": toplam_parca,
