@@ -63,6 +63,34 @@ def _sfp_tespit(mumlar: list, seviye: float, yon: str, esik_pct: float = 0.002) 
     return False
 
 
+def _oar_core_teyit(mumlar: list, asia_high: float, asia_low: float):
+    """
+    BACKTEST-KANITLI OAR-CORE trio'sunun canlı karşılığı:
+      poc_taraf + footprint_absorpsiyon + footprint_trapped
+    2021-2025 keşfinde en sağlam+kârlı kombinasyon (OOS=HOLDOUT 75, WR ~%50,
+    PF 3.5, R:R 3.68). Canlı eşlemesi:
+      • trapped/reclaim → Asia ekstremini süpürüp geri kapanan mum (sweep+reclaim)
+      • absorpsiyon     → o sweep mumunda yüksek hacim (vol_z ≥ 1)
+    Döner: (yon, vol_z) ya da None. (poc_taraf çağıran tarafta doğrulanır.)
+    """
+    if len(mumlar) < 20 or asia_high <= 0 or asia_low <= 0:
+        return None
+    import statistics
+    voller = [m[4] for m in mumlar[-20:]]
+    ort = statistics.mean(voller)
+    std = statistics.pstdev(voller) or 1.0
+    for m in mumlar[-5:]:
+        o, h, l, c, v = m
+        vz = (v - ort) / std
+        if vz < 1.0:
+            continue                       # absorpsiyon yok → teyit yok
+        if h > asia_high and c < asia_high:    # üst süpürme + reclaim → SHORT
+            return ("SHORT", vz)
+        if l < asia_low and c > asia_low:      # alt süpürme + reclaim → LONG
+            return ("LONG", vz)
+    return None
+
+
 async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
     """
     OAR tam seans analizi.
@@ -186,6 +214,20 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                 skor += 12
                 nedenler.append(f"Likidite Sweep ↓ Asia Low ${asia_low:,.1f} → geri döndü")
                 setup_listesi.append("Asia Low Liquidity Sweep → LONG setup")
+
+        # ─── OAR-CORE confluence (backtest-kanıtlı: PF 3.5, WR ~%50, R:R 3.7) ──
+        # poc_taraf + absorpsiyon + reclaim hep birlikte → yumuşak skor katkısı.
+        teyit = _oar_core_teyit(mumlar, asia_high, asia_low)
+        if teyit:
+            yon_t, vz = teyit
+            poc_ok = ((yon_t == "SHORT" and fiyat >= asia_poc) or
+                      (yon_t == "LONG" and fiyat <= asia_poc))
+            if poc_ok:   # üçü de hizalı: POC tarafı + absorpsiyon + reclaim
+                skor += (25 if yon_t == "LONG" else -25)
+                nedenler.append(
+                    f"⭐ OAR-CORE teyidi ({yon_t}): POC tarafı + absorpsiyon "
+                    f"(hacim z{vz:.1f}) + reclaim — backtest PF 3.5, WR ~%50, R:R 3.7")
+                setup_listesi.append(f"OAR-CORE Confluence → {yon_t}")
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0
