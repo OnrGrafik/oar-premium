@@ -206,6 +206,24 @@ def _aggt_ay_yollari(sembol, bas, bit, borsa="binance"):
     return yollar
 
 
+def _ms_olcekle(ts):
+    """
+    Timestamp serisini MİLİSANİYE'ye normalize et. Binance dump'ları:
+      ms  ~1.3e12–2.0e12 (13 hane) — 2024 ve öncesi
+      µs  ~1.3e15–2.0e15 (16 hane) — 2025+ (yeni format)
+      ns  ~1.3e18        (19 hane) — olası
+    Medyan büyüklüğüne bakıp uygun böleni uygular (satır bazlı değil, ölçek bazlı).
+    """
+    import numpy as np
+    arr = np.asarray(ts, dtype="float64")
+    med = float(np.nanmedian(arr)) if arr.size else 0.0
+    if med > 1e17:
+        return ts // 1_000_000      # ns → ms
+    if med > 1e14:
+        return ts // 1_000          # µs → ms
+    return ts                       # zaten ms
+
+
 # ─── Gün-bazlı ön hesap — STREAMING (bellek-güvenli) ─────────────────────────
 def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     """
@@ -219,10 +237,14 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     from collections import defaultdict
     from footprint_engine import aggressor_delta
 
-    # 0) Bozuk satırları ele: open_time geçerli ms aralığında olmalı (~2014–2033).
-    #    Aksi halde devasa/negatif gün indeksi tarih taşması yapar (OverflowError).
+    # 0) Timestamp ölçeği normalize: Binance 2025+ dump'ları MİKROSANİYE (16 hane),
+    #    öncesi MİLİSANİYE (13 hane). Hepsini ms'e indir; yoksa 2025 verisi düşer.
+    k = klines.copy()
+    k["open_time"] = _ms_olcekle(k["open_time"])
+
+    # Bozuk satırları ele: open_time geçerli ms aralığında olmalı (~2014–2033).
+    # Aksi halde devasa/negatif gün indeksi tarih taşması yapar (OverflowError).
     OT_MIN, OT_MAX = 1_400_000_000_000, 2_000_000_000_000
-    k = klines
     gecerli = (k["open_time"] >= OT_MIN) & (k["open_time"] < OT_MAX)
     if not bool(gecerli.all()):
         atilan = int((~gecerli).sum())
@@ -257,6 +279,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     for i, yol in enumerate(aggt_yollari, 1):
         print(f"      · aggTrades {yol.name} ({i}/{len(aggt_yollari)}) işleniyor…", flush=True)
         a = pd.read_parquet(yol, columns=["timestamp", "price", "quantity", "is_buyer_maker"])
+        a["timestamp"] = _ms_olcekle(a["timestamp"])   # 2025+ µs → ms normalize
         a["gun"] = (a["timestamp"] // GUN_MS).astype("int64")
         a["dk"] = (a["timestamp"] // 60_000).astype("int64")
         a["delta"] = aggressor_delta(a)
@@ -300,6 +323,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     # 4) Metrics (OI + whale/retail L/S) — varsa gün-bazlı dk haritaları
     if metrics_df is not None and len(metrics_df):
         m = metrics_df.copy()
+        m["ts_ms"] = _ms_olcekle(m["ts_ms"])   # 2025+ µs → ms normalize
         m["gun"] = (m["ts_ms"] // GUN_MS).astype("int64")
         m["dk"] = (m["ts_ms"] // 60_000).astype("int64")
         for gun, mg in m.groupby("gun"):
