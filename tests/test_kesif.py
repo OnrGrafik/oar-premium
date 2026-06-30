@@ -62,6 +62,25 @@ def test_filtre_kismi_veri_altkume():
     assert len(f) == 1 and f[0]["ts"] == 1
 
 
+def test_vpfr_deger_alani():
+    import oar_local_backtest as lb
+    assert lb._vpfr_deger_alani({}) == (None, None, None)
+    # POC=100 (en yüksek hacim); %70 değer alanı POC etrafında genişler
+    bins = {98: 1.0, 99: 2.0, 100: 10.0, 101: 3.0, 102: 1.0}
+    poc, vah, val = lb._vpfr_deger_alani(bins, va_pct=0.70)
+    assert poc == 100
+    assert val <= 100 <= vah          # değer alanı POC'u içerir
+    assert 99 <= val and vah <= 101   # yüksek hacimli komşular önce eklenir
+
+
+def test_htf_vpfr_blok():
+    from oar_sinyaller import htf_vpfr, AKTIF_BLOKLAR
+    assert htf_vpfr({"htf_vpfr_ok": True}) is True
+    assert htf_vpfr({"htf_vpfr_ok": False}) is False
+    assert htf_vpfr({}) is None
+    assert "htf_vpfr" in AKTIF_BLOKLAR
+
+
 def test_footprint_kalicilik_blok():
     from oar_sinyaller import footprint_kalicilik, AKTIF_BLOKLAR
     assert footprint_kalicilik({"kalicilik": True}) is True
