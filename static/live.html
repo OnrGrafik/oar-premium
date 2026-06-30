@@ -394,7 +394,25 @@ function scrLeader(){
     <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${esc(oy.yorum||'Opsiyon analizi yükleniyor... (Deribit verileri + opsiyon kitapları)')}</div>
   </div>
 
-  ${komutaKutulariHtml()}`;
+  ${komutaKutulariHtml()}
+
+  <!-- 📦 OAR PAPER-TRADE (BTC+ETH) — komuta merkezine taşındı -->
+  <div class="card" style="padding:14px 16px;margin:13px 0;border:1px solid #15301f">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 OAR PAPER-TRADE — BTC+ETH · $1000 · 5x · OAR-CORE sinyali (canlı forward-test, bu ay)</span>
+      <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
+    </div>
+    <div id="oar-paper-panel">${oarPaperHtml()}</div>
+  </div>
+
+  <!-- 🅰 OAR ALTCOIN SİSTEM — Top-100 altcoin (BTC/ETH/stabil hariç) -->
+  <div class="card" style="padding:14px 16px;margin-bottom:13px;border:1px solid #2a2410">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 OAR ALTCOIN SİSTEM — Top-100 altcoin · OAR paper-trade · giriş/devam/kapanış · Telegram + haftalık K/Z</span>
+      <button onclick="loadOarAltcoin().then(()=>{render();})" style="font-size:10px;color:#ffd479;background:none;border:1px solid #2a2410;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
+    </div>
+    <div id="oar-altcoin-panel">${oarAltcoinHtml()}</div>
+  </div>`;
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
@@ -1069,6 +1087,38 @@ function oarPaperHtml(){
     ${tablo}`;
 }
 
+function oarAltcoinHtml(){
+  const d=ST.oarAltcoin||{};
+  const col=v=>v>=0?'#1ff0ad':'#ff5d6c';
+  const chip=(lab,val,c)=>`<span style="background:#0a0f0f;border:1px solid #1a2422;border-radius:5px;padding:3px 8px;color:${c||'#9fb0ad'}">${lab}: ${val}</span>`;
+  const yonBadge=y=>`<span style="background:${y==='LONG'?'#082417':'#2a0d11'};color:${y==='LONG'?'#1ff0ad':'#ff5d6c'};border-radius:4px;padding:1px 6px;font-weight:700">${y}</span>`;
+  const durumBadge=s=>{const c=s==='DEVAM'?'#ffb13c':'#7af0c4';return `<span style="color:${c};font-weight:700">${s}</span>`;};
+  const acik=(d.acik_pozisyonlar||[]).map(p=>`<tr style="border-top:1px solid #121a18">
+      <td style="padding:3px 6px">${esc((p.sembol||'').replace('USDT',''))}</td>
+      <td style="padding:3px 6px">${yonBadge(p.yon)}</td>
+      <td style="padding:3px 6px">${durumBadge('DEVAM')}</td>
+      <td style="padding:3px 6px;color:#9fb0ad">${p.giris} <span style="color:#5e716f">TP ${p.tp}/SL ${p.sl}</span></td>
+      <td style="padding:3px 6px;text-align:right;color:#5e716f">açık</td></tr>`).join('');
+  const kapali=(d.kapananlar||[]).map(t=>`<tr style="border-top:1px solid #121a18">
+      <td style="padding:3px 6px">${esc((t.sembol||'').replace('USDT',''))}</td>
+      <td style="padding:3px 6px">${yonBadge(t.yon)}</td>
+      <td style="padding:3px 6px">${durumBadge('KAPANIŞ')} <span style="font-size:8px;color:${t.sonuc==='TP'?'#1ff0ad':t.sonuc==='SL'?'#ff5d6c':'#ffb13c'}">${esc(t.sonuc)}</span></td>
+      <td style="padding:3px 6px;color:#9fb0ad">${t.giris}→${t.cikis}</td>
+      <td style="padding:3px 6px;text-align:right;color:${col(t.equity_pct)}">%${t.equity_pct>=0?'+':''}${t.equity_pct}</td></tr>`).join('');
+  const bos=!(d.acik_pozisyonlar||[]).length&&!(d.kapananlar||[]).length;
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:9.5px;margin-bottom:8px">
+      ${chip('Hafta',esc(d.hafta||'—'),'#7af0c4')}
+      ${chip('Açık',d.acik_sayisi||0,'#ffb13c')}
+      ${chip('Bu hafta işlem',d.bu_hafta_islem||0)}
+      ${chip('WR','%'+(d.bu_hafta_wr||0),'#7af0c4')}
+      ${chip('Bu hafta net','%'+(d.bu_hafta_net_pct||0),col(d.bu_hafta_net_pct||0))}
+    </div>
+    ${bos?'<div style="font-size:10px;color:#5e716f;padding:8px 0">Henüz OAR sinyali olan altcoin yok — Top-100 taranıyor (BTC/ETH/stabil hariç).</div>':
+    `<table style="width:100%;border-collapse:collapse;font-size:9.5px">
+      <tr style="color:#5e716f;text-align:left"><th style="padding:3px 6px">Coin</th><th style="padding:3px 6px">Yön</th><th style="padding:3px 6px">Durum</th><th style="padding:3px 6px">Fiyat</th><th style="padding:3px 6px;text-align:right">Sonuç</th></tr>
+      ${acik}${kapali}</table>`}`;
+}
+
 function btOtonomHtml(){
   const b=ST.btOtonom||{};
   if(b.hata) return `<div style="font-size:11px;color:#ff5d6c;padding:6px 0">${esc(b.hata)}</div>`;
@@ -1280,13 +1330,6 @@ function scrLive(){
       <button onclick="loadBacktestOtonom().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
     </div>
     <div id="bt-otonom-panel">${btOtonomHtml()}</div>
-  </div>
-  <div class="card" style="padding:14px 16px;margin-bottom:13px;border:1px solid #15301f">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 OAR PAPER-TRADE — BTC+ETH · $1000 · 5x · OAR-CORE sinyali (canlı forward-test, bu ay)</span>
-      <button onclick="loadOarPaper().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
-    </div>
-    <div id="oar-paper-panel">${oarPaperHtml()}</div>
   </div>
   <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:13px;height:calc(100vh - 250px);min-height:420px">
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
@@ -1509,6 +1552,7 @@ async function loadPaper(){const d=await jget('/api/leader/paper-trades');if(d&&
 async function loadHipotez(){const d=await jget('/api/leader/aktif-hipotezler?symbol=BTCUSDT');if(d&&!d.detail)ST.hipotez=d;}
 async function loadBacktestOtonom(){const d=await jget('/api/backtest/otonom');if(d)ST.btOtonom=d;}
 async function loadOarPaper(){const d=await jget('/api/oar-paper');if(d&&!d.detail)ST.oarPaper=d;}
+async function loadOarAltcoin(){const d=await jget('/api/oar-altcoin');if(d&&!d.detail)ST.oarAltcoin=d;}
 // ── Komuta Merkezi: indikatör + opsiyon skoru + grafik ──
 async function loadIndicators(){const d=await jget('/api/indicators?symbol=BTCUSDT&interval=5m');if(d&&!d.hata)ST.indicators=d;}
 async function loadOptScore(){const d=await jget('/api/options/gex?currency=BTC');if(d&&!d.error)ST.optScore=d;}
@@ -1626,13 +1670,13 @@ async function boot(){
   tickClock();setInterval(tickClock,1000);
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom,loadOarPaper];
+  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadKomuta();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadPaper();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();
+  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadKomuta();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadPaper();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
     if(ST.tab==='live'){updateFeedOnly();updateCioPaperOnly();}
     else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);

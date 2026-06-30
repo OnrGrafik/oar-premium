@@ -1152,6 +1152,10 @@ async def startup_event():
         from oar_paper_box import dongu as oar_paper_dongu
         asyncio.create_task(oar_paper_dongu())
         print("[Startup] ✅ OAR Paper-Trade kutusu loop başlatıldı")
+        # OAR Altcoin Sistem (Top-100 altcoin, OAR paper-trade + Telegram + haftalık)
+        from oar_altcoin_sistem import dongu as oar_altcoin_dongu
+        asyncio.create_task(oar_altcoin_dongu())
+        print("[Startup] ✅ OAR Altcoin Sistem loop başlatıldı")
     except Exception as e:
         print(f"[Startup] paper_trade_agent: {str(e)[:80]}")
 
@@ -2275,6 +2279,13 @@ async def paper_trades_gecmis(limit: int = 100, sembol: str = None):
 async def oar_paper_endpoint():
     """OAR-CORE paper-trade kutusu: bakiye, açık pozisyonlar, bu ayın işlemleri."""
     from oar_paper_box import durum_ozet
+    return durum_ozet()
+
+
+@app.get("/api/oar-altcoin")
+async def oar_altcoin_endpoint():
+    """OAR Altcoin Sistem: açık (DEVAM) + bu haftanın kapananları + haftalık K/Z."""
+    from oar_altcoin_sistem import durum_ozet
     return durum_ozet()
 
 
