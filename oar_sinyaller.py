@@ -145,7 +145,7 @@ AKTIF_BLOKLAR = [
     "footprint_absorpsiyon", "footprint_balina",
     "footprint_yuksek_hacim", "footprint_trapped", "footprint_kalicilik",
     "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
-    "htf_vwap",                         # klines'tan hesaplanır (her zaman var)
+    "htf_vwap", "htf_vpfr",             # klines'tan hesaplanır (her zaman var)
 ]
 
 

@@ -257,6 +257,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     k = k.assign(gun=gun_arr, saat=saat)
 
     htf = _htf_hesapla(k)        # HTF anchored VWAP (W/M/Q), no-lookahead (filtreli k)
+    vpfr = _htf_vpfr_hesapla(k)  # HTF VPFR değer alanı (W/M), no-lookahead
     gunler = {}
     for gun, kg in k.groupby("gun"):
         asia = kg[(kg["saat"] >= ASIA_BAS_UTC) & (kg["saat"] < ASIA_BIT_UTC)]
@@ -270,6 +271,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
             "post_close": post["close"].tolist(),
             "cvd_map": {}, "poc": None,
             "htf": htf.get(int(gun), {}),
+            "htf_vpfr": vpfr.get(int(gun), {}),
         }
 
     # 2) aggTrades AY AY → gün-bazlı birikim (dk-delta + fiyat-hacim)
@@ -380,6 +382,77 @@ def _htf_hesapla(klines):
         for key in ("w", "m", "q"):
             cum[key][0] += float(r.pv)
             cum[key][1] += float(r.v)
+    return out
+
+
+def _vpfr_deger_alani(bins: dict, va_pct: float = 0.70):
+    """
+    Hacim profili değer alanı: POC (en yüksek hacimli fiyat) + %70 değer alanı.
+    Döner: (poc, vah, val) — değer alanı tepe/dip fiyatları. Boşsa (None,None,None).
+    """
+    if not bins:
+        return (None, None, None)
+    toplam = sum(bins.values())
+    if toplam <= 0:
+        return (None, None, None)
+    sirali = sorted(bins)                       # fiyat artan
+    poc = max(bins, key=bins.get)
+    idx = sirali.index(poc)
+    lo = hi = idx
+    biriken = bins[poc]
+    hedef = toplam * va_pct
+    while biriken < hedef and (lo > 0 or hi < len(sirali) - 1):
+        sol = bins[sirali[lo - 1]] if lo > 0 else -1.0
+        sag = bins[sirali[hi + 1]] if hi < len(sirali) - 1 else -1.0
+        if sag >= sol:
+            hi += 1; biriken += bins[sirali[hi]]
+        else:
+            lo -= 1; biriken += bins[sirali[lo]]
+    return (poc, sirali[hi], sirali[lo])
+
+
+def _htf_vpfr_hesapla(klines, anchors=("w", "m")):
+    """
+    HTF VPFR (haftalık/aylık) değer alanı — klines'tan, LOOKAHEAD'siz.
+    Her gün için periyot başından ÖNCEKİ GÜNE kadar biriken hacim profili
+    (POC/VAH/VAL). Döner: {gun: {"poc_w","vah_w","val_w","poc_m","vah_m","val_m"}}
+    """
+    import numpy as np
+    import pandas as pd
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    _EPOCH = _dt(1970, 1, 1, tzinfo=_tz.utc)
+    k = klines
+    gun = (k["open_time"] // GUN_MS).astype("int64")
+    p = k["close"].to_numpy()
+    mag = np.floor(np.log10(np.clip(np.abs(p), 1e-9, None)))
+    faktor = 10.0 ** (mag - 3)               # 4 anlamlı hane → ölçekten bağımsız bin
+    pbin = np.round(p / faktor) * faktor
+    dfg = pd.DataFrame({"gun": gun, "pbin": pbin, "v": k["volume"]})
+    gunluk = {}                              # gun → {pbin: vol}
+    for (g, b), v in dfg.groupby(["gun", "pbin"])["v"].sum().items():
+        gunluk.setdefault(int(g), {})[float(b)] = float(v)
+
+    out = {}
+    cum = {a: {} for a in anchors}
+    prev = {a: None for a in anchors}
+    for g in sorted(gunluk):
+        if not (10000 <= g <= 50000):
+            continue
+        d = _EPOCH + _td(days=g)
+        ic = d.isocalendar()
+        key = {"w": (ic[0], ic[1]), "m": (d.year, d.month)}
+        for a in anchors:
+            if prev[a] != key[a]:
+                cum[a] = {}; prev[a] = key[a]
+        # no-lookahead: bugünü EKLEMEDEN değer alanı
+        vp = {}
+        for a in anchors:
+            poc, vah, val = _vpfr_deger_alani(cum[a])
+            vp[f"poc_{a}"] = poc; vp[f"vah_{a}"] = vah; vp[f"val_{a}"] = val
+        out[g] = vp
+        for b, v in gunluk[g].items():       # bugünü sonra ekle
+            for a in anchors:
+                cum[a][b] = cum[a].get(b, 0.0) + v
     return out
 
 
@@ -518,6 +591,13 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             if any(v is not None for v in htf_vwaplar):
                 yakin = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in htf_vwaplar)
                 kayit["htf_vwap_yakin"] = bool(yakin)
+            # HTF VPFR değer alanı (haftalık/aylık POC/VAH/VAL) yakınlığı
+            vpfr_g = g.get("htf_vpfr") or {}
+            vpfr_sev = [vpfr_g.get(x) for x in
+                        ("poc_w", "vah_w", "val_w", "poc_m", "vah_m", "val_m")]
+            if any(v is not None for v in vpfr_sev):
+                yakin_vp = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in vpfr_sev)
+                kayit["htf_vpfr_ok"] = bool(yakin_vp)
             adaylar.append(kayit)
     return adaylar
 
