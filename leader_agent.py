@@ -9,7 +9,6 @@ Lider Agent v2 — OAR Premium
     └── Shared Memory   → tüm agentlar aynı bilgi bankasını okur/yazar
 
 Bot kataloğu (tümü bot.py içinde):
-  UTBot         → ETH/USDT, xATR trailing stop, BTC trend filtresi, RSI
   MA Scanner    → MA temas + whale/retail filtresi
   CVD Scanner   → CVD momentum + OI + hacim skoru (0-100)
   Asia Ekstrem  → Asia Range fib ekstrem temas (-1.618/-1.272/+2.272/+2.618)
@@ -171,15 +170,6 @@ GEMINI_MODEL = "gemini-2.5-flash"
 
 # ── Bot Kataloğu ───────────────────────────────────────────────────────────────
 BOT_KATALOG = {
-    "UTBot": {
-        "tip": "sinyal",
-        "sembol": "ETHUSDT",
-        "strateji": "xATR Trailing Stop + STC osilatör + RSI filtresi. BTC yön teyidi gerektirir.",
-        "sinyal_tipi": ["LONG", "SHORT"],
-        "veriler": ["Bybit OHLCV", "xATR", "STC", "RSI"],
-        "zaman_dilimleri": ["5m"],
-        "kritik_parametreler": {"leverage": 100, "daily_tp": 10, "daily_sl": 10},
-    },
     "MA Scanner": {
         "tip": "sinyal",
         "sembol": "Top 100 futures",
