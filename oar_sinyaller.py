@@ -100,6 +100,15 @@ def footprint_trapped(s):
     return s.get("reclaim")
 
 
+def footprint_kalicilik(s):
+    """
+    Büyük delta seviyesi kalıcılığı: girişe kadar oluşan en büyük |delta| barı
+    bir S/R gibi davranıp fiyatı fade-uyumlu tarafta tutmuş mu (no-lookahead).
+    Yeni feature — aday_sinyaller_uret hesaplar; eski cache'te yoksa None.
+    """
+    return s.get("kalicilik")
+
+
 def dvol_rejim(s):
     """Opsiyon ana-yön rejimi (DVOL percentile yüksekse opsiyon belirleyici)."""
     return s.get("dvol_ok")
@@ -119,6 +128,7 @@ BLOKLAR = {
     "footprint_balina": footprint_balina,
     "footprint_yuksek_hacim": footprint_yuksek_hacim,
     "footprint_trapped": footprint_trapped,
+    "footprint_kalicilik": footprint_kalicilik,
     "oi_yuksek": oi_yuksek,
     "whale_retail_zit": whale_retail_zit,
     "oi_tuzak": oi_tuzak,
@@ -133,7 +143,7 @@ BLOKLAR = {
 AKTIF_BLOKLAR = [
     "cvd_yon", "poc_taraf",
     "footprint_absorpsiyon", "footprint_balina",
-    "footprint_yuksek_hacim", "footprint_trapped",
+    "footprint_yuksek_hacim", "footprint_trapped", "footprint_kalicilik",
     "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
     "htf_vwap",                         # klines'tan hesaplanır (her zaman var)
 ]

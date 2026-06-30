@@ -62,6 +62,14 @@ def test_filtre_kismi_veri_altkume():
     assert len(f) == 1 and f[0]["ts"] == 1
 
 
+def test_footprint_kalicilik_blok():
+    from oar_sinyaller import footprint_kalicilik, AKTIF_BLOKLAR
+    assert footprint_kalicilik({"kalicilik": True}) is True
+    assert footprint_kalicilik({"kalicilik": False}) is False
+    assert footprint_kalicilik({}) is None        # eski cache → feature yok
+    assert "footprint_kalicilik" in AKTIF_BLOKLAR
+
+
 def test_oi_tuzak_blok():
     from oar_sinyaller import oi_tuzak, AKTIF_BLOKLAR
     assert oi_tuzak({"oi_yuksek": True, "reclaim": True}) is True
