@@ -93,6 +93,22 @@ def test_kesfet_edge_kombinasyon_one_cikar():
         assert "holdout_puan" in a and "saglam" in a
     # cvd_yon edge taşıyor → en iyi adaylardan biri cvd_yon içermeli
     assert any("cvd_yon" in a["bloklar"] for a in res["en_iyiler"])
+    # Beklenti/kârlılık metrikleri hesaplanmış olmalı
+    for a in res["en_iyiler"]:
+        b = a.get("beklenti")
+        assert b and "ort_net" in b and "wr" in b and "rr" in b
+
+
+def test_beklenti_hesap():
+    from oar_kesif import _beklenti
+    assert _beklenti([]) == {}
+    s = [{"pct": 2.0}, {"pct": 2.0}, {"pct": -1.0}, {"pct": -1.0}]
+    b = _beklenti(s)
+    assert b["n"] == 4 and b["wr"] == 50.0
+    assert b["ort_net"] == 0.5          # (2+2-1-1)/4
+    assert b["toplam_net"] == 2.0
+    assert b["profit_factor"] == 2.0    # 4 / 2
+    assert b["rr"] == 2.0               # 2 / 1
 
 
 def test_kesfet_bos_sinyal():

@@ -54,6 +54,34 @@ def _holdout_ayir(sinyaller: list, holdout_orani: float):
     return arama, holdout
 
 
+def _beklenti(sinyaller: list) -> dict:
+    """
+    Net beklenti istatistikleri (maliyet zaten 'pct'e düşülmüş — net realize PnL).
+    WR tek başına yetmez; R:R ve profit factor ile kârlılık doğrulanır.
+    """
+    pcts = [float(s.get("pct", 0.0) or 0.0) for s in sinyaller]
+    n = len(pcts)
+    if not n:
+        return {}
+    kazanc = [p for p in pcts if p > 0]
+    kayip = [p for p in pcts if p <= 0]
+    toplam_kazanc, toplam_kayip = sum(kazanc), sum(kayip)
+    ort_kazanc = toplam_kazanc / len(kazanc) if kazanc else 0.0
+    ort_kayip = toplam_kayip / len(kayip) if kayip else 0.0
+    pf = (toplam_kazanc / abs(toplam_kayip)) if toplam_kayip < 0 else float("inf")
+    rr = (ort_kazanc / abs(ort_kayip)) if ort_kayip < 0 else float("inf")
+    return {
+        "n": n,
+        "wr": round(100.0 * len(kazanc) / n, 1),
+        "ort_net": round(sum(pcts) / n, 4),        # işlem başına ortalama net % (beklenti)
+        "toplam_net": round(sum(pcts), 1),          # 2021-2025 birikimli net %
+        "profit_factor": round(pf, 2) if pf != float("inf") else None,
+        "rr": round(rr, 2) if rr != float("inf") else None,
+        "ort_kazanc": round(ort_kazanc, 3),
+        "ort_kayip": round(ort_kayip, 3),
+    }
+
+
 def kesfet(sinyaller: list, blok_havuzu: list = None,
            min_k: int = 1, max_k: int = 3, fold: int = 4, is_oran: float = 0.7,
            holdout_orani: float = 0.2, min_trade: int = 20, ust_n: int = 5) -> dict:
@@ -94,6 +122,9 @@ def kesfet(sinyaller: list, blok_havuzu: list = None,
         a["holdout_trade"] = hm.get("toplam_sinyal", 0)
         # Sağlamlık: OOS'ta iyi + holdout'ta da ayakta mı?
         a["saglam"] = (a["oos_puan"] >= 50 and a["holdout_puan"] >= 50)
+        # Net beklenti/kârlılık: tüm filtreli havuz (2021-2025 realize) + holdout
+        a["beklenti"] = _beklenti(_filtre(sinyaller, a["bloklar"]) or [])
+        a["holdout_beklenti"] = _beklenti(hf)
 
     return {
         "toplam_aday": len(adaylar),
@@ -121,4 +152,14 @@ def rapor(sonuc: dict) -> str:
             f"  [{'+'.join(a['bloklar'])}] OOS:{a['oos_puan']}(WR%{a['oos_wr']},n{a['oos_trade']}) "
             f"→ HOLDOUT:{a.get('holdout_puan',0)}(WR%{a.get('holdout_wr',0)},n{a.get('holdout_trade',0)}) {bayrak}"
         )
+        b = a.get("beklenti") or {}
+        if b:
+            pf = b.get("profit_factor"); rr = b.get("rr")
+            karli = "KÂRLI ✅" if (b.get("ort_net", 0) > 0) else "ZARARLI ✗"
+            sat.append(
+                f"       ↳ beklenti(2021-2025, n{b['n']}): işlem-başı net %{b['ort_net']} "
+                f"({karli}) | birikimli net %{b['toplam_net']} | "
+                f"PF {pf if pf is not None else '∞'} | R:R {rr if rr is not None else '∞'} "
+                f"| ort kazanç %{b['ort_kazanc']} / ort kayıp %{b['ort_kayip']}"
+            )
     return "\n".join(sat)
