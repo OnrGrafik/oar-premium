@@ -1892,7 +1892,10 @@ Kitap: {kitap_notu[:300]}{setup_metin}
                     "generationConfig":{"temperature":0.35,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
                 if rr.status_code == 200:
                     yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception: pass
+                else:
+                    yorum = f"⚠ AI yorumu alınamadı (Gemini HTTP {rr.status_code}). /api/ai-teshis ile kontrol et."
+        except Exception as e:
+            yorum = f"⚠ AI yorumu hatası: {str(e)[:100]}"
     return {"veri": veri, "yorum": yorum, "kitap_kaynaklar": kitap_kaynaklar, "trade": trade}
 
 @app.get("/api/piyasa-durumu")
@@ -2341,6 +2344,41 @@ async def veri_teshis(sembol: str = "BTCUSDT"):
         except Exception as e:
             sonuc["opsiyon_gex"] = f"HATA: {str(e)[:80]}"
     return sonuc
+
+
+@app.get("/api/ai-teshis")
+async def ai_teshis():
+    """
+    AI (Gemini) çağrısını gerçek test eder — anahtar var ama yorumlar dolmuyorsa
+    gerçek hatayı (model 404, key 400, kota 429, bölge) gösterir.
+    """
+    import httpx
+    gk = os.environ.get("GEMINI_API_KEY", "")
+    grq = os.environ.get("GROQ_API_KEY", "")
+    out = {"gemini_key_var": bool(gk), "gemini_key_uzunluk": len(gk),
+           "groq_key_var": bool(grq), "model": GEMINI_MODEL}
+    if not gk:
+        out["sonuc"] = "GEMINI_API_KEY os.environ'da YOK (Railway Variables'a ekleyip redeploy)."
+        return out
+    try:
+        url = f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent?key={gk}"
+        async with httpx.AsyncClient(timeout=25) as cl:
+            r = await cl.post(url, json={"contents": [{"role": "user",
+                              "parts": [{"text": "Sadece 'OK' yaz."}]}]})
+        out["http_status"] = r.status_code
+        if r.status_code == 200:
+            try:
+                out["cevap"] = r.json()["candidates"][0]["content"]["parts"][0]["text"][:100]
+                out["sonuc"] = "✅ Gemini ÇALIŞIYOR — paneller dolmalı (cache ~150s sonra)."
+            except Exception as e:
+                out["sonuc"] = f"200 ama cevap ayrıştırılamadı: {str(e)[:80]}"
+                out["ham"] = r.text[:300]
+        else:
+            out["sonuc"] = f"❌ Gemini HTTP {r.status_code} — sebep aşağıda"
+            out["hata_govde"] = r.text[:400]
+    except Exception as e:
+        out["sonuc"] = f"❌ İstek hatası: {str(e)[:120]}"
+    return out
 
 
 @app.get("/api/oar-swing")
