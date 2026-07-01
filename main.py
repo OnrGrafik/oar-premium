@@ -1981,7 +1981,10 @@ SADECE şu JSON'u döndür (başka metin yok):
                         bolumler = json.loads(txt)
                     except Exception:
                         yorum = txt  # JSON parse olmazsa düz metin
-        except Exception: pass
+                else:
+                    yorum = f"⚠ AI yorumu alınamadı (Gemini HTTP {rr.status_code}). /api/ai-teshis ile kontrol et."
+        except Exception as e:
+            yorum = f"⚠ AI yorumu hatası: {str(e)[:100]}"
     return {"veri": veri, "bolumler": bolumler, "yorum": yorum,
             "kitap_kaynaklar": kitap_kaynaklar, "kitap_notu": kitap_notu[:300]}
 
