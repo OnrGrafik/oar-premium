@@ -1019,6 +1019,32 @@ async def backtest_yerel():
         kayitlar = []
     return {"toplam": len(kayitlar), "kayitlar": kayitlar[-50:]}
 
+@app.delete("/api/backtest/yerel")
+async def backtest_yerel_sifirla(_auth=Security(_require_key)):
+    """
+    TÜM backtest geçmişini SIFIRLA (yeni sisteme geçiş — eski koşular silinsin).
+    Hem yerel (PC --yukle) hem otonom motor kayıtlarını boşaltır; komuta/lider
+    artık sadece yeni sistemin (fade+htf_vpfr) koşularını gösterir.
+    """
+    silinen = {}
+    try:
+        if _YEREL_BT_FILE.exists():
+            silinen["yerel"] = len(json.loads(_YEREL_BT_FILE.read_text()))
+    except Exception:
+        silinen["yerel"] = 0
+    _YEREL_BT_FILE.write_text("[]", encoding="utf-8")
+    # Otonom backtest motorunu da sıfırla
+    try:
+        from oar_autonomous_backtest import BT_FILE as _OTONOM_BT
+        if _OTONOM_BT.exists():
+            eski = json.loads(_OTONOM_BT.read_text())
+            silinen["otonom"] = len(eski.get("runs", []))
+        _OTONOM_BT.write_text(json.dumps(
+            {"runs": [], "en_iyi": None, "son_guncelleme": None}, ensure_ascii=False))
+    except Exception as e:
+        silinen["otonom_hata"] = str(e)[:80]
+    return {"durum": "sifirlandi", "silinen": silinen}
+
 @app.post("/api/backtest/yerel-ekle")
 async def backtest_yerel_ekle(req: Request, _auth=Security(_require_key)):
     """Yerel backtest kaydını sistem hafızasına KALICI ekler (birikimli, üzerine yazmaz)."""
