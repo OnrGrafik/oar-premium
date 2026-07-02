@@ -276,7 +276,7 @@ def makro_3ay_ozet(veri: dict) -> dict:
             "son_3ay": gecmis,
             "guncel": v.get("guncel"),
             "degisim_3ay": round(son - ilk, 3),
-            "trend": v.get("trend"),
+            "trend": _trend([d["deger"] for d in gecmis]),  # 3-ay penceresiyle TUTARLI
             "kaynak": v.get("kaynak"),
             "canli": not v.get("fallback"),
         }
