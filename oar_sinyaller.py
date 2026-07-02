@@ -54,6 +54,15 @@ def whale_retail_zit(s):
     return s.get("whale_retail_zit")
 
 
+def range_rejimi(s):
+    """
+    Rejim filtresi: SADECE range gününde fade al (trend gününde alma).
+    OAR fade mean-reversion'dır → range'de kazanır, trend'de SL yer. Efficiency
+    Ratio < 0.40 = range (True). Feature yoksa None (keşifte atlanır).
+    """
+    return s.get("range_rejimi")
+
+
 def oi_tuzak(s):
     """
     OI tuzağı: süpürme anında OI yüksek (pozisyon birikti) + reclaim (fiyat döndü)
@@ -129,6 +138,7 @@ BLOKLAR = {
     "footprint_yuksek_hacim": footprint_yuksek_hacim,
     "footprint_trapped": footprint_trapped,
     "footprint_kalicilik": footprint_kalicilik,
+    "range_rejimi": range_rejimi,
     "oi_yuksek": oi_yuksek,
     "whale_retail_zit": whale_retail_zit,
     "oi_tuzak": oi_tuzak,
@@ -144,6 +154,7 @@ AKTIF_BLOKLAR = [
     "cvd_yon", "poc_taraf",
     "footprint_absorpsiyon", "footprint_balina",
     "footprint_yuksek_hacim", "footprint_trapped", "footprint_kalicilik",
+    "range_rejimi",                    # trend gününde fade'i eler (mean-reversion koruması)
     "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
     "htf_vwap", "htf_vpfr",             # klines'tan hesaplanır (her zaman var)
 ]
