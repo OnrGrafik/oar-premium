@@ -98,6 +98,20 @@ def mod_trend(s):
     return m == "trend" if m else None
 
 
+def gun_bias_uyum(s):
+    """Dünden gelen trend yönü bugünkü işlemle uyumlu mu (bias devamı)."""
+    return s.get("gun_bias_uyum")
+
+
+def breakout_teyit(s):
+    """
+    Teyitli kırılım: CVD kırılım yönünde + absorpsiyon (kırılan tarafın pasif
+    emirleri tükendi). Naif breakout yerine, kullanıcının anlattığı 'Asia high
+    güçlü gelme + pasif satıcı tüketimi + CVD devam' yığınını kodlar. Feature yoksa None.
+    """
+    return s.get("breakout_teyit")
+
+
 # ─── GELECEK BLOKLAR (veri eklenince doldurulacak — şimdilik None) ────────────
 # Her biri ilgili veri/feature geldiğinde gerçek mantıkla doldurulacak ve
 # AKTIF_BLOKLAR'a eklenecek. None döndükçe keşif motoru bunları KULLANMAZ.
@@ -164,6 +178,8 @@ BLOKLAR = {
     "trend_rejimi": trend_rejimi,
     "mod_fade": mod_fade,
     "mod_trend": mod_trend,
+    "gun_bias_uyum": gun_bias_uyum,
+    "breakout_teyit": breakout_teyit,
     "oi_yuksek": oi_yuksek,
     "whale_retail_zit": whale_retail_zit,
     "oi_tuzak": oi_tuzak,
@@ -182,6 +198,7 @@ AKTIF_BLOKLAR = [
     "range_rejimi",                    # trend gününde fade'i eler (mean-reversion koruması)
     "trend_rejimi",                    # trend gününde breakout adayını seçer (dual-mode)
     "mod_fade", "mod_trend",           # aday modu (range→fade / trend→breakout)
+    "gun_bias_uyum", "breakout_teyit", # trend teyit yığını (bias devamı + CVD/absorpsiyon)
     "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
     "htf_vwap", "htf_vpfr",             # klines'tan hesaplanır (her zaman var)
 ]
