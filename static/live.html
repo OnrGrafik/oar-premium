@@ -218,7 +218,7 @@ function renderNav(){
       <span style="flex:1;text-align:left">${n.label}</span>
     </button>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro'&&!ST.makro)loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();}
+function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -831,7 +831,8 @@ function scrMacro(){
   return `
   <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:13px">
     <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Makro Ekonomi Göstergeleri</h1>
-    <span style="font-size:11px;color:#5e716f">Günlük AI analiz · BTC etkisi · ${m.kaynak_ozet||''}</span>
+    <span style="font-size:11px;color:#5e716f">${m.kaynak_ozet||''}${m.guncellendi?' · güncel: '+esc(m.guncellendi.slice(0,16).replace('T',' ')):''}</span>
+    <button onclick="loadMakro(true)" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻ En son veriyi çek</button>
     <span style="margin-left:auto;font-size:11px;font-weight:600;color:${egilimRenk};border:1px solid ${egilimRenk}44;padding:4px 11px;border-radius:6px">BTC Eğilimi: ${y.egilim||'—'}</span>
   </div>
 
@@ -1637,7 +1638,7 @@ async function loadKnowledge(){
   if(ST.tab==='knowledge')render();
 }
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
-async function loadMakro(){const d=await jget('/api/makro');if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;const cr=await jget('/api/makro/carry');if(cr)ST.makroCarry=cr;if(ST.tab==='macro')render();}
+async function loadMakro(force){const q=force?'?refresh=true':'';const d=await jget('/api/makro'+q);if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;const cr=await jget('/api/makro/carry');if(cr)ST.makroCarry=cr;if(ST.tab==='macro')render();}
 async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='knowledge')render();}
 async function loadFeed(){
   const d=await jget('/api/leader/rapor-gecmisi?limit=10');
