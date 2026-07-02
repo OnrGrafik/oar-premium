@@ -134,6 +134,24 @@ def tp_sl_seviyeleri(oran: float, giris: float, fibs: dict):
     return tp, sl
 
 
+def tp_sl_breakout(oran: float, giris: float, fibs: dict):
+    """
+    TREND/BREAKOUT TP/SL: ekstremi KIRIP devam yönünde işlem (fade'in TERSİ).
+    Üst ekstrem kırılım → LONG: TP=bir üst fib (devam hedefi), SL=range ortası (0.5, geçersizlik).
+    Alt ekstrem kırılım → SHORT: TP=bir alt fib, SL=range ortası.
+    """
+    mid = fibs.get(0.5)
+    if oran >= 1.0:  # üst kırılım → LONG
+        ust = [v for v in fibs.values() if v > giris]
+        tp = min(ust) if ust else giris * 1.01
+        sl = mid if (mid and mid < giris) else giris * 0.995
+    else:            # alt kırılım → SHORT
+        alt = [v for v in fibs.values() if v < giris]
+        tp = max(alt) if alt else giris * 0.99
+        sl = mid if (mid and mid > giris) else giris * 1.005
+    return tp, sl
+
+
 def degerlendir_tpsl(giris: float, yon: str, tp: float, sl: float, sonraki: list):
     """
     Bar bar: TP mi SL mi önce vurulur? Maliyet (fee+slippage) düşülür.
@@ -628,7 +646,23 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             if any(v is not None for v in vpfr_sev):
                 yakin_vp = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in vpfr_sev)
                 kayit["htf_vpfr_ok"] = bool(yakin_vp)
+            kayit["mod"] = "fade"
             adaylar.append(kayit)
+
+            # ─── TREND/BREAKOUT adayı — ekstremi KIRIP devam yönünde işlem ───────
+            # Fade'in TERSİ yön; TP=devam fib'i, SL=range ortası. Trend gününde kâr
+            # hedefler. Keşif, hangi modun hangi rejimde kazandığını bulur.
+            yon_t = "LONG" if oran >= 1.0 else "SHORT"
+            tp_t, sl_t = tp_sl_breakout(oran, fiyat, fibs)
+            out_t, net_t = degerlendir_tpsl(fiyat, yon_t, tp_t, sl_t, ileri)
+            kayit_t = dict(kayit)
+            kayit_t.update({"yon": yon_t, "mod": "trend", "outcome": out_t, "pct": net_t})
+            if er is not None:
+                kayit_t["trend_rejimi"] = bool(er >= 0.40)   # trend günü → breakout uygun
+            # fade-özel bayraklar trend adayında yanıltmasın
+            for _f in ("absorp", "reclaim", "balina", "kalicilik", "range_rejimi"):
+                kayit_t.pop(_f, None)
+            adaylar.append(kayit_t)
     return adaylar
 
 
