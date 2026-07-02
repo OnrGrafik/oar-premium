@@ -798,6 +798,11 @@ function scrMacro(){
 
   const gosterge=(key,ad,altAd,birim,suffix)=>{
     const d=g[key]; if(!d)return '';
+    if(d.veri_yok||d.guncel==null){return `<div class="card" style="padding:15px;opacity:.7">
+      <div class="sg" style="font-size:12px;color:#eaf4f2;font-weight:600">${ad}</div>
+      <div style="font-size:8.5px;color:#5e716f">${altAd}</div>
+      <div style="font-size:11px;color:#ff9d5c;margin-top:12px">⚠ Kaynak erişilemedi — veri yok</div>
+      <div style="font-size:8.5px;color:#5e716f;margin-top:4px">Eski veri güncelmiş gibi gösterilmez.</div></div>`;}
     const tr=d.trend, trRenk=tr==='yukari'?'#1ff0ad':tr==='asagi'?'#ff5d6c':'#9fb0ad';
     const trOk=tr==='yukari'?'▲ Yükselen':tr==='asagi'?'▼ Düşüş':'● Yatay';
     const vals=(d.gecmis||[]).map(x=>x.deger);
@@ -857,13 +862,14 @@ function carryTradeHtml(){
   const g=c.gostergeler;
   const riskRenk=c.risk==='YÜKSEK'?'#ff5d6c':c.risk==='ORTA'?'#ffb13c':'#1ff0ad';
   const kart=(k)=>{const d=g[k];if(!d)return '';
-    return `<div class="card" style="padding:14px 15px">
+    const yok=(d.veri_yok||d.fiyat==null);
+    return `<div class="card" style="padding:14px 15px${yok?';opacity:.7':''}">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px">
         <div><div class="sg" style="font-size:11.5px;color:#eaf4f2;font-weight:600">${d.ad}</div>
         <div style="font-size:8px;color:#5e716f">${d.alt}</div></div>
-        <span style="font-size:9px;color:${d.chg>=0?'#1ff0ad':'#ff5d6c'};height:fit-content">${d.chg>=0?'+':''}${d.chg}%</span>
+        ${yok?'':`<span style="font-size:9px;color:${d.chg>=0?'#1ff0ad':'#ff5d6c'};height:fit-content">${d.chg>=0?'+':''}${d.chg}%</span>`}
       </div>
-      <div class="sg" style="font-weight:700;font-size:21px;color:#eaf4f2;margin:5px 0">${fmtNum(d.fiyat)}</div>
+      <div class="sg" style="font-weight:700;font-size:21px;color:${yok?'#ff9d5c':'#eaf4f2'};margin:5px 0">${yok?'⚠ veri yok':fmtNum(d.fiyat)}</div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid #141d1b">
         <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin-bottom:4px">BTC ETKİSİ</div>
         <div style="font-size:9.5px;color:#a8b8b5;line-height:1.45">${esc(d.btc)}</div></div>
@@ -1287,7 +1293,7 @@ function scrLive(){
     {l:'OAR SCORE',v:(ctx.oar_score||{}).skor||'—',d:'/100',col:'#7af0c4',tip:'Asia Range fib bazlı momentum skoru (0-100). Asia seansı high/low noktalarına göre hesaplanır.'},
     {l:'F&G',v:ST.fng||'—',d:'',col:'#ffb13c',tip:'Fear & Greed Endeksi (0-100). 0-25 aşırı korku, 75-100 aşırı açgözlülük. Kontrarian sinyal olarak kullanılır.'},
     {l:'SİNYAL',v:ST.signals.length,d:'toplam',col:'#cdd9d8',tip:'Aktif botlardan gelen toplam sinyal sayısı. Aynı yönde birden fazla sinyal teyit güçlendirir.'},
-    {l:'TOPLULUK',v:'10',d:'aktif bot',col:'#9fb0ad',tip:'Arka planda veri işleyen agent bot sayısı. Her bot farklı bir veri kaynağını analiz eder.'},
+    {l:'TOPLULUK',v:String(BOTS.length),d:'aktif bot',col:'#9fb0ad',tip:'Arka planda veri işleyen agent bot sayısı. Her bot farklı bir veri kaynağını analiz eder.'},
   ];
   const feedHtml=feedHtmlGen();
 
