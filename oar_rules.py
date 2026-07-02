@@ -17,7 +17,7 @@ import os, json, base64
 from pathlib import Path
 from datetime import datetime, timezone
 
-DATA_DIR  = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR  = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 RULES_DIR = DATA_DIR / "oar_rules"
 IMG_DIR   = RULES_DIR / "images"
 RULES_FILE= RULES_DIR / "rules.json"

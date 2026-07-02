@@ -12,7 +12,7 @@ import os, json, asyncio, httpx
 from pathlib import Path
 from datetime import datetime, timezone
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 SIGLOG   = DATA_DIR / "oar_signals_log.json"
 PROFIL   = DATA_DIR / "kazanan_profil.json"
 FAPI     = "https://fapi.binance.com"

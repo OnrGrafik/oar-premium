@@ -16,7 +16,7 @@ import os, json, asyncio, math, statistics
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 WBT_FILE = DATA_DIR / "whale_backtest.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 

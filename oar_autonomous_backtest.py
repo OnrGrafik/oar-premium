@@ -19,7 +19,7 @@ import os, json, asyncio, time, uuid, statistics, httpx
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-DATA_DIR  = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR  = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 BT_FILE   = DATA_DIR / "oar_otonom_bt.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 

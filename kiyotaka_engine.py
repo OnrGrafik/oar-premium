@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 KIYOTAKA_BASE = "https://api.kiyotaka.ai/v1/points"
-DATA_DIR  = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR  = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 CACHE_DIR = DATA_DIR / "kiyotaka"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

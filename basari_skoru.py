@@ -17,7 +17,7 @@ import os, json, asyncio, httpx
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 SKOR_FILE = DATA_DIR / "basari_skoru.json"
 ARSIV_FILE = DATA_DIR / "basari_arsiv.json"
 SIGLOG = DATA_DIR / "oar_signals_log.json"

@@ -26,7 +26,7 @@ import httpx
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 DURUM_FILE = DATA_DIR / "lider_anlik_durum.json"
 
 GEMINI_MODEL = "gemini-2.5-flash"

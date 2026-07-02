@@ -22,7 +22,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-DATA_DIR        = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR        = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 ONERI_FILE      = DATA_DIR / "oneriler.json"
 CONFIG_FILE     = DATA_DIR / "config_overrides.json"
 
