@@ -1534,17 +1534,14 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
-    # 8. Son CIO kararı (memory'den)
+    # 8. CIO kararı — TEK KAYNAK (cache'li confidence_karar); panel/çakışan/chat aynı
     try:
-        from leader_agent import memory_oku
-        mem = memory_oku("karar")
-        if mem:
-            for sembol_key, v in mem.items():
-                if isinstance(v, dict) and v.get("karar"):
-                    parcalar.append(
-                        f"Son CIO Karar [{sembol_key}]: {v['karar']} "
-                        f"(konfidans: {v.get('konfidans', '?')}/100, {v.get('tarih', '')[:16]})"
-                    )
+        from confidence_engine import confidence_karar
+        kr = await confidence_karar("BTCUSDT")
+        parcalar.append(
+            f"CIO Karar [BTC]: {kr.get('karar')} "
+            f"(konfidans: {kr.get('konfidans','?')}/100) — TEK GEÇERLİ DEĞER, "
+            f"başka bir konfidans sayısı ÜRETME/TAHMİN ETME, bunu kullan.")
     except Exception:
         pass
 

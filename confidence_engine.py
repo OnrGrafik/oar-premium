@@ -478,7 +478,25 @@ def _backtest_skoru() -> dict:
 # ANA CONFIDENCE ENGINE
 # ─────────────────────────────────────────────────────────────────
 
-async def confidence_karar(sembol: str = "BTCUSDT") -> dict:
+_KARAR_CACHE = {}          # sembol -> (ts, karar) — kısa TTL, tek kaynak
+_KARAR_TTL = 90            # sn: chat/panel/memory/çakışan aynı kararı görsün
+
+
+async def confidence_karar(sembol: str = "BTCUSDT", refresh: bool = False) -> dict:
+    """
+    TTL-cache'li tek kaynak: 90 sn içinde tüm çağıranlar (chat, panel, memory,
+    çakışan detay) AYNI kararı alır → konfidans çakışması olmaz.
+    """
+    import time as _t
+    c = _KARAR_CACHE.get(sembol)
+    if not refresh and c and (_t.time() - c[0]) < _KARAR_TTL:
+        return c[1]
+    karar = await _confidence_karar_ic(sembol)
+    _KARAR_CACHE[sembol] = (_t.time(), karar)
+    return karar
+
+
+async def _confidence_karar_ic(sembol: str = "BTCUSDT") -> dict:
     """
     Tüm agentları paralel çalıştır → ağırlıklı skor → LONG/SHORT/NO_TRADE.
 
