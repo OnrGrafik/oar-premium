@@ -2123,31 +2123,19 @@ async def makro_ozet():
     api_key = os.environ.get("GEMINI_API_KEY", "")
     ozet = yorum.get("sentez", "")
     if api_key:
-        # AY AY seriler — birleştirme YOK; her gösterge kendi aylık seyriyle okunur
-        ay_ay = {}
-        for k, v in g.items():
-            if not v:
-                continue
-            son3 = (v.get("gecmis") or [])[-3:]
-            ay_ay[k] = " → ".join(f"{x['tarih']}: {x['deger']}" for x in son3)
-        prompt = f"""Sen makro ekonomi analistisin. ABD makro göstergelerini BTC açısından yorumla.
-ÖNEMLİ: Verileri BİRLEŞTİRME. Her göstergeyi AY AY (aylık seyrini) ayrı oku ve
-her biri için o ayki değeri ve yönünü belirt. Türkçe, bilimsel, **rakamları vurgula**.
+        ozet_veri = {k: (v.get("guncel") if v else None) for k, v in g.items()}
+        prompt = f"""Sen makro ekonomi analistisin. Aşağıdaki ABD makro verilerini BTC açısından
+ÇOK KISA özetle: EN FAZLA 2 cümle. Gereksiz açıklama/dolgu YOK. Sadece net sonuç:
+genel BTC eğilimi + tek en önemli sürücü + izlenecek bir sonraki veri. Türkçe,
+**rakamları vurgula**. (Detay her göstergenin kartında zaten var — burada özet.)
 
-AY AY VERİLER (eskiden yeniye):
-{json.dumps(ay_ay, ensure_ascii=False, indent=1)}
-
-Genel eğilim: {yorum.get('egilim')}
-Kitaplardan: {kitap_notu[:250]}
-
-Format: Önce en kritik 3-4 göstergeyi ay-ay oku (ör. 'CPI Mar 330 → Nis 332 → May 334,
-istikrarlı yukarı'), sonra BTC için yön belirleyici tetikleyicileri ve bir sonraki
-önemli veriyi belirt. Genel bir harman değil, gösterge-gösterge ay-ay analiz."""
+Güncel değerler: {json.dumps(ozet_veri, ensure_ascii=False)}
+Genel eğilim: {yorum.get('egilim')}"""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
                 rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
-                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
+                    "generationConfig":{"temperature":0.3,"maxOutputTokens":320,"thinkingConfig":{"thinkingBudget":128}}})
                 if rr.status_code == 200:
                     ozet = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
         except Exception: pass
