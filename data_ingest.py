@@ -71,7 +71,21 @@ VERI_TIPLERI = {"klines", "aggTrades", "metrics"}
 
 
 def hist_dir() -> Path:
-    return Path(os.environ.get("OAR_HIST_DIR", DEFAULT_HIST_DIR))
+    """
+    Kalıcı veri/durum klasörü. Öncelik:
+      1) OAR_HIST_DIR         — elle (yerel PC: parquet backtest klasörü)
+      2) DATA_DIR             — main.py Railway Volume'a eşitler (KALICI disk)
+      3) RAILWAY_VOLUME_MOUNT_PATH — Railway kalıcı volume mount yolu
+    Hiçbiri yoksa: yerel Windows Data klasörü VARSA onu, yoksa ./data (Linux/Railway
+    güvenli — Windows yoluna düşüp geçici diske yazmayı önler → deployda sıfırlanmaz).
+    """
+    env = (os.environ.get("OAR_HIST_DIR")
+           or os.environ.get("DATA_DIR")
+           or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH"))
+    if env:
+        return Path(env)
+    varsayilan = Path(DEFAULT_HIST_DIR)
+    return varsayilan if varsayilan.exists() else Path("data")
 
 
 def _aylar(bas: str, bit: str):

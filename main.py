@@ -2349,6 +2349,29 @@ async def veri_teshis(sembol: str = "BTCUSDT"):
     return sonuc
 
 
+@app.get("/api/kalici-disk-teshis")
+async def kalici_disk_teshis():
+    """Kalıcı disk (Railway Volume) bağlı mı? Deployda sıfırlanma teşhisi."""
+    from data_ingest import hist_dir
+    hd = hist_dir()
+    vol = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
+    kalici = bool(vol) or bool(os.environ.get("DATA_DIR")) or bool(os.environ.get("OAR_HIST_DIR"))
+    durum_dosyalari = {}
+    for ad in ("oar_paper_box.json", "oar_altcoin_sistem.json", "oar_swing.json"):
+        p = hd / ad
+        durum_dosyalari[ad] = p.stat().st_size if p.exists() else "yok"
+    return {
+        "hist_dir": str(hd),
+        "hist_dir_var": hd.exists(),
+        "RAILWAY_VOLUME_MOUNT_PATH": vol or "(YOK — volume bağlı değil!)",
+        "DATA_DIR": os.environ.get("DATA_DIR", "(yok)"),
+        "kalici_mi": kalici,
+        "durum_dosyalari": durum_dosyalari,
+        "uyari": None if kalici else
+        "⚠ Kalıcı disk YOK — Railway'de Volume ekleyin (deployda veri silinir).",
+    }
+
+
 @app.get("/api/ai-teshis")
 async def ai_teshis():
     """
