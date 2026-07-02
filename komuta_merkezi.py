@@ -146,7 +146,7 @@ def _semboller_top(piyasa: list, n: int) -> list:
     return out
 
 
-async def komuta_taramasi(n: int = 50, telegram: bool = True) -> dict:
+async def komuta_taramasi(n: int = 50, telegram: bool = False) -> dict:
     """
     Top-N coini tara, 4 kutuya dağıt, Güvenli→Yüksek geçişlerinde Telegram at.
     """
@@ -276,8 +276,8 @@ async def komuta_loop(aralik_sn: int = 300):
     await asyncio.sleep(90)  # startup'ın hemen ardından ilk tarama
     while True:
         try:
-            await komuta_taramasi(50)
-            print("[KomutaMerkezi] Tarama tamamlandı")
+            await komuta_taramasi(50, telegram=False)  # Top-50 kaldırıldı → Telegram bildirimi yok
+            print("[KomutaMerkezi] Tarama tamamlandı (telegram kapalı)")
         except Exception as e:
             print(f"[KomutaMerkezi] Hata: {str(e)[:80]}")
         finally:
