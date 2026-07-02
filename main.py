@@ -2123,15 +2123,26 @@ async def makro_ozet():
     api_key = os.environ.get("GEMINI_API_KEY", "")
     ozet = yorum.get("sentez", "")
     if api_key:
-        ozet_veri = {k: (v.get("guncel") if v else None) for k, v in g.items()}
-        prompt = f"""Sen makro ekonomi analistisin. Aşağıdaki ABD makro verilerini BTC açısından
-2-3 cümlede özetle (Türkçe, bilimsel). Yön belirleyici tetikleyicileri belirt:
+        # AY AY seriler — birleştirme YOK; her gösterge kendi aylık seyriyle okunur
+        ay_ay = {}
+        for k, v in g.items():
+            if not v:
+                continue
+            son3 = (v.get("gecmis") or [])[-3:]
+            ay_ay[k] = " → ".join(f"{x['tarih']}: {x['deger']}" for x in son3)
+        prompt = f"""Sen makro ekonomi analistisin. ABD makro göstergelerini BTC açısından yorumla.
+ÖNEMLİ: Verileri BİRLEŞTİRME. Her göstergeyi AY AY (aylık seyrini) ayrı oku ve
+her biri için o ayki değeri ve yönünü belirt. Türkçe, bilimsel, **rakamları vurgula**.
 
-Veriler: {json.dumps(ozet_veri, ensure_ascii=False)}
-Eğilim: {yorum.get('egilim')}
-Kitaplardan: {kitap_notu[:300]}
+AY AY VERİLER (eskiden yeniye):
+{json.dumps(ay_ay, ensure_ascii=False, indent=1)}
 
-Range-bound mu, katalist mi gerekiyor? Bir sonraki önemli veri ne?"""
+Genel eğilim: {yorum.get('egilim')}
+Kitaplardan: {kitap_notu[:250]}
+
+Format: Önce en kritik 3-4 göstergeyi ay-ay oku (ör. 'CPI Mar 330 → Nis 332 → May 334,
+istikrarlı yukarı'), sonra BTC için yön belirleyici tetikleyicileri ve bir sonraki
+önemli veriyi belirt. Genel bir harman değil, gösterge-gösterge ay-ay analiz."""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:

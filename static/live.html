@@ -812,6 +812,9 @@ function scrMacro(){
       <div class="sg" style="font-weight:700;font-size:24px;color:#eaf4f2;margin:6px 0">${birim||''}${d.guncel}${suffix||''}</div>
       <div style="font-size:9px;color:${trRenk};margin-bottom:8px">${trOk} Trend</div>
       ${vals.length?spark(vals,trRenk,300,32):''}
+      ${(d.gecmis||[]).length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+        ${(d.gecmis||[]).slice(-3).map((x,i,a)=>{const prev=i>0?a[i-1].deger:null;const c=prev==null?'#9fb0ad':x.deger>=prev?'#1ff0ad':'#ff5d6c';return `<span style="font-size:8.5px;background:#0a0f0f;border:1px solid #1a2422;border-radius:4px;padding:2px 6px"><span style="color:#5e716f">${esc(x.tarih)}</span> <b style="color:${c}">${birim||''}${x.deger}${suffix||''}</b></span>`;}).join('')}
+      </div>`:''}
       ${btc?`<div style="margin-top:10px;padding-top:9px;border-top:1px solid #141d1b">
         <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin-bottom:4px">BTC ETKİSİ</div>
         <div style="font-size:9.5px;color:#a8b8b5;line-height:1.45">${esc(btc)}</div></div>`:''}
