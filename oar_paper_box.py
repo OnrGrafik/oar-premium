@@ -117,6 +117,17 @@ def _kapanis_kontrol(poz: dict, high: float, low: float):
     return None
 
 
+def trade_penceresi_uygun(dt=None) -> bool:
+    """
+    CBDR başlangıcı (TR 23:00 = UTC 20:00) ile Asia oluşumu (TR 07:00 = UTC 04:00)
+    ARASI YENİ işlem AÇILMAZ — range henüz oluşuyor. Döner: True=açılabilir.
+    Yasak pencere (UTC): [20:00, 24:00) ∪ [00:00, 04:00). Kapatma bu kuraldan muaf.
+    """
+    dt = dt or datetime.now(timezone.utc)
+    h = dt.hour + dt.minute / 60.0
+    return not (h >= 20.0 or h < 4.0)
+
+
 def _sure_saat(acilis_iso: str) -> float:
     try:
         a = datetime.fromisoformat(acilis_iso)
@@ -194,6 +205,9 @@ async def tik(durum=None):
             analiz = await oar_analiz(sembol)
         except Exception:
             continue
+        # CBDR–Asia penceresinde (TR 23:00–07:00) yeni işlem açılmaz
+        if not trade_penceresi_uygun():
+            continue
         karar = _ac_karar(analiz)
         if karar:
             karar["acilis"] = datetime.now(timezone.utc).isoformat()
@@ -201,8 +215,24 @@ async def tik(durum=None):
             print(f"[OAR-Paper] {sembol} {karar['yon']} açıldı @ {karar['giris']} "
                   f"(TP {karar['tp']} / SL {karar['sl']})")
 
+    # Günlük/haftalık/aylık rapor + aylık hafıza temizliği
+    try:
+        from oar_rapor import kontrol_ve_gonder
+        await kontrol_ve_gonder(durum, "OAR BTC/ETH", _tg)
+    except Exception as e:
+        print(f"[OAR-Paper] rapor hatası: {str(e)[:60]}")
+
     _kaydet(durum)
     return durum
+
+
+async def _tg(metin):
+    try:
+        from oar_altcoin_sistem import TG_CHAT, TG_THREAD
+        from main import _telegram_gonder
+        await _telegram_gonder(metin, thread_id=TG_THREAD, chat_id=TG_CHAT)
+    except Exception as e:
+        print(f"[OAR-Paper] telegram hatası: {str(e)[:60]}")
 
 
 async def dongu(interval: int = 300):
@@ -217,25 +247,26 @@ async def dongu(interval: int = 300):
 
 
 def durum_ozet() -> dict:
-    """UI kutusu için: güncel bakiye, açık pozisyonlar, bu ayın işlemleri + istatistik."""
+    """UI kutusu için: güncel bakiye, açık pozisyonlar, BU HAFTANIN işlemleri + istatistik.
+    (Kutu haftalık gösterir; hafıza ay sonuna dek tutulur, aylık rapordan sonra silinir.)"""
+    from oar_rapor import bu_hafta_islemler, _iso_hafta
     d = _yukle()
-    su_ay = datetime.now(timezone.utc).strftime("%Y-%m")
-    bu_ay = [t for t in d.get("islemler", []) if t.get("ay") == su_ay]
-    kazanan = [t for t in bu_ay if t["pnl_usd"] > 0]
+    bu_hafta = bu_hafta_islemler(d.get("islemler", []))
+    kazanan = [t for t in bu_hafta if t.get("pnl_usd", 0) > 0]
     return {
         "basladi": d.get("basladi"),
-        "ay": su_ay,
+        "hafta": _iso_hafta(datetime.now(timezone.utc)),
         "baslangic_bakiye": d.get("baslangic_bakiye", BASLANGIC_BAKIYE),
         "bakiye": d.get("bakiye", BASLANGIC_BAKIYE),
         "kaldirac": d.get("kaldirac", KALDIRAC),
         "getiri_pct": round((d.get("bakiye", BASLANGIC_BAKIYE) /
                              d.get("baslangic_bakiye", BASLANGIC_BAKIYE) - 1) * 100, 2),
         "acik_pozisyonlar": d.get("acik", {}),
-        "bu_ay_islem": len(bu_ay),
+        "bu_ay_islem": len(bu_hafta),
         "bu_ay_kazanan": len(kazanan),
-        "bu_ay_wr": round(100 * len(kazanan) / len(bu_ay), 1) if bu_ay else 0,
-        "bu_ay_pnl_usd": round(sum(t["pnl_usd"] for t in bu_ay), 2),
-        "islemler": list(reversed(bu_ay))[:50],
+        "bu_ay_wr": round(100 * len(kazanan) / len(bu_hafta), 1) if bu_hafta else 0,
+        "bu_ay_pnl_usd": round(sum(t.get("pnl_usd", 0) for t in bu_hafta), 2),
+        "islemler": list(reversed(bu_hafta))[:50],
     }
 
 
