@@ -258,6 +258,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
 
     htf = _htf_hesapla(k)        # HTF anchored VWAP (W/M/Q), no-lookahead (filtreli k)
     vpfr = _htf_vpfr_hesapla(k)  # HTF VPFR değer alanı (W/M), no-lookahead
+    rejim = _gunluk_rejim(k)     # trend/range rejimi (Efficiency Ratio), no-lookahead
     gunler = {}
     for gun, kg in k.groupby("gun"):
         asia = kg[(kg["saat"] >= ASIA_BAS_UTC) & (kg["saat"] < ASIA_BIT_UTC)]
@@ -272,6 +273,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
             "cvd_map": {}, "poc": None,
             "htf": htf.get(int(gun), {}),
             "htf_vpfr": vpfr.get(int(gun), {}),
+            "rejim_er": rejim.get(int(gun)),
         }
 
     # 2) aggTrades AY AY → gün-bazlı birikim (dk-delta + fiyat-hacim)
@@ -382,6 +384,29 @@ def _htf_hesapla(klines):
         for key in ("w", "m", "q"):
             cum[key][0] += float(r.pv)
             cum[key][1] += float(r.v)
+    return out
+
+
+def _gunluk_rejim(klines, pencere: int = 10):
+    """
+    Her gün için REJİM (trend mi range mi) — Kaufman Efficiency Ratio, NO-LOOKAHEAD.
+    ER = |net hareket| / Σ|günlük hareket|  (önceki `pencere` günden, giriş gününe
+    kadarki KAPANIŞLARla; o günün verisi KULLANILMAZ).
+      ER yüksek (→1) = TREND (fade riskli) · ER düşük (→0) = RANGE (fade uygun)
+    Döner: {gun: er}
+    """
+    import pandas as pd
+    k = klines
+    gun = (k["open_time"] // GUN_MS).astype("int64")
+    g = k.assign(gun=gun).groupby("gun")["close"].last().sort_index()
+    guns = [int(x) for x in g.index]
+    C = [float(x) for x in g.values]
+    n = len(C)
+    out = {}
+    for i in range(pencere + 1, n):
+        yon = abs(C[i - 1] - C[i - 1 - pencere])                       # net (önceki güne kadar)
+        oynak = sum(abs(C[j] - C[j - 1]) for j in range(i - pencere, i))  # toplam hareket
+        out[guns[i]] = round(yon / oynak, 3) if oynak > 0 else 0.0
     return out
 
 
@@ -591,6 +616,11 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             if any(v is not None for v in htf_vwaplar):
                 yakin = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in htf_vwaplar)
                 kayit["htf_vwap_yakin"] = bool(yakin)
+            # REJİM: range mi (fade uygun) trend mi (fade riskli) — ER < 0.40 = range
+            er = g.get("rejim_er")
+            if er is not None:
+                kayit["rejim_er"] = er
+                kayit["range_rejimi"] = bool(er < 0.40)   # trend gününde fade alma
             # HTF VPFR değer alanı (haftalık/aylık POC/VAH/VAL) yakınlığı
             vpfr_g = g.get("htf_vpfr") or {}
             vpfr_sev = [vpfr_g.get(x) for x in
