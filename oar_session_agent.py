@@ -63,6 +63,36 @@ def _sfp_tespit(mumlar: list, seviye: float, yon: str, esik_pct: float = 0.002) 
     return False
 
 
+async def _htf_vpfr_teyit(sembol: str, fiyat: float, tol_pct: float = 0.5):
+    """
+    HTF (haftalık) VPFR değer-alanı confluence: fiyat haftalık POC/VAH/VAL'ın
+    ≤%0.5 yakınında mı? Backtest-kanıtlı yeni şampiyon bloğu (fade + htf_vpfr,
+    BTC+ETH holdout SAĞLAM, PF ~2.3). Veri yoksa None (teyit uygulanmaz).
+    Döner: (True/False, en_yakin_seviye_adı) veya (None, None).
+    """
+    try:
+        from kiyotaka_engine import get_volume_profile
+        import time
+        simdi = int(time.time())
+        hafta_basi = simdi - (simdi % 604800)          # haftalık pencere başı (UTC)
+        vp = await get_volume_profile(sembol, hafta_basi, 604800)
+    except Exception:
+        return None, None
+    if not vp or vp.get("error") or not vp.get("poc"):
+        return None, None
+    seviyeler = {"POC": vp.get("poc"), "VAH": vp.get("vah"), "VAL": vp.get("val")}
+    en_yakin, en_mesafe = None, None
+    for ad, sv in seviyeler.items():
+        if not sv or fiyat <= 0:
+            continue
+        mesafe = abs(fiyat - sv) / fiyat * 100
+        if en_mesafe is None or mesafe < en_mesafe:
+            en_mesafe, en_yakin = mesafe, ad
+    if en_mesafe is None:
+        return None, None
+    return bool(en_mesafe <= tol_pct), en_yakin
+
+
 def _oar_core_teyit(mumlar: list, asia_high: float, asia_low: float):
     """
     BACKTEST-KANITLI OAR-CORE trio'sunun canlı karşılığı:
@@ -228,6 +258,17 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                     f"⭐ OAR-CORE teyidi ({yon_t}): POC tarafı + absorpsiyon "
                     f"(hacim z{vz:.1f}) + reclaim — backtest PF 3.5, WR ~%50, R:R 3.7")
                 setup_listesi.append(f"OAR-CORE Confluence → {yon_t}")
+
+                # ─── HTF VPFR confluence (yeni şampiyon: fade + htf_vpfr) ──
+                # BTC+ETH 6 yıl holdout SAĞLAM (PF ~2.3, +272%). OAR-CORE teyidi
+                # haftalık değer-alanı seviyesinde de doğrulanırsa ekstra güven.
+                vpfr_ok, vpfr_ad = await _htf_vpfr_teyit(sembol, fiyat)
+                if vpfr_ok:
+                    skor += (15 if yon_t == "LONG" else -15)
+                    nedenler.append(
+                        f"⭐⭐ HTF-VPFR confluence: fiyat haftalık {vpfr_ad} seviyesinde "
+                        f"— backtest-kanıtlı şampiyon (fade+htf_vpfr, holdout SAĞLAM PF~2.3)")
+                    setup_listesi.append(f"HTF-VPFR Confluence ({vpfr_ad}) → {yon_t}")
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0

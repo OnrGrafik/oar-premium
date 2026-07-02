@@ -134,6 +134,24 @@ def tp_sl_seviyeleri(oran: float, giris: float, fibs: dict):
     return tp, sl
 
 
+def tp_sl_breakout(oran: float, giris: float, fibs: dict):
+    """
+    TREND/BREAKOUT TP/SL: ekstremi KIRIP devam yönünde işlem (fade'in TERSİ).
+    Üst ekstrem kırılım → LONG: TP=bir üst fib (devam hedefi), SL=range ortası (0.5, geçersizlik).
+    Alt ekstrem kırılım → SHORT: TP=bir alt fib, SL=range ortası.
+    """
+    mid = fibs.get(0.5)
+    if oran >= 1.0:  # üst kırılım → LONG
+        ust = [v for v in fibs.values() if v > giris]
+        tp = min(ust) if ust else giris * 1.01
+        sl = mid if (mid and mid < giris) else giris * 0.995
+    else:            # alt kırılım → SHORT
+        alt = [v for v in fibs.values() if v < giris]
+        tp = max(alt) if alt else giris * 0.99
+        sl = mid if (mid and mid > giris) else giris * 1.005
+    return tp, sl
+
+
 def degerlendir_tpsl(giris: float, yon: str, tp: float, sl: float, sonraki: list):
     """
     Bar bar: TP mi SL mi önce vurulur? Maliyet (fee+slippage) düşülür.
@@ -275,6 +293,14 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
             "htf_vpfr": vpfr.get(int(gun), {}),
             "rejim_er": rejim.get(int(gun)),
         }
+
+    # Önceki-gün yönü (dünden gelen trend bias) — no-lookahead: g-1'in kapanışı
+    # g-2'ye göre yukarı ise dün LONG bias. Trend adayı bu biasla uyumluysa güç kazanır.
+    gun_kapanis = k.groupby("gun")["close"].last().to_dict()
+    for _gn, _g in gunler.items():
+        pk, pk2 = gun_kapanis.get(_gn - 1), gun_kapanis.get(_gn - 2)
+        _g["onceki_yon"] = (("LONG" if pk > pk2 else "SHORT")
+                            if (pk is not None and pk2 is not None) else None)
 
     # 2) aggTrades AY AY → gün-bazlı birikim (dk-delta + fiyat-hacim)
     cvd_dk = defaultdict(lambda: defaultdict(float))   # gun → {dk: net delta}
@@ -628,7 +654,48 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             if any(v is not None for v in vpfr_sev):
                 yakin_vp = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in vpfr_sev)
                 kayit["htf_vpfr_ok"] = bool(yakin_vp)
+            kayit["mod"] = "fade"
             adaylar.append(kayit)
+
+            # ─── TREND/BREAKOUT adayı — ekstremi KIRIP devam yönünde işlem ───────
+            # Fade'in TERSİ yön. Teyit yığını (kullanıcı kuralları) TREND yönüne göre
+            # YENİDEN hesaplanır — fade yönüne göre hesaplanmış bayraklar yanıltmasın.
+            # Keşif, hangi modun hangi rejimde/teyitte kazandığını bulur.
+            yon_t = "LONG" if oran >= 1.0 else "SHORT"
+            tp_t, sl_t = tp_sl_breakout(oran, fiyat, fibs)
+            out_t, net_t = degerlendir_tpsl(fiyat, yon_t, tp_t, sl_t, ileri)
+            # Yön-bağımlı teyitleri TREND yönüne göre yeniden hesapla
+            if yon_t == "LONG":                          # üst kırılım → devam yukarı
+                absorp_t = (vol_z >= 1.0) and (min(ilk5) >= fiyat * 0.999)  # alıcı tuttu
+                reclaim_t = any(c > seviye * 1.003 for c in ileri15)        # üstte kaldı
+                kal_t = (fiyat >= bd_lvl * 0.999) if bd_lvl is not None else None  # büyük hacim altta destek
+            else:                                        # alt kırılım → devam aşağı
+                absorp_t = (vol_z >= 1.0) and (max(ilk5) <= fiyat * 1.001)
+                reclaim_t = any(c < seviye * 0.997 for c in ileri15)
+                kal_t = (fiyat <= bd_lvl * 1.001) if bd_lvl is not None else None
+            if not (balina_esik > 0 and abs(bd_run) >= balina_esik):
+                kal_t = None                             # büyük delta seviyesi yoksa kalıcılık yok
+            # CVD kırılım yönünde mi (LONG→pozitif, SHORT→negatif)
+            cvd_ok = (cvd_d > 0) if yon_t == "LONG" else (cvd_d < 0)
+            kayit_t = dict(kayit)
+            kayit_t.update({
+                "yon": yon_t, "mod": "trend", "outcome": out_t, "pct": net_t,
+                "absorp": bool(absorp_t), "reclaim": bool(reclaim_t),
+            })
+            if kal_t is not None:
+                kayit_t["kalicilik"] = bool(kal_t)
+            else:
+                kayit_t.pop("kalicilik", None)
+            kayit_t.pop("range_rejimi", None)            # trend adayı range filtresi taşımaz
+            if er is not None:
+                kayit_t["trend_rejimi"] = bool(er >= 0.40)   # trend günü → breakout uygun
+            # Önceki-gün trend bias uyumu (dünden gelen yön devam ediyor mu)
+            onc = g.get("onceki_yon")
+            if onc is not None:
+                kayit_t["gun_bias_uyum"] = bool(onc == yon_t)
+            # breakout_teyit: CVD yönünde + absorpsiyon (pasif karşı taraf tükendi)
+            kayit_t["breakout_teyit"] = bool(cvd_ok and absorp_t)
+            adaylar.append(kayit_t)
     return adaylar
 
 

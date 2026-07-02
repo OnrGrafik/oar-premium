@@ -76,6 +76,42 @@ def oi_tuzak(s):
     return bool(oi and rc)
 
 
+# ─── MOD / TREND BLOKLARI (dual-mode: range→fade, trend→breakout) ─────────────
+def trend_rejimi(s):
+    """
+    Rejim filtresi: SADECE trend gününde breakout al. range_rejimi'nin tersi;
+    Efficiency Ratio ≥ 0.40 = trend (True). trend/breakout adayları için anlamlı.
+    Feature yoksa None (keşifte atlanır).
+    """
+    return s.get("trend_rejimi")
+
+
+def mod_fade(s):
+    """Aday fade modunda mı (mean-reversion: ekstremi ters yönde fade et)."""
+    m = s.get("mod")
+    return m == "fade" if m else None
+
+
+def mod_trend(s):
+    """Aday trend/breakout modunda mı (ekstrem kırılımı yönünde işlem)."""
+    m = s.get("mod")
+    return m == "trend" if m else None
+
+
+def gun_bias_uyum(s):
+    """Dünden gelen trend yönü bugünkü işlemle uyumlu mu (bias devamı)."""
+    return s.get("gun_bias_uyum")
+
+
+def breakout_teyit(s):
+    """
+    Teyitli kırılım: CVD kırılım yönünde + absorpsiyon (kırılan tarafın pasif
+    emirleri tükendi). Naif breakout yerine, kullanıcının anlattığı 'Asia high
+    güçlü gelme + pasif satıcı tüketimi + CVD devam' yığınını kodlar. Feature yoksa None.
+    """
+    return s.get("breakout_teyit")
+
+
 # ─── GELECEK BLOKLAR (veri eklenince doldurulacak — şimdilik None) ────────────
 # Her biri ilgili veri/feature geldiğinde gerçek mantıkla doldurulacak ve
 # AKTIF_BLOKLAR'a eklenecek. None döndükçe keşif motoru bunları KULLANMAZ.
@@ -123,6 +159,22 @@ def dvol_rejim(s):
     return s.get("dvol_ok")
 
 
+def dvol_skew_bearish(s):
+    """
+    DVOL percentile yüksek + DVOL yükseliyor + skew (25Δ RR) yükseliyor → düşüş
+    sinyali (SHORT teyidi / LONG blok). Canlı/forward-log verisi yoksa None.
+    """
+    return s.get("dvol_skew_bearish")
+
+
+def vol_sinyali(s):
+    """
+    Spot-vol korelasyonu düşüyor + IV vade yapısı slope'u yükseliyor → volatilite
+    genişlemesi (breakout/geniş hareket beklentisi). Veri yoksa None.
+    """
+    return s.get("vol_sinyali")
+
+
 def makro_korelasyon(s):
     """Makro (DXY/10Y/20Y/VIX/CPI + SP500/Nasdaq VPFR) uyumu/riski."""
     return s.get("makro_ok")
@@ -139,6 +191,11 @@ BLOKLAR = {
     "footprint_trapped": footprint_trapped,
     "footprint_kalicilik": footprint_kalicilik,
     "range_rejimi": range_rejimi,
+    "trend_rejimi": trend_rejimi,
+    "mod_fade": mod_fade,
+    "mod_trend": mod_trend,
+    "gun_bias_uyum": gun_bias_uyum,
+    "breakout_teyit": breakout_teyit,
     "oi_yuksek": oi_yuksek,
     "whale_retail_zit": whale_retail_zit,
     "oi_tuzak": oi_tuzak,
@@ -146,6 +203,8 @@ BLOKLAR = {
     "htf_vwap": htf_vwap,
     "htf_vpfr": htf_vpfr,
     "dvol_rejim": dvol_rejim,
+    "dvol_skew_bearish": dvol_skew_bearish,
+    "vol_sinyali": vol_sinyali,
     "makro_korelasyon": makro_korelasyon,
 }
 
@@ -155,6 +214,9 @@ AKTIF_BLOKLAR = [
     "footprint_absorpsiyon", "footprint_balina",
     "footprint_yuksek_hacim", "footprint_trapped", "footprint_kalicilik",
     "range_rejimi",                    # trend gününde fade'i eler (mean-reversion koruması)
+    "trend_rejimi",                    # trend gününde breakout adayını seçer (dual-mode)
+    "mod_fade", "mod_trend",           # aday modu (range→fade / trend→breakout)
+    "gun_bias_uyum", "breakout_teyit", # trend teyit yığını (bias devamı + CVD/absorpsiyon)
     "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
     "htf_vwap", "htf_vpfr",             # klines'tan hesaplanır (her zaman var)
 ]
