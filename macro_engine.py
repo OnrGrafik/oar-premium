@@ -119,6 +119,20 @@ async def _basit_fred(cl, series, fb_key, **fb_extra):
     if rows: return _sonuc(rows, kaynak="FRED")
     return _sonuc(FB[fb_key]["seri"], kaynak="FALLBACK", fallback=True, **fb_extra)
 
+async def _nfp(cl):
+    """
+    NFP (tarım dışı istihdam) CANLI: FRED PAYEMS toplam istihdam SEVİYESİNİN
+    aylık FARKI = manşet NFP değişimi (bin kişi). FRED, BLS açıklamasını ~1 gün
+    içinde yansıtır. FRED yoksa fallback.
+    """
+    rows = await _fred(cl, "PAYEMS", 15)   # seviye (bin kişi)
+    if rows and len(rows) >= 2:
+        chg = [{"tarih": rows[i]["tarih"], "deger": round(rows[i]["deger"] - rows[i - 1]["deger"])}
+               for i in range(1, len(rows))]
+        return _sonuc(chg, kaynak="FRED (PAYEMS aylık değişim)")
+    return _sonuc(FB["nfp"]["seri"], kaynak="FALLBACK", fallback=True)
+
+
 async def _fedfaiz(cl):
     rows = await _fred(cl, "FEDFUNDS", 12)
     if rows: return _sonuc(rows, kaynak="FRED")
@@ -244,6 +258,31 @@ def _btc_yorum(g):
         egilim = "NÖTR/NEGATİF"
     return {"harita": h, "sentez": sentez, "egilim": egilim, "olumlu": olumlu, "olumsuz": olumsuz}
 
+def makro_3ay_ozet(veri: dict) -> dict:
+    """
+    Her gösterge için SON 3 AYLIK görünüm: son 3 nokta, 3-ay değişimi, trend, güncel.
+    veri = makro_veri() çıktısı.
+    """
+    g = (veri or {}).get("gostergeler", {})
+    out = {}
+    for k, v in g.items():
+        if not v:
+            continue
+        gecmis = (v.get("gecmis") or [])[-3:]
+        if not gecmis:
+            continue
+        ilk, son = gecmis[0]["deger"], gecmis[-1]["deger"]
+        out[k] = {
+            "son_3ay": gecmis,
+            "guncel": v.get("guncel"),
+            "degisim_3ay": round(son - ilk, 3),
+            "trend": v.get("trend"),
+            "kaynak": v.get("kaynak"),
+            "canli": not v.get("fallback"),
+        }
+    return out
+
+
 async def makro_veri(refresh=False):
     import time
     if not refresh and _cache["data"] and (time.time()-_cache["ts"]) < 300:
@@ -251,7 +290,7 @@ async def makro_veri(refresh=False):
     async with httpx.AsyncClient(timeout=20) as cl:
         sonuclar = await asyncio.gather(
             _fedfaiz(cl), _cpi(cl),
-            _basit_fred(cl, "PAYEMS", "nfp"),  # NFP ham (FRED toplam istihdam)
+            _nfp(cl),  # NFP CANLI (PAYEMS aylık değişim)
             _ppi(cl),
             _basit_fred(cl, "UNRATE", "isRate"),
             _basit_fred(cl, "A191RL1Q225SBEA", "gsyih"),
@@ -263,9 +302,7 @@ async def makro_veri(refresh=False):
     g = {}
     for k, r in zip(keys, sonuclar):
         g[k] = r if not isinstance(r, Exception) else None
-    # NFP fallback'i ham FRED toplam yerine aylık değişim (fallback kullan)
-    if g.get("nfp") and not g["nfp"].get("fallback"):
-        g["nfp"] = _sonuc(FB["nfp"]["seri"], kaynak="FALLBACK (aylık değişim)", fallback=True)
+    # (NFP artık _nfp ile CANLI PAYEMS aylık değişimi — fallback substitüsyonu kaldırıldı)
     yorum = _btc_yorum(g)
     fb = sum(1 for v in g.values() if v and v.get("fallback"))
     out = {"guncellendi": datetime.now(timezone.utc).isoformat(),
