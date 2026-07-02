@@ -262,6 +262,48 @@ def makro_3ay_ozet(veri: dict) -> dict:
     return out
 
 
+def _makro_disk_yol():
+    from data_ingest import hist_dir
+    return hist_dir() / "makro_son.json"
+
+
+def _makro_disk_yukle():
+    try:
+        import json
+        p = _makro_disk_yol()
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return None
+
+
+def _makro_disk_kaydet(out):
+    try:
+        import json
+        p = _makro_disk_yol()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _tarih_yeni_mi(tarih_str, gun=95):
+    """tarih 'YYYY-MM'/'YYYY-MM-DD' son `gun` gün içinde mi (3 ay = ~95)."""
+    from datetime import datetime
+    try:
+        s = (tarih_str or "")[:10]
+        d = None
+        for uzun, fmt in ((10, "%Y-%m-%d"), (7, "%Y-%m")):
+            try:
+                d = datetime.strptime(s[:uzun], fmt); break
+            except Exception:
+                continue
+        return bool(d) and (datetime.utcnow() - d).days <= gun
+    except Exception:
+        return False
+
+
 async def makro_veri(refresh=False):
     import time
     if not refresh and _cache["data"] and (time.time()-_cache["ts"]) < 300:
@@ -273,7 +315,7 @@ async def makro_veri(refresh=False):
             _ppi(cl),
             _basit_fred(cl, "UNRATE", "isRate"),
             _basit_fred(cl, "A191RL1Q225SBEA", "gsyih"),
-            _basit_fred(cl, "PCEPI", "pce", yillik=FB["pce"]["yillik"]),
+            _basit_fred(cl, "PCEPI", "pce"),
             _basit_fred(cl, "NAPM", "ism"),
             _basit_fred(cl, "RSAFS", "perakende"),
             return_exceptions=True)
@@ -281,13 +323,23 @@ async def makro_veri(refresh=False):
     g = {}
     for k, r in zip(keys, sonuclar):
         g[k] = r if not isinstance(r, Exception) else None
-    # (NFP artık _nfp ile CANLI PAYEMS aylık değişimi — fallback substitüsyonu kaldırıldı)
+    # KALICI HAFIZA: canlı kaynak çökerse (veri_yok) diskteki SON 3 AY içindeki
+    # GERÇEK veriyi kullan; 3 aydan eskiyse kullanma (eskiyi silmiş oluruz).
+    disk = _makro_disk_yukle()
+    dg = (disk or {}).get("gostergeler", {})
+    for k in keys:
+        v = g.get(k)
+        if (not v or v.get("veri_yok")):
+            dv = dg.get(k)
+            if dv and not dv.get("veri_yok") and _tarih_yeni_mi(dv.get("tarih", "")):
+                g[k] = dv          # diskteki taze (≤3 ay) gerçek veri
     yorum = _btc_yorum(g)
-    fb = sum(1 for v in g.values() if v and v.get("fallback"))
+    fb = sum(1 for v in g.values() if not v or v.get("veri_yok"))
     out = {"guncellendi": datetime.now(timezone.utc).isoformat(),
            "gostergeler": g, "btcYorum": yorum,
-           "kaynak_ozet": f"{9-fb}/9 canlı, {fb}/9 fallback"}
+           "kaynak_ozet": f"{9-fb}/9 veri var, {fb}/9 veri yok"}
     _cache["data"] = out; _cache["ts"] = time.time()
+    _makro_disk_kaydet(out)         # sonraki çöküşte hafızadan servis + 3-ay tut
     return out
 
 
