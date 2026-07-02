@@ -16,7 +16,8 @@ import json
 from datetime import datetime, timezone
 
 from oar_paper_box import (_net_fiyat_pct, _ac_karar, _kapanis_kontrol,
-                           _sure_saat, _son_hl, KALDIRAC, MAX_SAAT)
+                           _sure_saat, _son_hl, trade_penceresi_uygun,
+                           KALDIRAC, MAX_SAAT)
 
 # Telegram hedefi: https://t.me/c/2142274543/1294/2901 → chat -100..., thread 1294
 TG_CHAT = "-1002142274543"
@@ -141,7 +142,6 @@ async def tik(d=None):
     """Bir tarama adımı: açıkları kontrol/kapat, yeni OAR-CORE sinyali olan altcoinlerde aç."""
     from oar_session_agent import oar_analiz
     d = d if d is not None else _yukle()
-    await _hafta_kontrol(d)
 
     # 1) Açık pozisyonları kontrol et (TP/SL/time-stop)
     for sembol in list(d["acik"].keys()):
@@ -165,10 +165,20 @@ async def tik(d=None):
         for s, analiz in zip(grup, sonuc):
             if not isinstance(analiz, dict):
                 continue
+            # CBDR–Asia penceresinde (TR 23:00–07:00) yeni işlem açılmaz
+            if not trade_penceresi_uygun():
+                continue
             karar = _ac_karar(analiz)
             if karar:
                 await _ac(d, s, karar)
         await asyncio.sleep(1)   # API + bellek nefesi
+
+    # Günlük/haftalık/aylık rapor + aylık hafıza temizliği (birleşik)
+    try:
+        from oar_rapor import kontrol_ve_gonder
+        await kontrol_ve_gonder(d, "OAR ALTCOIN", _tg)
+    except Exception as e:
+        print(f"[OAR-Altcoin] rapor hatası: {str(e)[:60]}")
 
     _kaydet(d)
     return d

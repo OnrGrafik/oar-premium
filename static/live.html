@@ -399,7 +399,7 @@ function scrLeader(){
   <!-- 📦 OAR PAPER-TRADE (BTC+ETH) — komuta merkezine taşındı -->
   <div class="card" style="padding:14px 16px;margin:13px 0;border:1px solid #15301f">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 OAR PAPER-TRADE — BTC+ETH · $1000 · 5x · OAR-CORE sinyali (canlı forward-test, bu ay)</span>
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 OAR PAPER-TRADE — BTC+ETH · $1000 · 5x · OAR-CORE sinyali (canlı forward-test, bu hafta)</span>
       <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
     </div>
     <div id="oar-paper-panel">${oarPaperHtml()}</div>
@@ -1078,9 +1078,9 @@ function oarPaperHtml(){
       ${chip('Bakiye','$'+d.bakiye,col(get()))}
       ${chip('Getiri','%'+get(),col(get()))}
       ${chip('Kaldıraç',d.kaldirac+'x','#ffb13c')}
-      ${chip('Bu ay işlem',d.bu_ay_islem||0)}
+      ${chip('Bu hafta işlem',d.bu_ay_islem||0)}
       ${chip('WR','%'+(d.bu_ay_wr||0),'#7af0c4')}
-      ${chip('Bu ay PnL','$'+(d.bu_ay_pnl_usd||0),col(d.bu_ay_pnl_usd||0))}
+      ${chip('Bu hafta PnL','$'+(d.bu_ay_pnl_usd||0),col(d.bu_ay_pnl_usd||0))}
       ${chip('Başladı',esc(d.basladi||'—'),'#5e716f')}
     </div>
     <div style="font-size:9.5px;margin-bottom:4px">Açık: ${acik}</div>
