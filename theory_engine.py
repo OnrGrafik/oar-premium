@@ -20,7 +20,7 @@ import os, json, asyncio, httpx, math
 from datetime import datetime, timezone
 from pathlib import Path
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 SONUC_FILE = DATA_DIR / "theory_engine_sonuc.json"
 FAPI = "https://fapi.binance.com"
 

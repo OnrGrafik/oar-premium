@@ -155,7 +155,7 @@ async def swing_karar(sinyal: dict) -> dict:
     except Exception as e:
         return {"swing": False, "reason": str(e), "max_gun": 0, "funding": 0.0}
 
-DATA_DIR     = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR     = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 REPORT_FILE  = DATA_DIR / "leader_report.json"

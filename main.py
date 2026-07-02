@@ -2404,6 +2404,38 @@ async def kalici_disk_teshis():
     }
 
 
+@app.get("/api/persistence-teshis")
+async def persistence_teshis():
+    """Agent/durum dosyaları kalıcı diskte mi, deployda sağ kalıyor mu — teşhis."""
+    from datetime import datetime, timezone
+    import glob as _glob
+    from data_ingest import hist_dir
+    koklar = {"DATA_DIR": str(DATA_DIR), "hist_dir": str(hist_dir())}
+    tekil = []; gorulen = set()
+    for kok in {str(DATA_DIR), str(hist_dir())}:
+        for pat in ("*.json", "*.db", "**/*.db", "**/*.json"):
+            for yol in _glob.glob(os.path.join(kok, pat), recursive=True):
+                k = os.path.relpath(yol, kok)
+                if (kok, k) in gorulen:
+                    continue
+                gorulen.add((kok, k))
+                try:
+                    st = os.stat(yol)
+                    tekil.append({"dosya": k, "kok": kok, "boyut": st.st_size,
+                                  "guncel": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat()[:19]})
+                except Exception:
+                    pass
+    kalici = bool(os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.environ.get("DATA_DIR"))
+    return {
+        "kalici_disk_aktif": kalici,
+        "RAILWAY_VOLUME_MOUNT_PATH": os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "(yok)"),
+        "koklar": koklar,
+        "durum_dosyalari": sorted(tekil, key=lambda x: x["dosya"]),
+        "toplam": len(tekil),
+        "uyari": None if kalici else "⚠ Kalıcı disk yok — Railway Volume ekleyin (agentler deployda sıfırlanır).",
+    }
+
+
 @app.get("/api/ai-teshis")
 async def ai_teshis():
     """

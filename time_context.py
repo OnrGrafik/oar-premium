@@ -15,7 +15,7 @@ import os
 from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or ("/var/data" if Path("/var/data").exists() else "data"))
 
 # Bilinen FOMC toplantı tarihleri (2025-2026)
 FOMC_TARIHLERI = {
