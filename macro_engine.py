@@ -6,7 +6,7 @@ Vercel macro.js'in Python'a taşınmış hali. TÜM kaynaklar ÜCRETSİZ:
   • FRED (env key opsiyonel) → çoğu seri
   • US Treasury Fiscal Data (KEYSİZ) → Fed faiz
   • Yahoo Finance (KEYSİZ) → carry trade (USD/JPY, VIX, Nikkei)
-  • Doğrulanmış FALLBACK (31 May 2026 resmi veri) → API çökse bile dolu
+  • Kaynak çökerse HARDCODED fallback YOK → 'veri yok' işaretlenir (yanıltma önlenir)
 
 9 gösterge + BTC etki yorumu + Fed SEP + carry trade.
 Render'da 5 dk cache → RAM/disk yükü minimal.
@@ -50,6 +50,13 @@ def _trend(arr):
     if pct < 0.05: return "sabit"
     return "yukari" if egim > 0 else "asagi"
 
+def _veri_yok(kaynak="⚠ Kaynak erişilemedi"):
+    """Canlı kaynak çöktüğünde ESKİ hardcoded değeri güncelmiş gibi gösterme —
+    'veri yok' işaretle (yanıltmayı önle). guncel=None → yorum/trend atlar."""
+    return {"guncel": None, "onceki": None, "degisim": None, "gecmis": [],
+            "trend": "belirsiz", "kaynak": kaynak, "veri_yok": True, "fallback": True}
+
+
 def _sonuc(rows, **ekstra):
     if not rows: return None
     s = rows[-6:]
@@ -58,34 +65,6 @@ def _sonuc(rows, **ekstra):
             "onceki": onc["deger"] if onc else None,
             "degisim": round(son["deger"]-onc["deger"], 3) if onc else None,
             "gecmis": s, "trend": _trend([d["deger"] for d in s]), **ekstra}
-
-# ═══ DOĞRULANMIŞ FALLBACK (31 May 2026 resmi) ═══
-FB = {
-    "cpi": {"seri": [{"tarih":"2025-11","deger":325.5},{"tarih":"2025-12","deger":326.8},
-            {"tarih":"2026-01","deger":328.3},{"tarih":"2026-02","deger":329.4},
-            {"tarih":"2026-03","deger":330.6},{"tarih":"2026-04","deger":333.02}], "aylik":0.6, "yillik":3.8},
-    "nfp": {"seri":[{"tarih":"2025-11","deger":168},{"tarih":"2025-12","deger":151},
-            {"tarih":"2026-01","deger":143},{"tarih":"2026-02","deger":172},
-            {"tarih":"2026-03","deger":185},{"tarih":"2026-04","deger":115}]},
-    "ppi": {"seri":[{"tarih":"2025-11","deger":3.2},{"tarih":"2025-12","deger":3.5},
-            {"tarih":"2026-01","deger":3.8},{"tarih":"2026-02","deger":4.1},
-            {"tarih":"2026-03","deger":4.6},{"tarih":"2026-04","deger":6.0}], "aylik":1.4},
-    "isRate": {"seri":[{"tarih":"2025-11","deger":4.2},{"tarih":"2025-12","deger":4.1},
-            {"tarih":"2026-01","deger":4.0},{"tarih":"2026-02","deger":4.1},
-            {"tarih":"2026-03","deger":4.2},{"tarih":"2026-04","deger":4.3}]},
-    "fedFaiz": {"seri":[{"tarih":"2026-01","deger":3.88},{"tarih":"2026-02","deger":3.88},
-            {"tarih":"2026-03","deger":3.64},{"tarih":"2026-04","deger":3.64},{"tarih":"2026-05","deger":3.64}]},
-    "gsyih": {"seri":[{"tarih":"2025Q1","deger":2.4},{"tarih":"2025Q2","deger":3.0},
-            {"tarih":"2025Q3","deger":2.8},{"tarih":"2025Q4","deger":2.3},{"tarih":"2026Q1","deger":1.6}]},
-    "pce": {"seri":[{"tarih":"2025-11","deger":0.2},{"tarih":"2025-12","deger":0.3},
-            {"tarih":"2026-01","deger":0.3},{"tarih":"2026-02","deger":0.35},
-            {"tarih":"2026-03","deger":0.38},{"tarih":"2026-04","deger":0.4}], "yillik":3.8},
-    "ism": {"seri":[{"tarih":"2025-12","deger":49.3},{"tarih":"2026-01","deger":50.9},
-            {"tarih":"2026-02","deger":50.3},{"tarih":"2026-03","deger":52.7},{"tarih":"2026-04","deger":52.7}]},
-    "perakende": {"seri":[{"tarih":"2025-11","deger":741.2},{"tarih":"2025-12","deger":748.5},
-            {"tarih":"2026-01","deger":744.8},{"tarih":"2026-02","deger":749.3},
-            {"tarih":"2026-03","deger":753.4},{"tarih":"2026-04","deger":757.1}]},
-}
 
 async def _cpi(cl):
     # BLS flat file (keysiz)
@@ -112,12 +91,12 @@ async def _cpi(cl):
     if rows and len(rows) >= 13:
         son, onc, yil = rows[-1]["deger"], rows[-2]["deger"], rows[-13]["deger"]
         return _sonuc(rows, kaynak="FRED", degisim=round((son-onc)/onc*100, 2), yillik=round((son-yil)/yil*100, 2))
-    return _sonuc(FB["cpi"]["seri"], kaynak="FALLBACK", degisim=FB["cpi"]["aylik"], yillik=FB["cpi"]["yillik"], fallback=True)
+    return _veri_yok()
 
 async def _basit_fred(cl, series, fb_key, **fb_extra):
     rows = await _fred(cl, series, 14)
     if rows: return _sonuc(rows, kaynak="FRED")
-    return _sonuc(FB[fb_key]["seri"], kaynak="FALLBACK", fallback=True, **fb_extra)
+    return _veri_yok()
 
 async def _nfp(cl):
     """
@@ -130,7 +109,7 @@ async def _nfp(cl):
         chg = [{"tarih": rows[i]["tarih"], "deger": round(rows[i]["deger"] - rows[i - 1]["deger"])}
                for i in range(1, len(rows))]
         return _sonuc(chg, kaynak="FRED (PAYEMS aylık değişim)")
-    return _sonuc(FB["nfp"]["seri"], kaynak="FALLBACK", fallback=True)
+    return _veri_yok()
 
 
 async def _fedfaiz(cl):
@@ -146,7 +125,7 @@ async def _fedfaiz(cl):
             tr.sort(key=lambda x: x["tarih"])
             if tr: return _sonuc(tr, kaynak="US Treasury")
     except Exception: pass
-    return _sonuc(FB["fedFaiz"]["seri"], kaynak="FALLBACK", fallback=True)
+    return _veri_yok()
 
 async def _ppi(cl):
     rows = await _fred(cl, "PPIFIS", 14)
@@ -158,7 +137,7 @@ async def _ppi(cl):
         if ys:
             s, o = rows[-1]["deger"], rows[-2]["deger"]
             return _sonuc(ys, kaynak="FRED", degisim=round((s-o)/o*100, 2))
-    return _sonuc(FB["ppi"]["seri"], kaynak="FALLBACK", degisim=FB["ppi"]["aylik"], fallback=True)
+    return _veri_yok()
 
 # ═══ BTC ETKİ YORUMU ═══
 def _btc_yorum(g):
@@ -328,61 +307,74 @@ async def _yahoo(cl, sym):
     except Exception:
         return None
 
-# Carry trade fallback (14 Haz 2026 — görsel 8 verileri)
-CARRY_FB = {
-    "usdjpy": {"fiyat": 160.19, "chg": 0.03},
-    "jgb10y": {"fiyat": 2.72, "chg": 1.87},
-    "us10y": {"fiyat": 4.49, "chg": 0.54},
-    "nikkei": {"fiyat": 66020, "chg": 2.81},
-    "vix": {"fiyat": 17.7, "chg": -9.05},
-    "boj": {"fiyat": 0.75, "chg": 0},
-}
+async def _fred_son(cl, series):
+    """FRED'den son değer + aylık % değişim (JGB/BoJ için canlı kaynak)."""
+    rows = await _fred(cl, series, 3)
+    if rows and len(rows) >= 1:
+        son = rows[-1]["deger"]
+        onc = rows[-2]["deger"] if len(rows) >= 2 else son
+        return {"fiyat": round(son, 2), "chg": round((son - onc) / onc * 100, 2) if onc else 0.0}
+    return {"fiyat": None, "chg": None, "veri_yok": True, "ad_kaynak": "⚠ Kaynak erişilemedi"}
+
+
+def _carry_yoksa(sonuc_i):
+    return sonuc_i if (not isinstance(sonuc_i, Exception) and sonuc_i) else \
+        {"fiyat": None, "chg": None, "veri_yok": True}
+
 
 async def carry_trade():
-    """Japonya carry trade risk monitörü — 6 gösterge + değerlendirme."""
+    """Japonya carry trade risk monitörü — canlı; kaynak çökerse 'veri yok' (fake yok)."""
     async with httpx.AsyncClient(timeout=15) as cl:
         sonuc = await asyncio.gather(
             _yahoo(cl, "JPY=X"),       # USD/JPY
             _yahoo(cl, "^TNX"),        # ABD 10Y (x10)
             _yahoo(cl, "^N225"),       # Nikkei 225
             _yahoo(cl, "^VIX"),        # VIX
+            _fred_son(cl, "IRLTLT01JPM156N"),  # Japonya 10Y (JGB) — FRED CANLI
+            _fred_son(cl, "INTDSRJPM193N"),    # BoJ iskonto/politika — FRED CANLI
             return_exceptions=True)
-    usdjpy = sonuc[0] if not isinstance(sonuc[0], Exception) and sonuc[0] else CARRY_FB["usdjpy"]
+    usdjpy = _carry_yoksa(sonuc[0])
     us10y_raw = sonuc[1] if not isinstance(sonuc[1], Exception) and sonuc[1] else None
-    us10y = {"fiyat": round(us10y_raw["fiyat"]/10, 2) if us10y_raw and us10y_raw["fiyat"]>20 else (us10y_raw["fiyat"] if us10y_raw else CARRY_FB["us10y"]["fiyat"]),
-             "chg": us10y_raw["chg"] if us10y_raw else CARRY_FB["us10y"]["chg"]}
-    nikkei = sonuc[2] if not isinstance(sonuc[2], Exception) and sonuc[2] else CARRY_FB["nikkei"]
-    vix = sonuc[3] if not isinstance(sonuc[3], Exception) and sonuc[3] else CARRY_FB["vix"]
-    # JGB ve BoJ — Yahoo'da güvenilir değil, fallback
-    jgb = CARRY_FB["jgb10y"]; boj = CARRY_FB["boj"]
+    us10y = ({"fiyat": round(us10y_raw["fiyat"] / 10, 2) if us10y_raw["fiyat"] > 20 else us10y_raw["fiyat"],
+              "chg": us10y_raw["chg"]} if us10y_raw else {"fiyat": None, "chg": None, "veri_yok": True})
+    nikkei = _carry_yoksa(sonuc[2])
+    vix = _carry_yoksa(sonuc[3])
+    jgb = _carry_yoksa(sonuc[4])
+    boj = _carry_yoksa(sonuc[5])
 
-    # Spread hesapları
-    politika_spread = round(us10y["fiyat"] - boj["fiyat"], 2)  # ABD 10Y - BoJ
-    piyasa_spread = round(us10y["fiyat"] - jgb["fiyat"], 2)    # ABD 10Y - JGB 10Y
+    def _g(d, k):   # None-güvenli değer
+        return d.get(k) if d and d.get(k) is not None else None
 
-    # Risk değerlendirmesi (kaç gösterge unwind yönünde)
+    # Spread hesapları (veri yoksa None)
+    politika_spread = (round(us10y["fiyat"] - boj["fiyat"], 2)
+                       if _g(us10y, "fiyat") is not None and _g(boj, "fiyat") is not None else None)
+    piyasa_spread = (round(us10y["fiyat"] - jgb["fiyat"], 2)
+                     if _g(us10y, "fiyat") is not None and _g(jgb, "fiyat") is not None else None)
+
+    # Risk: yalnız VERİSİ OLAN göstergelerden say (fake veri sinyale girmez)
     unwind_sinyalleri = 0
-    if usdjpy["chg"] < -0.5: unwind_sinyalleri += 1   # JPY güçleniyor
-    if jgb["chg"] > 1: unwind_sinyalleri += 1          # JGB yükseliyor
-    if nikkei["chg"] < -1: unwind_sinyalleri += 1      # Nikkei düşüyor
-    if vix["fiyat"] > 25: unwind_sinyalleri += 1       # VIX yüksek
-    if boj["chg"] > 0: unwind_sinyalleri += 1          # BoJ faiz artışı
+    if _g(usdjpy, "chg") is not None and usdjpy["chg"] < -0.5: unwind_sinyalleri += 1
+    if _g(jgb, "chg") is not None and jgb["chg"] > 1: unwind_sinyalleri += 1
+    if _g(nikkei, "chg") is not None and nikkei["chg"] < -1: unwind_sinyalleri += 1
+    if _g(vix, "fiyat") is not None and vix["fiyat"] > 25: unwind_sinyalleri += 1
+    if _g(boj, "chg") is not None and boj["chg"] > 0: unwind_sinyalleri += 1
 
     risk = "YÜKSEK" if unwind_sinyalleri >= 4 else "ORTA" if unwind_sinyalleri >= 2 else "DÜŞÜK"
 
+    VY = "⚠ Kaynak erişilemedi — veri yok"
     gostergeler = {
         "usdjpy": {**usdjpy, "ad": "USD/JPY", "alt": "Yen paritesi · carry termometresi",
-            "btc": "JPY zayıf/sabit → carry pozisyonları korunuyor → BTC için baskı yok → NÖTR-POZİTİF zemin." if usdjpy["chg"]>=-0.5 else "JPY güçleniyor → carry unwind riski → risk varlıkları (BTC dahil) satış baskısı."},
+            "btc": VY if _g(usdjpy, "chg") is None else ("JPY zayıf/sabit → carry pozisyonları korunuyor → BTC için baskı yok → NÖTR-POZİTİF zemin." if usdjpy["chg"]>=-0.5 else "JPY güçleniyor → carry unwind riski → risk varlıkları (BTC dahil) satış baskısı.")},
         "jgb10y": {**jgb, "ad": "JGB 10Y", "alt": "Japon 10Y getirisi · fonlama maliyeti",
-            "btc": "JGB yükseliyor → Japon sermayesi yurda dönüyor (repatriasyon) → küresel likidite daralır → BTC OLUMSUZ. BoJ faiz artışı bu trendi hızlandırır."},
+            "btc": VY if _g(jgb, "fiyat") is None else "JGB yükseliyor → Japon sermayesi yurda dönüyor (repatriasyon) → küresel likidite daralır → BTC OLUMSUZ. BoJ faiz artışı bu trendi hızlandırır."},
         "us10y": {**us10y, "ad": "ABD 10Y", "alt": "ABD 10Y getirisi · spread ayağı",
-            "btc": f"Carry spread geniş ({piyasa_spread}p) → JPY borçlanıp ABD/risk varlığı almak hâlâ kârlı → carry akışı sürüyor → BTC DESTEK."},
+            "btc": VY if _g(us10y, "fiyat") is None else f"Carry spread {'geniş' if (piyasa_spread or 0)>1 else 'daralıyor'} ({piyasa_spread}p) → JPY borçlanıp ABD/risk varlığı almak {'hâlâ kârlı → carry akışı sürüyor → BTC DESTEK' if (piyasa_spread or 0)>1 else 'cazibesi azalıyor → carry akışı zayıflar'}."},
         "nikkei": {**nikkei, "ad": "Nikkei 225", "alt": "Japon borsası · unwind barometresi",
-            "btc": "Nikkei güçlü → risk iştahı korunuyor → carry pozisyonları stabil → BTC için POZİTİF teyit." if nikkei["chg"]>=-1 else "Nikkei düşüyor → carry unwind sinyali → küresel risk-off → BTC baskı."},
+            "btc": VY if _g(nikkei, "chg") is None else ("Nikkei güçlü → risk iştahı korunuyor → carry pozisyonları stabil → BTC için POZİTİF teyit." if nikkei["chg"]>=-1 else "Nikkei düşüyor → carry unwind sinyali → küresel risk-off → BTC baskı.")},
         "vix": {**vix, "ad": "VIX", "alt": "Korku endeksi · risk-off tetikleyici",
-            "btc": "VIX düşük (<20) → piyasa sakin → carry pozisyonları güvende → BTC için POZİTİF zemin." if vix["fiyat"]<20 else "VIX yüksek → carry trade'in en çok volatil pozisyonları çözülür → BTC risk-off."},
+            "btc": VY if _g(vix, "fiyat") is None else ("VIX düşük (<20) → piyasa sakin → carry pozisyonları güvende → BTC için POZİTİF zemin." if vix["fiyat"]<20 else "VIX yüksek → carry trade'in en çok volatil pozisyonları çözülür → BTC risk-off.")},
         "boj": {**boj, "ad": "BoJ Politika Faizi", "alt": "Merkez bankası · carry fonlama maliyeti",
-            "btc": "BoJ faiz artırırsa → JPY güçlenir + carry maliyeti artar → ani unwind riski → BTC için YÜKSEK DİKKAT. Artırım olasılığı izleniyor."},
+            "btc": VY if _g(boj, "fiyat") is None else "BoJ faiz artırırsa → JPY güçlenir + carry maliyeti artar → ani unwind riski → BTC için YÜKSEK DİKKAT. Artırım olasılığı izleniyor."},
     }
     if unwind_sinyalleri <= 1:
         degerlendirme = f"Carry trade istikrarlı — {unwind_sinyalleri}/5 unwind sinyali. Pozisyonlar korunuyor, BTC için sistemik risk yok."
