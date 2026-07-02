@@ -2349,6 +2349,42 @@ async def veri_teshis(sembol: str = "BTCUSDT"):
     return sonuc
 
 
+@app.get("/api/makro-3ay")
+async def makro_3ay(yorum: bool = True):
+    """Son 3 aylık makro görünüm (her gösterge) + opsiyonel AI 3-aylık yorumu."""
+    import httpx
+    from macro_engine import makro_veri, makro_3ay_ozet
+    veri = await makro_veri()
+    ozet = makro_3ay_ozet(veri)
+    fb = sum(1 for v in ozet.values() if not v.get("canli"))
+    out = {"son_3ay": ozet, "guncellendi": veri.get("guncellendi"),
+           "kaynak_ozet": veri.get("kaynak_ozet"),
+           "canli_uyari": None if fb == 0 else
+           f"⚠ {fb} gösterge fallback (FRED_API_KEY ekleyin → canlı NFP/CPI/faiz)."}
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if yorum and api_key:
+        try:
+            ozet_metin = "; ".join(
+                f"{k}: güncel {v['guncel']}, 3-ay değişim {v['degisim_3ay']} ({v['trend']})"
+                for k, v in ozet.items())
+            prompt = (f"Sen OAR Premium makro analistisin. ABD makro göstergelerinin SON 3 AYLIK "
+                      f"seyrini BTC açısından yorumla (4-5 cümle, Türkçe, **rakamları vurgula**). "
+                      f"Fed politikası, likidite ve risk iştahı bağlamında sentezle.\n\nVERİLER: {ozet_metin}")
+            url = f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=30) as cl:
+                rr = await cl.post(url, json={"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.35, "maxOutputTokens": 1024}})
+            if rr.status_code == 200:
+                out["ai_yorum"] = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                out["ai_yorum"] = f"⚠ AI yorumu alınamadı (Gemini HTTP {rr.status_code})."
+        except Exception as e:
+            out["ai_yorum"] = f"⚠ AI yorumu hatası: {str(e)[:80]}"
+    elif yorum and not api_key:
+        out["ai_yorum"] = "⚠ AI yorumu kapalı — GEMINI_API_KEY ekleyin (3-aylık veri yine hazır)."
+    return out
+
+
 @app.get("/api/kalici-disk-teshis")
 async def kalici_disk_teshis():
     """Kalıcı disk (Railway Volume) bağlı mı? Deployda sıfırlanma teşhisi."""
@@ -2382,7 +2418,8 @@ async def ai_teshis():
     gk = os.environ.get("GEMINI_API_KEY", "")
     grq = os.environ.get("GROQ_API_KEY", "")
     out = {"gemini_key_var": bool(gk), "gemini_key_uzunluk": len(gk),
-           "groq_key_var": bool(grq), "model": GEMINI_MODEL}
+           "groq_key_var": bool(grq), "fred_key_var": bool(os.environ.get("FRED_API_KEY", "")),
+           "model": GEMINI_MODEL}
     if not gk:
         out["sonuc"] = "GEMINI_API_KEY os.environ'da YOK (Railway Variables'a ekleyip redeploy)."
         return out
