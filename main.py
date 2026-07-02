@@ -1220,7 +1220,29 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] komuta_merkezi: {str(e)[:80]}")
 
+    try:
+        asyncio.create_task(_opsiyon_sinyal_loop())
+        print("[Startup] ✅ Opsiyon sinyal/log döngüsü başlatıldı (DVOL+skew forward-log)")
+    except Exception as e:
+        print(f"[Startup] opsiyon_sinyal_loop: {str(e)[:80]}")
+
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
+
+
+async def _opsiyon_sinyal_loop():
+    """
+    Günde ~2 kez DVOL+skew+vade-yapısı metriklerini hesaplayıp diske loglar
+    (forward backtest veri seti) ve son bileşik sinyalleri önbelleğe alır.
+    """
+    await asyncio.sleep(180)
+    while True:
+        try:
+            from options_signals import opsiyon_metrikleri
+            await opsiyon_metrikleri("BTC")
+            print("[OpsiyonSinyal] metrik hesaplandı + loglandı")
+        except Exception as e:
+            print(f"[OpsiyonSinyal] Hata: {str(e)[:80]}")
+        await asyncio.sleep(43200)   # 12 saat
 
 # ── Lider Agent Endpoint'leri ─────────────────────────────────────────────────
 @app.get("/api/leader/report")
@@ -2343,6 +2365,18 @@ async def veri_teshis(sembol: str = "BTCUSDT"):
         except Exception as e:
             sonuc["opsiyon_gex"] = f"HATA: {str(e)[:80]}"
     return sonuc
+
+
+@app.get("/api/opsiyon-sinyal")
+async def opsiyon_sinyal(currency: str = "BTC"):
+    """
+    Opsiyon-türevli bileşik sinyaller: dvol_skew_bearish (düşüş) + vol_sinyali
+    (volatilite geliyor). Ham metrikleri de döner. Her çağrı günlüğe yazar →
+    forward backtest veri seti birikir. Trend gerektiren bileşenler yeterli log
+    yoksa None (uydurma yok).
+    """
+    from options_signals import opsiyon_metrikleri
+    return await opsiyon_metrikleri(currency)
 
 
 @app.get("/api/makro-3ay")

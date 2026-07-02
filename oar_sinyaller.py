@@ -159,6 +159,22 @@ def dvol_rejim(s):
     return s.get("dvol_ok")
 
 
+def dvol_skew_bearish(s):
+    """
+    DVOL percentile yüksek + DVOL yükseliyor + skew (25Δ RR) yükseliyor → düşüş
+    sinyali (SHORT teyidi / LONG blok). Canlı/forward-log verisi yoksa None.
+    """
+    return s.get("dvol_skew_bearish")
+
+
+def vol_sinyali(s):
+    """
+    Spot-vol korelasyonu düşüyor + IV vade yapısı slope'u yükseliyor → volatilite
+    genişlemesi (breakout/geniş hareket beklentisi). Veri yoksa None.
+    """
+    return s.get("vol_sinyali")
+
+
 def makro_korelasyon(s):
     """Makro (DXY/10Y/20Y/VIX/CPI + SP500/Nasdaq VPFR) uyumu/riski."""
     return s.get("makro_ok")
@@ -187,6 +203,8 @@ BLOKLAR = {
     "htf_vwap": htf_vwap,
     "htf_vpfr": htf_vpfr,
     "dvol_rejim": dvol_rejim,
+    "dvol_skew_bearish": dvol_skew_bearish,
+    "vol_sinyali": vol_sinyali,
     "makro_korelasyon": makro_korelasyon,
 }
 
