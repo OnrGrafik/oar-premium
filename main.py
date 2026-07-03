@@ -1107,10 +1107,12 @@ async def startup_event():
     import gc
     api_key = os.environ.get("GEMINI_API_KEY", "")
 
-    # ── BİR-KERELİK: yeni sisteme (fade+htf_vpfr) geçişte eski backtestleri sil ──
+    # ── BİR-KERELİK: yeni sisteme (fade+htf_vpfr) geçişte eski backtest + paper sil ──
     # Bayrak dosyası ile korunur → sadece ilk deploy'da çalışır, tekrar etmez.
+    # v3: backtest'lere ek olarak eski-sistem paper-trade geçmişlerini de sıfırlar
+    # (OAR Paper-Box BTC+ETH + OAR Altcoin — trende karşı short'layıp zarar edenler).
     try:
-        _gecis_bayrak = DATA_DIR / "yeni_sistem_v2.flag"
+        _gecis_bayrak = DATA_DIR / "yeni_sistem_v3.flag"
         if not _gecis_bayrak.exists():
             silinen = {}
             try:
@@ -1127,9 +1129,23 @@ async def startup_event():
                     {"runs": [], "en_iyi": None, "son_guncelleme": None}, ensure_ascii=False))
             except Exception:
                 pass
+            # Eski-sistem paper-trade geçmişlerini sıfırla (dosyayı sil → temiz başlar)
+            for _mod, _ad in (("oar_paper_box", "paper_box"), ("oar_altcoin_sistem", "altcoin")):
+                try:
+                    _m = __import__(_mod)
+                    _yol = _m._dosya() if hasattr(_m, "_dosya") else None
+                    if _yol and _yol.exists():
+                        try:
+                            _d = json.loads(_yol.read_text())
+                            silinen[_ad] = len(_d.get("islemler", []))
+                        except Exception:
+                            pass
+                        _yol.unlink()
+                except Exception:
+                    pass
             _gecis_bayrak.write_text(json.dumps(
                 {"gecis": "fade+htf_vpfr", "silinen": silinen}), encoding="utf-8")
-            print(f"[Startup] ✅ Yeni sisteme geçiş: eski backtestler silindi {silinen}")
+            print(f"[Startup] ✅ Yeni sisteme geçiş: eski backtest+paper silindi {silinen}")
     except Exception as e:
         print(f"[Startup] gecis_sifirla: {str(e)[:80]}")
 
