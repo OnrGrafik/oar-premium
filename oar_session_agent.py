@@ -108,6 +108,37 @@ async def _htf_vpfr_teyit(sembol: str, fiyat: float, tol_pct: float = 0.5):
     return bool(en_mesafe <= tol_pct), en_yakin
 
 
+async def _whale_retail_teyit(sembol: str, yon: str):
+    """
+    Whale/Retail diverjans EK CONFIRM (Binance futures positioning):
+      retail = globalLongShortAccountRatio (hesap-ağırlıklı → kalabalık)
+      whale  = topLongShortPositionRatio  (pozisyon-ağırlıklı → büyük eller)
+      WRD = whale% − retail%.
+    OAR işlem yönü ile whale AYNI tarafta + retail KARŞIDA ise diverjans teyidi:
+      LONG işlem → WRD > 0 (whale retail'den daha long, kalabalık geride)
+      SHORT işlem → WRD < 0 (whale retail'den daha short)
+    Veri yoksa (None, None, None). Döner: (aligned_bool, wrd, retail_long%).
+    """
+    try:
+        import httpx
+        FAPI = "https://fapi.binance.com"
+        async with httpx.AsyncClient(timeout=12) as cl:
+            rg = await cl.get(f"{FAPI}/futures/data/globalLongShortAccountRatio",
+                              params={"symbol": sembol, "period": "5m", "limit": 1})
+            rt = await cl.get(f"{FAPI}/futures/data/topLongShortPositionRatio",
+                              params={"symbol": sembol, "period": "5m", "limit": 1})
+        g = rg.json(); t = rt.json()
+        if not (isinstance(g, list) and g and isinstance(t, list) and t):
+            return None, None, None
+        retail = float(g[-1]["longAccount"]) * 100
+        whale = float(t[-1]["longAccount"]) * 100
+    except Exception:
+        return None, None, None
+    wrd = whale - retail
+    aligned = (wrd > 0) if yon == "LONG" else (wrd < 0)
+    return bool(aligned), round(wrd, 2), round(retail, 1)
+
+
 def _oar_core_teyit(mumlar: list, asia_high: float, asia_low: float):
     """
     BACKTEST-KANITLI OAR-CORE trio'sunun canlı karşılığı:
@@ -284,6 +315,17 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                         f"⭐⭐ HTF-VPFR confluence: fiyat haftalık {vpfr_ad} seviyesinde "
                         f"— backtest-kanıtlı şampiyon (fade+htf_vpfr, holdout SAĞLAM PF~2.3)")
                     setup_listesi.append(f"HTF-VPFR Confluence ({vpfr_ad}) → {yon_t}")
+
+                # ─── Whale/Retail diverjans EK CONFIRM ──
+                # Whale (top-trader pozisyon) işlem yönünde + retail (kalabalık) karşıda
+                # ise smart-money teyidi. Soft katkı (±10) — kapı değil, güven artırıcı.
+                wr_ok, wrd, wr_retail = await _whale_retail_teyit(sembol, yon_t)
+                if wr_ok:
+                    skor += (10 if yon_t == "LONG" else -10)
+                    nedenler.append(
+                        f"🐋 Whale/Retail diverjans teyidi ({yon_t}): WRD {wrd:+.1f} "
+                        f"(whale işlem yönünde, retail %{wr_retail} karşı tarafta)")
+                    setup_listesi.append(f"Whale-Retail Confirm → {yon_t}")
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0
