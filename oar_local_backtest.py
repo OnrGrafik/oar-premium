@@ -880,6 +880,33 @@ def main():
         for satir in res["veri_ozeti"]:
             print("   •", satir)
         print(kesif_rapor(res["kesif"]))
+        # --yukle: en iyi SAĞLAM şampiyonu komuta merkezine bas (yoksa en iyi aday)
+        if args.yukle:
+            enler = (res["kesif"].get("en_iyiler") or [])
+            sampiyon = next((a for a in enler if a.get("saglam")), enler[0] if enler else None)
+            if not sampiyon:
+                print("[KEŞİF] Yüklenecek şampiyon yok.")
+                return
+            bek = sampiyon.get("holdout_beklenti") or sampiyon.get("beklenti") or {}
+            kayit = {
+                "sembol": "+".join(semboller), "aralik": res["aralik"],
+                "tarih": datetime.now(timezone.utc).isoformat(),
+                "strateji": "OAR_KESIF_SAMPIYON",
+                "kaynak": "yerel_kesif",
+                "bloklar": sampiyon.get("bloklar"),
+                "saglam": sampiyon.get("saglam"),
+                "oos_puan": sampiyon.get("oos_puan"),
+                "oos_wr": sampiyon.get("oos_wr"),
+                "holdout_puan": sampiyon.get("holdout_puan"),
+                "holdout_wr": sampiyon.get("holdout_wr"),
+                "holdout_trade": sampiyon.get("holdout_trade"),
+                "beklenti": bek,
+                "equity_1x": sampiyon.get("equity_1x"),
+                "equity_3x": sampiyon.get("equity_3x"),
+                "havuz_boyutu": res["havuz_boyutu"],
+            }
+            kod, cevap = _sisteme_yukle(args.yukle, kayit, args.api_key)
+            print(f"[KEŞİF] Şampiyon canlı sisteme yüklendi: HTTP {kod} {cevap}")
         return
 
     res = calistir(args.symbol, args.bas, args.bit, folds=args.folds)
