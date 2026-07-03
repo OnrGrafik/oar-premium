@@ -28,7 +28,7 @@ def test_equity_carpani_kaldirac():
 def test_ac_karar_short_confluence():
     analiz = {
         "yon": "SHORT", "fiyat": 100.0,
-        "setup_listesi": ["OAR-CORE Confluence → SHORT"],
+        "setup_listesi": ["OAR Asia Range → SHORT"],
         "asia": {"high": 100.5, "low": 96.0, "poc": 98.25},
     }
     k = _ac_karar(analiz)
@@ -41,7 +41,7 @@ def test_ac_karar_short_confluence():
 def test_ac_karar_long_confluence():
     analiz = {
         "yon": "LONG", "fiyat": 100.0,
-        "setup_listesi": ["OAR-CORE Confluence → LONG"],
+        "setup_listesi": ["OAR Asia Range → LONG"],
         "asia": {"high": 104.0, "low": 99.5, "poc": 101.75},
     }
     k = _ac_karar(analiz)
@@ -51,13 +51,13 @@ def test_ac_karar_long_confluence():
 
 
 def test_ac_karar_confluence_yoksa_none():
-    # OAR-CORE yok → açma
+    # OAR Asia Range yok → açma
     analiz = {"yon": "SHORT", "fiyat": 100, "setup_listesi": ["Asia High Breakout → LONG"],
               "asia": {"high": 101, "low": 98, "poc": 99.5}}
     assert _ac_karar(analiz) is None
     # Asia verisi eksik → None
     assert _ac_karar({"yon": "SHORT", "fiyat": 100,
-                      "setup_listesi": ["OAR-CORE → SHORT"], "asia": {}}) is None
+                      "setup_listesi": ["BOŞ → SHORT"], "asia": {}}) is None
 
 
 def test_kapanis_kontrol():
