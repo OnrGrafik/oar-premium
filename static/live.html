@@ -1129,7 +1129,36 @@ function oarAltcoinHtml(){
       ${acik}${kapali}</table>`}`;
 }
 
+function btSampiyonHtml(){
+  // Yeni sistem şampiyonu (PC keşif → /api/backtest/yerel). Varsa otonom yerine bunu göster.
+  const y=ST.btYerel||{};
+  const kayitlar=(y.kayitlar||[]).filter(k=>k && k.strateji==='OAR_KESIF_SAMPIYON');
+  if(!kayitlar.length) return null;
+  const c=kayitlar[kayitlar.length-1];               // en son yüklenen şampiyon
+  const bek=c.beklenti||{}, e1=c.equity_1x||{}, e3=c.equity_3x||{};
+  const col=v=>v>=0?'#1ff0ad':'#ff5d6c';
+  const chip=(lab,val,cl)=>`<span style="background:#0a0f0f;border:1px solid #1a2422;border-radius:5px;padding:3px 8px;color:${cl||'#9fb0ad'}">${lab}: ${val}</span>`;
+  const bloklar=(c.bloklar||[]).map(b=>`<span style="background:#0a140f;border:1px solid #15301f;border-radius:5px;padding:2px 7px;color:#7af0c4">${esc(b)}</span>`).join(' ');
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:9.5px;margin-bottom:8px">
+      ${chip('Sistem','fade+htf_vpfr ŞAMPİYON','#7af0c4')}
+      ${chip('Durum',c.saglam?'✅ SAĞLAM':'⚠ zayıf',c.saglam?'#1ff0ad':'#ffb13c')}
+      ${chip('Holdout WR','%'+(c.holdout_wr||0)+' (n'+(c.holdout_trade||0)+')','#7af0c4')}
+      ${chip('PF',bek.profit_factor||'—',bek.profit_factor>=2?'#1ff0ad':'#ffb13c')}
+      ${chip('R:R',bek.rr||'—')}
+      ${chip('Birikimli','%'+(bek.toplam_net||0),col(bek.toplam_net||0))}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:9.5px;margin-bottom:8px">
+      ${chip('$1000 1x','$'+(e1.final||0)+' ('+(e1.kat||0)+'x)','#1ff0ad')}
+      ${chip('maxDD 1x','-%'+(e1.max_dd_pct||0),'#ff5d6c')}
+      ${chip('$1000 3x','$'+(e3.final||0)+' ('+(e3.kat||0)+'x)','#1ff0ad')}
+      ${chip('maxDD 3x','-%'+(e3.max_dd_pct||0),'#ff5d6c')}
+    </div>
+    <div style="font-size:9px;color:#5e716f;margin-bottom:6px">${esc(c.sembol||'')} · ${esc(c.aralik||'')} · havuz ${esc(String(c.havuz_boyutu||'?'))} aday · yüklendi ${esc((c.tarih||c._eklendi||'—').slice(0,16).replace('T',' '))}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;font-size:9px">${bloklar}</div>`;
+}
 function btOtonomHtml(){
+  const sampiyon=btSampiyonHtml();
+  if(sampiyon) return sampiyon;                       // yeni sistem şampiyonu öncelikli
   const b=ST.btOtonom||{};
   if(b.hata) return `<div style="font-size:11px;color:#ff5d6c;padding:6px 0">${esc(b.hata)}</div>`;
   const ei=b.en_iyi;
@@ -1319,8 +1348,8 @@ function scrLive(){
   <!-- CIO KARAR MOTORU ve REJİM-UYUMLU HİPOTEZ panelleri kaldırıldı (sadece OAR) -->
   <div class="card" style="padding:14px 16px;margin-bottom:13px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">OAR BACKTEST BULGULARI — Otonom OAR motoru (Asia Range fib + OI + GEX + VPFR), sürekli OAR backtest</span>
-      <button onclick="loadBacktestOtonom().then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
+      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">OAR BACKTEST BULGULARI — Yeni sistem şampiyonu (fade+htf_vpfr), PC derin-geçmiş keşfi</span>
+      <button onclick="Promise.all([loadBacktestYerel(),loadBacktestOtonom()]).then(()=>{if(ST.tab==='leader')render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
     </div>
     <div id="bt-otonom-panel">${btOtonomHtml()}</div>
   </div>
@@ -1544,6 +1573,7 @@ async function loadKarar(){const d=await jget('/api/leader/karar?sembol=BTCUSDT&
 async function loadPaper(){const d=await jget('/api/leader/paper-trades');if(d&&!d.detail)ST.paper=d;}
 async function loadHipotez(){const d=await jget('/api/leader/aktif-hipotezler?symbol=BTCUSDT');if(d&&!d.detail)ST.hipotez=d;}
 async function loadBacktestOtonom(){const d=await jget('/api/backtest/otonom');if(d)ST.btOtonom=d;}
+async function loadBacktestYerel(){const d=await jget('/api/backtest/yerel');if(d)ST.btYerel=d;}
 async function loadOarPaper(){const d=await jget('/api/oar-paper');if(d&&!d.detail)ST.oarPaper=d;}
 async function loadOarAltcoin(){const d=await jget('/api/oar-altcoin');if(d&&!d.detail)ST.oarAltcoin=d;}
 // ── Komuta Merkezi: indikatör + opsiyon skoru + grafik ──
@@ -1663,7 +1693,7 @@ async function boot(){
   tickClock();setInterval(tickClock,1000);
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom,loadOarPaper,loadOarAltcoin];
+  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadKomuta,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadPaper,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
