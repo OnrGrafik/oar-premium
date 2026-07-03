@@ -1107,6 +1107,32 @@ async def startup_event():
     import gc
     api_key = os.environ.get("GEMINI_API_KEY", "")
 
+    # ── BİR-KERELİK: yeni sisteme (fade+htf_vpfr) geçişte eski backtestleri sil ──
+    # Bayrak dosyası ile korunur → sadece ilk deploy'da çalışır, tekrar etmez.
+    try:
+        _gecis_bayrak = DATA_DIR / "yeni_sistem_v2.flag"
+        if not _gecis_bayrak.exists():
+            silinen = {}
+            try:
+                if _YEREL_BT_FILE.exists():
+                    silinen["yerel"] = len(json.loads(_YEREL_BT_FILE.read_text()))
+            except Exception:
+                pass
+            _YEREL_BT_FILE.write_text("[]", encoding="utf-8")
+            try:
+                from oar_autonomous_backtest import BT_FILE as _OTONOM_BT
+                if _OTONOM_BT.exists():
+                    silinen["otonom"] = len(json.loads(_OTONOM_BT.read_text()).get("runs", []))
+                _OTONOM_BT.write_text(json.dumps(
+                    {"runs": [], "en_iyi": None, "son_guncelleme": None}, ensure_ascii=False))
+            except Exception:
+                pass
+            _gecis_bayrak.write_text(json.dumps(
+                {"gecis": "fade+htf_vpfr", "silinen": silinen}), encoding="utf-8")
+            print(f"[Startup] ✅ Yeni sisteme geçiş: eski backtestler silindi {silinen}")
+    except Exception as e:
+        print(f"[Startup] gecis_sifirla: {str(e)[:80]}")
+
     # ── STARTUP: büyük JSON dosyalarını anında küçült (512MB OOM önlemi) ──
     try:
         rapor_f = DATA_DIR / "rapor_gecmisi.json"
