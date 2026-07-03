@@ -257,16 +257,16 @@ def _oar_kapi_uygula(karar: str, yon: str, oar_yon):
 
 
 async def _oar_otorite(sembol: str):
-    """OAR sisteminin yönü (OAR-CORE confluence öncelikli, yoksa OAR agent yönü)."""
+    """OAR sisteminin yönü (OAR Asia Range fade sinyali öncelikli, yoksa OAR agent yönü)."""
     try:
         from oar_session_agent import oar_analiz
         a = await oar_analiz(sembol)
     except Exception as e:
         return None, f"OAR analiz alınamadı: {str(e)[:50]}"
-    core = [s for s in (a.get("setup_listesi") or []) if "OAR-CORE" in s]
+    core = [s for s in (a.get("setup_listesi") or []) if "OAR Asia Range" in s]
     if core:
         yon = "LONG" if "LONG" in core[0] else "SHORT" if "SHORT" in core[0] else a.get("yon")
-        return (yon if yon in ("LONG", "SHORT") else None), "OAR-CORE confluence"
+        return (yon if yon in ("LONG", "SHORT") else None), "OAR Asia Range fade"
     yon = a.get("yon")
     if yon in ("LONG", "SHORT"):
         return yon, f"OAR agent {yon} (skor {a.get('skor', 0)})"

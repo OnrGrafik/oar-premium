@@ -1281,12 +1281,8 @@ async def startup_event():
         tohumla()  # OAR master stratejiyi kural bankasına idempotent tohumla
     except Exception as e:
         print(f"[Startup] seed_oar_rules: {str(e)[:80]}")
-    try:
-        from komuta_merkezi import komuta_loop
-        asyncio.create_task(komuta_loop())
-        print("[Startup] ✅ Komuta Merkezi taraması başlatıldı")
-    except Exception as e:
-        print(f"[Startup] komuta_merkezi: {str(e)[:80]}")
+    # Güvenilirlik skor taraması (komuta_loop) KALDIRILDI — UI kutusu silindiği
+    # için Top-50 taramasının amacı kalmadı (kullanıcı talebi: sadece OAR).
 
     try:
         asyncio.create_task(_opsiyon_sinyal_loop())
@@ -2309,20 +2305,9 @@ async def leader_karar_endpoint(sembol: str = "BTCUSDT", ai: bool = True):
 
 @app.get("/api/komuta-merkezi")
 async def komuta_merkezi_endpoint(refresh: bool = False):
-    """
-    KOMUTA MERKEZİ — Top-20 coin güvenilirlik skoru, 4 kutuya dağıtılmış.
-    Varsayılan: son kaydedilmiş tarama (hızlı). refresh=true → canlı yeniden tara.
-    """
-    from komuta_merkezi import son_tarama, komuta_taramasi
-    if refresh:
-        return await komuta_taramasi(50)
-    son = son_tarama()
-    # Cache yoksa CANLI tarama TETİKLEME (512MB OOM önlemi) — arka plan döngüsü
-    # ilk taramayı yazana kadar "hazırlanıyor" döndür. Manuel için ?refresh=true.
-    if son.get("durum") == "henuz_tarama_yok":
-        return {"kutular": {"yuksek": [], "guvenli": [], "orta": [], "az": []},
-                "durum": "hazirlaniyor", "tarih": None}
-    return son
+    """Güvenilirlik skor taraması KALDIRILDI (UI kutusu silindi). Boş döner."""
+    return {"kutular": {"yuksek": [], "guvenli": [], "orta": [], "az": []},
+            "durum": "kaldirildi", "tarih": None}
 
 
 @app.get("/api/leader/oneriler")

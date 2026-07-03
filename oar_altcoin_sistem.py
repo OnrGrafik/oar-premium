@@ -139,11 +139,11 @@ async def _kapat(d, sembol, cikis, sonuc):
 
 
 async def tik(d=None):
-    """Bir tarama adımı: açıkları kontrol/kapat, yeni OAR-CORE sinyali olan altcoinlerde aç."""
-    from oar_session_agent import oar_analiz
+    """Bir tarama adımı: açıkları kontrol/kapat; market kapısı uygunsa OAR Asia Range sinyalinde aç."""
+    from oar_session_agent import oar_analiz, _market_fade_gunu
     d = d if d is not None else _yukle()
 
-    # 1) Açık pozisyonları kontrol et (TP/SL/time-stop)
+    # 1) Açık pozisyonları kontrol et (TP/SL/time-stop) — her koşulda yönetilir
     for sembol in list(d["acik"].keys()):
         poz = d["acik"][sembol]
         try:
@@ -155,6 +155,13 @@ async def tik(d=None):
             await _kapat(d, sembol, kap[1], kap[0])
         elif _sure_saat(poz["acilis"]) >= MAX_SAAT:
             await _kapat(d, sembol, (high + low) / 2, "TIME_STOP")
+
+    # MARKET KAPISI: BTC ve ETH Asia ≥%1 değilse o gün altcoinlerde YENİ işlem yok
+    fade_gunu, btc_pct, eth_pct = await _market_fade_gunu()
+    if fade_gunu is not True:
+        print(f"[OAR-Altcoin] Market kapısı kapalı (BTC %{btc_pct} / ETH %{eth_pct} <%1) — trade yok")
+        _kaydet(d)
+        return d
 
     # 2) Yeni sinyal taraması (açık olmayan altcoinler)
     semboller = [s for s in await _altcoin_listesi() if s not in d["acik"]]
@@ -168,12 +175,11 @@ async def tik(d=None):
             # CBDR–Asia penceresinde (TR 23:00–07:00) yeni işlem açılmaz
             if not trade_penceresi_uygun():
                 continue
-            # A) SERT KAPI: yalnız HTF-VPFR confluence'ında aç (kanıtlı şampiyon koşulu)
+            # SERT KAPI: yalnız HTF-VPFR confluence'ında aç (kanıtlı şampiyon koşulu).
+            # Coin'in kendi Asia'sı <%1 ise oar_analiz zaten "OAR Asia Range" sinyali
+            # üretmez (trend_devam rejimi) → _ac_karar None döner; ek ER elemesi gereksiz.
             setuplar = analiz.get("setup_listesi") or []
             if not any("HTF-VPFR" in x for x in setuplar):
-                continue
-            # B) REJİM ELEME: trend rejimindeki coinde fade alma (ER ≥ 0.40 = trend)
-            if analiz.get("rejim") == "trend":
                 continue
             karar = _ac_karar(analiz)
             if karar:

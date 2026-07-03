@@ -139,15 +139,62 @@ async def _whale_retail_teyit(sembol: str, yon: str):
     return bool(aligned), round(wrd, 2), round(retail, 1)
 
 
-def _oar_core_teyit(mumlar: list, asia_high: float, asia_low: float):
+async def _market_fade_gunu():
     """
-    BACKTEST-KANITLI OAR-CORE trio'sunun canlı karşılığı:
-      poc_taraf + footprint_absorpsiyon + footprint_trapped
-    2021-2025 keşfinde en sağlam+kârlı kombinasyon (OOS=HOLDOUT 75, WR ~%50,
-    PF 3.5, R:R 3.68). Canlı eşlemesi:
-      • trapped/reclaim → Asia ekstremini süpürüp geri kapanan mum (sweep+reclaim)
-      • absorpsiyon     → o sweep mumunda yüksek hacim (vol_z ≥ 1)
-    Döner: (yon, vol_z) ya da None. (poc_taraf çağıran tarafta doğrulanır.)
+    Market-rejim kapısı: BTC ve ETH Asia range ≥ %1 ise o gün FADE-tradeable.
+    İkisi de sağlıyorsa altcoinler dahil işlem açılabilir; biri bile <%1 ise
+    o gün komple trade yok. Döner: (uygun_bool, btc_pct, eth_pct).
+    """
+    try:
+        b = await _asia_range_pct("BTCUSDT")
+        e = await _asia_range_pct("ETHUSDT")
+    except Exception:
+        return None, None, None
+    if b is None or e is None:
+        return None, None, None
+    return bool(b >= 1.0 and e >= 1.0), round(b, 2), round(e, 2)
+
+
+async def _asia_range_pct(sembol: str):
+    """Bugünün Asia (00:00-04:00 UTC) range yüzdesi. Veri yoksa None."""
+    mumlar = await _ohlcv_al(sembol, "15m", 112)
+    if len(mumlar) < 20:
+        return None
+    from datetime import datetime, timezone
+    simdi = datetime.now(timezone.utc)
+    gun_basi = simdi.replace(hour=0, minute=0, second=0, microsecond=0)
+    dakika_fark = (simdi - gun_basi).total_seconds() / 60
+    son_idx = len(mumlar) - 1
+    a_bas = max(0, son_idx - int(dakika_fark / 15))
+    a_bit = min(len(mumlar), a_bas + 16)
+    asia = mumlar[a_bas:a_bit] or mumlar[max(0, len(mumlar)-32):max(0, len(mumlar)-16)]
+    if not asia:
+        return None
+    hi = max(m[1] for m in asia); lo = min(m[2] for m in asia)
+    return (hi - lo) / lo * 100 if lo > 0 else None
+
+
+def _prev_poc_kalicilik(mumlar: list, prev_poc: float):
+    """
+    Trend-devam sağlık metriği: fiyat önceki günün POC'unun ALTINDA KALICI mı?
+    Altına wick atıp geri dönmek (likidite alma) trendi bozmaz; ama son mumların
+    ÇOĞU POC altında KAPANIYORSA → trend zayıflaması. Döner: "guclu"/"zayif"/None.
+    """
+    if not prev_poc or len(mumlar) < 6:
+        return None
+    son = mumlar[-6:]
+    alt_kapanis = sum(1 for m in son if m[3] < prev_poc)   # POC altında kapanan mum
+    if alt_kapanis >= 4:
+        return "zayif"      # çoğunluk altta kapandı → kalıcı altta → zayıflama
+    return "guclu"          # üstte tutunuyor (wick'ler sayılmaz, kapanış esas)
+
+
+def _oar_asia_teyit(mumlar: list, asia_high: float, asia_low: float):
+    """
+    OAR Asia Range fade teyidi (canlı): Asia ekstremini süpürüp geri kapanan mum.
+      • sweep + reclaim → ekstremi geçip geri kapanan mum (tuzağa düşenler)
+      • absorpsiyon     → o mumda yüksek hacim (vol_z ≥ 1)
+    poc_taraf çağıran tarafta doğrulanır. Döner: (yon, vol_z) ya da None.
     """
     if len(mumlar) < 20 or asia_high <= 0 or asia_low <= 0:
         return None
@@ -291,41 +338,70 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                 nedenler.append(f"Likidite Sweep ↓ Asia Low ${asia_low:,.1f} → geri döndü")
                 setup_listesi.append("Asia Low Liquidity Sweep → LONG setup")
 
-        # ─── OAR-CORE confluence (backtest-kanıtlı: PF 3.5, WR ~%50, R:R 3.7) ──
-        # poc_taraf + absorpsiyon + reclaim hep birlikte → yumuşak skor katkısı.
-        teyit = _oar_core_teyit(mumlar, asia_high, asia_low)
-        if teyit:
-            yon_t, vz = teyit
-            poc_ok = ((yon_t == "SHORT" and fiyat >= asia_poc) or
-                      (yon_t == "LONG" and fiyat <= asia_poc))
-            if poc_ok:   # üçü de hizalı: POC tarafı + absorpsiyon + reclaim
-                skor += (25 if yon_t == "LONG" else -25)
+        # ─── REJİM: Asia range < %1 = trend-devam (fade YOK) / ≥ %1 = fade günü ──
+        oar_rejim = "trend_devam" if asia_range_pct < 1.0 else "fade"
+
+        # Önceki gün POC'u (Asia öncesi ~24s hacim-ağırlıklı) — trend-devam sağlığı
+        prev_poc = None
+        pv0 = max(0, asia_baslangic_index - 96)
+        if asia_baslangic_index - pv0 >= 20:
+            prev_dilim = mumlar[pv0:asia_baslangic_index]
+            hacim_bin = {}
+            for om in prev_dilim:
+                pb = round(om[3], -1) if om[3] > 1000 else round(om[3], 2)
+                hacim_bin[pb] = hacim_bin.get(pb, 0.0) + om[4]
+            if hacim_bin:
+                prev_poc = max(hacim_bin, key=hacim_bin.get)
+
+        if oar_rejim == "trend_devam":
+            # Bu gün FADE ALINMAZ (Asia sıkışması → trend-devam rejimi).
+            # Sağlık: fiyat önceki gün POC'unun altında KALICI mı? (wick sorun değil)
+            saglik = _prev_poc_kalicilik(mumlar, prev_poc)
+            if saglik == "guclu":
                 nedenler.append(
-                    f"⭐ OAR-CORE teyidi ({yon_t}): POC tarafı + absorpsiyon "
-                    f"(hacim z{vz:.1f}) + reclaim — backtest PF 3.5, WR ~%50, R:R 3.7")
-                setup_listesi.append(f"OAR-CORE Confluence → {yon_t}")
-
-                # ─── HTF VPFR confluence (yeni şampiyon: fade + htf_vpfr) ──
-                # BTC+ETH 6 yıl holdout SAĞLAM (PF ~2.3, +272%). OAR-CORE teyidi
-                # haftalık değer-alanı seviyesinde de doğrulanırsa ekstra güven.
-                vpfr_ok, vpfr_ad = await _htf_vpfr_teyit(sembol, fiyat)
-                if vpfr_ok:
-                    skor += (15 if yon_t == "LONG" else -15)
+                    f"📈 TREND-DEVAM günü (Asia %{asia_range_pct:.2f} <%1): fiyat önceki "
+                    f"gün POC üstünde kalıcı → trend güçlü, LONG-bias, FADE ALMA")
+                setup_listesi.append("Trend-Devam (güçlü) → LONG-bias, fade yok")
+            elif saglik == "zayif":
+                nedenler.append(
+                    f"📉 TREND-DEVAM günü ama fiyat önceki gün POC altında kalıcı "
+                    f"→ trend zayıflaması, temkinli")
+                setup_listesi.append("Trend-Devam (zayıf) → trend zayıflıyor")
+            else:
+                nedenler.append(
+                    f"➡️ TREND-DEVAM günü (Asia %{asia_range_pct:.2f} <%1): fade rejimi değil")
+        else:
+            # ─── OAR ASIA RANGE fade teyidi (Asia ekstremini sweep+reclaim+absorpsiyon) ──
+            teyit = _oar_asia_teyit(mumlar, asia_high, asia_low)
+            if teyit:
+                yon_t, vz = teyit
+                poc_ok = ((yon_t == "SHORT" and fiyat >= asia_poc) or
+                          (yon_t == "LONG" and fiyat <= asia_poc))
+                if poc_ok:   # POC tarafı + absorpsiyon + reclaim hizalı
+                    skor += (25 if yon_t == "LONG" else -25)   # heuristik güven katsayısı
                     nedenler.append(
-                        f"⭐⭐ HTF-VPFR confluence: fiyat haftalık {vpfr_ad} seviyesinde "
-                        f"— backtest-kanıtlı şampiyon (fade+htf_vpfr, holdout SAĞLAM PF~2.3)")
-                    setup_listesi.append(f"HTF-VPFR Confluence ({vpfr_ad}) → {yon_t}")
+                        f"⭐ OAR Asia Range fade ({yon_t}): POC tarafı + absorpsiyon "
+                        f"(hacim z{vz:.1f}) + reclaim")
+                    setup_listesi.append(f"OAR Asia Range → {yon_t}")
 
-                # ─── Whale/Retail diverjans EK CONFIRM ──
-                # Whale (top-trader pozisyon) işlem yönünde + retail (kalabalık) karşıda
-                # ise smart-money teyidi. Soft katkı (±10) — kapı değil, güven artırıcı.
-                wr_ok, wrd, wr_retail = await _whale_retail_teyit(sembol, yon_t)
-                if wr_ok:
-                    skor += (10 if yon_t == "LONG" else -10)
-                    nedenler.append(
-                        f"🐋 Whale/Retail diverjans teyidi ({yon_t}): WRD {wrd:+.1f} "
-                        f"(whale işlem yönünde, retail %{wr_retail} karşı tarafta)")
-                    setup_listesi.append(f"Whale-Retail Confirm → {yon_t}")
+                    # HTF-VPFR confluence (backtest şampiyonu: fade+htf_vpfr, holdout SAĞLAM)
+                    vpfr_ok, vpfr_ad = await _htf_vpfr_teyit(sembol, fiyat)
+                    if vpfr_ok:
+                        skor += (15 if yon_t == "LONG" else -15)   # heuristik
+                        nedenler.append(
+                            f"⭐⭐ HTF-VPFR confluence: fiyat haftalık {vpfr_ad} seviyesinde "
+                            f"— backtest-kanıtlı (fade+htf_vpfr)")
+                        setup_listesi.append(f"HTF-VPFR Confluence ({vpfr_ad}) → {yon_t}")
+
+                    # Whale/Retail diverjans EK CONFIRM — SADECE fade gününde (mean-reversion
+                    # edge'i; trend gününde retail chasing genelde haklı olur, o yüzden yok).
+                    wr_ok, wrd, wr_retail = await _whale_retail_teyit(sembol, yon_t)
+                    if wr_ok:
+                        skor += (10 if yon_t == "LONG" else -10)   # heuristik
+                        nedenler.append(
+                            f"🐋 Whale/Retail diverjans teyidi ({yon_t}): WRD {wrd:+.1f} "
+                            f"(whale işlem yönünde, retail %{wr_retail} karşı tarafta)")
+                        setup_listesi.append(f"Whale-Retail Confirm → {yon_t}")
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0
@@ -389,6 +465,9 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
     # Rejim (Kaufman ER, son ~20 mum kapanışı) — trend/range ayrımı (canlı)
     er = _efficiency_ratio([m[3] for m in mumlar], pencere=20)
     rejim = ("trend" if er >= 0.40 else "range") if er is not None else "bilinmiyor"
+    # OAR rejimi (Asia range eşiği): <%1 trend-devam (fade yok) / ≥%1 fade günü
+    oar_rejim = ("trend_devam" if 0 < asia_range_pct < 1.0
+                 else "fade" if asia_range_pct >= 1.0 else "bilinmiyor")
 
     return {
         "skor": skor,
@@ -398,6 +477,7 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
         "setup_listesi": setup_listesi,
         "rejim": rejim,
         "rejim_er": round(er, 3) if er is not None else None,
+        "oar_rejim": oar_rejim,
         "asia": {
             "high": round(asia_high, 2),
             "low": round(asia_low, 2),

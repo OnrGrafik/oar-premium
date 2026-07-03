@@ -75,9 +75,9 @@ def _equity_carpani(net_fiyat_pct: float, kaldirac: int = KALDIRAC) -> float:
 
 
 def _ac_karar(analiz: dict) -> dict | None:
-    """OAR-CORE confluence varsa pozisyon parametreleri (yon/giris/tp/sl), yoksa None."""
+    """OAR Asia Range fade sinyali varsa pozisyon parametreleri (yon/giris/tp/sl), yoksa None."""
     setups = analiz.get("setup_listesi") or []
-    core = [s for s in setups if "OAR-CORE" in s]
+    core = [s for s in setups if "OAR Asia Range" in s]
     if not core:
         return None
     yon = analiz.get("yon")
@@ -181,10 +181,13 @@ async def _kapat(durum, sembol, cikis, sonuc):
 
 
 async def tik(durum=None):
-    """Bir döngü adımı: açıkları kontrol/kapat, yeni OAR-CORE sinyali varsa aç."""
-    from oar_session_agent import oar_analiz
+    """Bir döngü adımı: açıkları kontrol/kapat, market kapısı uygunsa OAR Asia Range sinyalinde aç."""
+    from oar_session_agent import oar_analiz, _market_fade_gunu
     durum = durum if durum is not None else _yukle()
     _ay_kontrol(durum)
+
+    # MARKET KAPISI: BTC ve ETH Asia ≥%1 değilse o gün YENİ işlem yok (açıklar yönetilir)
+    fade_gunu, btc_pct, eth_pct = await _market_fade_gunu()
 
     for sembol in SEMBOLLER:
         # 1) Açık pozisyon → TP/SL/time-stop kontrolü
@@ -198,8 +201,11 @@ async def tik(durum=None):
                 await _kapat(durum, sembol, (high + low) / 2, "TIME_STOP")
             continue   # aynı turda yeni pozisyon açma
 
-        # 2) Açık yok → OAR-CORE sinyali var mı?
+        # 2) Açık yok → yeni işlem
         if durum["bakiye"] <= 0:
+            continue
+        # MARKET KAPISI: BTC+ETH Asia ≥%1 sağlanmadıysa o gün trade yok
+        if fade_gunu is not True:
             continue
         try:
             analiz = await oar_analiz(sembol)
