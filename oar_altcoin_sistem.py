@@ -2,13 +2,13 @@
 OAR Altcoin Sistem — OAR Premium
 ═══════════════════════════════════════════════════════════════════════════════
 Top-100 coin (BTC, ETH ve stablecoinler HARİÇ) → tüm altcoinleri OAR sistemine
-göre CANLI paper-trade eder. OAR-CORE confluence sinyali gelen coinde pozisyon
+göre CANLI paper-trade eder. OAR Asia Range fade sinyali gelen coinde pozisyon
 açar (GİRİŞ), açıkken DEVAM, TP/SL vurunca KAPANIŞ. Her giriş/kapanış Telegram
 grubuna bildirilir; HAFTALIK hafıza tutulur ve hafta sonu K/Z özeti gönderilir.
 
 Tek tablo: static/live.html "OAR ALTCOIN SİSTEM". Backend bu modül.
 
-Disiplin oar_paper_box ile aynı (saf fonksiyonlar oradan): OAR-CORE giriş,
+Disiplin oar_paper_box ile aynı (saf fonksiyonlar oradan): OAR Asia Range giriş,
 TP=Asia POC, SL=süpürülen ekstrem, fee %0.13, time-stop, 5x kaldıraç (gösterim).
 """
 import asyncio
@@ -117,7 +117,7 @@ async def _ac(d, sembol, karar):
     d["acik"][sembol] = karar
     await _tg(f"🟢 OAR ALTCOIN GİRİŞ — {_kisa(sembol)} {karar['yon']}\n"
               f"Giriş: {karar['giris']} · TP: {karar['tp']} · SL: {karar['sl']}\n"
-              f"OAR-CORE confluence (poc+absorpsiyon+reclaim)")
+              f"OAR Asia Range fade (poc+absorpsiyon+reclaim)")
     print(f"[OAR-Altcoin] GİRİŞ {sembol} {karar['yon']} @ {karar['giris']}")
 
 

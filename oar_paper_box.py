@@ -1,13 +1,13 @@
 """
 OAR Paper-Trade Kutusu — OAR Premium
 ═══════════════════════════════════════════════════════════════════════════════
-Backtest-kanıtlı OAR sistemini (OAR-CORE: poc_taraf + absorpsiyon + reclaim)
+Backtest-kanıtlı OAR Asia Range sistemini (poc_taraf + absorpsiyon + reclaim)
 CANLI forward-test eder. Sadece BTCUSDT + ETHUSDT. $1000 başlangıç, 5x kaldıraç,
 compound. Her işlem hafızaya kaydedilir; kutu o AYIN işlemlerini + güncel bakiyeyi
 gösterir. "Bugün başlıyoruz" — durum diske (Railway volume) yazılır, kalıcıdır.
 
 Disiplin:
-  • Giriş YALNIZ OAR-CORE confluence sinyalinde (oar_session_agent).
+  • Giriş YALNIZ OAR Asia Range fade sinyalinde (oar_session_agent).
   • TP = Asia POC (range ortası), SL = süpürülen ekstrem (Asia high/low) + tampon.
   • Maliyet: round-trip %0.13 (fee+slippage) fiyat hareketinden düşülür.
   • Time-stop: MAX_SAAT sonra zorla kapanır (OAR gün-içi geçerlilik).
