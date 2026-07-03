@@ -63,6 +63,21 @@ def _sfp_tespit(mumlar: list, seviye: float, yon: str, esik_pct: float = 0.002) 
     return False
 
 
+def _efficiency_ratio(closes: list, pencere: int = 20) -> float | None:
+    """
+    Kaufman Efficiency Ratio: |net yol| / Σ|adım|. → 1 trend, → 0 range.
+    Backtest'teki _gunluk_rejim ile aynı mantık (canlı rejim tespiti).
+    """
+    if not closes or len(closes) < pencere + 1:
+        return None
+    seri = closes[-(pencere + 1):]
+    net = abs(seri[-1] - seri[0])
+    toplam = sum(abs(seri[i] - seri[i - 1]) for i in range(1, len(seri)))
+    if toplam <= 0:
+        return None
+    return net / toplam
+
+
 async def _htf_vpfr_teyit(sembol: str, fiyat: float, tol_pct: float = 0.5):
     """
     HTF (haftalık) VPFR değer-alanı confluence: fiyat haftalık POC/VAH/VAL'ın
@@ -329,12 +344,18 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
 
     skor = max(-100, min(100, int(skor)))
 
+    # Rejim (Kaufman ER, son ~20 mum kapanışı) — trend/range ayrımı (canlı)
+    er = _efficiency_ratio([m[3] for m in mumlar], pencere=20)
+    rejim = ("trend" if er >= 0.40 else "range") if er is not None else "bilinmiyor"
+
     return {
         "skor": skor,
         "yon": "LONG" if skor > 20 else "SHORT" if skor < -20 else "NEUTRAL",
         "aciklama": " | ".join(nedenler),
         "aktif_seans": aktif,
         "setup_listesi": setup_listesi,
+        "rejim": rejim,
+        "rejim_er": round(er, 3) if er is not None else None,
         "asia": {
             "high": round(asia_high, 2),
             "low": round(asia_low, 2),
