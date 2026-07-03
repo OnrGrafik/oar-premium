@@ -1112,7 +1112,7 @@ async def startup_event():
     # v3: backtest'lere ek olarak eski-sistem paper-trade geçmişlerini de sıfırlar
     # (OAR Paper-Box BTC+ETH + OAR Altcoin — trende karşı short'layıp zarar edenler).
     try:
-        _gecis_bayrak = DATA_DIR / "yeni_sistem_v3.flag"
+        _gecis_bayrak = DATA_DIR / "yeni_sistem_v4.flag"
         if not _gecis_bayrak.exists():
             silinen = {}
             try:

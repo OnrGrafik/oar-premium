@@ -168,6 +168,13 @@ async def tik(d=None):
             # CBDR–Asia penceresinde (TR 23:00–07:00) yeni işlem açılmaz
             if not trade_penceresi_uygun():
                 continue
+            # A) SERT KAPI: yalnız HTF-VPFR confluence'ında aç (kanıtlı şampiyon koşulu)
+            setuplar = analiz.get("setup_listesi") or []
+            if not any("HTF-VPFR" in x for x in setuplar):
+                continue
+            # B) REJİM ELEME: trend rejimindeki coinde fade alma (ER ≥ 0.40 = trend)
+            if analiz.get("rejim") == "trend":
+                continue
             karar = _ac_karar(analiz)
             if karar:
                 await _ac(d, s, karar)
