@@ -199,7 +199,8 @@ async def _backtest_gun(sym, klines, oi_map, gex_snap, vpfr_cache,
     H = max(float(k[2]) for k in asia_k)
     L = min(float(k[3]) for k in asia_k)
     R = H - L
-    if L <= 0 or R/L*100 < 0.8: return []
+    # OAR market-kapısıyla hizalı: Asia range ≥ %1 (altı = trend-devam, fade yok)
+    if L <= 0 or R/L*100 < 1.0: return []
 
     fibs = {
         "2.272":  (L+R*2.272,  "SHORT"),
