@@ -46,13 +46,46 @@ def ozet(trades: list) -> dict | None:
             "net": net, "usd": usd}
 
 
-def rapor_metni(baslik: str, tip: str, etiket: str, oz: dict) -> str | None:
+def teyit_dokumu(trades: list) -> str:
+    """
+    Hangi teyit hangi WR getirmiş — canlı forward-test'in bilimsel çıktısı.
+    Her işlem birden çok teyit taşıyabilir; her teyit için ayrı WR/net hesaplanır.
+    (Altcoin geçmiş verisi olmadığı için validation yolumuz bu aylık döküm.)
+    """
+    sayac = {}
+    for t in trades:
+        eq = float(t.get("equity_pct", 0) or 0)
+        for ty in (t.get("teyitler") or []):
+            # etiketten filtre adını sadeleştir (ör. "HTF-VPFR Confluence (VAH) → SHORT" → "HTF-VPFR")
+            for ad in ("HTF-VPFR", "Whale-Retail", "Opsiyon", "OAR Asia Range", "Trend-Devam"):
+                if ad in ty:
+                    d = sayac.setdefault(ad, {"n": 0, "kaz": 0, "net": 0.0})
+                    d["n"] += 1; d["net"] += eq
+                    if eq > 0:
+                        d["kaz"] += 1
+                    break
+    if not sayac:
+        return ""
+    satirlar = []
+    for ad, d in sorted(sayac.items(), key=lambda kv: kv[1]["n"], reverse=True):
+        wr = round(100 * d["kaz"] / d["n"], 1) if d["n"] else 0
+        satirlar.append(f"  • {ad}: n{d['n']} · WR %{wr} · net %{round(d['net'],1)}")
+    return "Teyit dökümü (hangi filtre → WR):\n" + "\n".join(satirlar)
+
+
+def rapor_metni(baslik: str, tip: str, etiket: str, oz: dict, trades: list = None) -> str | None:
     if not oz:
         return None
     usd = f" · ${oz['usd']:+.2f}" if oz.get("usd") else ""
-    return (f"📊 {baslik} — {tip} Rapor ({etiket})\n"
-            f"İşlem: {oz['n']} · Kazanan: {oz['kazanan']} · WR %{oz['wr']}\n"
-            f"Net (5x toplam): %{oz['net']}{usd}")
+    metin = (f"📊 {baslik} — {tip} Rapor ({etiket})\n"
+             f"İşlem: {oz['n']} · Kazanan: {oz['kazanan']} · WR %{oz['wr']}\n"
+             f"Net (5x toplam): %{oz['net']}{usd}")
+    # Aylık raporda teyit-bazında döküm (bilimsel forward-test)
+    if tip == "Aylık" and trades:
+        dokum = teyit_dokumu(trades)
+        if dokum:
+            metin += "\n" + dokum
+    return metin
 
 
 async def kontrol_ve_gonder(durum: dict, baslik: str, tg_gonder) -> list:
@@ -85,8 +118,9 @@ async def kontrol_ve_gonder(durum: dict, baslik: str, tg_gonder) -> list:
 
     # AYLIK + hafıza temizliği (rapordan SONRA sil)
     if r.get("son_ay") and r["son_ay"] != buay:
-        oz = ozet([t for t in trades if _ay_of(t) == r["son_ay"]])
-        m = rapor_metni(baslik, "Aylık", r["son_ay"], oz)
+        ay_trades = [t for t in trades if _ay_of(t) == r["son_ay"]]
+        oz = ozet(ay_trades)
+        m = rapor_metni(baslik, "Aylık", r["son_ay"], oz, ay_trades)
         if m:
             await tg_gonder(m); gonderildi.append("ay")
         # aylık rapordan sonra: yalnız current ayın işlemlerini tut, gerisini sil
