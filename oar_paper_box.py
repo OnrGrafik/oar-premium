@@ -98,7 +98,11 @@ def _ac_karar(analiz: dict) -> dict | None:
         tp, sl = poc, lo * 0.998
         if not (sl < fiyat < tp):
             return None
-    return {"yon": yon, "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}
+    # Ateşlenen teyitleri sakla → aylık forward-test: hangi filtre hangi WR (bilimsel)
+    teyitler = [s for s in setups if any(k in s for k in
+                ("OAR Asia Range", "HTF-VPFR", "Whale-Retail", "Opsiyon", "Trend-Devam"))]
+    return {"yon": yon, "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2),
+            "teyitler": teyitler}
 
 
 def _kapanis_kontrol(poz: dict, high: float, low: float):
@@ -175,6 +179,7 @@ async def _kapat(durum, sembol, cikis, sonuc):
         "equity_pct": round((carpan - 1) * 100, 3), "pnl_usd": pnl_usd,
         "acilis": poz["acilis"], "kapanis": datetime.now(timezone.utc).isoformat(),
         "bakiye_sonra": durum["bakiye"], "ay": poz["acilis"][:7],
+        "teyitler": poz.get("teyitler", []),
     })
     print(f"[OAR-Paper] {sembol} {poz['yon']} kapandı: {sonuc} @ {cikis:.2f} "
           f"(equity %{(carpan-1)*100:.2f}, ${pnl_usd}) → bakiye ${durum['bakiye']}")

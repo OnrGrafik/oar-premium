@@ -131,6 +131,7 @@ async def _kapat(d, sembol, cikis, sonuc):
         "equity_pct": equity_pct, "kaldirac": KALDIRAC,
         "acilis": poz["acilis"], "kapanis": datetime.now(timezone.utc).isoformat(),
         "hafta": _hafta_etiket(),
+        "teyitler": poz.get("teyitler", []),
     })
     emoji = "✅" if equity_pct > 0 else "❌"
     await _tg(f"🔴 OAR ALTCOIN KAPANIŞ — {_kisa(sembol)} {poz['yon']}\n"
