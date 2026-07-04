@@ -142,6 +142,17 @@ async def pattern_sinyal_loop():
             profil = profil_ogren()
             if profil.get("ayirt_edici"):
                 ayirt = profil["ayirt_edici"]
+                # OAR'a bağlı: kazanan/kaybeden ayırt edici profili merkezi kanala
+                # raporla → OAR sinyallerini hangi feature kazandırıyor (geliştirme girdisi).
+                try:
+                    from ajan_merkez import bildir
+                    en = sorted(ayirt.items(), key=lambda kv: abs(kv[1]["fark"]), reverse=True)[:3]
+                    ozet = " · ".join(f"{a}: win {d['win_ort']} vs loss {d['loss_ort']}" for a, d in en)
+                    await bildir("Pattern Öğrenici", "research",
+                                 f"OAR kazanan profil ({profil['win_n']}W/{profil['loss_n']}L): {ozet}",
+                                 detay="Bu feature'lar OAR sinyallerinde WIN/LOSS'u ayırıyor → filtre önerisi")
+                except Exception:
+                    pass
                 for sym in ["BTCUSDT","ETHUSDT","SOLUSDT"]:
                     f = await feature_cek(sym)
                     if not f: continue

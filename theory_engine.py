@@ -305,12 +305,25 @@ def son_hipotezler():
     return {"durum": "henuz_calismadi", "en_iyi_hipotezler": []}
 
 async def hipotez_loop():
-    """Günde bir tüm enstrümanları otomatik tarar."""
+    """Günde bir OAR Asia Range fib hipotezlerini tarar → merkezi kanala raporlar."""
     await asyncio.sleep(600)
     while True:
         try:
-            await tum_enstruman_tara(365)
-            print("[Hipotez] ✅ Tüm enstrümanlar tarandı")
+            out = await tum_enstruman_tara(365)
+            print("[Hipotez] ✅ OAR fib hipotezleri tarandı")
+            # OAR hipotez üreticisi: en iyi bulguları merkezi ajan kanalına gönder
+            try:
+                from ajan_merkez import bildir
+                en = (out.get("en_iyi_hipotezler") or [])[:3]
+                if en:
+                    satir = " · ".join(
+                        f"{h.get('sym','?')} fib {h.get('fib','?')}: WR %{h.get('win_rate',0)} "
+                        f"({h.get('durum','?')})" for h in en)
+                    await bildir("Hipotez (OAR fib)", "research",
+                                 f"OAR Asia Range fib taraması: {satir}",
+                                 detay="OAR geliştirme adayları — Confirmed olanlar şampiyona teyit olabilir")
+            except Exception:
+                pass
         except Exception as e:
             print(f"[Hipotez] {str(e)[:60]}")
         await asyncio.sleep(86400)  # 24 saat

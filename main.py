@@ -1213,9 +1213,8 @@ async def startup_event():
     # Grup 2 — hafif
     await asyncio.sleep(2)
     try:
-        from paper_trade_agent import paper_trade_loop
-        asyncio.create_task(paper_trade_loop())
-        print("[Startup] ✅ Paper Trade Agent loop başlatıldı")
+        # CIO paper_trade_loop KALDIRILDI (ANAYASA #9: OAR-dışı enerji, CIO silindi).
+        # Forward-test OAR paper-box + altcoin ile yapılıyor.
         # OAR Asia Range paper-trade kutusu (BTC+ETH, $1000 5x, aylık hafıza)
         from oar_paper_box import dongu as oar_paper_dongu
         asyncio.create_task(oar_paper_dongu())
