@@ -79,9 +79,12 @@ def _seans_ozellikleri(sembol, bas, bit):
     import numpy as np
     from footprint_engine import aggressor_delta
 
+    print(f"   [{sembol}] klines yükleniyor…", flush=True)
     k = _klines_oku(sembol, bas, bit)
     if k is None or not len(k):
+        print(f"   [{sembol}] ⚠ klines yok — atlandı", flush=True)
         return []
+    print(f"   [{sembol}] klines yüklendi: {len(k):,} mum · aggTrades ay ay işlenecek", flush=True)
     k = k.copy()
     k["open_time"] = _ms_olcekle(k["open_time"])
     OT_MIN, OT_MAX = 1_400_000_000_000, 2_000_000_000_000
@@ -98,7 +101,10 @@ def _seans_ozellikleri(sembol, bas, bit):
     cvd_ss   = defaultdict(float)                       # (gun,seans) → net delta
     vol_ss   = defaultdict(float)                       # (gun,seans) → toplam hacim (aggT)
     pbin_ss  = defaultdict(lambda: defaultdict(float))  # (gun,seans) → {pbin: hacim}
-    for yol in _aggt_ay_yollari(sembol, bas, bit):
+    yollar = _aggt_ay_yollari(sembol, bas, bit)
+    toplam = len(yollar)
+    for i, yol in enumerate(yollar, 1):
+        print(f"      · [{sembol}] aggTrades {yol.name} ({i}/{toplam}) işleniyor…", flush=True)
         a = pd.read_parquet(yol, columns=["timestamp", "price", "quantity", "is_buyer_maker"])
         a["timestamp"] = _ms_olcekle(a["timestamp"])
         a["gun"] = (a["timestamp"] // GUN_MS).astype("int64")
@@ -117,8 +123,10 @@ def _seans_ozellikleri(sembol, bas, bit):
                 vol_ss[(int(g), ad)] += float(v)
             for (g, pb), v in m.groupby(["gun", "pbin"])["quantity"].sum().items():
                 pbin_ss[(int(g), ad)][float(pb)] += float(v)
+        print(f"        ✓ {yol.name} işlendi", flush=True)
         del a
 
+    print(f"   [{sembol}] seans özetleri + özellikler hesaplanıyor…", flush=True)
     # ── Her gün×seans klines özeti (OHLC, VWAP) — TEK groupby (hızlı) ──
     def _seans_ad(saat):
         for ad, (s0, s1) in SEANSLAR.items():
@@ -205,6 +213,7 @@ def _seans_ozellikleri(sembol, bas, bit):
 
     # ── İLERİ SONUÇLAR (forward) — no-lookahead: hep gelecekten ──
     _ileri_sonuc_ekle(kayitlar, kapanis_map, seans_ohlc, gunler)
+    print(f"   [{sembol}] ✓ tamamlandı: {len(kayitlar):,} gün×seans kaydı", flush=True)
     return kayitlar
 
 
