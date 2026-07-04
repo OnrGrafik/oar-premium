@@ -1290,6 +1290,13 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] opsiyon_sinyal_loop: {str(e)[:80]}")
 
+    try:
+        from ajan_merkez import bildir
+        asyncio.create_task(bildir("Sistem", "durum",
+            "Ajan merkezi aktif — tüm agent görüş/research/backtest/öneri/eksik burada."))
+    except Exception as e:
+        print(f"[Startup] ajan_merkez ping: {str(e)[:60]}")
+
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
 
@@ -2437,6 +2444,13 @@ async def veri_teshis(sembol: str = "BTCUSDT"):
         except Exception as e:
             sonuc["opsiyon_gex"] = f"HATA: {str(e)[:80]}"
     return sonuc
+
+
+@app.get("/api/ajan-aktivite")
+async def ajan_aktivite(n: int = 30):
+    """Merkezi ajan aktivite log'u (research/backtest/öneri/eksik/görüş)."""
+    from ajan_merkez import son_aktiviteler
+    return {"aktiviteler": son_aktiviteler(n)}
 
 
 @app.get("/api/opsiyon-sinyal")

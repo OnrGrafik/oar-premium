@@ -256,6 +256,12 @@ async def oneri_tara_ve_gonder(metin: str, kaynak: str) -> dict | None:
     o = oneri_olustur(kaynak, hedef)
     if o:
         await oneri_gonder_telegram(o)
+        # Merkezi ajan kanalına da bildir (thread 4129) — öneri boşa gitmesin
+        try:
+            from ajan_merkez import bildir
+            await bildir(f"Öneri ({kaynak})", "öneri", hedef[:180])
+        except Exception:
+            pass
     return o
 
 

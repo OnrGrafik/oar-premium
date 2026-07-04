@@ -1370,6 +1370,19 @@ Win Rate: %{backtest.get('genel_win_rate',0)}
                 icerik["ai_dusunce"] = ai
                 icerik["metin"] += f"\n\n🤖 {ai}"
             rapor_gecmisi_ekle("lider", icerik)
+            # Merkezi ajan kanalına lider değerlendirmesi + biriken ajan aktivite özeti
+            try:
+                from ajan_merkez import bildir, bekleyen_ozet
+                if ai:
+                    await bildir("Lider Agent", "görüş", denetim.get("ozet", "saatlik değerlendirme"),
+                                 detay=ai)
+                ozet = bekleyen_ozet()
+                if ozet:
+                    from main import _telegram_gonder
+                    from ajan_merkez import AJAN_CHAT, AJAN_THREAD
+                    await _telegram_gonder(ozet, thread_id=AJAN_THREAD, chat_id=AJAN_CHAT)
+            except Exception as e:
+                print(f"[LiderSaatlik] ajan_merkez: {str(e)[:60]}")
             print(f"[LiderSaatlik] ✅ {denetim['ozet']}")
         except Exception as e:
             print(f"[LiderSaatlik] Hata: {str(e)[:80]}")
@@ -1445,6 +1458,14 @@ async def saatlik_research_loop():
                 except Exception as e:
                     print(f"[ResearchSaatlik] oneri hata: {str(e)[:60]}")
             rapor_gecmisi_ekle("research", icerik)
+            # Merkezi ajan kanalına bildir (thread 4129) — research boşa düşmesin
+            try:
+                from ajan_merkez import bildir
+                await bildir("Research Agent", "research",
+                             f"Trend: {trend} · Korku: {fg.get('deger','—')}",
+                             detay=ai or icerik["metin"])
+            except Exception:
+                pass
             print("[ResearchSaatlik] ✅")
             del yenilik, research, icerik
         except Exception as e:

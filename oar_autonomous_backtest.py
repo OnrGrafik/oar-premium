@@ -419,6 +419,17 @@ async def otonom_backtest_calistir(sym="BTCUSDT", gun=30, max_paralel=2,
     _kaydet(db)
 
     print(f"[OtonomBT] Tamamlandı {sure}s — En iyi: {en_iyi['id'] if en_iyi else '-'} Puan:{en_iyi['puan'] if en_iyi else 0}")
+    # Merkezi ajan kanalına bildir (thread 4129) — backtest çıktısı boşa düşmesin
+    try:
+        from ajan_merkez import bildir
+        if en_iyi:
+            st = en_iyi.get("stats", {}) or {}
+            await bildir("Backtest Agent", "backtest",
+                         f"{sym} {gun}g ({sebep}): en iyi '{en_iyi.get('id','?')}' "
+                         f"Puan {en_iyi.get('puan',0)} · WR %{st.get('wr',0)} · PnL {st.get('pnl',0):+.1f}%",
+                         detay=f"{len(sonuclar)} test · {sure}s")
+    except Exception:
+        pass
     return run
 
 # ── Periyodik Döngü ───────────────────────────────────────────────────────────
