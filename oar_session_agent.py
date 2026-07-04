@@ -63,6 +63,25 @@ def _sfp_tespit(mumlar: list, seviye: float, yon: str, esik_pct: float = 0.002) 
     return False
 
 
+def _rsi(closes: list, pencere: int = 14) -> float | None:
+    """Wilder RSI (0-100). >50 alıcı baskın, <50 satıcı baskın. Veri yoksa None."""
+    if not closes or len(closes) < pencere + 1:
+        return None
+    kazanc, kayip = [], []
+    for i in range(1, len(closes)):
+        d = closes[i] - closes[i - 1]
+        kazanc.append(max(d, 0.0)); kayip.append(max(-d, 0.0))
+    ag = sum(kazanc[:pencere]) / pencere
+    al = sum(kayip[:pencere]) / pencere
+    for i in range(pencere, len(kazanc)):     # Wilder yumuşatma
+        ag = (ag * (pencere - 1) + kazanc[i]) / pencere
+        al = (al * (pencere - 1) + kayip[i]) / pencere
+    if al == 0:
+        return 100.0
+    rs = ag / al
+    return 100.0 - (100.0 / (1.0 + rs))
+
+
 def _efficiency_ratio(closes: list, pencere: int = 20) -> float | None:
     """
     Kaufman Efficiency Ratio: |net yol| / Σ|adım|. → 1 trend, → 0 range.
@@ -137,6 +156,19 @@ async def _whale_retail_teyit(sembol: str, yon: str):
     wrd = whale - retail
     aligned = (wrd > 0) if yon == "LONG" else (wrd < 0)
     return bool(aligned), round(wrd, 2), round(retail, 1)
+
+
+def _opsiyon_bias():
+    """
+    Opsiyon Path B son bileşik sinyalini diskten okur (ağ yok, ucuz).
+    {dvol_skew_bearish, vol_sinyali, dvol_pct, ...} veya boş dict.
+    Log yeterince birikmemişse dvol_skew_bearish None döner → overlay uygulanmaz.
+    """
+    try:
+        from options_signals import son_bilesik_sinyal
+        return son_bilesik_sinyal() or {}
+    except Exception:
+        return {}
 
 
 _MARKET_GUNU_CACHE = {"gun": None, "val": None}
@@ -371,19 +403,30 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
             # Bu gün FADE ALINMAZ (Asia sıkışması → trend-devam rejimi).
             # Sağlık: fiyat önceki gün POC'unun altında KALICI mı? (wick sorun değil)
             saglik = _prev_poc_kalicilik(mumlar, prev_poc)
+            # RSI teyidi (kullanıcı okuması: RSI >50 kalıcı → long-bias, aşırı satım yok)
+            rsi = _rsi([m[3] for m in mumlar], pencere=14)
+            rsi_str = f" · RSI {rsi:.0f}" if rsi is not None else ""
+            rsi_long = (rsi is not None and rsi >= 50)
             if saglik == "guclu":
                 nedenler.append(
-                    f"📈 TREND-DEVAM günü (Asia %{asia_range_pct:.2f} <%1): fiyat önceki "
+                    f"📈 TREND-DEVAM günü (Asia %{asia_range_pct:.2f} <%1{rsi_str}): fiyat önceki "
                     f"gün POC üstünde kalıcı → trend güçlü, LONG-bias, FADE ALMA")
                 setup_listesi.append("Trend-Devam (güçlü) → LONG-bias, fade yok")
+                if rsi_long:
+                    nedenler.append(
+                        f"✅ RSI {rsi:.0f} ≥50 → alıcı baskın, aşırı satım yok "
+                        f"(long-bias teyidi)")
             elif saglik == "zayif":
                 nedenler.append(
-                    f"📉 TREND-DEVAM günü ama fiyat önceki gün POC altında kalıcı "
+                    f"📉 TREND-DEVAM günü ama fiyat önceki gün POC altında kalıcı{rsi_str} "
                     f"→ trend zayıflaması, temkinli")
                 setup_listesi.append("Trend-Devam (zayıf) → trend zayıflıyor")
+                if rsi is not None and rsi < 50:
+                    nedenler.append(
+                        f"⚠️ RSI {rsi:.0f} <50 → satıcı baskın, trend zayıflamasını doğruluyor")
             else:
                 nedenler.append(
-                    f"➡️ TREND-DEVAM günü (Asia %{asia_range_pct:.2f} <%1): fade rejimi değil")
+                    f"➡️ TREND-DEVAM günü (Asia %{asia_range_pct:.2f} <%1{rsi_str}): fade rejimi değil")
         else:
             # ─── OAR ASIA RANGE fade teyidi (Asia ekstremini sweep+reclaim+absorpsiyon) ──
             teyit = _oar_asia_teyit(mumlar, asia_high, asia_low)
@@ -416,6 +459,16 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                             f"🐋 Whale/Retail diverjans teyidi ({yon_t}): WRD {wrd:+.1f} "
                             f"(whale işlem yönünde, retail %{wr_retail} karşı tarafta)")
                         setup_listesi.append(f"Whale-Retail Confirm → {yon_t}")
+
+                    # Opsiyon Path B market-bias overlay (BTC-market geneli, diskten okunur).
+                    # dvol_skew_bearish=True → düşüş baskısı: LONG fade'i kır, SHORT fade'i destekle.
+                    ob = _opsiyon_bias()
+                    if ob.get("dvol_skew_bearish") is True:
+                        skor += (-8 if yon_t == "LONG" else 8)   # heuristik, bearish market
+                        nedenler.append(
+                            f"🩸 Opsiyon: DVOL↑+skew↑ düşüş baskısı (pct {ob.get('dvol_pct')}) "
+                            f"→ {yon_t} fade {'zayıflatıldı' if yon_t=='LONG' else 'desteklendi'}")
+                        setup_listesi.append("Opsiyon düşüş-bias overlay")
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0

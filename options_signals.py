@@ -201,7 +201,7 @@ async def opsiyon_metrikleri(currency="BTC"):
     if slope_yukseliyor is not None and corr_dusuyor is not None:
         vol_sinyali = bool(slope_yukseliyor and corr_dusuyor)
 
-    return {
+    cikti = {
         "tarih": _bugun(),
         "dvol": round(dvol_simdi, 2), "dvol_pct": dvol_pct,
         "dvol_yukseliyor": dvol_yukseliyor,
@@ -213,6 +213,28 @@ async def opsiyon_metrikleri(currency="BTC"):
         "vol_sinyali": vol_sinyali,
         "log_gun": len(log),
     }
+    # Son bileşik sinyali diske yaz → OAR/lider ucuz okusun (her tik'te ağ yok)
+    try:
+        (DATA_DIR / "opsiyon_son_sinyal.json").write_text(
+            json.dumps(cikti, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+    return cikti
+
+
+def son_bilesik_sinyal():
+    """
+    Son hesaplanan opsiyon bileşik sinyalini DİSKTEN okur (ağ yok).
+    OAR/lider bunu market-bias overlay olarak kullanır. Dosya yoksa boş dict.
+    Anahtar: dvol_skew_bearish (düşüş), vol_sinyali (volatilite), + ham metrikler.
+    """
+    try:
+        yol = DATA_DIR / "opsiyon_son_sinyal.json"
+        if yol.exists():
+            return json.loads(yol.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
 
 
 def _bugun():
