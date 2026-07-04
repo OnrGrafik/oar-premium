@@ -1442,12 +1442,20 @@ async def saatlik_research_loop():
                 "bulgular": research.get("bulgular", [])[:3],
                 "hipotezler": research.get("hipotezler", [])[:2],
             }
+            oar_kural_ctx = _oar_kural_baglami()
+            oar_bt_ctx    = _oar_backtest_ozet()
             ai = await _hizli_ai(
-                f"Sen Research Agent'sın. Piyasa: {json.dumps(yenilik, ensure_ascii=False)[:400]}\n"
-                f"Bulgular: {json.dumps(research.get('bulgular',[])[:2], ensure_ascii=False)[:300]}\n"
-                f"4-6 cümlede tam analiz: (1) trend coinler + korku endeksi + BTC dominans birlikte hangi "
-                f"piyasa rejimini gösteriyor, (2) bu rejim risk-on mu risk-off mu, (3) en kritik research bulgusu, "
-                f"(4) botlarımız için 1-2 somut öneri. Türkçe, rakamlarla, uydurma.")
+                f"Sen OAR Premium'un Research Agent'ısın. SİSTEM KURALLARI (bunlara göre araştır):\n"
+                f"{oar_kural_ctx}\n"
+                f"OAR strateji özeti: Asia Range (00:00-04:00 UTC) fib; BTC ve ETH Asia ≥%1 ise fade günü, "
+                f"değilse trade yok; kanıtlı şampiyon = fade+htf_vpfr (haftalık değer-alanı). "
+                f"Trend-devam günü (Asia <%1) fade alınmaz.\n"
+                f"Son OAR backtest: {oar_bt_ctx}\n"
+                f"Piyasa: {json.dumps(yenilik, ensure_ascii=False)[:350]}\n"
+                f"Bulgular: {json.dumps(research.get('bulgular',[])[:2], ensure_ascii=False)[:250]}\n"
+                f"4-6 cümlede OAR-ODAKLI analiz: (1) bugünkü piyasa rejimi OAR fade gününe mi trend-devama mı uygun, "
+                f"(2) risk-on/off, (3) en kritik research bulgusu, (4) OAR sistemine 1-2 somut öneri. "
+                f"Türkçe, rakamlarla, uydurma.")
             if ai:
                 icerik["ai_dusunce"] = ai
                 icerik["metin"] += f"\n\n🤖 {ai}"
