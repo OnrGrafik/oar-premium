@@ -2368,18 +2368,37 @@ async def paper_trades_gecmis(limit: int = 100, sembol: str = None):
     return {"trades": _db.trade_gecmisi(limit, sembol)}
 
 
+async def _market_kapisi_teshis():
+    """Market kapısı durumu: neden işlem açılmıyor (kapı kapalı mı, veri mi yok)."""
+    try:
+        from oar_session_agent import _market_fade_gunu
+        fade, btc, eth = await _market_fade_gunu()
+        if fade is None:
+            return {"durum": "veri_yok", "aciklama": "BTC/ETH Asia verisi çekilemedi (tekrar denenecek)"}
+        return {"durum": "acik" if fade else "kapali",
+                "btc_asia_pct": btc, "eth_asia_pct": eth,
+                "aciklama": ("Fade günü — işlem açılabilir" if fade
+                             else f"Asia dar (BTC %{btc}/ETH %{eth} <%1) → bugün trade yok")}
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:80]}
+
+
 @app.get("/api/oar-paper")
 async def oar_paper_endpoint():
     """OAR Asia Range paper-trade kutusu: bakiye, açık pozisyonlar, bu ayın işlemleri."""
     from oar_paper_box import durum_ozet
-    return durum_ozet()
+    d = durum_ozet()
+    d["market_kapisi"] = await _market_kapisi_teshis()
+    return d
 
 
 @app.get("/api/oar-altcoin")
 async def oar_altcoin_endpoint():
     """OAR Altcoin Sistem: açık (DEVAM) + bu haftanın kapananları + haftalık K/Z."""
     from oar_altcoin_sistem import durum_ozet
-    return durum_ozet()
+    d = durum_ozet()
+    d["market_kapisi"] = await _market_kapisi_teshis()
+    return d
 
 
 @app.get("/api/veri-teshis")
