@@ -13,3 +13,4 @@ data/
 
 # Ortam
 .env
+.seans_cache/

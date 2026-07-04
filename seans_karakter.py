@@ -25,7 +25,13 @@ OI YOK (kullanıcı: dahil etme). Veri: BTC/ETH parquet klines(1m)+aggTrades.
 """
 import argparse
 import math
+import pickle
+from pathlib import Path
 from collections import defaultdict
+
+# aggTrades işleme yavaş — sonuçları diske cache'le ki tekrar çalıştırınca
+# "kaldığı yerden" devam etsin (aynı sembol+aralık için yeniden işlemez).
+CACHE_DIR = Path(__file__).resolve().parent / ".seans_cache"
 
 from oar_local_backtest import (_klines_oku, _aggt_ay_yollari, _ms_olcekle,
                                 _vpfr_deger_alani, GUN_MS, SAAT_MS)
@@ -103,7 +109,20 @@ def _seans_ozellikleri(sembol, bas, bit):
     pbin_ss  = defaultdict(lambda: defaultdict(float))  # (gun,seans) → {pbin: hacim}
     yollar = _aggt_ay_yollari(sembol, bas, bit)
     toplam = len(yollar)
-    for i, yol in enumerate(yollar, 1):
+    cache_yol = CACHE_DIR / f"{sembol}_{bas}_{bit}_aggt.pkl"
+    if cache_yol.exists():
+        try:
+            with open(cache_yol, "rb") as f:
+                d = pickle.load(f)
+            cvd_ss = defaultdict(float, d["cvd_ss"])
+            vol_ss = defaultdict(float, d["vol_ss"])
+            pbin_ss = defaultdict(lambda: defaultdict(float),
+                                  {k2: defaultdict(float, v2) for k2, v2 in d["pbin_ss"].items()})
+            print(f"   [{sembol}] ✓ aggTrades cache bulundu ({cache_yol.name}) — {toplam} ay atlandı", flush=True)
+            toplam = 0
+        except Exception as e:
+            print(f"   [{sembol}] ⚠ cache okunamadı ({str(e)[:50]}) — yeniden işleniyor", flush=True)
+    for i, yol in enumerate(yollar if toplam else [], 1):
         print(f"      · [{sembol}] aggTrades {yol.name} ({i}/{toplam}) işleniyor…", flush=True)
         a = pd.read_parquet(yol, columns=["timestamp", "price", "quantity", "is_buyer_maker"])
         a["timestamp"] = _ms_olcekle(a["timestamp"])
@@ -125,6 +144,19 @@ def _seans_ozellikleri(sembol, bas, bit):
                 pbin_ss[(int(g), ad)][float(pb)] += float(v)
         print(f"        ✓ {yol.name} işlendi", flush=True)
         del a
+
+    if toplam and not cache_yol.exists():
+        try:
+            CACHE_DIR.mkdir(exist_ok=True)
+            with open(cache_yol, "wb") as f:
+                pickle.dump({
+                    "cvd_ss": dict(cvd_ss),
+                    "vol_ss": dict(vol_ss),
+                    "pbin_ss": {k2: dict(v2) for k2, v2 in pbin_ss.items()},
+                }, f)
+            print(f"   [{sembol}] ✓ aggTrades cache kaydedildi → {cache_yol.name}", flush=True)
+        except Exception as e:
+            print(f"   [{sembol}] ⚠ cache kaydedilemedi: {str(e)[:50]}", flush=True)
 
     print(f"   [{sembol}] seans özetleri + özellikler hesaplanıyor…", flush=True)
     # ── Her gün×seans klines özeti (OHLC, VWAP) — TEK groupby (hızlı) ──
@@ -171,7 +203,7 @@ def _seans_ozellikleri(sembol, bas, bit):
             cvd_gecmis[ad].append(cvd)
 
             yon = 1 if o["close"] > o["open"] else -1
-            va = _vpfr_deger_alani(pbin_ss.get((g, ad), {})) if pbin_ss.get((g, ad)) else None
+            poc_v, vah_v, val_v = _vpfr_deger_alani(pbin_ss.get((g, ad), {})) if pbin_ss.get((g, ad)) else (None, None, None)
 
             # önceki seans (manipülasyon/başlangıç için)
             onceki = _onceki_seans(seans_ohlc, gunler, gi, si)
@@ -188,10 +220,10 @@ def _seans_ozellikleri(sembol, bas, bit):
                 "ma50_ustu": bool(_gv(ma50, g) and o["close"] > _gv(ma50, g)),
             }
             # VPFR kabul: kapanış değer alanının üstü/altı (kabul) mü içi mi
-            if va and va.get("vah") and va.get("val"):
-                if o["close"] > va["vah"]:
+            if vah_v is not None and val_v is not None:
+                if o["close"] > vah_v:
                     ozk["vpfr_kabul"] = "ust"
-                elif o["close"] < va["val"]:
+                elif o["close"] < val_v:
                     ozk["vpfr_kabul"] = "alt"
                 else:
                     ozk["vpfr_kabul"] = "ic"
