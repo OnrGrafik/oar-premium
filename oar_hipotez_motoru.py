@@ -348,11 +348,23 @@ def tek_tur(semboller, bas, bit, telegram=False, rows=None):
         hafiza.add(hashlib.md5(r["ad"].encode()).hexdigest()[:10])
     _hafiza_kaydet(hafiza)
 
+    # KANITLI BULGU DEPOSU: kazananları lider'in okuyacağı paylaşılan depoya yaz
+    # (LIFT+OOS+Wilson ile doğrulanmış → lider bunları OAR bağlamına katar + Telegram'a bildirir)
+    try:
+        import kanitli_bulgular as kb
+        for r in kazanan:
+            kb.bulgu_ekle(r["ad"], r["wr"], r["taban"], r["lift"],
+                          r.get("wilson_alt"), r.get("oos_wr"), r["n"])
+    except Exception as e:
+        print(f"[HipotezMotoru] kanıtlı bulgu deposu hata: {str(e)[:60]}", flush=True)
+
     rapor = _rapor_metni(kazanan, tum, len({r["gun"] for r in rows}))
     print("\n" + rapor)
     if yeni:
         print(f"\n[HipotezMotoru] {len(yeni)} YENİ kazanan (ilk kez): "
               + " · ".join(r["ad"] for r in yeni), flush=True)
+        print("[HipotezMotoru] → kanitli_bulgular.json güncellendi; commit+push edersen "
+              "Railway lider bunları Telegram'a bildirir.", flush=True)
 
     if telegram and (yeni or not kazanan):
         try:

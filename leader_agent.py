@@ -57,6 +57,15 @@ def _oar_kural_baglami() -> str:
     except Exception:
         return ""
 
+# OAR KANITLI BULGULAR bağlamı (hipotez motorunun LIFT+OOS+Wilson kazananları)
+def _kanitli_bulgu_baglami() -> str:
+    """Lider promptuna kanıtlı bulguları ekle → bana bildirirken bunları göz önüne alsın."""
+    try:
+        from kanitli_bulgular import ozet_metni
+        return ozet_metni(8)
+    except Exception:
+        return ""
+
 # Deribit opsiyon bağlamı
 async def _deribit_ozet() -> str:
     """GEX, Call/Put Wall, Max Pain, DVOL — Lider Agent promptuna eklenir."""
@@ -1443,12 +1452,14 @@ async def saatlik_research_loop():
             }
             oar_kural_ctx = _oar_kural_baglami()
             oar_bt_ctx    = _oar_backtest_ozet()
+            oar_kanit_ctx = _kanitli_bulgu_baglami()
             ai = await _hizli_ai(
                 f"Sen OAR Premium'un Research Agent'ısın. SİSTEM KURALLARI (bunlara göre araştır):\n"
                 f"{oar_kural_ctx}\n"
                 f"OAR strateji özeti: Asia Range (00:00-04:00 UTC) fib; BTC ve ETH Asia ≥%1 ise fade günü, "
                 f"değilse trade yok; kanıtlı şampiyon = fade+htf_vpfr (haftalık değer-alanı). "
                 f"Trend-devam günü (Asia <%1) fade alınmaz.\n"
+                f"{oar_kanit_ctx}\n"
                 f"Son OAR backtest: {oar_bt_ctx}\n"
                 f"Piyasa: {json.dumps(yenilik, ensure_ascii=False)[:350]}\n"
                 f"Bulgular: {json.dumps(research.get('bulgular',[])[:2], ensure_ascii=False)[:250]}\n"
@@ -1475,6 +1486,34 @@ async def saatlik_research_loop():
             print(f"[ResearchSaatlik] Hata: {str(e)[:80]}")
         import gc; gc.collect()
         await asyncio.sleep(3600)
+
+
+async def kanitli_bulgu_bildir_loop():
+    """
+    Hipotez motorunun ürettiği KANITLI bulguları (kanitli_bulgular.json) izler;
+    YENİ bir kanıtlı bulgu geldiğinde Telegram'a (thread 4129) haber verir.
+    Bu, liderin 'öğrenileni kullanması' + kullanıcıya bildirmesi köprüsüdür.
+    Gürültü DEĞİL — yalnız LIFT+OOS+Wilson ile doğrulanmış, ilk kez görülen bulgu.
+    """
+    await asyncio.sleep(300)
+    while True:
+        try:
+            from kanitli_bulgular import bildirilmemis, bildirildi_isaretle
+            yeni = bildirilmemis()
+            if yeni:
+                from ajan_merkez import bildir
+                for b in yeni[:5]:
+                    ozet = (f"🎯 Kanıtlı OAR bulgusu: {b['ad']} — "
+                            f"WR%{b['wr']} vs taban%{b['taban']} (LIFT {b['lift']:+}, "
+                            f"n{b['n']}, OOS%{b.get('oos_wr')})")
+                    detay = ("Hipotez motoru LIFT+OOS+Wilson ile doğruladı. Trend-devam "
+                             "confirm adayı — şampiyon fade+htf_vpfr'ye dokunmadan eklenebilir.")
+                    await bildir("Kanıtlı Bulgu (Lider)", "backtest", ozet, detay=detay)
+                bildirildi_isaretle([b["ad"] for b in yeni])
+                print(f"[KanıtlıBulgu] {len(yeni[:5])} yeni bulgu Telegram'a bildirildi")
+        except Exception as e:
+            print(f"[KanıtlıBulgu] hata: {str(e)[:80]}")
+        await asyncio.sleep(1800)  # 30 dk'da bir yeni bulgu kontrolü
 
 
 # ─── Otonom Backtest Entegrasyonu ────────────────────────────────────────────

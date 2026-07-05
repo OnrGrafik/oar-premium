@@ -1194,7 +1194,8 @@ async def startup_event():
     try:
         from leader_agent import (
             sinyal_toplayici_loop, sinyal_degerlendirici_loop,
-            saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop
+            saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop,
+            kanitli_bulgu_bildir_loop
         )
         _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
         asyncio.create_task(sinyal_toplayici_loop())       # kendi içinde 240s bekler
@@ -1202,6 +1203,7 @@ async def startup_event():
         asyncio.create_task(saatlik_lider_raporu_loop(api_key))  # kendi içinde 900s bekler
         asyncio.create_task(saatlik_backtest_loop())       # kendi içinde 1800s bekler
         asyncio.create_task(saatlik_research_loop())       # kendi içinde 2100s bekler
+        asyncio.create_task(kanitli_bulgu_bildir_loop())   # kanıtlı bulgu → Telegram (300s sonra)
         # GERÇEK otonom backtest motoru (Binance+OI+GEX+VPFR) — eskiden hiç
         # başlatılmıyordu, bu yüzden "backtest agent ilerleme sıfır" idi.
         from oar_autonomous_backtest import otonom_backtest_loop
