@@ -54,7 +54,13 @@
 - Hipotez motorunun EN GÜÇLÜ adayı: genlik%1-2 + hacim destekli + Asia-HIGH kırılım → fib 1.618 devam. Vuruş WR %70 / OOS %73 / LIFT +9.7 (2192 gün, BTC+ETH). AMA vuruş ≠ kâr (temiz-TP1 sadece %15.5 → whipsaw riski).
 - Bu modül gerçek işleme çevirir: giriş=Asia-high, TP=1.618, 4 SL adayı (asia_high_alti/range_orta_0.5/range_dibi_0.0/yarim_R), bar-bar high/low, AYNI barda SL önce (kötümser), fee+slippage. Çıktı: WR/PF/beklenti/maxDD/OOS her SL için. PF≥1.3+beklenti>0 = aday.
 - Çalıştırma: `python oar_kirilim_trade.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`
-- DURUM: modül kodlandı+sentetik doğrulandı; kullanıcının GERÇEK veride çalıştırması bekleniyor. Sonuç pozitifse → şampiyona TREND-DEVAM confirm'i (kırılım günü fade'i bastır). Trend-devam = şampiyon fade'in TERSİ rejim, şampiyon koduna dokunmaz.
+- SONUÇ (GERÇEK veri, n737 hacim-destekli): en iyi SL=range_orta(0.5) → PF 1.21, beklenti +0.075%/işlem, maxDD %11.5, OOS beklenti +0.151 (in-sample'dan YÜKSEK = sağlam). Dar SL (asia_high_alti) whipsaw'dan batıyor (PF 0.78). Hacim filtresiz TÜM kırılım = negatif. → Marjinal ama pozitif, düşük-DD, OOS-sağlam TREND-DEVAM confirm adayı. Hacim ŞART. PF<1.3 (ev-kaçıran değil). Şampiyona eklenebilir, şampiyona dokunmadan.
+- BACKTEST METODOLOJİSİ (kullanıcı sordu): backtest 1-DAKİKALIK klines mumlarıyla GÜN GÜN yapılır (5m değil). "Ay ay" olan şey sadece aggTrades yükleme/ilerleme göstergesidir; analiz gün×seans bazında 1m bar ile.
+
+## 5e. AÇIK MİMARİ EKSİĞİ / İLKE (kullanıcı sordu — kalıcı)
+- SORU: "öğrenilenleri lider agent kullanıyor mu? Agentlere nasıl güvenaliriz?" CEVAP: ŞU AN kullanmıyor — hipotez motorunun kazananları (.hipotez_hafiza.json) canlı OAR karar akışına BESLENMİYOR. Bu gerçek bir eksik. Hedef: kazanan+trade-doğrulanmış hipotezleri (ör. genlik%1-2 kırılım devam) canlı sisteme confirm olarak bağlamak.
+- GÜVEN İLKESİ: LLM ajan LAFINA güvenme (research/öneri metni = düşük değer). SAYIYA güven: LIFT + OOS + PF + maxDD. Sistem kanıt-temelli olmalı, LLM-görüş-temelli değil. Telegram'a yalnız sayısal kanıtı olan bulgu gider.
+- KULLANICI YÖNÜ: "BTC'de CHoCH/HH-LL incelemiyoruz; fiblerde ne tür HACİM hareketleri olduğunu inceliyoruz." → hipotez uzayı fib×hacim davranışına odaklanmalı (SMC yapı kırılımına değil).
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
@@ -65,6 +71,8 @@
 - ATILMAYACAK (spam — kaldırıldı, geri EKLEME): ① "Pattern Öğrenici" kazanan profil tekrarı (feature_engine) ② "Research Agent Trend: altcoinler · Korku: N" (leader — fear index + BTC/ETH dışı coin = gürültü, kullanıcı KULLANMIYOR) ③ saatlik "6/6 servis aktif, sağlık mükemmel" (leader görüş) ④ "LİDER Ajan Aktivite Özeti" yankı digest (bekleyen_ozet) ⑤ jenerik "Öneri (research)" LLM lafı (oneri_motoru).
 - Lider ajan artık SADECE arıza olunca konuşur (tur="eksik", servis down listesi). "Her şey yolunda" = SESSİZLİK.
 - Fear/greed index ve BTC/ETH dışı coinler kullanıcı için ALAKASIZ. Sadece BTC+ETH.
+- ⑥ lider_anlik_yorum "CVD yön değişti" TETİĞİ kaldırıldı — her poll'da BEARISH↔BULLISH flip-flop = kararsız gürültü ("BTC 5 sn'de yön değiştiremez"). Anlık yorum yalnız ANLAMLI değişimle (KARAR/GEX/funding/OI/fiyat%/CB/likidasyon/indikatör) tetiklenir. ⑦ oneri_motoru: yalnız PARAMETRE (uygulanabilir) öneri Telegram'a gider; BILGI tipi jenerik LLM lafı ("Extreme Fear…") gönderilmez.
+- CMD KURALI: tüm backtest/hipotez/trade araçları uzun işlerde ay ay "· YYYY-MM analiz ediliyor…" yazmalı (flush=True). Donuk ekran kullanıcıyı Ctrl+C'ye itiyor.
 
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
