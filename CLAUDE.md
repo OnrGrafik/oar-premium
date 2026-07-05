@@ -43,6 +43,13 @@
 - Çalıştırma: `python oar_impulse_breakout.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`
 - NOT: autonomous_researcher.py YALNIZ parametre gridi deniyor (kullanıcının GERÇEK fikirlerini test etmiyor, Telegram'a atmıyor). Kullanıcı "araştırmacı hiç denemiyor" diye haklı sitem etti. Yeni hipotezler bu tarz ayrı yerel modüllerle test edilip Telegram'a raporlanmalı.
 
+## 5c. oar_hipotez_motoru.py (OTONOM hipotez üretici + araştırıcı + Telegram) ⭐
+- Kullanıcının ASIL istediği: hipotez ajanı SÜREKLİ yeni OAR hipotezleri ÜRETSİN → yerel derin veride ARAŞTIRSIN → LIFT/OOS ile elesin → Telegram'a atsın → denenen/reddedileni HATIRLASIN (tekrar denemesin). "Benim dediğim tek hipotezle sınırlı olmasın."
+- Kombinatoryal hipotez uzayı (tetik×filtre×hedef): asia_high/low kırılım, üst/alt ekstrem fade, hacim-destek var/yok, gün (haftaiçi/sonu/tek gün), genlik kovası → hedef: fib 1.618/2.618 vur, 0.5 fade dönüş, hafta bull. Gün×feature tablosunu bir kez hesaplar, maske ile 25+ hipotezi hızlı test eder.
+- NO-LOOKAHEAD hacim tabanı (önceki 20 gün), LIFT=koşullu−taban, OOS holdout, MIN_N=40, LIFT_ESIK=5. `.hipotez_hafiza.json` → yeni kazananları ayırır.
+- Çalıştırma: `python oar_hipotez_motoru.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`  ·  sürekli: `--loop --aralik-saat 6 --telegram`
+- Yeni yapı taşı/hedef eklemek = `_feature_tablo` + `_hipotezler` genişlet. Hipotez uzayını büyüterek ajan daha çok "dener".
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
