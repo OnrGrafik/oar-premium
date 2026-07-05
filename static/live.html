@@ -151,7 +151,6 @@ a{color:inherit;text-decoration:none}
         <div id="ticker" style="display:flex;width:max-content;animation:oarticker 55s linear infinite"></div>
       </div>
       <div style="display:flex;align-items:center;gap:15px;padding:0 18px;border-left:1px solid #161e1d;height:100%;flex-shrink:0">
-        <span style="font-size:10.5px;color:#6f8180">F&amp;G <span id="fng" style="color:#ffb13c;font-weight:600">—</span></span>
         <span style="font-size:11px;color:#6f8180">TR <span id="clock" style="color:#cdd9d8">—</span></span>
         <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1ff0ad"><span style="width:7px;height:7px;border-radius:50%;background:#1ff0ad;animation:oarblink 1.6s infinite"></span>CANLI</span>
       </div>
@@ -170,8 +169,9 @@ const NAV = [
   {id:'leader',  icon:'◆', label:'Komuta Merkezi'},
   {id:'options', icon:'∑', label:'Opsiyon & GEX'},
   {id:'macro',   icon:'▦', label:'Makro Ekonomi'},
-  {id:'live',    icon:'◈', label:'Canlı Panel'},
-  {id:'knowledge',icon:'⛁', label:'Bilgi / Hafıza'},
+  // 'Canlı Panel' ve 'Bilgi / Hafıza' sekmeleri KALDIRILDI (kullanıcı isteği):
+  // tüm ajanlar Telegram'da, kitap/hafıza sorunu çözüldü. Erişim sorununu lider
+  // Telegram'dan bildirir.
 ];
 
 const BOTS = [
@@ -338,12 +338,42 @@ function scrLeader(){
       <div style="font-size:10.5px;color:#b8c6c3;line-height:1.55">${icerik?vurgu(icerik):'<span style="color:#5e716f">yükleniyor...</span>'}</div>
     </div>`;
 
+  const os=ST.oarSistem||null;
+  const oarSistemHtml=os?`
+  <div class="card" style="padding:15px 17px;margin-bottom:13px;border-left:2px solid #1ff0ad">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#1ff0ad">⭐ OAR SİSTEMİ — GEÇERLİ KURAL & ŞAMPİYON</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:11px 13px">
+        <div style="font-size:9px;letter-spacing:.1em;color:#7af0c4;margin-bottom:5px">ŞAMPİYON: ${esc(os.sampiyon.ad)}</div>
+        <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(os.sampiyon.aciklama)}</div>
+        <div style="font-size:10px;color:#1ff0ad;margin-top:6px">${esc(os.sampiyon.istatistik)}</div>
+      </div>
+      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:11px 13px">
+        <div style="font-size:9px;letter-spacing:.1em;color:#ffb13c;margin-bottom:5px">MARKET KAPISI (REJİM ANAHTARI)</div>
+        <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(os.market_kapisi)}</div>
+        <div style="font-size:9.5px;color:#8a9c99;margin-top:6px">Seans (UTC): Asia ${os.seanslar_utc.Asia} · London ${os.seanslar_utc.London} · NY ${os.seanslar_utc.NY}</div>
+      </div>
+    </div>
+    <div style="margin-top:11px">
+      <div style="font-size:9px;letter-spacing:.1em;color:#56a8ff;margin-bottom:6px">KANITLANMIŞ BULGULAR (LIFT+OOS+Wilson) — ${(os.kanitli_bulgular||[]).length}</div>
+      ${(os.kanitli_bulgular||[]).length?(os.kanitli_bulgular.slice(0,6).map(b=>`
+        <div style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:10px;border-bottom:1px solid #141d1b">
+          <span style="flex:1;color:#cdd9d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.ad)}</span>
+          <span style="color:#1ff0ad;flex-shrink:0">LIFT ${b.lift>0?'+':''}${b.lift}</span>
+          <span style="color:#8a9c99;flex-shrink:0">WR%${b.wr} n${b.n} OOS%${b.oos_wr}</span>
+        </div>`).join('')):'<div style="font-size:10px;color:#5e716f">Henüz kanıtlı bulgu yok — hipotez motoru lokalde çalışıp commit edince görünür.</div>'}
+    </div>
+  </div>`:'';
+
   return `
   <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
     <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Komuta Merkezi</h1>
-    <span style="font-size:11px;color:#5e716f">Lider Agent · piyasa durumu + canlı grafik</span>
+    <span style="font-size:11px;color:#5e716f">Lider Agent · OAR sistem + piyasa durumu</span>
     <button onclick="raporUret()" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:7px 14px;font-weight:600;font-size:11px;cursor:pointer">⚡ Rapor Üret</button>
   </div>
+  ${oarSistemHtml}
 
   <!-- PİYASA DURUMU — TAM GENİŞLİK -->
   <div class="card" style="padding:16px 18px;margin-bottom:13px">
@@ -352,7 +382,6 @@ function scrLeader(){
       <span class="sg" style="font-weight:700;font-size:16px;color:${regColor}">${rejim}</span>
       ${pv.move_source?`<span style="font-size:10px;color:#8a9c99;border:1px solid #1a2422;padding:2px 8px;border-radius:5px">${pv.move_source}</span>`:''}
       ${pv.oar_score!=null?`<span style="font-size:10px;color:#7af0c4">OAR ${pv.oar_score}/100</span>`:''}
-      ${pv.korku?`<span style="font-size:10px;color:#ffb13c;margin-left:auto">F&G ${pv.korku}</span>`:''}
     </div>
     <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${has3?'':vurgu(pd.yorum||'Piyasa durumu analizi yükleniyor... (opsiyon + makro + indikatör + kitap harmanı)')}</div>
     ${has3?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px">
@@ -1667,6 +1696,10 @@ async function loadKnowledge(){
   if(!ST.devops)await loadDevops(false);
   if(ST.tab==='knowledge')render();
 }
+async function loadOarSistem(){
+  const d=await jget('/api/oar-sistem');if(d)ST.oarSistem=d;
+  if(ST.tab==='leader')render();
+}
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
 async function loadMakro(force){const q=force?'?refresh=true':'';const d=await jget('/api/makro'+q);if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;const cr=await jget('/api/makro/carry');if(cr)ST.makroCarry=cr;if(ST.tab==='macro')render();}
 async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='knowledge')render();}
@@ -1693,13 +1726,13 @@ async function boot(){
   tickClock();setInterval(tickClock,1000);
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadKnowledge,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
+  const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
+  setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
     if(ST.tab==='live'){updateFeedOnly();updateCioPaperOnly();}
     else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);

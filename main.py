@@ -933,10 +933,9 @@ FORMAT: ## başlık, **kalın**, - liste, fiyatlar $"""
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    # Ana sayfa = OAR arayüzü (index.html). Canlı panel (live.html) KALDIRILDI —
-    # tüm ajanlar Telegram'a bağlı, siteden canlı takibe gerek yok (kullanıcı isteği).
-    p = Path("static/index.html")
-    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>index.html eksik</h1>")
+    # Ana sayfa = OAR arayüzü (live.html — sitenin asıl teması burada).
+    p = Path("static/live.html")
+    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>live.html eksik</h1>")
 
 @app.get("/api/market")
 async def market():
@@ -944,6 +943,37 @@ async def market():
     fg    = await get_fear_greed()
     gm    = await get_global_stats()
     return {"coins": coins, "fear_greed": fg, "global": gm}
+
+@app.get("/api/oar-sistem")
+async def oar_sistem():
+    """
+    OAR'ın GEÇERLİ sistemi: şampiyon + market kapısı + seanslar + kanıtlanmış
+    bulgular + backtest defteri özeti. Site (Komuta Merkezi) bunu gösterir —
+    'kabul ettiğimiz kural/kod' tek yerde görünür.
+    """
+    kanitli, defter = [], ""
+    try:
+        from kanitli_bulgular import bulgular_al
+        kanitli = bulgular_al(12)
+    except Exception:
+        pass
+    try:
+        from backtest_sonuclari import ozet as _ozet
+        defter = _ozet(6)
+    except Exception:
+        pass
+    return {
+        "sampiyon": {
+            "ad": "fade + htf_vpfr",
+            "aciklama": "Asia range ekstremlerinde mean-reversion (haftalık/aylık değer-alanı teyidiyle).",
+            "istatistik": "BTC+ETH holdout: PF ~2.3 · WR %35-37 · +197-272%",
+        },
+        "market_kapisi": "BTC VE ETH Asia range ≥ %1 → fade-işlem günü; değilse işlem yok. Asia <%1 → trend-devam modu.",
+        "seanslar_utc": {"Asia": "00:00-04:00", "London": "07:00-11:00", "NY": "13:00-17:00"},
+        "fib": [2.618, 2.272, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.272, -1.618],
+        "kanitli_bulgular": kanitli,
+        "defter_ozeti": defter,
+    }
 
 @app.get("/api/deribit")
 async def deribit_data(currency: str = "BTC"):
@@ -2770,11 +2800,8 @@ DAVRANŞ KURALLARI:
 
 @app.get("/live", response_class=HTMLResponse)
 async def live_page():
-    # Canlı panel (live.html) KALDIRILDI — hafıza paneli de onun içindeydi.
-    # Eski /live yer imleri/geçmişi OAR arayüzüne (index.html) düşer, live panel
-    # ve hafıza paneli tamamen erişilemez (kullanıcı isteği).
-    p = Path("static/index.html")
-    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>index.html eksik</h1>")
+    p = Path("static/live.html")
+    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>live.html eksik</h1>")
 
 @app.get("/api/ohlcv")
 async def api_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200):
