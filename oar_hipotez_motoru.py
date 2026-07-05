@@ -62,7 +62,12 @@ def _feature_tablo(sembol, bas, bit):
     satirlar = []
     hacim_taban = deque(maxlen=HACIM_PENCERE)
     gunler = sorted(k["gun"].unique())
+    son_ay = None
     for g in gunler:
+        ay = datetime.utcfromtimestamp(int(g) * 86400).strftime("%Y-%m")
+        if ay != son_ay:
+            print(f"      · [{sembol}] {ay} analiz ediliyor…", flush=True)
+            son_ay = ay
         gk = k[k["gun"] == g]
         asia = gk[gk["saat"] < ASIA_BIT]
         post = gk[gk["saat"] >= ASIA_BIT].sort_values("open_time")

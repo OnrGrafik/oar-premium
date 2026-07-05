@@ -255,11 +255,12 @@ async def oneri_tara_ve_gonder(metin: str, kaynak: str) -> dict | None:
     hedef = oneri_cumle.strip() or metin.strip()
     o = oneri_olustur(kaynak, hedef)
     if o:
-        await oneri_gonder_telegram(o)
-        # NOT: jenerik LLM "Öneri (research)" cümleleri artık merkezi kanala (4129)
-        # atılMIYOR — "OAR Kural Bankası ışığında piyasa Extreme Fear…" gibi içeriksiz
-        # tekrarlarla kanalı dolduruyordu (kullanıcı sitemi). Öneri yalnız kendi
-        # onay akışına gider; 4129'a sadece test edilmiş hipotez/backtest sonucu düşer.
+        # SADECE UYGULANABİLİR (PARAMETRE) öneri Telegram'a gider. "BILGI" tipi
+        # (parametre çıkarılamayan jenerik LLM lafı: "piyasa Extreme Fear…") artık
+        # GÖNDERİLMİYOR — kullanıcı sitemi: içeriksiz tekrarlar kanalı dolduruyordu.
+        # Bilgi önerisi yine kaydedilir (panelde görünür) ama Telegram'ı meşgul etmez.
+        if o.get("tip") == "PARAMETRE" and o.get("degisiklikler"):
+            await oneri_gonder_telegram(o)
     return o
 
 

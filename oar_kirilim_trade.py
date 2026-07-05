@@ -26,6 +26,7 @@ NO-LOOKAHEAD hacim tabanı (önceki 20 gün). Whipsaw doğrudan SL varyantların
 """
 import argparse
 from collections import deque
+from datetime import datetime
 
 from oar_local_backtest import (_klines_oku, _ms_olcekle, fib_seviyeleri,
                                 FEE_PCT, SLIP_PCT, GUN_MS, SAAT_MS)
@@ -89,7 +90,12 @@ def _analiz(sembol, bas, bit):
     islemler = []
     hacim_taban = deque(maxlen=HACIM_PENCERE)
     gunler = sorted(k["gun"].unique())
+    son_ay = None
     for g in gunler:
+        ay = datetime.utcfromtimestamp(int(g) * 86400).strftime("%Y-%m")
+        if ay != son_ay:
+            print(f"      · [{sembol}] {ay} analiz ediliyor…", flush=True)
+            son_ay = ay
         gk = k[k["gun"] == g]
         asia = gk[gk["saat"] < ASIA_BIT]
         post = gk[gk["saat"] >= ASIA_BIT].sort_values("open_time")

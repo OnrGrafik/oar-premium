@@ -396,11 +396,12 @@ def _degisim_tespit(yeni: dict, onceki: dict, durum: dict, kok: str) -> list:
     if yeni_gex and onceki_gex and yeni_gex != onceki_gex and onceki_gex != "—":
         tetikler.append(f"GEX rejim degisti: {onceki_gex} → {yeni_gex}")
 
-    # CVD yön değişimi
-    yeni_cvd = yeni.get("flow", {}).get("cvd_yon", "")
-    onceki_cvd = onceki.get("flow", {}).get("cvd_yon", "")
-    if yeni_cvd and onceki_cvd and yeni_cvd != onceki_cvd and onceki_cvd != "NOTR":
-        tetikler.append(f"CVD yon degisti: {onceki_cvd} → {yeni_cvd}")
+    # CVD yön değişimi — TETİKLEYİCİ OLARAK KALDIRILDI (kullanıcı sitemi):
+    # CVD anlık işareti her poll'da BEARISH↔BULLISH flip-flop yapıyordu; "BTC 5
+    # saniyede yön değiştiremez". Kararsız gürültü üretiyordu. Anlık yorum artık
+    # yalnız ANLAMLI değişimlerle tetiklenir (KARAR, GEX rejim, funding işareti,
+    # OI, fiyat %, CB premium, likidasyon, indikatör yönü). CVD verisi mesaj
+    # gövdesinde hâlâ GÖSTERİLİR ama tek başına tetik değildir.
 
     # Coinbase Premium işaret değişimi
     yeni_cb = yeni.get("flow", {}).get("cb_premium", "NOTR")
