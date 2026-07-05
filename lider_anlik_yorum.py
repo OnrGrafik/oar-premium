@@ -657,19 +657,21 @@ async def lider_anlik_yorum_loop():
                 except Exception as e:
                     print(f"[LiderYorum] {kok} reversal hata: {str(e)[:80]}")
 
-                if tetikler and _son_gonderi_gecti_mi(durum, kok):
+                # SPAM YASAĞI (kullanıcı sitemi — kalıcı): anlık yorum YALNIZ gerçek
+                # OAR işlem kararında (LONG/SHORT) Telegram'a gider. "NO_TRADE" anlatımı
+                # = gürültü, gönderilMEZ. Sadece OAR sinyali kanala düşer.
+                karar_simdi = (yeni.get("supervisor", {}).get("karar") or "").upper()
+                islem_var = karar_simdi in ("LONG", "SHORT", "TRADE_LONG", "TRADE_SHORT")
+                if tetikler and islem_var and _son_gonderi_gecti_mi(durum, kok):
                     ai = await _ai_yorum(yeni, tetikler)
                     mesaj = _telegram_mesaj_olustur(yeni, tetikler, ai)
-
-                    # Telegram'a gönder
                     from main import _telegram_gonder  # type: ignore
                     await _telegram_gonder(mesaj)
-
                     durum[f"son_gonderi_{kok}"] = _simdi().isoformat()
-                    print(f"[LiderYorum] {kok} yorum gönderildi: {' | '.join(tetikler)}")
+                    print(f"[LiderYorum] {kok} OAR işlem yorumu gönderildi: {karar_simdi}")
                 else:
                     if tetikler:
-                        print(f"[LiderYorum] {kok} tetiklendi ama min aralik bekleniyor")
+                        print(f"[LiderYorum] {kok} tetik var ama işlem yok (NO_TRADE) → gönderilmedi")
 
                 # Her durumda mevcut durumu kaydet
                 durum[f"onceki_{kok}"] = {

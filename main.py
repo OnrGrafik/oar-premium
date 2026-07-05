@@ -933,13 +933,8 @@ FORMAT: ## başlık, **kalın**, - liste, fiyatlar $"""
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    # Ana sayfa = Agent arayüzü (live.html). Eski sohbet /chat'te kaldı.
-    p = Path("static/live.html")
-    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>live.html eksik</h1>")
-
-@app.get("/chat", response_class=HTMLResponse)
-async def chat_page():
-    # Eski sohbet arayüzü (silinmedi, yedek olarak burada)
+    # Ana sayfa = OAR arayüzü (index.html). Canlı panel (live.html) KALDIRILDI —
+    # tüm ajanlar Telegram'a bağlı, siteden canlı takibe gerek yok (kullanıcı isteği).
     p = Path("static/index.html")
     return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>index.html eksik</h1>")
 

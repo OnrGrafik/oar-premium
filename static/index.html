@@ -322,7 +322,6 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </svg>
     OAR Premium
   </div>
-  <a href="/" style="color:var(--muted2);text-decoration:none;font-size:.8rem;padding:4px 12px;border:1px solid var(--border);border-radius:6px;white-space:nowrap;">📡 Live Agent</a>
   <div id="ticker"></div>
   <div id="conn"><div class="dot"></div><span id="conn-txt">Bağlanıyor</span></div>
 </div>
@@ -332,17 +331,9 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 
   <!-- SIDEBAR -->
   <div id="sidebar">
-    <div class="fng-box">
-      <div class="fng-lbl">Korku / Açgözlülük</div>
-      <div class="fng-row">
-        <div class="fng-val" id="fng-v">—</div>
-        <div class="fng-name" id="fng-n">Yükleniyor</div>
-      </div>
-      <div class="fng-track"><div class="fng-fill" id="fng-f" style="width:0%"></div></div>
-      <div class="fng-sub" id="fng-sub"></div>
-    </div>
+    <!-- Korku/Açgözlülük (Fear&Greed) KALDIRILDI — kullanıcı OAR dışı, kullanmıyor. -->
 
-    <!-- DERİBİT OPSİYON PANELİ -->
+    <!-- DERİBİT OPSİYON PANELİ (OAR opsiyon overlay'i kullanıyor → kalır) -->
     <div class="deribit-box">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <span class="sec-hd" style="padding:0;border:none;">🎯 Deribit Opsiyonlar</span>
@@ -355,7 +346,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
 
     <div class="qlist" style="border-top:1px solid var(--border);padding-top:10px;">
-      <button class="qbtn" onclick="openKnowledge()">📚 Bilgi Bankası & Hafıza</button>
+      <!-- "Bilgi Bankası & Hafıza" KALDIRILDI — kitap erişim sorunu çözüldü;
+           erişilemezse lider Telegram'dan bildirir (bilgisayar kapalıyken değil). -->
       <button class="qbtn" onclick="openBacktest()">📊 Backtest Yap</button>
     </div>
   </div>
@@ -405,23 +397,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   </div>
 </div>
 
-<!-- Hafıza Modal -->
-<div id="memory-modal" style="display:none;position:fixed;inset:0;background:#000a;z-index:100;align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:600px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
-    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-weight:700;font-size:1rem;">🧠 Hafıza & Bilgi Bankası</span>
-      <button onclick="closeMemoryPanel()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;">✕</button>
-    </div>
-    <!-- Sekmeler -->
-    <div style="display:flex;border-bottom:1px solid var(--border);">
-      <button class="mem-tab active" id="tab-memory" onclick="switchMemTab('memory')">🧠 Hafıza</button>
-      <button class="mem-tab" id="tab-knowledge" onclick="switchMemTab('knowledge')">📚 Bilgi Bankası</button>
-      <button class="mem-tab" id="tab-notes" onclick="switchMemTab('notes')">📝 Notlar</button>
-      <button class="mem-tab" id="tab-teach" onclick="switchMemTab('teach')">✏️ Öğret</button>
-    </div>
-    <div id="mem-content" style="flex:1;overflow-y:auto;padding:16px;"></div>
-  </div>
-</div>
+<!-- Hafıza/Bilgi Bankası modalı KALDIRILDI (kullanıcı isteği). -->
 
 <style>
 .mem-tab{flex:1;padding:9px 0;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:600;transition:all .12s;border-bottom:2px solid transparent;}
@@ -494,15 +470,8 @@ function renderTicker(coins){
 }
 
 function renderFNG(fg){
-  if(!fg.today) return;
-  const v=fg.today.value, l=fg.today.label;
-  const y=fg.yesterday||{};
-  document.getElementById('fng-v').textContent=v;
-  document.getElementById('fng-n').textContent=l;
-  document.getElementById('fng-sub').textContent=y.value?`Dün: ${y.value} (${y.label})`:'';
-  const bar=document.getElementById('fng-f');
-  bar.style.width=v+'%';
-  bar.style.background=v<25?'#ef4444':v<45?'#f97316':v<55?'#eab308':v<75?'#84cc16':'#10b981';
+  // Fear&Greed kutusu kaldırıldı (OAR dışı) — eleman yoksa çık.
+  if(!fg || !fg.today || !document.getElementById('fng-v')) return;
 }
 
 // ── File ──────────────────────────────────────────────────────────────────
