@@ -78,6 +78,8 @@
 - Şampiyonun KENDİ `aday_sinyaller_uret`'ini kullanır (proxy DEĞİL, gerçek fade net çıktıları; şampiyon koduna dokunmaz). 3 senaryo: A) şampiyon fade(htf_vpfr_ok), B) A+confirm filtre, C) B+trend-LONG devam kolu. PF/beklenti/maxDD/OOS karşılaştırır. Karar: yalnız B>A (beklenti↑ VE maxDD↓ VE OOS≥0) ise confirm eklenir. confirm = genlik%1-2 + Asia-HIGH hacim-destekli kırılım. aggTrades gerektirir (ay ay ilerleme yazar).
 - Çalıştırma: `python oar_sampiyon_confirm.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`
 - ÇOKLU KARŞILAŞTIRMA UYARISI (402 hipotez, 101 kazanan): gün-spesifik minik-n kazananlar (Pazar n44 OOS%100) şans/overfit; güvenilir olan gün-bağımsız büyük-n (hepsi/haftaiçi). Gerçek karar bu birleşik backtest'te (vuruş oranı değil, net PF/beklenti).
+- DÜZELTİLDİ: ilk sürümde "A) şampiyon" elle fade+htf_vpfr_ok filtresiydi → PF 0.63 (gerçek şampiyon değil, ~2.3). ŞAMPİYON HARDCODED DEĞİL — kesfet (oar_kesif) tüm blok kombinasyonlarını deneyip en SAĞLAM'ı bulur (bloklar dinamik). Artık modül: aday_sinyaller_uret → kesfet → _filtre(havuz, sampiyon_bloklar) = GERÇEK şampiyon işlem kümesi (A). Şampiyon koduna DOKUNULMAZ, sadece kesfet/_filtre çağrılır. Blok kütüphanesi oar_sinyaller.py (AKTIF_BLOKLAR), şampiyon canlıya /api/backtest/yerel-ekle ile yerel_backtest_gecmis.json'a (strateji=OAR_KESIF_SAMPIYON) yazılır.
+- SİTE: /api/oar-sistem gerçek OAR_KESIF_SAMPIYON kaydını (bloklar+OOS/holdout+beklenti+equity) okur; live.html "OAR SİSTEMİ" panelinde görünür. Kayıt yoksa "fade+htf_vpfr" etiketine düşer → şampiyonun sitede görünmesi için kullanıcı `--kesif --yukle` ile keşif yapıp yüklemeli.
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
