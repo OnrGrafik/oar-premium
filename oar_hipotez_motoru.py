@@ -37,7 +37,8 @@ MIN_N         = 40      # bir hipotezi raporlamak için asgari örneklem
 OOS_ORAN      = 0.20
 LIFT_ESIK     = 5.0     # kazanan sayılmak için asgari LIFT (yüzde puan)
 
-HAFIZA = Path(__file__).resolve().parent / ".hipotez_hafiza.json"
+HAFIZA    = Path(__file__).resolve().parent / ".hipotez_hafiza.json"
+CACHE_DIR = Path(__file__).resolve().parent / ".seans_cache"
 
 
 # ─── Gün×seans feature tablosu (bir kez hesapla, hipotezler bunun üstünde maske) ───
@@ -91,29 +92,55 @@ def _feature_tablo(sembol, bas, bit):
             fibs = fib_seviyeleri(a_low, a_high)
             hi = post["high"].to_numpy(); lo = post["low"].to_numpy()
             cl = post["close"].to_numpy()
-            # üst kırılım
+            # üst/alt kırılım indeksleri
             brk_hi_idx = int(np.argmax(hi >= a_high)) if (hi >= a_high).any() else -1
             brk_lo_idx = int(np.argmax(lo <= a_low)) if (lo <= a_low).any() else -1
             row["brk_hi"] = brk_hi_idx >= 0
             row["brk_lo"] = brk_lo_idx >= 0
+
+            # ── ÜST kırılım (LONG-devam): fib 1.618 / 2.618 ──
             if brk_hi_idx >= 0:
                 sonr = post.iloc[brk_hi_idx:]
                 kir_hacim = float(sonr["volume"].iloc[:60].mean())
-                row["hacim_destek"] = (taban is not None) and (kir_hacim > taban)
+                orani = (kir_hacim / taban) if taban else 0.0
+                row["hacim_destek"]  = orani > 1.0
+                row["hacim_patlama"] = orani >= 1.5      # güçlü hacim (patlama)
+                row["hacim_kuruma"]  = (taban is not None) and orani < 0.7   # hacim kuruması
                 mh = float(sonr["high"].max())
                 row["tp1_618"] = mh >= fibs[1.618]
                 row["tp_2618"] = mh >= fibs[2.618]
             else:
-                row["hacim_destek"] = False
-                row["tp1_618"] = False; row["tp_2618"] = False
-            # fade: üst ekstrem temas → range ortasına (0.5) dönüş oldu mu
-            row["ust_temas"] = (hi >= fibs[1.618]).any()
+                row["hacim_destek"] = row["hacim_patlama"] = row["hacim_kuruma"] = False
+                row["tp1_618"] = row["tp_2618"] = False
+
+            # ── ALT kırılım (SHORT-devam): fib -0.618 / -1.618 (aynanın tersi) ──
+            if brk_lo_idx >= 0:
+                sonr_d = post.iloc[brk_lo_idx:]
+                kir_hac_d = float(sonr_d["volume"].iloc[:60].mean())
+                orani_d = (kir_hac_d / taban) if taban else 0.0
+                row["hacim_destek_dn"]  = orani_d > 1.0
+                row["hacim_patlama_dn"] = orani_d >= 1.5
+                ml = float(sonr_d["low"].min())
+                row["tp1_dn"] = ml <= fibs[-0.618]
+                row["tp_dn2"] = ml <= fibs[-1.618]
+            else:
+                row["hacim_destek_dn"] = row["hacim_patlama_dn"] = False
+                row["tp1_dn"] = row["tp_dn2"] = False
+
+            # ── FADE: üst ekstrem (1.618) temas → range ortasına (0.5) dönüş ──
+            row["ust_temas"] = bool((hi >= fibs[1.618]).any())
             if row["ust_temas"]:
                 ti = int(np.argmax(hi >= fibs[1.618]))
                 row["fade_mid"] = bool((lo[ti:] <= fibs[0.5]).any())
             else:
                 row["fade_mid"] = False
-            # ileri getiriler
+            # ── FADE alt: alt ekstrem (-0.618) temas → range ortasına dönüş ──
+            row["alt_temas"] = bool((lo <= fibs[-0.618]).any())
+            if row["alt_temas"]:
+                ai = int(np.argmax(lo <= fibs[-0.618]))
+                row["fade_mid_dn"] = bool((hi[ai:] >= fibs[0.5]).any())
+            else:
+                row["fade_mid_dn"] = False
             row["ret_intraday"] = round((cl[-1] - a_close) / a_close * 100.0, 3)
         hacim_taban.append(gun_dk_hacim)
         satirlar.append(row)
@@ -141,27 +168,60 @@ def _hipotezler():
                    ("genlik1-2", lambda r: 1.0 <= r["rng_pct"] < 2.0),
                    ("genlik≥2", lambda r: r["rng_pct"] >= 2.0)]
 
+    # HACİM DAVRANIŞI yapı taşları (kullanıcı yönü: "fiblerde ne tür hacim
+    # hareketi" → CHoCH/HH-LL değil). Her biri farklı hacim rejimi.
+    hacim_kova_up = [("hacim-farketmez", lambda r: True),
+                     ("hacim-destekli",  lambda r: r.get("hacim_destek")),
+                     ("hacim-patlama",   lambda r: r.get("hacim_patlama")),
+                     ("hacim-kuruma",    lambda r: r.get("hacim_kuruma"))]
+    hacim_kova_dn = [("hacim-farketmez", lambda r: True),
+                     ("hacim-destekli",  lambda r: r.get("hacim_destek_dn")),
+                     ("hacim-patlama",   lambda r: r.get("hacim_patlama_dn"))]
+
     H = []
-    # 1) Asia-high kırılım + (hacim var/yok) → fib TP hedefleri
-    for hac_ad, hac_f in [("hacim-destekli", lambda r: r.get("hacim_destek")),
-                          ("hacim-farketmez", lambda r: True)]:
+    # 1) ÜST kırılım (LONG-devam) × hacim davranışı × genlik × gün → fib 1.618/2.618
+    for hac_ad, hac_f in hacim_kova_up:
         for gk_ad, gk_f in genlik_kova:
-            for hedef_ad, hedef_f in [("TP1=1.618", lambda r: r.get("tp1_618")),
-                                      ("FULL=2.618", lambda r: r.get("tp_2618"))]:
-                kosul = (lambda gk_f, hac_f: lambda r: r["gecerli"] and r.get("brk_hi") and gk_f(r) and hac_f(r))(gk_f, hac_f)
-                H.append((f"Asia-high kırılım·{hac_ad}·{gk_ad} → {hedef_ad}",
-                          kosul, hedef_f, "hit"))
-    # 2) Gün bazlı: Asia-high kırılım → hafta bull
+            for gn, gf in gun_kova:
+                for hedef_ad, hedef_f in [("TP1=1.618", lambda r: r.get("tp1_618")),
+                                          ("FULL=2.618", lambda r: r.get("tp_2618"))]:
+                    kosul = (lambda gk_f, hac_f, gf: lambda r: r["gecerli"] and r.get("brk_hi")
+                             and gk_f(r) and hac_f(r) and gf(r))(gk_f, hac_f, gf)
+                    H.append((f"Asia-HIGH kırılım·{hac_ad}·{gk_ad}·{gn} → {hedef_ad}",
+                              kosul, hedef_f, "hit_up"))
+    # 2) ALT kırılım (SHORT-devam) × hacim × genlik × gün → fib -0.618/-1.618 (AYNA TERSİ)
+    for hac_ad, hac_f in hacim_kova_dn:
+        for gk_ad, gk_f in genlik_kova:
+            for gn, gf in gun_kova:
+                for hedef_ad, hedef_f in [("TP1=-0.618", lambda r: r.get("tp1_dn")),
+                                          ("FULL=-1.618", lambda r: r.get("tp_dn2"))]:
+                    kosul = (lambda gk_f, hac_f, gf: lambda r: r["gecerli"] and r.get("brk_lo")
+                             and gk_f(r) and hac_f(r) and gf(r))(gk_f, hac_f, gf)
+                    H.append((f"Asia-LOW kırılım·{hac_ad}·{gk_ad}·{gn} → {hedef_ad}",
+                              kosul, hedef_f, "hit_dn"))
+    # 3) Gün bazlı: kırılım → hafta yön (üst→bull, alt→bear)
     for gn, gf in gun_kova:
-        kosul = (lambda gf: lambda r: r["gecerli"] and r.get("brk_hi") and gf(r) and r.get("ret_week") is not None)(gf)
-        H.append((f"{gn}·Asia-high kırılım → hafta bull",
-                  kosul, lambda r: (r.get("ret_week") or 0) > 0, "hafta"))
-    # 3) Fade: üst ekstrem (1.618) temas → range ortasına dönüş
+        ku = (lambda gf: lambda r: r["gecerli"] and r.get("brk_hi") and gf(r) and r.get("ret_week") is not None)(gf)
+        H.append((f"{gn}·Asia-HIGH kırılım → hafta bull", ku,
+                  lambda r: (r.get("ret_week") or 0) > 0, "hafta"))
+    # 4) Fade: üst ekstrem temas → 0.5 dönüş · alt ekstrem temas → 0.5 dönüş
     for gk_ad, gk_f in genlik_kova:
-        kosul = (lambda gk_f: lambda r: r["gecerli"] and r.get("ust_temas") and gk_f(r))(gk_f)
-        H.append((f"Üst ekstrem temas·{gk_ad} → 0.5 fade dönüşü",
-                  kosul, lambda r: r.get("fade_mid"), "fade"))
+        ku = (lambda gk_f: lambda r: r["gecerli"] and r.get("ust_temas") and gk_f(r))(gk_f)
+        H.append((f"Üst ekstrem temas·{gk_ad} → 0.5 fade", ku, lambda r: r.get("fade_mid"), "fade_up"))
+        kd = (lambda gk_f: lambda r: r["gecerli"] and r.get("alt_temas") and gk_f(r))(gk_f)
+        H.append((f"Alt ekstrem temas·{gk_ad} → 0.5 fade", kd, lambda r: r.get("fade_mid_dn"), "fade_dn"))
     return H
+
+
+def _wilson_alt(k, n, z=1.96):
+    """Wilson güven aralığı ALT sınırı (%). Küçük n'de WR'yi cezalandırır."""
+    if n == 0:
+        return 0.0
+    p = k / n
+    payda = 1 + z * z / n
+    merkez = p + z * z / (2 * n)
+    kok = z * ((p * (1 - p) + z * z / (4 * n)) / n) ** 0.5
+    return round(100.0 * (merkez - kok) / payda, 1)
 
 
 def _degerlendir(rows, kosul, hedef):
@@ -176,7 +236,7 @@ def _degerlendir(rows, kosul, hedef):
     kes = int(len(alt_s) * (1 - OOS_ORAN))
     oos = alt_s[kes:]
     oos_wr = (100.0 * sum(1 for r in oos if hedef(r)) / len(oos)) if oos else None
-    return {"n": n, "wr": round(wr, 1),
+    return {"n": n, "wr": round(wr, 1), "wilson_alt": _wilson_alt(k, n),
             "oos_n": len(oos), "oos_wr": round(oos_wr, 1) if oos_wr is not None else None}
 
 
@@ -202,25 +262,33 @@ def _hafiza_kaydet(s):
         pass
 
 
-def arastir(rows):
-    """Tüm hipotezleri değerlendir → (kazananlar, tüm sonuç satırları)."""
-    # evren fonksiyonları (taban için)
-    ev_brk  = lambda r: r["gecerli"] and r.get("brk_hi")
-    ev_week = lambda r: r["gecerli"] and r.get("brk_hi") and r.get("ret_week") is not None
-    ev_fade = lambda r: r["gecerli"] and r.get("ust_temas")
-    ev_map  = {"hit": ev_brk, "hafta": ev_week, "fade": ev_fade}
+def arastir(rows, sadece=None):
+    """Hipotezleri değerlendir → (kazananlar, tüm sonuç). sadece=set(ad) verilirse
+    yalnız o adları test eder (döngüde batch için)."""
+    # evren fonksiyonları (taban için — her tip kendi evrenine karşı LIFT)
+    ev_map = {
+        "hit_up": lambda r: r["gecerli"] and r.get("brk_hi"),
+        "hit_dn": lambda r: r["gecerli"] and r.get("brk_lo"),
+        "hafta":  lambda r: r["gecerli"] and r.get("brk_hi") and r.get("ret_week") is not None,
+        "fade_up": lambda r: r["gecerli"] and r.get("ust_temas"),
+        "fade_dn": lambda r: r["gecerli"] and r.get("alt_temas"),
+    }
 
     kazanan, tum = [], []
     for ad, kosul, hedef, tip in _hipotezler():
+        if sadece is not None and ad not in sadece:
+            continue
         s = _degerlendir(rows, kosul, hedef)
         if not s:
             continue
         taban = _taban_wr(rows, hedef, ev_map[tip])
         lift = round(s["wr"] - taban, 1) if taban is not None else None
-        rec = {"ad": ad, "n": s["n"], "wr": s["wr"], "taban": taban,
-               "lift": lift, "oos_wr": s["oos_wr"], "oos_n": s["oos_n"]}
+        rec = {"ad": ad, "n": s["n"], "wr": s["wr"], "taban": taban, "lift": lift,
+               "wilson_alt": s["wilson_alt"], "oos_wr": s["oos_wr"], "oos_n": s["oos_n"]}
         tum.append(rec)
-        if lift is not None and lift >= LIFT_ESIK:
+        # KAZANAN = LIFT≥eşik VE Wilson alt sınırı tabanın üstünde (şans değil, kanıtlı)
+        if (lift is not None and lift >= LIFT_ESIK
+                and taban is not None and s["wilson_alt"] > taban):
             kazanan.append(rec)
     kazanan.sort(key=lambda r: r["lift"], reverse=True)
     tum.sort(key=lambda r: (r["lift"] if r["lift"] is not None else -99), reverse=True)
@@ -230,22 +298,47 @@ def arastir(rows):
 def _rapor_metni(kazanan, tum, toplam_gun):
     L = [f"═══ OAR HİPOTEZ MOTORU — {len(tum)} hipotez test edildi ({toplam_gun} gün) ═══"]
     if kazanan:
-        L.append(f"🏆 KAZANAN ({len(kazanan)}, LIFT≥{LIFT_ESIK:g}):")
-        for r in kazanan[:8]:
-            L.append(f"  • {r['ad']}: WR%{r['wr']} vs taban%{r['taban']} → LIFT {r['lift']:+} "
-                     f"(n{r['n']}, OOS%{r['oos_wr']})")
+        L.append(f"🏆 KAZANAN ({len(kazanan)}, LIFT≥{LIFT_ESIK:g} + Wilson>taban = kanıtlı):")
+        for r in kazanan[:10]:
+            L.append(f"  • {r['ad']}: WR%{r['wr']} (Wilson≥%{r['wilson_alt']}) vs taban%{r['taban']} "
+                     f"→ LIFT {r['lift']:+} (n{r['n']}, OOS%{r['oos_wr']})")
     else:
-        L.append("❌ Bu turda LIFT≥eşik kazanan hipotez YOK. En iyi 5:")
+        L.append("❌ Bu turda kanıtlı kazanan YOK (LIFT+Wilson eşiği geçilmedi). En iyi 5:")
         for r in tum[:5]:
-            L.append(f"  • {r['ad']}: LIFT {r['lift']} (WR%{r['wr']} vs %{r['taban']}, n{r['n']})")
+            L.append(f"  • {r['ad']}: LIFT {r['lift']} (WR%{r['wr']}, Wilson%{r.get('wilson_alt')}, n{r['n']})")
     return "\n".join(L)
 
 
-def tek_tur(semboller, bas, bit, telegram=False):
+# ── Feature diske cache (döngüde 3M satırı tekrar hesaplama) ──
+def _feature_cache(semboller, bas, bit):
+    import pickle
+    anahtar = "_".join(semboller) + f"_{bas}_{bit}"
+    yol = CACHE_DIR / f"hipotez_feat_{anahtar}.pkl"
+    if yol.exists():
+        try:
+            with open(yol, "rb") as f:
+                rows = pickle.load(f)
+            print(f"[HipotezMotoru] ✓ feature cache bulundu ({len(rows)} satır) — yeniden hesaplanmadı", flush=True)
+            return rows
+        except Exception:
+            pass
     rows = []
     for sym in semboller:
         print(f"[HipotezMotoru] {sym} {bas}..{bit} feature…", flush=True)
         rows += _feature_tablo(sym, bas, bit)
+    try:
+        CACHE_DIR.mkdir(exist_ok=True)
+        with open(yol, "wb") as f:
+            pickle.dump(rows, f)
+        print(f"[HipotezMotoru] ✓ feature cache kaydedildi → {yol.name}", flush=True)
+    except Exception:
+        pass
+    return rows
+
+
+def tek_tur(semboller, bas, bit, telegram=False, rows=None):
+    if rows is None:
+        rows = _feature_cache(semboller, bas, bit)
     kazanan, tum = arastir(rows)
 
     # HAFIZA: daha önce raporlanmış kazananları tekrar rapor etme (yeni olanları işaretle)
@@ -288,13 +381,19 @@ def main():
     if not args.loop:
         tek_tur(semboller, args.bas, args.bit, telegram=args.telegram)
         return
+    # DÖNGÜ NOTU: veri + hipotez uzayı SABİTken tekrar tarama AYNI sonucu verir
+    # (bu yüzden .hipotez_hafiza ile aynı kazananı tekrar Telegram'a atmaz → sessizlik).
+    # Döngü asıl işe yarar: (a) yeni veri ayı indirdiğinde, (b) motoru genişlettiğinde
+    # (yeni hipotez bloğu) → yeni kazanan çıkar. Feature bir kez yüklenir (cache),
+    # her tur yalnız hızlı maske değerlendirmesi yapar.
     import time
+    rows = _feature_cache(semboller, args.bas, args.bit)
     while True:
         try:
-            tek_tur(semboller, args.bas, args.bit, telegram=args.telegram)
+            tek_tur(semboller, args.bas, args.bit, telegram=args.telegram, rows=rows)
         except Exception as e:
             print(f"[HipotezMotoru] hata: {str(e)[:100]}", flush=True)
-        print(f"[HipotezMotoru] {args.aralik_saat}h uyku…", flush=True)
+        print(f"[HipotezMotoru] {args.aralik_saat}h uyku… (yeni veri/hipotez yoksa sonuç değişmez)", flush=True)
         time.sleep(args.aralik_saat * 3600)
 
 
