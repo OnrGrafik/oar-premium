@@ -2770,8 +2770,11 @@ DAVRANŞ KURALLARI:
 
 @app.get("/live", response_class=HTMLResponse)
 async def live_page():
-    p = Path("static/live.html")
-    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>live.html eksik</h1>")
+    # Canlı panel (live.html) KALDIRILDI — hafıza paneli de onun içindeydi.
+    # Eski /live yer imleri/geçmişi OAR arayüzüne (index.html) düşer, live panel
+    # ve hafıza paneli tamamen erişilemez (kullanıcı isteği).
+    p = Path("static/index.html")
+    return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>index.html eksik</h1>")
 
 @app.get("/api/ohlcv")
 async def api_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200):
