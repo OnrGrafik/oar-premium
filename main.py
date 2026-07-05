@@ -962,12 +962,34 @@ async def oar_sistem():
         defter = _ozet(6)
     except Exception:
         pass
+    # GERÇEK keşfedilen şampiyonu oku (yerel keşif → OAR_KESIF_SAMPIYON kaydı).
+    # Yoksa bilinen etikete düş. "Şampiyonun en iyi hali" = kesfet'in son sağlamı.
+    sampiyon = {
+        "ad": "fade + htf_vpfr",
+        "aciklama": "Asia range ekstremlerinde mean-reversion (haftalık/aylık değer-alanı teyidiyle).",
+        "istatistik": "BTC+ETH holdout: PF ~2.3 · WR %35-37 · +197-272%",
+    }
+    try:
+        _kayit = json.loads(_YEREL_BT_FILE.read_text()) if _YEREL_BT_FILE.exists() else []
+        _sam = [k for k in _kayit if k.get("strateji") == "OAR_KESIF_SAMPIYON"]
+        if _sam:
+            s = _sam[-1]
+            bl = s.get("bloklar") or []
+            eq = s.get("equity_1x") or {}
+            bek = s.get("holdout_beklenti") or s.get("beklenti") or {}
+            sampiyon = {
+                "ad": "+".join(bl) if bl else "fade + htf_vpfr",
+                "aciklama": f"Keşif şampiyonu ({s.get('sembol','?')} {s.get('aralik','?')}). "
+                            f"{'SAĞLAM (OOS+holdout ayakta)' if s.get('saglam') else 'holdout zayıf'}.",
+                "istatistik": f"OOS WR%{s.get('oos_wr','?')} · HOLDOUT WR%{s.get('holdout_wr','?')} "
+                              f"(n{s.get('holdout_trade','?')}) · beklenti {bek.get('beklenti','?')}"
+                              + (f" · equity 1x: {eq.get('son','?')}" if eq else ""),
+                "bloklar": bl,
+            }
+    except Exception:
+        pass
     return {
-        "sampiyon": {
-            "ad": "fade + htf_vpfr",
-            "aciklama": "Asia range ekstremlerinde mean-reversion (haftalık/aylık değer-alanı teyidiyle).",
-            "istatistik": "BTC+ETH holdout: PF ~2.3 · WR %35-37 · +197-272%",
-        },
+        "sampiyon": sampiyon,
         "market_kapisi": "BTC VE ETH Asia range ≥ %1 → fade-işlem günü; değilse işlem yok. Asia <%1 → trend-devam modu.",
         "seanslar_utc": {"Asia": "00:00-04:00", "London": "07:00-11:00", "NY": "13:00-17:00"},
         "fib": [2.618, 2.272, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.272, -1.618],

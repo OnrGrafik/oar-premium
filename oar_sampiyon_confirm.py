@@ -8,11 +8,13 @@ KRİTİK: Şampiyon = FADE (ekstremde tersine dönüş). Kazanan hipotez = KIRIL
 kırıp 1.618'e gider). Bunlar ZIT. Yani "birleştirme" toplama değil, FİLTRE:
   → Kırılım-devam günlerinde ÜST ekstremi fade'leme (kırılan tepeyi shortlayıp ezilme).
 
-Bu modül ŞAMPİYONUN KENDİ sinyal üreticisini (aday_sinyaller_uret — proxy DEĞİL, gerçek
-fade net çıktıları) kullanır; ANAYASA #8: şampiyon KODUNA DOKUNMAZ, sadece okur.
+Bu modül ŞAMPİYONUN GERÇEK seçim makinesini kullanır (proxy DEĞİL): aday_sinyaller_uret
++ kesfet (en sağlam blok kombinasyonu) + _filtre. ANAYASA #8: şampiyon KODUNA DOKUNMAZ,
+sadece okur/çağırır. (Önceki sürüm elle 'fade+htf_vpfr_ok' filtresi kuruyordu → gerçek
+şampiyon değildi, PF 0.63 çıkmıştı; bu düzeltildi — artık kesfet'in bulduğu şampiyon.)
 
 3 senaryo net PF/beklenti/maxDD/OOS ile karşılaştırılır:
-  A) ŞAMPİYON fade (htf_vpfr_ok)                         — mevcut durum
+  A) ŞAMPİYON (kesfet'in bulduğu en sağlam blok kümesi)   — gerçek şampiyon
   B) A + CONFIRM FİLTRE (kırılım-devam günü üst fade'i AT) — hipotezle korunmuş şampiyon
   C) B + kırılım-devam kolu (o günlerde trend-LONG işlem)  — şampiyon + hipotez birlikte
 
@@ -120,41 +122,57 @@ def _analiz(sembol, bas, bit):
     yollar = _aggt_ay_yollari(sembol, bas, bit)
     if klines is None or not yollar:
         print(f"   [{sembol}] ⚠ parquet yok — atlandı", flush=True)
-        return [], [], []
+        return [], set()
     gunler = _gun_hazirla(klines, yollar, _metrics_oku(sembol, bas, bit))
     adaylar = aday_sinyaller_uret(gunler)
-
-    A, B, C = [], [], []   # (gun, net)
+    # Her adayı sembol+gün ile etiketle (havuzda kaynağı kaybolmasın)
     for c in adaylar:
-        gun = int(c["ts"] // GUN_MS)
-        # ŞAMPİYON fade: mod=fade + htf_vpfr_ok (şampiyonun tanımlayıcı filtresi)
-        if c.get("mod") == "fade" and c.get("htf_vpfr_ok"):
-            ust_fade = (c.get("yon") == "SHORT")   # üst ekstremi fade (short)
-            A.append((gun, c["pct"]))
-            # B: confirm günü + üst fade ise ATLA (kırılan tepeyi fade'leme)
-            if not (gun in confirm and ust_fade):
-                B.append((gun, c["pct"]))
-                C.append((gun, c["pct"]))
-        # C ek kolu: confirm günü trend-LONG devam işlemi (hipotez kolu)
-        if (c.get("mod") == "trend" and c.get("yon") == "LONG"
-                and gun in confirm):
-            C.append((gun, c["pct"]))
-    print(f"   [{sembol}] ✓ aday {len(adaylar)} · A={len(A)} B={len(B)} C={len(C)}", flush=True)
+        c["_sembol"] = sembol
+        c["_gun"] = int(c["ts"] // GUN_MS)
+    print(f"   [{sembol}] ✓ {len(adaylar)} aday sinyal · {len(confirm)} confirm günü", flush=True)
+    return adaylar, {(sembol, g) for g in confirm}
+
+
+def _senaryolar(havuz, confirm_set, sampiyon_bloklar):
+    """
+    ŞAMPİYONUN GERÇEK seçim bloğuyla (kesfet'in bulduğu kombinasyon) A/B/C üret.
+    A = şampiyon trade'leri (_filtre ile — proxy değil, gerçek blok mantığı).
+    B = A − (kırılım-devam günü ÜST fade: mod=fade+SHORT).  C = B + devam kolu.
+    """
+    from oar_kesif import _filtre
+    sampiyon_trades = _filtre(havuz, sampiyon_bloklar)   # şampiyonun gerçek işlem kümesi
+    A, B, C = [], [], []
+    for c in sampiyon_trades:
+        anahtar = (c.get("_sembol"), c.get("_gun"))
+        A.append((c["_gun"], c["pct"]))
+        ust_fade = (c.get("mod") == "fade" and c.get("yon") == "SHORT")
+        if not (anahtar in confirm_set and ust_fade):
+            B.append((c["_gun"], c["pct"])); C.append((c["_gun"], c["pct"]))
+    # C ek kolu: confirm günü trend-LONG devam (hipotezle doğrulanmış kırılım-devam)
+    for c in havuz:
+        anahtar = (c.get("_sembol"), c.get("_gun"))
+        if c.get("mod") == "trend" and c.get("yon") == "LONG" and anahtar in confirm_set:
+            C.append((c["_gun"], c["pct"]))
     return A, B, C
 
 
-def _rapor(A, B, C):
+def _rapor(sampiyon, A, B, C):
     mA = _senaryo_metrik(A); mB = _senaryo_metrik(B); mC = _senaryo_metrik(C)
-    L = ["═══ ŞAMPİYON + KIRILIM-DEVAM CONFIRM BİRLEŞİK BACKTEST ═══"]
+    bek = sampiyon.get("holdout_beklenti") or sampiyon.get("beklenti") or {}
+    L = ["═══ ŞAMPİYON + KIRILIM-DEVAM CONFIRM BİRLEŞİK BACKTEST ═══",
+         f"ŞAMPİYON (kesfet en sağlam): [{'+'.join(sampiyon.get('bloklar', []))}]",
+         f"  OOS: puan {sampiyon.get('oos_puan')} WR%{sampiyon.get('oos_wr')} n{sampiyon.get('oos_trade')}"
+         f" · HOLDOUT: puan {sampiyon.get('holdout_puan')} WR%{sampiyon.get('holdout_wr')} n{sampiyon.get('holdout_trade')}"
+         f" · {'✅ SAĞLAM' if sampiyon.get('saglam') else '⚠ holdout zayıf'}",
+         ""]
     def satir(ad, m):
         if not m:
             return f"  {ad}: yetersiz veri"
         return (f"  {ad}: n{m['n']} · WR%{m['wr']} · PF {m['pf']} · beklenti {m['beklenti']:+.3f}% "
                 f"· maxDD {m['maxdd']}% · toplam {m['toplam']:+.0f}% · OOS beklenti {m['oos_beklenti']}")
-    L.append(satir("A) ŞAMPİYON fade (htf_vpfr)          ", mA))
+    L.append(satir("A) ŞAMPİYON (gerçek blok kümesi)     ", mA))
     L.append(satir("B) A + CONFIRM filtre (üst fade AT)   ", mB))
     L.append(satir("C) B + kırılım-devam kolu (trend-LONG)", mC))
-    # Karar
     if mA and mB:
         d_pf = (mB["pf"] - mA["pf"]) if (mA["pf"] != float("inf") and mB["pf"] != float("inf")) else None
         d_dd = mA["maxdd"] - mB["maxdd"]
@@ -162,10 +180,11 @@ def _rapor(A, B, C):
         iyi = (d_bek >= 0 and d_dd >= 0 and (mB["oos_beklenti"] or 0) >= 0)
         L.append("")
         L.append(f"→ CONFIRM ETKİSİ (B−A): beklenti {d_bek:+.3f} · maxDD {d_dd:+.2f} "
-                 f"· PF Δ {d_pf if d_pf is not None else '—'}")
+                 f"· PF Δ {round(d_pf,3) if d_pf is not None else '—'}")
         L.append("✅ CONFIRM ŞAMPİYONU İYİLEŞTİRİYOR (ekle)" if iyi
                  else "❌ CONFIRM net iyileştirmiyor — şampiyona DOKUNMA")
-    L.append("\nNOT: yalnız B, A'dan İYİ (beklenti↑ VE maxDD↓ VE OOS≥0) ise confirm eklenir.")
+    L.append("\nNOT: A = şampiyonun GERÇEK blok kümesi (kesfet+_filtre, proxy değil). "
+             "Yalnız B, A'dan İYİ (beklenti↑ VE maxDD↓ VE OOS≥0) ise confirm eklenir.")
     return "\n".join(L)
 
 
@@ -177,13 +196,31 @@ def main():
     ap.add_argument("--telegram", action="store_true")
     args = ap.parse_args()
 
-    A, B, C = [], [], []
+    # 1) Havuz: tüm sembollerin adayları + confirm günleri (sembol,gün)
+    havuz, confirm_set = [], set()
     for sym in [s.strip().upper() for s in args.symbol.split(",") if s.strip()]:
         print(f"[ŞampiyonConfirm] {sym} {args.bas}..{args.bit}…", flush=True)
-        a, b, c = _analiz(sym, args.bas, args.bit)
-        A += a; B += b; C += c
+        adaylar, conf = _analiz(sym, args.bas, args.bit)
+        havuz += adaylar; confirm_set |= conf
+    if not havuz:
+        print("⚠ aday yok — parquet/aggTrades eksik olabilir."); return
 
-    rapor = _rapor(A, B, C)
+    # 2) ŞAMPİYONU KEŞFET (kesfet en sağlam blok kombinasyonunu bulur — gerçek şampiyon)
+    print(f"[ŞampiyonConfirm] kesfet: en sağlam blok kombinasyonu aranıyor "
+          f"({len(havuz)} aday)…", flush=True)
+    from oar_kesif import kesfet
+    kesif = kesfet(havuz)
+    enler = kesif.get("en_iyiler") or []
+    sampiyon = next((a for a in enler if a.get("saglam")), enler[0] if enler else None)
+    if not sampiyon:
+        print("⚠ kesfet şampiyon bulamadı (yeterli sinyalli kombinasyon yok)."); return
+    print(f"[ŞampiyonConfirm] şampiyon: [{'+'.join(sampiyon['bloklar'])}] "
+          f"OOS puan {sampiyon.get('oos_puan')} · {'SAĞLAM' if sampiyon.get('saglam') else 'zayıf'}",
+          flush=True)
+
+    # 3) Şampiyonun GERÇEK blok kümesiyle A/B/C
+    A, B, C = _senaryolar(havuz, confirm_set, sampiyon["bloklar"])
+    rapor = _rapor(sampiyon, A, B, C)
     print("\n" + rapor)
 
     if args.telegram:
@@ -191,7 +228,7 @@ def main():
             import asyncio
             from ajan_merkez import bildir
             asyncio.run(bildir("Şampiyon+Confirm Backtest", "backtest",
-                               "Şampiyon fade + kırılım-devam confirm birleşik testi",
+                               f"Şampiyon [{'+'.join(sampiyon['bloklar'])}] + kırılım-devam confirm testi",
                                detay=rapor))
             print("\n[Telegram] thread 4129'a gönderildi ✓", flush=True)
         except Exception as e:
