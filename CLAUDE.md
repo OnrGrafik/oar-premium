@@ -72,6 +72,13 @@
 - Hipotez motoru arastir 'tum' sonucunu deftere yazar. Lider bağlamına (_kanitli_bulgu_baglami) defter özeti + kanıtlı bulgular eklendi.
 - KULLANICI CMD HATASI (kalıcı uyarı): kullanıcı zaten ~/Desktop/oar-premium içindeyken `cd oar-premium && git pull` yazıyor → "No such file or directory" → && yüzünden git pull ÇALIŞMIYOR → eski kod (25 hipotez) çalışıyor, kanitli_bulgular.json oluşmuyor. DOĞRU: `cd` olmadan direkt `git pull origin claude/new-session-qy6kax`. Komut verirken cd EKLEME.
 
+## 5g. oar_sampiyon_confirm.py (ŞAMPİYON + confirm BİRLEŞİK backtest — ANAYASA #8)
+- Kullanıcı ilkesi: hipotez doğru olsa da şampiyonu birleştirip test etmeden DEĞİŞTİRME; confirm de olsa SAĞLAM olmalı.
+- Şampiyon=FADE, kazanan hipotez=KIRILIM-DEVAM → ZIT. Birleştirme = FİLTRE: kırılım-devam günü üst ekstremi fade'leme (kırılan tepeyi shortlayıp ezilme).
+- Şampiyonun KENDİ `aday_sinyaller_uret`'ini kullanır (proxy DEĞİL, gerçek fade net çıktıları; şampiyon koduna dokunmaz). 3 senaryo: A) şampiyon fade(htf_vpfr_ok), B) A+confirm filtre, C) B+trend-LONG devam kolu. PF/beklenti/maxDD/OOS karşılaştırır. Karar: yalnız B>A (beklenti↑ VE maxDD↓ VE OOS≥0) ise confirm eklenir. confirm = genlik%1-2 + Asia-HIGH hacim-destekli kırılım. aggTrades gerektirir (ay ay ilerleme yazar).
+- Çalıştırma: `python oar_sampiyon_confirm.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`
+- ÇOKLU KARŞILAŞTIRMA UYARISI (402 hipotez, 101 kazanan): gün-spesifik minik-n kazananlar (Pazar n44 OOS%100) şans/overfit; güvenilir olan gün-bağımsız büyük-n (hepsi/haftaiçi). Gerçek karar bu birleşik backtest'te (vuruş oranı değil, net PF/beklenti).
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
