@@ -37,6 +37,12 @@
 - Çalıştırma: `python seans_karakter.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06`
 - **BULGU (2019-01..2025-06, BTC+ETH, 13.148 gün×seans):** Test edilen seans-koşullarının HİÇBİRİ pozitif LIFT vermedi (hepsi taban WR'nin altında). "Cumartesi Asia alıcı → hafta bull" hipotezi ÇÜRÜDÜ (WR %47.8 vs taban %55.4, LIFT −7.6). Taban %55.4 zaten bull-drift'ten yüksek. SONUÇ: bu seans karakteristikleri scalp/swing confirm olarak KULLANILAMAZ; şampiyon fade+htf_vpfr'ye ekleme yapmıyor. Aynı yola tekrar girme. ("OOS ✅" sadece yeterli örneklem demek, tahmin gücü değil.)
 
+## 5b. oar_impulse_breakout.py (yerel hipotez-test + Telegram)
+- Kullanıcı hipotezi: Asia HIGH kırılır + HACİM desteklerse → fiyat fib 1.618 (TP1) ve 2.618 (ekstrem/full TP) hedeflerine "geçen günlerde fazla" ulaşıyor.
+- Yerel parquet klines tarar (aggTrades gerekmez → hızlı). P(TP1|kırılım+hacim) + hacim DESTEKSİZ'e kıyasla LIFT. No-lookahead hacim tabanı (önceki 20 gün).
+- Çalıştırma: `python oar_impulse_breakout.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`
+- NOT: autonomous_researcher.py YALNIZ parametre gridi deniyor (kullanıcının GERÇEK fikirlerini test etmiyor, Telegram'a atmıyor). Kullanıcı "araştırmacı hiç denemiyor" diye haklı sitem etti. Yeni hipotezler bu tarz ayrı yerel modüllerle test edilip Telegram'a raporlanmalı.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
