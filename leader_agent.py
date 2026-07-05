@@ -59,12 +59,20 @@ def _oar_kural_baglami() -> str:
 
 # OAR KANITLI BULGULAR bağlamı (hipotez motorunun LIFT+OOS+Wilson kazananları)
 def _kanitli_bulgu_baglami() -> str:
-    """Lider promptuna kanıtlı bulguları ekle → bana bildirirken bunları göz önüne alsın."""
+    """Lider promptuna kanıtlı bulguları + backtest defterini ekle → bana bildirirken
+    bunları göz önüne alsın, test edilmiş şeyi tekrar önermesin."""
+    parcalar = []
     try:
         from kanitli_bulgular import ozet_metni
-        return ozet_metni(8)
+        parcalar.append(ozet_metni(8))
     except Exception:
-        return ""
+        pass
+    try:
+        from backtest_sonuclari import ozet as defter_ozet
+        parcalar.append(defter_ozet(5))
+    except Exception:
+        pass
+    return "\n".join(parcalar)
 
 # Deribit opsiyon bağlamı
 async def _deribit_ozet() -> str:

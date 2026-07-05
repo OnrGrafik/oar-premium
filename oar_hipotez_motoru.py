@@ -358,6 +358,17 @@ def tek_tur(semboller, bas, bit, telegram=False, rows=None):
     except Exception as e:
         print(f"[HipotezMotoru] kanıtlı bulgu deposu hata: {str(e)[:60]}", flush=True)
 
+    # BACKTEST DEFTERİ: TÜM sonuçları (kazanan+marjinal+elenen) kaydet → ajanlar
+    # sonucu belli olanı tekrar test etmesin, ek bilgi olarak kullansın.
+    try:
+        import backtest_sonuclari as bs
+        say = bs.kaydet_toplu(tum, kaynak="hipotez_motoru",
+                              aralik=f"{semboller}")
+        print(f"[HipotezMotoru] backtest defteri: {say['yeni']} yeni, "
+              f"{say['guncel']} güncel, toplam {say['toplam']} test kayıtlı", flush=True)
+    except Exception as e:
+        print(f"[HipotezMotoru] backtest defteri hata: {str(e)[:60]}", flush=True)
+
     rapor = _rapor_metni(kazanan, tum, len({r["gun"] for r in rows}))
     print("\n" + rapor)
     if yeni:
