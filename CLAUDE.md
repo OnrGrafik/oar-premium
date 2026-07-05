@@ -50,6 +50,12 @@
 - Çalıştırma: `python oar_hipotez_motoru.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`  ·  sürekli: `--loop --aralik-saat 6 --telegram`
 - Yeni yapı taşı/hedef eklemek = `_feature_tablo` + `_hipotezler` genişlet. Hipotez uzayını büyüterek ajan daha çok "dener".
 
+## 5d. oar_kirilim_trade.py (kırılım trend-devam GERÇEK işlem doğrulaması)
+- Hipotez motorunun EN GÜÇLÜ adayı: genlik%1-2 + hacim destekli + Asia-HIGH kırılım → fib 1.618 devam. Vuruş WR %70 / OOS %73 / LIFT +9.7 (2192 gün, BTC+ETH). AMA vuruş ≠ kâr (temiz-TP1 sadece %15.5 → whipsaw riski).
+- Bu modül gerçek işleme çevirir: giriş=Asia-high, TP=1.618, 4 SL adayı (asia_high_alti/range_orta_0.5/range_dibi_0.0/yarim_R), bar-bar high/low, AYNI barda SL önce (kötümser), fee+slippage. Çıktı: WR/PF/beklenti/maxDD/OOS her SL için. PF≥1.3+beklenti>0 = aday.
+- Çalıştırma: `python oar_kirilim_trade.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`
+- DURUM: modül kodlandı+sentetik doğrulandı; kullanıcının GERÇEK veride çalıştırması bekleniyor. Sonuç pozitifse → şampiyona TREND-DEVAM confirm'i (kırılım günü fade'i bastır). Trend-devam = şampiyon fade'in TERSİ rejim, şampiyon koduna dokunmaz.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
