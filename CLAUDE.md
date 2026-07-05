@@ -49,6 +49,8 @@
 - NO-LOOKAHEAD hacim tabanı (önceki 20 gün), LIFT=koşullu−taban, OOS holdout, MIN_N=40, LIFT_ESIK=5. `.hipotez_hafiza.json` → yeni kazananları ayırır.
 - Çalıştırma: `python oar_hipotez_motoru.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`  ·  sürekli: `--loop --aralik-saat 6 --telegram`
 - Yeni yapı taşı/hedef eklemek = `_feature_tablo` + `_hipotezler` genişlet. Hipotez uzayını büyüterek ajan daha çok "dener".
+- GENİŞLETİLDİ (436 hipotez): long(Asia-HIGH→1.618/2.618) + SHORT(Asia-LOW→-0.618/-1.618, aynanın tersi, şampiyon koruması) + hacim davranışı (destekli/patlama≥1.5x/kuruma<0.7x) × genlik × gün × fade(up/dn). Kazanan = LIFT≥5 VE Wilson alt sınırı>taban (kanıtlı, şans değil). Feature .seans_cache'e pickle'lanır.
+- "Neden 6 saat uyuyor?" CEVAP: veri+uzay SABİTken tekrar tarama AYNI sonucu verir (hafıza dedup → sessizlik). Döngü yalnız (a) yeni veri ayı, (b) motor genişlemesi olunca yeni kazanan bulur. Tek seferlik çalıştırma çoğu zaman yeterli. ÇOKLU KARŞILAŞTIRMA uyarısı: 436 test → şansla birkaçı geçebilir; savunma = OOS tutması + etkinin tek bir güne değil kovaya yayılması.
 
 ## 5d. oar_kirilim_trade.py (kırılım trend-devam GERÇEK işlem doğrulaması)
 - Hipotez motorunun EN GÜÇLÜ adayı: genlik%1-2 + hacim destekli + Asia-HIGH kırılım → fib 1.618 devam. Vuruş WR %70 / OOS %73 / LIFT +9.7 (2192 gün, BTC+ETH). AMA vuruş ≠ kâr (temiz-TP1 sadece %15.5 → whipsaw riski).
@@ -60,7 +62,8 @@
 ## 5e. AÇIK MİMARİ EKSİĞİ / İLKE (kullanıcı sordu — kalıcı)
 - SORU: "öğrenilenleri lider agent kullanıyor mu? Agentlere nasıl güvenaliriz?" CEVAP: ŞU AN kullanmıyor — hipotez motorunun kazananları (.hipotez_hafiza.json) canlı OAR karar akışına BESLENMİYOR. Bu gerçek bir eksik. Hedef: kazanan+trade-doğrulanmış hipotezleri (ör. genlik%1-2 kırılım devam) canlı sisteme confirm olarak bağlamak.
 - GÜVEN İLKESİ: LLM ajan LAFINA güvenme (research/öneri metni = düşük değer). SAYIYA güven: LIFT + OOS + PF + maxDD. Sistem kanıt-temelli olmalı, LLM-görüş-temelli değil. Telegram'a yalnız sayısal kanıtı olan bulgu gider.
-- KULLANICI YÖNÜ: "BTC'de CHoCH/HH-LL incelemiyoruz; fiblerde ne tür HACİM hareketleri olduğunu inceliyoruz." → hipotez uzayı fib×hacim davranışına odaklanmalı (SMC yapı kırılımına değil).
+- KULLANICI YÖNÜ: "BTC'de CHoCH/HH-LL incelemiyoruz; fiblerde ne tür HACİM hareketleri olduğunu inceliyoruz." → hipotez uzayı fib×hacim davranışına odaklanmalı (SMC yapı kırılımına değil). ✅ hipotez_motoru artık fib×hacim-davranışı odaklı.
+- LİDER HEDEFİ (kullanıcı isteği, AÇIK): "Lider tüm sistemi öğrensin — sitedeki tüm veri/bilgiye, veriyi okuma/işleme/yorumlamaya hakim olsun; bana bildirirken bunları göz önüne alsın; OAR için çalıştığımızı bilsin ve geliştirmek için her şeyi yapsın." PLAN: lider bağlamına (a) OAR kural bankası, (b) şampiyon istatistikleri, (c) .hipotez_hafiza kanıtlı kazananları, (d) canlı veri özeti beslenmeli; ÇIKTI yalnız OAR-uygulanabilir olmalı. Lider LLM'i konuşturmak değil, KANITLI SAYIYI canlı karar akışına bağlamak esas (5e eksiği ile aynı). DURUM: henüz yapılmadı — kullanıcı onayı bekliyor (B yönü).
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
