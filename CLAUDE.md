@@ -35,6 +35,7 @@
 - Seans karakteristikleri → ileri sonuç backtest'i (scalp + swing confirm). No-lookahead, LIFT, Wilson CI, OOS holdout.
 - aggTrades sonucu `.seans_cache/` içine cache'lenir → tekrar çalıştırınca kaldığı yerden devam (yeniden işlemez).
 - Çalıştırma: `python seans_karakter.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06`
+- **BULGU (2019-01..2025-06, BTC+ETH, 13.148 gün×seans):** Test edilen seans-koşullarının HİÇBİRİ pozitif LIFT vermedi (hepsi taban WR'nin altında). "Cumartesi Asia alıcı → hafta bull" hipotezi ÇÜRÜDÜ (WR %47.8 vs taban %55.4, LIFT −7.6). Taban %55.4 zaten bull-drift'ten yüksek. SONUÇ: bu seans karakteristikleri scalp/swing confirm olarak KULLANILAMAZ; şampiyon fade+htf_vpfr'ye ekleme yapmıyor. Aynı yola tekrar girme. ("OOS ✅" sadece yeterli örneklem demek, tahmin gücü değil.)
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
