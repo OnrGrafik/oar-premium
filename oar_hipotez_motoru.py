@@ -65,7 +65,7 @@ def _feature_tablo(sembol, bas, bit):
     gunler = sorted(k["gun"].unique())
     son_ay = None
     for g in gunler:
-        ay = datetime.utcfromtimestamp(int(g) * 86400).strftime("%Y-%m")
+        ay = datetime.fromtimestamp(int(g) * 86400, timezone.utc).strftime("%Y-%m")
         if ay != son_ay:
             print(f"      · [{sembol}] {ay} analiz ediliyor…", flush=True)
             son_ay = ay
