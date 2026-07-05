@@ -90,6 +90,13 @@
 - Fear/greed index ve BTC/ETH dışı coinler kullanıcı için ALAKASIZ. Sadece BTC+ETH.
 - ⑥ lider_anlik_yorum "CVD yön değişti" TETİĞİ kaldırıldı — her poll'da BEARISH↔BULLISH flip-flop = kararsız gürültü ("BTC 5 sn'de yön değiştiremez"). Anlık yorum yalnız ANLAMLI değişimle (KARAR/GEX/funding/OI/fiyat%/CB/likidasyon/indikatör) tetiklenir. ⑦ oneri_motoru: yalnız PARAMETRE (uygulanabilir) öneri Telegram'a gider; BILGI tipi jenerik LLM lafı ("Extreme Fear…") gönderilmez.
 - CMD KURALI: tüm backtest/hipotez/trade araçları uzun işlerde ay ay "· YYYY-MM analiz ediliyor…" yazmalı (flush=True). Donuk ekran kullanıcıyı Ctrl+C'ye itiyor.
+- ⑧ lider_anlik_yorum: YALNIZ gerçek OAR işlem kararında (LONG/SHORT) Telegram'a gider; "NO_TRADE" anlatımı gönderilmez (kalıcı spam kesme). ÖNEMLİ: bu değişiklikler Railway'de ETKİLİ olması için REDEPLOY gerekir — deploy edilmezse eski spam devam eder (kullanıcı "hâlâ spam" derse önce redeploy sor).
+
+## 6c. Site (index.html) — OAR-dışı temizlik (kullanıcı isteği)
+- Canlı panel (live.html) KALDIRILDI: root `/` artık index.html (OAR arayüzü) sunar; topbar "Live Agent" linki silindi. Tüm ajanlar Telegram'da → siteden canlı takibe gerek yok.
+- Fear&Greed sidebar kutusu kaldırıldı (renderFNG no-op). "Bilgi Bankası & Hafıza" butonu+modalı kaldırıldı (kitap sorunu çözüldü; erişilemezse lider Telegram'dan bildirir, PC kapalıyken DEĞİL).
+- Deribit opsiyon paneli KALIR (OAR opsiyon overlay'i kullanıyor). KALAN: index.html'deki jenerik "Gemini kripto asistanı" welcome/chip'leri (Kazanan/Kaybeden, genel risk) hâlâ OAR-dışı → sadeleştirilecek.
+- KULLANICI GIT: local `MERGING` durumunda kaldı (MERGE_HEAD exists → pull bloke). Çözüm: `git merge --abort` (ya da `git commit` ile merge'i bitir) → sonra `git pull`.
 
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
