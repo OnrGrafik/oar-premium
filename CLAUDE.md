@@ -66,6 +66,12 @@
 - LİDER HEDEFİ (kullanıcı isteği, AÇIK): "Lider tüm sistemi öğrensin — sitedeki tüm veri/bilgiye, veriyi okuma/işleme/yorumlamaya hakim olsun; bana bildirirken bunları göz önüne alsın; OAR için çalıştığımızı bilsin ve geliştirmek için her şeyi yapsın." PLAN: lider bağlamına (a) OAR kural bankası, (b) şampiyon istatistikleri, (c) .hipotez_hafiza kanıtlı kazananları, (d) canlı veri özeti beslenmeli; ÇIKTI yalnız OAR-uygulanabilir olmalı. Lider LLM'i konuşturmak değil, KANITLI SAYIYI canlı karar akışına bağlamak esas (5e eksiği ile aynı).
 - ✅ YAPILDI (kısmı): `kanitli_bulgular.py` = repo-yolu JSON deposu (git ile senkron; lokal motor yazar, Railway lider okur). Hipotez motoru kazananları buraya yazar. Lider research bağlamına `_kanitli_bulgu_baglami()` ile eklendi (lider bildirirken bunları göz önüne alır). `kanitli_bulgu_bildir_loop` (main.py'de başlar) YENİ kanıtlı bulguyu Telegram 4129'a bildirir. AKIŞ: kullanıcı motoru lokalde çalıştırır → kanitli_bulgular.json güncellenir → **commit+push** → Railway lider görür+bildirir. NOT: kanitli_bulgular.json gitignore DEĞİL (senkron için commit'lenmeli). KALAN: kanıtlı bulguyu canlı SİNYAL akışına confirm olarak bağlamak (henüz sadece bildirim/bağlam, karar değil).
 
+## 5f. backtest_sonuclari.py (TÜM sonuç defteri — kurumsal hafıza)
+- Test edilen HER hipotez/backtest (kazanan+marjinal+elendi) repo-yolu JSON'a yazılır (git-senkron). kanitli_bulgular = yalnız kazananlar; defter = HER ŞEY.
+- Amaç: ajanlar sonucu belli olanı tekrar backtest/hipotez etmesin, geçmiş sonucu EK BİLGİ (prior) olarak kullansın. API: test_edildi_mi/elenenler/kazananlar/ozet. karar: LIFT≥5+Wilson>taban=kazanan, LIFT≥2=marjinal, altı=elendi.
+- Hipotez motoru arastir 'tum' sonucunu deftere yazar. Lider bağlamına (_kanitli_bulgu_baglami) defter özeti + kanıtlı bulgular eklendi.
+- KULLANICI CMD HATASI (kalıcı uyarı): kullanıcı zaten ~/Desktop/oar-premium içindeyken `cd oar-premium && git pull` yazıyor → "No such file or directory" → && yüzünden git pull ÇALIŞMIYOR → eski kod (25 hipotez) çalışıyor, kanitli_bulgular.json oluşmuyor. DOĞRU: `cd` olmadan direkt `git pull origin claude/new-session-qy6kax`. Komut verirken cd EKLEME.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
