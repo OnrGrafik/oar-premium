@@ -14,3 +14,4 @@ data/
 # Ortam
 .env
 .seans_cache/
+.hipotez_hafiza.json
