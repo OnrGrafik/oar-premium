@@ -54,6 +54,12 @@
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
 
+## 6b. Telegram kanalı GÜRÜLTÜ YASAĞI (kullanıcı sitemi — kalıcı)
+- Kanal (thread 4129) YALNIZCA gerçek OAR değeri taşımalı: test edilmiş hipotez (LIFT/OOS), backtest sonucu, sistem eksiği/hatası/aksaması, kullanıcıya somut istek.
+- ATILMAYACAK (spam — kaldırıldı, geri EKLEME): ① "Pattern Öğrenici" kazanan profil tekrarı (feature_engine) ② "Research Agent Trend: altcoinler · Korku: N" (leader — fear index + BTC/ETH dışı coin = gürültü, kullanıcı KULLANMIYOR) ③ saatlik "6/6 servis aktif, sağlık mükemmel" (leader görüş) ④ "LİDER Ajan Aktivite Özeti" yankı digest (bekleyen_ozet) ⑤ jenerik "Öneri (research)" LLM lafı (oneri_motoru).
+- Lider ajan artık SADECE arıza olunca konuşur (tur="eksik", servis down listesi). "Her şey yolunda" = SESSİZLİK.
+- Fear/greed index ve BTC/ETH dışı coinler kullanıcı için ALAKASIZ. Sadece BTC+ETH.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).

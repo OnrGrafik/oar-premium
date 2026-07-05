@@ -256,12 +256,10 @@ async def oneri_tara_ve_gonder(metin: str, kaynak: str) -> dict | None:
     o = oneri_olustur(kaynak, hedef)
     if o:
         await oneri_gonder_telegram(o)
-        # Merkezi ajan kanalına da bildir (thread 4129) — öneri boşa gitmesin
-        try:
-            from ajan_merkez import bildir
-            await bildir(f"Öneri ({kaynak})", "öneri", hedef[:180])
-        except Exception:
-            pass
+        # NOT: jenerik LLM "Öneri (research)" cümleleri artık merkezi kanala (4129)
+        # atılMIYOR — "OAR Kural Bankası ışığında piyasa Extreme Fear…" gibi içeriksiz
+        # tekrarlarla kanalı dolduruyordu (kullanıcı sitemi). Öneri yalnız kendi
+        # onay akışına gider; 4129'a sadece test edilmiş hipotez/backtest sonucu düşer.
     return o
 
 
