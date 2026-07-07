@@ -963,11 +963,14 @@ async def oar_sistem():
     except Exception:
         pass
     # GERÇEK keşfedilen şampiyonu oku (yerel keşif → OAR_KESIF_SAMPIYON kaydı).
-    # Yoksa bilinen etikete düş. "Şampiyonun en iyi hali" = kesfet'in son sağlamı.
+    # Yoksa GERÇEK şampiyon etiketine düş (kesfet'le doğrulandı: "fade+htf_vpfr"
+    # etiketti, gerçek bloklar poc_taraf+footprint_absorpsiyon+footprint_kalicilik).
     sampiyon = {
-        "ad": "fade + htf_vpfr",
-        "aciklama": "Asia range ekstremlerinde mean-reversion (haftalık/aylık değer-alanı teyidiyle).",
-        "istatistik": "BTC+ETH holdout: PF ~2.3 · WR %35-37 · +197-272%",
+        "ad": "poc_taraf + footprint_absorpsiyon + footprint_kalicilik",
+        "aciklama": "Asia range ekstremlerinde fade (POC-tarafı + absorpsiyon + büyük-delta kalıcılığı). "
+                    "kesfet'in bulduğu en sağlam blok kombinasyonu.",
+        "istatistik": "BTC+ETH 2019-2025: PF ~3.1 · WR %37.9 · maxDD %4.6 · +273% · OOS beklenti +0.111",
+        "bloklar": ["poc_taraf", "footprint_absorpsiyon", "footprint_kalicilik"],
     }
     try:
         _kayit = json.loads(_YEREL_BT_FILE.read_text()) if _YEREL_BT_FILE.exists() else []

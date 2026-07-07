@@ -1465,7 +1465,8 @@ async def saatlik_research_loop():
                 f"Sen OAR Premium'un Research Agent'ısın. SİSTEM KURALLARI (bunlara göre araştır):\n"
                 f"{oar_kural_ctx}\n"
                 f"OAR strateji özeti: Asia Range (00:00-04:00 UTC) fib; BTC ve ETH Asia ≥%1 ise fade günü, "
-                f"değilse trade yok; kanıtlı şampiyon = fade+htf_vpfr (haftalık değer-alanı). "
+                f"değilse trade yok; kanıtlı şampiyon = poc_taraf+footprint_absorpsiyon+footprint_kalicilik "
+                f"(Asia ekstremlerinde fade; PF ~3.1, +273%). "
                 f"Trend-devam günü (Asia <%1) fade alınmaz.\n"
                 f"{oar_kanit_ctx}\n"
                 f"Son OAR backtest: {oar_bt_ctx}\n"
@@ -1515,7 +1516,7 @@ async def kanitli_bulgu_bildir_loop():
                             f"WR%{b['wr']} vs taban%{b['taban']} (LIFT {b['lift']:+}, "
                             f"n{b['n']}, OOS%{b.get('oos_wr')})")
                     detay = ("Hipotez motoru LIFT+OOS+Wilson ile doğruladı. Trend-devam "
-                             "confirm adayı — şampiyon fade+htf_vpfr'ye dokunmadan eklenebilir.")
+                             "confirm adayı — gerçek şampiyona (poc_taraf+absorpsiyon+kalicilik) dokunmadan eklenebilir.")
                     await bildir("Kanıtlı Bulgu (Lider)", "backtest", ozet, detay=detay)
                 bildirildi_isaretle([b["ad"] for b in yeni])
                 print(f"[KanıtlıBulgu] {len(yeni[:5])} yeni bulgu Telegram'a bildirildi")
