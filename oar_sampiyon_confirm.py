@@ -194,6 +194,9 @@ def main():
     ap.add_argument("--from", dest="bas", default="2019-01")
     ap.add_argument("--to",   dest="bit", default="2025-06")
     ap.add_argument("--telegram", action="store_true")
+    ap.add_argument("--sampiyon-blok", default="",
+                    help="DOKUNULMAZ şampiyonun bloklarını SABİTLE (ör. 'mod_fade,htf_vpfr,range_rejimi'). "
+                         "Verilirse kesfet YENİDEN ARAMAZ — confirm tam bu şampiyona uygulanır. Boşsa keşfeder.")
     args = ap.parse_args()
 
     # 1) Havuz: tüm sembollerin adayları + confirm günleri (sembol,gün)
@@ -205,15 +208,22 @@ def main():
     if not havuz:
         print("⚠ aday yok — parquet/aggTrades eksik olabilir."); return
 
-    # 2) ŞAMPİYONU KEŞFET (kesfet en sağlam blok kombinasyonunu bulur — gerçek şampiyon)
-    print(f"[ŞampiyonConfirm] kesfet: en sağlam blok kombinasyonu aranıyor "
-          f"({len(havuz)} aday)…", flush=True)
-    from oar_kesif import kesfet
-    kesif = kesfet(havuz)
-    enler = kesif.get("en_iyiler") or []
-    sampiyon = next((a for a in enler if a.get("saglam")), enler[0] if enler else None)
-    if not sampiyon:
-        print("⚠ kesfet şampiyon bulamadı (yeterli sinyalli kombinasyon yok)."); return
+    # 2) ŞAMPİYON: sabitlendiyse ONU kullan (dokunulmaz şampiyon), yoksa kesfet keşfetsin
+    if args.sampiyon_blok.strip():
+        bloklar = [b.strip() for b in args.sampiyon_blok.split(",") if b.strip()]
+        print(f"[ŞampiyonConfirm] ŞAMPİYON SABİT (dokunulmaz): [{'+'.join(bloklar)}] "
+              f"— kesfet çağrılmadı, confirm tam bu şampiyona uygulanıyor.", flush=True)
+        sampiyon = {"bloklar": bloklar, "oos_puan": "—", "oos_wr": "—", "oos_trade": "—",
+                    "holdout_puan": "—", "holdout_wr": "—", "holdout_trade": "—", "saglam": None}
+    else:
+        print(f"[ŞampiyonConfirm] kesfet: en sağlam blok kombinasyonu aranıyor "
+              f"({len(havuz)} aday)… (--sampiyon-blok ile sabitleyebilirsin)", flush=True)
+        from oar_kesif import kesfet
+        kesif = kesfet(havuz)
+        enler = kesif.get("en_iyiler") or []
+        sampiyon = next((a for a in enler if a.get("saglam")), enler[0] if enler else None)
+        if not sampiyon:
+            print("⚠ kesfet şampiyon bulamadı (yeterli sinyalli kombinasyon yok)."); return
     print(f"[ŞampiyonConfirm] şampiyon: [{'+'.join(sampiyon['bloklar'])}] "
           f"OOS puan {sampiyon.get('oos_puan')} · {'SAĞLAM' if sampiyon.get('saglam') else 'zayıf'}",
           flush=True)
