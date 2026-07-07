@@ -144,16 +144,43 @@ def _senaryolar(havuz, confirm_set, sampiyon_bloklar):
     A, B, C = [], [], []
     for c in sampiyon_trades:
         anahtar = (c.get("_sembol"), c.get("_gun"))
-        A.append((c["_gun"], c["pct"]))
+        A.append((c["ts"], c["pct"]))   # ts = kronolojik sıra (equity için)
         ust_fade = (c.get("mod") == "fade" and c.get("yon") == "SHORT")
         if not (anahtar in confirm_set and ust_fade):
-            B.append((c["_gun"], c["pct"])); C.append((c["_gun"], c["pct"]))
+            B.append((c["ts"], c["pct"])); C.append((c["ts"], c["pct"]))
     # C ek kolu: confirm günü trend-LONG devam (hipotezle doğrulanmış kırılım-devam)
     for c in havuz:
         anahtar = (c.get("_sembol"), c.get("_gun"))
         if c.get("mod") == "trend" and c.get("yon") == "LONG" and anahtar in confirm_set:
-            C.append((c["_gun"], c["pct"]))
+            C.append((c["ts"], c["pct"]))
     return A, B, C
+
+
+def _equity_sim(kayitlar, baslangic=1000.0, kaldirac=5.0):
+    """
+    $baslangic ile KRONOLOJİK compound equity simülasyonu (kaldıraçlı).
+    Her işlem: equity *= (1 + net%/100 · kaldıraç). Tek işlemde ≤−(100/kaldıraç)%
+    → hesap SIFIRLANIR (likidasyon). Döner: son bakiye, likide oldu mu + tarih,
+    tepe/dip, maxDD%.
+    """
+    from datetime import datetime, timezone
+    s = sorted(kayitlar, key=lambda x: x[0])
+    eq = pik = baslangic
+    max_dd = 0.0; min_eq = baslangic; liq_ts = None
+    likidasyon_esigi = -100.0 / kaldirac    # 5x → −%20 tek işlemde sıfırlar
+    for ts, net in s:
+        if net <= likidasyon_esigi:          # bu tek işlem hesabı siler
+            eq = 0.0; liq_ts = ts; break
+        eq *= (1 + (net / 100.0) * kaldirac)
+        if eq <= 0:
+            eq = 0.0; liq_ts = ts; break
+        pik = max(pik, eq)
+        dd = (pik - eq) / pik * 100.0
+        max_dd = max(max_dd, dd); min_eq = min(min_eq, eq)
+    liq_tarih = (datetime.fromtimestamp(int(liq_ts) / 1000, timezone.utc).strftime("%Y-%m-%d")
+                 if liq_ts else None)
+    return {"son": round(eq, 2), "likide": liq_ts is not None, "likide_tarih": liq_tarih,
+            "maxdd": round(max_dd, 1), "min_eq": round(min_eq, 2), "n": len(s)}
 
 
 def _rapor(sampiyon, A, B, C):
@@ -183,6 +210,24 @@ def _rapor(sampiyon, A, B, C):
                  f"· PF Δ {round(d_pf,3) if d_pf is not None else '—'}")
         L.append("✅ CONFIRM ŞAMPİYONU İYİLEŞTİRİYOR (ekle)" if iyi
                  else "❌ CONFIRM net iyileştirmiyor — şampiyona DOKUNMA")
+
+    # ── $1000 COMPOUND EQUITY (1x/3x/5x) + LİKİDASYON — kullanıcı isteği ──
+    L.append("\n─── $1000 COMPOUND EQUITY (2019 ilk gün → 2025 son gün, kronolojik) ───")
+    def eq_satir(ad, kayitlar):
+        parcalar = []
+        for kald in (1, 3, 5):
+            e = _equity_sim(kayitlar, 1000.0, float(kald))
+            if e["likide"]:
+                parcalar.append(f"{kald}x: 💀 SIFIRLANDI ({e['likide_tarih']})")
+            else:
+                kat = e["son"] / 1000.0
+                parcalar.append(f"{kald}x: ${e['son']:,.0f} ({kat:.1f}x, dip ${e['min_eq']:,.0f}, maxDD%{e['maxdd']})")
+        return f"  {ad}:\n     " + "  |  ".join(parcalar)
+    L.append(eq_satir("A) FİLTRESİZ şampiyon", A))
+    L.append(eq_satir("B) FİLTRELİ şampiyon  ", B))
+    L.append("  NOT: 5x'te tek işlemde ≤−%20 → hesap SIFIRLANIR (likidasyon). "
+             "'dip' = eğrinin gördüğü en düşük bakiye. Compound = her işlem öncekinin üstüne.")
+
     L.append("\nNOT: A = şampiyonun GERÇEK blok kümesi (kesfet+_filtre, proxy değil). "
              "Yalnız B, A'dan İYİ (beklenti↑ VE maxDD↓ VE OOS≥0) ise confirm eklenir.")
     return "\n".join(L)
