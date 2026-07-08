@@ -996,6 +996,21 @@ async def oar_sistem():
         "market_kapisi": "BTC VE ETH Asia range ≥ %1 → fade-işlem günü; değilse işlem yok. Asia <%1 → trend-devam modu.",
         "seanslar_utc": {"Asia": "00:00-04:00", "London": "07:00-11:00", "NY": "13:00-17:00"},
         "fib": [2.618, 2.272, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.272, -1.618],
+        # $1000 COMPOUND EQUITY (doğrulanmış backtest, 2019→2025). UYARI: mutlak $ fantezidir
+        # (full-size compound, slippage/funding yok); güvenilir olan = likide OLMAMA + kontrollü DD.
+        "equity": {
+            "baslangic": 1000, "aralik": "2019-01 → 2025-06",
+            "kaldirac": {
+                "1x": {"son": 14909, "maxdd_pct": 4.9},
+                "3x": {"son": 2745698, "maxdd_pct": 14.3},
+                "5x": {"son": 398578867, "maxdd_pct": 23.0},
+            },
+            "likidasyon": False,
+            "not": "5x'te bile hiç likide olmadı; dip hep $1000 üstünde. Mutlak $ fantezi — güvenilir olan: likide olmama + kontrollü DD + tutarlılık.",
+        },
+        "confirm_karari": "Kırılım-devam confirm filtresi test edildi: şampiyonu marjinal iyileştiriyor "
+                          "(PF 3.12→3.31) AMA getiriyi düşürüyor (5x $398M→$238M, ~%40 feda) → EKLENMEDİ. "
+                          "Şampiyon dokunulmadan en iyi hali.",
         "kanitli_bulgular": kanitli,
         "defter_ozeti": defter,
     }

@@ -365,6 +365,15 @@ function scrLeader(){
           <span style="color:#8a9c99;flex-shrink:0">WR%${b.wr} n${b.n} OOS%${b.oos_wr}</span>
         </div>`).join('')):'<div style="font-size:10px;color:#5e716f">Henüz kanıtlı bulgu yok — hipotez motoru lokalde çalışıp commit edince görünür.</div>'}
     </div>
+    ${os.equity?`
+    <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:11px 13px">
+      <div style="font-size:9px;letter-spacing:.1em;color:#ffb13c;margin-bottom:6px">$1000 COMPOUND EQUITY (${esc(os.equity.aralik)}) — ${os.equity.likidasyon?'💀 LİKİDE':'✅ HİÇ LİKİDE OLMADI'}</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:10.5px">
+        ${Object.entries(os.equity.kaldirac).map(([k,v])=>`<span style="color:#cdd9d8">${k}: <b style="color:#1ff0ad">$${(v.son>=1e6?(v.son/1e6).toFixed(1)+'M':v.son.toLocaleString())}</b> <span style="color:#5e716f">(maxDD%${v.maxdd_pct})</span></span>`).join('')}
+      </div>
+      <div style="font-size:8.5px;color:#5e716f;margin-top:6px">${esc(os.equity.not)}</div>
+    </div>`:''}
+    ${os.confirm_karari?`<div style="margin-top:9px;font-size:9.5px;color:#8a9c99;line-height:1.5;border-left:2px solid #2a3a2a;padding-left:9px">📌 ${esc(os.confirm_karari)}</div>`:''}
   </div>`:'';
 
   return `
