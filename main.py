@@ -991,9 +991,28 @@ async def oar_sistem():
             }
     except Exception:
         pass
+    # CANLI MARKET KAPISI (bugün): BTC+ETH Asia range → kapı açık mı? Kullanıcı
+    # "trade açamıyor" endişesi → sessiz gün (kapı kapalı) mü, arıza mı GÖRÜNSÜN.
+    canli_kapi = None
+    try:
+        from oar_session_agent import _market_fade_gunu
+        uygun, btc_pct, eth_pct = await _market_fade_gunu()
+        if btc_pct is not None and eth_pct is not None:
+            canli_kapi = {
+                "btc_asia_pct": btc_pct, "eth_asia_pct": eth_pct, "acik": bool(uygun),
+                "aciklama": (f"Kapı AÇIK — BTC %{btc_pct} ve ETH %{eth_pct}, ikisi de ≥%1 → fade günü, setup beklenir."
+                             if uygun else
+                             f"Kapı KAPALI — BTC %{btc_pct} · ETH %{eth_pct} (ikisi de ≥%1 olmalı). "
+                             f"Bugün trade YOK = normal, arıza değil. Şampiyon seçici (haftada ~4 işlem)."),
+            }
+        else:
+            canli_kapi = {"acik": None, "aciklama": "Asia range verisi henüz gelmedi (kapı bugün hesaplanamadı)."}
+    except Exception as e:
+        canli_kapi = {"acik": None, "aciklama": f"Kapı okunamadı: {str(e)[:60]}"}
     return {
         "sampiyon": sampiyon,
         "market_kapisi": "BTC VE ETH Asia range ≥ %1 → fade-işlem günü; değilse işlem yok. Asia <%1 → trend-devam modu.",
+        "canli_kapi": canli_kapi,
         "seanslar_utc": {"Asia": "00:00-04:00", "London": "07:00-11:00", "NY": "13:00-17:00"},
         "fib": [2.618, 2.272, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.272, -1.618],
         # $1000 COMPOUND EQUITY (doğrulanmış backtest, 2019→2025). UYARI: mutlak $ fantezidir
