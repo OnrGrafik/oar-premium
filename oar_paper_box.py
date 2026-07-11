@@ -25,6 +25,16 @@ KALDIRAC = 5
 FEE_PCT = 0.13          # round-trip fee+slippage (fiyat %)
 MAX_SAAT = 18           # time-stop (OAR gün-içi geçerlilik ~NY close)
 
+# ── OAR fib (backtest şampiyonuyla BİREBİR — oar_local_backtest.OAR_FIB ile aynı).
+#    Canlı runtime pandas'lı oar_local_backtest'i import ETMEZ → burada hafif kopya.
+OAR_FIB = [2.618, 2.272, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.272, -1.618]
+
+
+def _fib_seviyeleri(low: float, high: float) -> dict:
+    """OAR fib fiyat seviyeleri {oran: fiyat}. Backtest fib_seviyeleri ile birebir."""
+    r = high - low
+    return {v: low + r * v for v in OAR_FIB}
+
 
 def _dosya():
     from data_ingest import hist_dir
@@ -88,14 +98,23 @@ def _ac_karar(analiz: dict) -> dict | None:
     asia = analiz.get("asia") or {}
     poc, hi, lo = asia.get("poc"), asia.get("high"), asia.get("low")
     fiyat = analiz.get("fiyat")
-    if not (poc and hi and lo and fiyat):
+    if not (poc and hi and lo and fiyat) or hi <= lo:
         return None
-    if yon == "SHORT":
-        tp, sl = poc, hi * 1.002
+    # ── BACKTEST ŞAMPİYONUYLA BİREBİR TP/SL (tp_sl_seviyeleri ile aynı) ──
+    #    TP = fib 0.5 (range ORTASI) · SL = girişin ötesindeki BİR SONRAKİ fib.
+    #    (Eski canlı: TP=POC, SL=ekstrem±%0.2 → şampiyondan farklıydı, düzeltildi.)
+    fibs = _fib_seviyeleri(lo, hi)
+    mid = fibs[0.5]
+    if yon == "SHORT":                       # üst ekstrem fade → aşağı
+        tp = mid if (mid and mid < fiyat) else fiyat * 0.995
+        ust = [v for v in fibs.values() if v > fiyat]
+        sl = min(ust) if ust else fiyat * 1.01
         if not (tp < fiyat < sl):
             return None
-    else:
-        tp, sl = poc, lo * 0.998
+    else:                                    # alt ekstrem fade → yukarı
+        tp = mid if (mid and mid > fiyat) else fiyat * 1.005
+        alt = [v for v in fibs.values() if v < fiyat]
+        sl = max(alt) if alt else fiyat * 0.99
         if not (sl < fiyat < tp):
             return None
     # Ateşlenen teyitleri sakla → aylık forward-test: hangi filtre hangi WR (bilimsel)
