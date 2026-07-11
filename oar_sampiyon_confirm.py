@@ -156,6 +156,16 @@ def _senaryolar(havuz, confirm_set, sampiyon_bloklar):
     return A, B, C
 
 
+def _per_sembol(havuz, sampiyon_bloklar):
+    """Şampiyon (A) işlemlerini SEMBOL BAZINDA ayır → edge tek coin'in mi taşıyor?"""
+    from oar_kesif import _filtre
+    trades = _filtre(havuz, sampiyon_bloklar)
+    per = {}
+    for c in trades:
+        per.setdefault(c.get("_sembol"), []).append((c["ts"], c["pct"]))
+    return per
+
+
 def _equity_sim(kayitlar, baslangic=1000.0, kaldirac=5.0):
     """
     $baslangic ile KRONOLOJİK compound equity simülasyonu (kaldıraçlı).
@@ -276,6 +286,20 @@ def main():
     # 3) Şampiyonun GERÇEK blok kümesiyle A/B/C
     A, B, C = _senaryolar(havuz, confirm_set, sampiyon["bloklar"])
     rapor = _rapor(sampiyon, A, B, C)
+
+    # 3b) PER-SEMBOL kırılım: edge BTC'de mi ETH'de mi, ikisi de sağlam mı?
+    per = _per_sembol(havuz, sampiyon["bloklar"])
+    psat = ["\n─── PER-SEMBOL ŞAMPİYON (edge tek coin'in mi taşıyor?) ───"]
+    for sym, kayitlar in sorted(per.items()):
+        m = _senaryo_metrik(kayitlar)
+        e5 = _equity_sim(kayitlar, 1000.0, 5.0)
+        if m:
+            eq5 = "💀SIFIR" if e5["likide"] else f"${e5['son']:,.0f}"
+            psat.append(f"  {sym}: n{m['n']} · WR%{m['wr']} · PF {m['pf']} · beklenti {m['beklenti']:+.3f}% "
+                        f"· maxDD{m['maxdd']}% · toplam {m['toplam']:+.0f}% · OOS {m['oos_beklenti']} · "
+                        f"$1000@5x {eq5}")
+    psat.append("  → İKİSİ de PF>1 + OOS≥0 ise edge SAĞLAM (tek coin taşımıyor).")
+    rapor = rapor + "\n" + "\n".join(psat)
     print("\n" + rapor)
 
     if args.telegram:
