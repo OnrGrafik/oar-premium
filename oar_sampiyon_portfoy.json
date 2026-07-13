@@ -1,0 +1,45 @@
+{
+  "tarih": "2026-07-13T15:27:08.843015+00:00",
+  "aralik": "2019-01..2025-06",
+  "semboller": [
+    "BTCUSDT",
+    "ETHUSDT"
+  ],
+  "stiller": [
+    {
+      "stil": "ekstrem_donus_fade",
+      "bloklar": [
+        "footprint_absorpsiyon",
+        "range_rejimi",
+        "htf_vwap"
+      ],
+      "saglam": true,
+      "oos_puan": 60,
+      "oos_wr": 46.9,
+      "holdout_puan": 51,
+      "holdout_wr": 31.3,
+      "holdout_trade": 99,
+      "beklenti": null,
+      "aday_n": 11093,
+      "equity_1x_son": null,
+      "equity_3x_son": null
+    },
+    {
+      "stil": "kirilim_devam_trend",
+      "bloklar": [
+        "poc_taraf",
+        "footprint_absorpsiyon"
+      ],
+      "saglam": true,
+      "oos_puan": 60,
+      "oos_wr": 33.3,
+      "holdout_puan": 54,
+      "holdout_wr": 26.2,
+      "holdout_trade": 195,
+      "beklenti": null,
+      "aday_n": 11093,
+      "equity_1x_son": null,
+      "equity_3x_son": null
+    }
+  ]
+}
