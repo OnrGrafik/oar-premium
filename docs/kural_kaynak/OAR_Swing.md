@@ -1,0 +1,5 @@
+# OAR_Swing (kullanıcı dokümanı — ajan kural kaynağı)
+
+
+
+Bir değer alanının terk edilmesi sonrası aşağı/yukarı yapılan kırılımda fiyat bulunduğu range’i terk edip %15 ve üzeri hareket yaptığı harekette aşağı yapıyorsa grafikteki gibi daha sonrasında yapılan TEPE ve DİP bölgesi bizim range alanımızı oluşturur. Yukarı kırılımda ise tepeye ulaştıktan sonra yapılan dip ve tepe bizim yukarı değer alanı range’mizi oluşturur. Burada püf nokta aşağı kırılımdan sonra yapılan tepe ardından dip LL yapmayacak. Yukarı kırılımdan sonra yapılan dip ardından yeni HH yapmacak.Örneklere geçelim.Daha sonrasındaki Fiyat HareketiDaha sonra indikatörleri açık haliTepede oluşan Kırmızı kutu vpfr direnç bölgesi oluşumu. FP’nin ve cvd’nin satıcılı oluşunu izledim RSI satıcılıya geçti. Range içine giriş ve Orada kalış geldi Yeni VPFR dirençleri oluştu.En son hali bu şekilde Vwap satış bandında, Üzerinde Vpfr satıcılı direnç bölgesi mevcut, FP satıcılı, RSI satıcılı bölgede, Coinbase premium negatif, Opsiyonlarda zerogamma altında, negatif gex bölgesinde.Her büyük hareket sonrası oluşan tepe ve dipte bu range her zaman geçerlidir.
