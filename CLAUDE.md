@@ -73,6 +73,7 @@
 - docs/kural_kaynak/*.md = kullanıcının kendi trade dokümanları (Oar_hacim_kullanimi 128k!) — ajanların KURAL KAYNAĞI. Yeni hipotez/stil üretirken ÖNCE buradan oku.
 - oar_coklu_sampiyon.py (Faz-1): fade+trend stillerine AYRI kesfet → stil başına şampiyon → oar_sampiyon_portfoy.json. oar_stil_backtest.py (Faz-2): dokümandan koda stil-3 (kırılım sonrası 1.377/-0.377 dönüş, TP=EQ SL=next-fib) + stil-4 (EQ 30dk kalıcılık+hacim, TP=karşı ekstrem). Kriter: PF≥1.3+beklenti>0+OOS≥0 → portföy adayı.
 - KULLANICI CMD SORUNU (tekrar): repo klasöründe DEĞİLKEN komut çalıştırıyor ("fatal: not a git repository"). Komut verirken başına `cd ~/Desktop/oar-premium` ekle (tek satır ayrı).
+- ⭐ oar_vardiya.py = TEK KOMUT sürekli backtest ("gece vardiyası"): `python oar_vardiya.py` → döngüde hipotez motoru + stil backtest + çoklu şampiyon (günde 1). Bilgisayar günlerce açık kalabilir; yalnız YENİ kanıtlı bulgu Telegram'a gider; Ctrl+C güvenli; cache ile devam. Kullanıcı "hepsi tek komutta olsun, kafam karışıyor" dedi — araç çoğaltınca vardiyaya EKLE, yeni komut öğretme.
 
 ## 5f. backtest_sonuclari.py (TÜM sonuç defteri — kurumsal hafıza)
 - Test edilen HER hipotez/backtest (kazanan+marjinal+elendi) repo-yolu JSON'a yazılır (git-senkron). kanitli_bulgular = yalnız kazananlar; defter = HER ŞEY.
