@@ -338,57 +338,32 @@ function scrLeader(){
       <div style="font-size:10.5px;color:#b8c6c3;line-height:1.55">${icerik?vurgu(icerik):'<span style="color:#5e716f">yükleniyor...</span>'}</div>
     </div>`;
 
+  // OAR SİSTEMİ — SADELEŞTİRİLDİ (kullanıcı: kural/şampiyon detayı ziyaretçiye
+  // sistemi ele veriyordu → gizlendi). Görünen: trade AÇIK/KAPALI + 2 sistemin
+  // trade kutuları (paper BTC+ETH + altcoin) + $1000 5x paneli. Detaylar Telegram'da.
   const os=ST.oarSistem||null;
+  const eq5=os&&os.equity?os.equity.kaldirac['5x']:null;
   const oarSistemHtml=os?`
   <div class="card" style="padding:15px 17px;margin-bottom:13px;border-left:2px solid #1ff0ad">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#1ff0ad">⭐ OAR SİSTEMİ — GEÇERLİ KURAL & ŞAMPİYON</span>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#1ff0ad">⭐ OAR SİSTEMİ</span>
+      ${os.canli_kapi?`<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:5px;background:${os.canli_kapi.acik===true?'#0e2018':os.canli_kapi.acik===false?'#201410':'#151515'};border:1px solid ${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ff8a3c':'#333'};color:${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ffb13c':'#8a9c99'}">${os.canli_kapi.acik===true?'🟢 TRADE AÇIK':os.canli_kapi.acik===false?'🔴 TRADE KAPALI':'⏳'}</span>`:''}
+      ${eq5?`<span style="font-size:10px;color:#8a9c99;margin-left:auto">$1000 · 5x → <b style="color:#1ff0ad">$${(eq5.son>=1e6?(eq5.son/1e6).toFixed(1)+'M':eq5.son.toLocaleString())}</b> <span style="color:#5e716f">(maxDD%${eq5.maxdd_pct}${os.equity.likidasyon?' · 💀':' · likide yok'})</span></span>`:''}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
-      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:11px 13px">
-        <div style="font-size:9px;letter-spacing:.1em;color:#7af0c4;margin-bottom:5px">ŞAMPİYON: ${esc(os.sampiyon.ad)}</div>
-        <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(os.sampiyon.aciklama)}</div>
-        <div style="font-size:10px;color:#1ff0ad;margin-top:6px">${esc(os.sampiyon.istatistik)}</div>
+    <div style="background:#0a0f0f;border:1px solid #15301f;border-radius:7px;padding:11px 13px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 SİSTEM 1 — BTC+ETH · $1000 · 5x (canlı forward-test)</span>
+        <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
       </div>
-      <div style="background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:11px 13px">
-        <div style="font-size:9px;letter-spacing:.1em;color:#ffb13c;margin-bottom:5px">MARKET KAPISI (REJİM ANAHTARI)</div>
-        <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(os.market_kapisi)}</div>
-        ${os.canli_kapi?`<div style="margin-top:7px;padding:6px 8px;border-radius:5px;background:${os.canli_kapi.acik===true?'#0e2018':os.canli_kapi.acik===false?'#201410':'#151515'};border:1px solid ${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ff8a3c':'#333'}">
-          <div style="font-size:9.5px;font-weight:700;color:${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ffb13c':'#8a9c99'}">BUGÜN: ${os.canli_kapi.acik===true?'🟢 KAPI AÇIK':os.canli_kapi.acik===false?'🔴 KAPI KAPALI (trade yok = normal)':'⏳ hesaplanıyor'}</div>
-          <div style="font-size:9px;color:#b8c6c3;margin-top:3px;line-height:1.45">${esc(os.canli_kapi.aciklama)}</div>
-        </div>`:''}
-        <div style="font-size:9.5px;color:#8a9c99;margin-top:6px">Seans (UTC): Asia ${os.seanslar_utc.Asia} · London ${os.seanslar_utc.London} · NY ${os.seanslar_utc.NY}</div>
-      </div>
+      <div id="oar-paper-panel">${oarPaperHtml()}</div>
     </div>
-    ${(os.stil_portfoy||[]).length?`
-    <div style="margin-top:11px">
-      <div style="font-size:9px;letter-spacing:.1em;color:#7af0c4;margin-bottom:6px">ŞAMPİYON PORTFÖYÜ — ${os.stil_portfoy.length} SAĞLAM STİL (kesfet, OOS+holdout doğrulamalı)</div>
-      ${os.stil_portfoy.map(s=>`
-        <div style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:10px;border-bottom:1px solid #141d1b">
-          <span style="color:#eaf4f2;font-weight:700;flex-shrink:0">${esc(s.stil)}</span>
-          <span style="flex:1;color:#8a9c99;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">[${(s.bloklar||[]).join('+')}]</span>
-          <span style="color:#1ff0ad;flex-shrink:0">OOS ${s.oos_puan} (WR%${s.oos_wr})</span>
-          <span style="color:#ffb13c;flex-shrink:0">HOLDOUT ${s.holdout_puan} (WR%${s.holdout_wr}, n${s.holdout_trade})</span>
-        </div>`).join('')}
-    </div>`:''}
-    <div style="margin-top:11px">
-      <div style="font-size:9px;letter-spacing:.1em;color:#56a8ff;margin-bottom:6px">KANITLANMIŞ BULGULAR (LIFT+OOS+Wilson) — ${(os.kanitli_bulgular||[]).length}</div>
-      ${(os.kanitli_bulgular||[]).length?(os.kanitli_bulgular.slice(0,6).map(b=>`
-        <div style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:10px;border-bottom:1px solid #141d1b">
-          <span style="flex:1;color:#cdd9d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.ad)}</span>
-          <span style="color:#1ff0ad;flex-shrink:0">LIFT ${b.lift>0?'+':''}${b.lift}</span>
-          <span style="color:#8a9c99;flex-shrink:0">WR%${b.wr} n${b.n} OOS%${b.oos_wr}</span>
-        </div>`).join('')):'<div style="font-size:10px;color:#5e716f">Henüz kanıtlı bulgu yok — hipotez motoru lokalde çalışıp commit edince görünür.</div>'}
-    </div>
-    ${os.equity?`
-    <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-radius:7px;padding:11px 13px">
-      <div style="font-size:9px;letter-spacing:.1em;color:#ffb13c;margin-bottom:6px">$1000 COMPOUND EQUITY (${esc(os.equity.aralik)}) — ${os.equity.likidasyon?'💀 LİKİDE':'✅ HİÇ LİKİDE OLMADI'}</div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:10.5px">
-        ${Object.entries(os.equity.kaldirac).map(([k,v])=>`<span style="color:#cdd9d8">${k}: <b style="color:#1ff0ad">$${(v.son>=1e6?(v.son/1e6).toFixed(1)+'M':v.son.toLocaleString())}</b> <span style="color:#5e716f">(maxDD%${v.maxdd_pct})</span></span>`).join('')}
+    <div style="background:#0a0f0f;border:1px solid #2a2410;border-radius:7px;padding:11px 13px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 SİSTEM 2 — Altcoin · paper-trade · haftalık K/Z</span>
+        <button onclick="loadOarAltcoin().then(()=>{render();})" style="font-size:10px;color:#ffd479;background:none;border:1px solid #2a2410;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
       </div>
-      <div style="font-size:8.5px;color:#5e716f;margin-top:6px">${esc(os.equity.not)}</div>
-    </div>`:''}
-    ${os.confirm_karari?`<div style="margin-top:9px;font-size:9.5px;color:#8a9c99;line-height:1.5;border-left:2px solid #2a3a2a;padding-left:9px">📌 ${esc(os.confirm_karari)}</div>`:''}
+      <div id="oar-altcoin-panel">${oarAltcoinHtml()}</div>
+    </div>
   </div>`:'';
 
   return `
@@ -425,47 +400,9 @@ function scrLeader(){
     </div>`:''}
   </div>
 
-  <!-- GRAFİK ALTI LİVE AÇIKLAMA (Lider gözlemi, kendini günceller) -->
-  <div class="card" style="padding:14px 16px;margin-bottom:13px;border-left:2px solid #1ff0ad">
-    <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
-      <span style="width:7px;height:7px;border-radius:50%;background:#1ff0ad;box-shadow:0 0 8px #1ff0ad;animation:oarblink 1.6s infinite"></span>
-      <span class="sg" style="font-size:9px;letter-spacing:.14em;color:#7af0c4">CANLI GRAFİK YORUMU — Lider Agent gözlemi</span>
-      <span style="font-size:8.5px;color:#5e716f;margin-left:auto">indikatör + opsiyon + whale + kitap</span>
-    </div>
-    <div style="font-size:11px;color:#b8c6c3;line-height:1.6">${gy.yorum?vurgu(gy.yorum):'<span style="color:#5e716f">Grafik analiz ediliyor... agentlar seviyeleri ölçüyor.</span>'}</div>
-    ${tradeSetupHtml(gy.trade)}
-    ${(gy.kitap_kaynaklar&&gy.kitap_kaynaklar.length)?`<div style="margin-top:8px;font-size:8.5px;color:#5e716f">📚 ${gy.kitap_kaynaklar.map(esc).join(' · ')}</div>`:''}
-  </div>
-
-  <!-- OPSİYON GENEL DURUM — TAM GENİŞLİK -->
-  <div class="card" style="padding:16px 18px;margin-bottom:13px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:11px">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">OPSİYON GENEL DURUM</span>
-      ${ov.zero_gamma?`<span style="font-size:10px;color:#8a9c99">Spot $${fmtNum(ov.spot)} · ZG $${fmtNum(ov.zero_gamma)}</span>`:''}
-      ${ov.cvd_yon?`<span style="font-size:10px;color:${ov.cvd_yon==='YUKARI'?'#1ff0ad':'#ff5d6c'};margin-left:auto">Opsiyon CVD ${ov.cvd_yon}</span>`:''}
-    </div>
-    <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${esc(oy.yorum||'Opsiyon analizi yükleniyor... (Deribit verileri + opsiyon kitapları)')}</div>
-  </div>
-
-  <!-- GÜVENİLİRLİK SKOR TABLOSU — Top 50 kaldırıldı (kullanıcı talebi: sadece OAR) -->
-
-  <!-- 📦 OAR PAPER-TRADE (BTC+ETH) — komuta merkezine taşındı -->
-  <div class="card" style="padding:14px 16px;margin:13px 0;border:1px solid #15301f">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 OAR PAPER-TRADE — BTC+ETH · $1000 · 5x · OAR-CORE sinyali (canlı forward-test, bu hafta)</span>
-      <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
-    </div>
-    <div id="oar-paper-panel">${oarPaperHtml()}</div>
-  </div>
-
-  <!-- 🅰 OAR ALTCOIN SİSTEM — Top-100 altcoin (BTC/ETH/stabil hariç) -->
-  <div class="card" style="padding:14px 16px;margin-bottom:13px;border:1px solid #2a2410">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 OAR ALTCOIN SİSTEM — Top-100 altcoin · OAR paper-trade · giriş/devam/kapanış · Telegram + haftalık K/Z</span>
-      <button onclick="loadOarAltcoin().then(()=>{render();})" style="font-size:10px;color:#ffd479;background:none;border:1px solid #2a2410;border-radius:6px;padding:4px 9px;cursor:pointer">↻</button>
-    </div>
-    <div id="oar-altcoin-panel">${oarAltcoinHtml()}</div>
-  </div>`;
+  <!-- CANLI GRAFİK YORUMU kaldırıldı (Piyasa Durumu ile mükerrerdi — lider katkısı
+       pd.yorum'da). OPSİYON GENEL DURUM kaldırıldı (Opsiyon & GEX sayfasında var).
+       Paper/Altcoin kutuları yukarıda OAR SİSTEMİ paneline taşındı. -->`;
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
