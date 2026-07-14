@@ -60,6 +60,10 @@ def main():
         _calistir("MICRO-SCALP (fib ilk temas)",
                   ["oar_micro_scalp.py", "--symbol", SEMBOL,
                    "--from", BAS, "--to", BIT, "--telegram"])
+        # 2c) Fib paslaşma koridorları + hacim-bazlı scalp (hızlı — yalnız klines)
+        _calistir("FİB PASLAŞMA SCALP (koridor + hacim)",
+                  ["oar_fib_paslasma.py", "--symbol", SEMBOL,
+                   "--from", BAS, "--to", BIT, "--telegram"])
         # 3) Çoklu şampiyon (AĞIR — aggTrades; günde en fazla 1)
         if time.time() - son_agir >= AGIR_IS_SAAT * 3600:
             _calistir("ÇOKLU ŞAMPİYON KEŞFİ (ağır, günde 1)",
