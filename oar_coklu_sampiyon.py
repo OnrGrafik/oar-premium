@@ -105,7 +105,7 @@ def main():
             "oos_puan": sampiyon.get("oos_puan"), "oos_wr": sampiyon.get("oos_wr"),
             "holdout_puan": sampiyon.get("holdout_puan"), "holdout_wr": sampiyon.get("holdout_wr"),
             "holdout_trade": sampiyon.get("holdout_trade"),
-            "beklenti": bek.get("ort_net"), "pf": bek.get("pf"), "aday_n": n,
+            "beklenti": bek.get("ort_net"), "pf": bek.get("profit_factor"), "aday_n": n,
             "equity_1x_son": eq1.get("final"), "equity_3x_son": eq3.get("final"),
         }
         portfoy["stiller"].append(kayit)
