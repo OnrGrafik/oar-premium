@@ -1,5 +1,5 @@
 {
-  "tarih": "2026-07-13T15:27:08.843015+00:00",
+  "tarih": "2026-07-14T11:30:33.565250+00:00",
   "aralik": "2019-01..2025-06",
   "semboller": [
     "BTCUSDT",
@@ -9,18 +9,18 @@
     {
       "stil": "ekstrem_donus_fade",
       "bloklar": [
+        "poc_taraf",
         "footprint_absorpsiyon",
-        "range_rejimi",
-        "htf_vwap"
+        "footprint_kalicilik"
       ],
       "saglam": true,
-      "oos_puan": 60,
-      "oos_wr": 46.9,
-      "holdout_puan": 51,
-      "holdout_wr": 31.3,
-      "holdout_trade": 99,
+      "oos_puan": 78,
+      "oos_wr": 55.0,
+      "holdout_puan": 60,
+      "holdout_wr": 46.2,
+      "holdout_trade": 80,
       "beklenti": null,
-      "aday_n": 11093,
+      "aday_n": 12016,
       "equity_1x_son": null,
       "equity_3x_son": null
     },
@@ -28,16 +28,17 @@
       "stil": "kirilim_devam_trend",
       "bloklar": [
         "poc_taraf",
-        "footprint_absorpsiyon"
+        "footprint_trapped",
+        "gun_bias_uyum"
       ],
       "saglam": true,
       "oos_puan": 60,
-      "oos_wr": 33.3,
-      "holdout_puan": 54,
-      "holdout_wr": 26.2,
-      "holdout_trade": 195,
+      "oos_wr": 36.4,
+      "holdout_puan": 60,
+      "holdout_wr": 31.0,
+      "holdout_trade": 155,
       "beklenti": null,
-      "aday_n": 11093,
+      "aday_n": 12016,
       "equity_1x_son": null,
       "equity_3x_son": null
     }
