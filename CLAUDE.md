@@ -103,6 +103,11 @@
 - SONUÇ ETKİSİ: eski sonuçlar 2019-2024 için geçerli, "2025-06'a kadar" etiketi yanlıştı. Yeni koşular 2025 H1'i de kapsar (2373 gün olmalı) → sayılar biraz değişebilir; OOS/holdout artık gerçekten 2025'i içerir (daha değerli doğrulama).
 - ⚠ CACHE'LER ESKİ (2025'siz): kullanıcı yeni koşudan önce cache temizlemeli: `.seans_cache` klasörünü ve `<veri>/_kesif_cache` klasörünü sil (yoksa eski 2025'siz sonuç döner). Vardiya sonrası "2192 gün" görünüyorsa cache silinmemiş demektir; 2373 gün ≈ doğru.
 
+## 5j. 3 CANLI SİSTEM (hepsi $1000 · 5x compound paper)
+- SİSTEM 1 FADE (oar_paper_box): BTC+ETH, şampiyon TP/SL (fib0.5/next-fib).
+- SİSTEM 2 TREND (oar_trend_paper): BTC+ETH kırılım-devam (backtest-doğrulanmış stil). Tetik Asia-high/low kırılım, TP/SL=tp_sl_breakout birebir (LONG TP=1.377/SL=0.5), onay gun_bias_uyum. trapped/poc_taraf tick ister → canlı yaklaşım. /api/oar-trend + main.py startup.
+- SİSTEM 3 ALTCOIN (oar_altcoin_sistem): $1000·5x compound bakiye eklendi (göç: geçmiş işlemlerden). Komuta Merkezi OAR SİSTEMİ panelinde 3 kutu; SİSTEM 2'de canlı bakiye+pozisyon da görünür.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
