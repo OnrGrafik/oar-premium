@@ -352,14 +352,28 @@ function scrLeader(){
     </div>
     <div style="background:#0a0f0f;border:1px solid #15301f;border-radius:7px;padding:11px 13px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 SİSTEM 1 — BTC+ETH · $1000 · 5x (canlı forward-test)</span>
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 SİSTEM 1 — FADE · BTC+ETH · $1000 · 5x (canlı forward-test)</span>
         <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
       </div>
       <div id="oar-paper-panel">${oarPaperHtml()}</div>
     </div>
+    ${(()=>{const t=(os.stil_portfoy||[]).find(s=>s.stil==='kirilim_devam_trend');if(!t)return '';
+      return `<div style="background:#0a0f0f;border:1px solid #1a2a3a;border-radius:7px;padding:11px 13px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff">⚡ SİSTEM 2 — TREND (KIRILIM-DEVAM) · BTC+ETH</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${t.saglam?'#0e2018':'#201410'};border:1px solid ${t.saglam?'#1ff0ad':'#ff8a3c'};color:${t.saglam?'#1ff0ad':'#ffb13c'}">${t.saglam?'✅ BACKTEST-DOĞRULANMIŞ (SAĞLAM)':'⚠ doğrulama sürüyor'}</span>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:#8a9c99">
+        <span>OOS <b style="color:#1ff0ad">${t.oos_puan}</b> (WR%${t.oos_wr})</span>
+        <span>HOLDOUT <b style="color:#ffb13c">${t.holdout_puan}</b> (WR%${t.holdout_wr}, n${t.holdout_trade})</span>
+        ${t.beklenti!=null?`<span>beklenti <b style="color:#1ff0ad">${t.beklenti>0?'+':''}${t.beklenti}%</b></span>`:''}
+        ${t.pf!=null?`<span>PF <b style="color:#1ff0ad">${t.pf}</b></span>`:''}
+        <span style="color:#5e716f">canlı paper-trade: hazırlanıyor</span>
+      </div>
+    </div>`;})()}
     <div style="background:#0a0f0f;border:1px solid #2a2410;border-radius:7px;padding:11px 13px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 SİSTEM 2 — Altcoin · paper-trade · haftalık K/Z</span>
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 SİSTEM 3 — Altcoin · paper-trade · haftalık K/Z</span>
         <button onclick="loadOarAltcoin().then(()=>{render();})" style="font-size:10px;color:#ffd479;background:none;border:1px solid #2a2410;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
       </div>
       <div id="oar-altcoin-panel">${oarAltcoinHtml()}</div>
