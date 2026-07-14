@@ -230,16 +230,25 @@ def _ms_olcekle(ts):
       ms  ~1.3e12–2.0e12 (13 hane) — 2024 ve öncesi
       µs  ~1.3e15–2.0e15 (16 hane) — 2025+ (yeni format)
       ns  ~1.3e18        (19 hane) — olası
-    Medyan büyüklüğüne bakıp uygun böleni uygular (satır bazlı değil, ölçek bazlı).
+    SATIR BAZLI ölçekleme (vektörel): karışık dosyalarda (2019-2024 ms + 2025 µs
+    birlikte yüklenince) eski medyan-yöntemi azınlık ölçeğini 'bozuk' bırakıyordu →
+    2025 H1 (260.640 satır = 181 gün) sessizce atılıyordu. Artık her satır kendi
+    büyüklüğüne göre ms'e indirilir — hiçbir yıl atılmaz.
     """
     import numpy as np
+    import pandas as pd
     arr = np.asarray(ts, dtype="float64")
-    med = float(np.nanmedian(arr)) if arr.size else 0.0
-    if med > 1e17:
-        return ts // 1_000_000      # ns → ms
-    if med > 1e14:
-        return ts // 1_000          # µs → ms
-    return ts                       # zaten ms
+    if not arr.size:
+        return ts
+    out = arr.copy()
+    ns = arr > 1e17
+    us = (arr > 1e14) & ~ns
+    out[ns] = arr[ns] // 1_000_000      # ns → ms
+    out[us] = arr[us] // 1_000          # µs → ms
+    out = out.astype("int64")
+    if isinstance(ts, pd.Series):
+        return pd.Series(out, index=ts.index)
+    return out
 
 
 # ─── Gün-bazlı ön hesap — STREAMING (bellek-güvenli) ─────────────────────────
