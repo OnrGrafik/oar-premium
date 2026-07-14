@@ -56,6 +56,10 @@ def main():
         _calistir("STİL BACKTEST (377 dönüşü + EQ kalıcılık)",
                   ["oar_stil_backtest.py", "--symbol", SEMBOL,
                    "--from", BAS, "--to", BIT, "--telegram"])
+        # 2b) Micro-scalp: Asia-dışı fib ilk temas (hızlı — yalnız klines)
+        _calistir("MICRO-SCALP (fib ilk temas)",
+                  ["oar_micro_scalp.py", "--symbol", SEMBOL,
+                   "--from", BAS, "--to", BIT, "--telegram"])
         # 3) Çoklu şampiyon (AĞIR — aggTrades; günde en fazla 1)
         if time.time() - son_agir >= AGIR_IS_SAAT * 3600:
             _calistir("ÇOKLU ŞAMPİYON KEŞFİ (ağır, günde 1)",
