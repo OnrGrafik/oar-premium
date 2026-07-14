@@ -957,6 +957,16 @@ async def oar_sistem():
         kanitli = bulgular_al(12)
     except Exception:
         pass
+    # STİL PORTFÖYÜ: oar_coklu_sampiyon çıktısı (repo-yolu json, git-senkron).
+    # Kullanıcının çoklu-şampiyon isteği: sağlam stil şampiyonları sitede görünsün.
+    portfoy = []
+    try:
+        _pf = Path("oar_sampiyon_portfoy.json")
+        if _pf.exists():
+            _pd = json.loads(_pf.read_text())
+            portfoy = [s for s in _pd.get("stiller", []) if s.get("saglam")]
+    except Exception:
+        pass
     try:
         from backtest_sonuclari import ozet as _ozet
         defter = _ozet(6)
@@ -1031,6 +1041,7 @@ async def oar_sistem():
                           "(PF 3.12→3.31) AMA getiriyi düşürüyor (5x $398M→$238M, ~%40 feda) → EKLENMEDİ. "
                           "Şampiyon dokunulmadan en iyi hali.",
         "kanitli_bulgular": kanitli,
+        "stil_portfoy": portfoy,
         "defter_ozeti": defter,
     }
 
