@@ -39,7 +39,8 @@ def _hafta_etiket(dt=None):
 
 
 def _bos():
-    return {"hafta": _hafta_etiket(), "acik": {}, "islemler": []}
+    return {"hafta": _hafta_etiket(), "acik": {}, "islemler": [],
+            "baslangic_bakiye": 1000.0, "bakiye": 1000.0}
 
 
 def _yukle():
@@ -47,7 +48,15 @@ def _yukle():
     if yol.exists():
         try:
             with open(yol, encoding="utf-8") as f:
-                return json.load(f)
+                d = json.load(f)
+            # GÖÇ: eski durumda bakiye yoktu → $1000'den başlat, geçmiş işlemlerden compound et
+            if "bakiye" not in d:
+                bak = 1000.0
+                for t in d.get("islemler", []):
+                    bak = max(0.0, bak * (1 + (t.get("equity_pct", 0) or 0) / 100.0))
+                d["baslangic_bakiye"] = 1000.0
+                d["bakiye"] = round(bak, 2)
+            return d
         except Exception:
             pass
     return _bos()
@@ -133,9 +142,13 @@ async def _kapat(d, sembol, cikis, sonuc):
         "hafta": _hafta_etiket(),
         "teyitler": poz.get("teyitler", []),
     })
+    # $1000 · 5x compound bakiye (Sistem 1/2 ile aynı model)
+    d["bakiye"] = round(max(0.0, d.get("bakiye", 1000.0) * (1 + equity_pct / 100.0)), 2)
+    d["islemler"][-1]["bakiye_sonra"] = d["bakiye"]
     emoji = "✅" if equity_pct > 0 else "❌"
     await _tg(f"🔴 OAR ALTCOIN KAPANIŞ — {_kisa(sembol)} {poz['yon']}\n"
-              f"{sonuc} @ {round(cikis,2)} · Sonuç {emoji} %{equity_pct:+.2f} (5x)")
+              f"{sonuc} @ {round(cikis,2)} · Sonuç {emoji} %{equity_pct:+.2f} (5x) "
+              f"→ bakiye ${d['bakiye']}")
     print(f"[OAR-Altcoin] KAPANIŞ {sembol} {sonuc} %{equity_pct}")
 
 

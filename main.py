@@ -1320,6 +1320,10 @@ async def startup_event():
         from oar_altcoin_sistem import dongu as oar_altcoin_dongu
         asyncio.create_task(oar_altcoin_dongu())
         print("[Startup] ✅ OAR Altcoin Sistem loop başlatıldı")
+        # SİSTEM 2 — TREND (kırılım-devam) paper-trade (BTC+ETH, $1000 5x, backtest-doğrulanmış stil)
+        from oar_trend_paper import dongu as oar_trend_dongu
+        asyncio.create_task(oar_trend_dongu())
+        print("[Startup] ✅ OAR Trend (Sistem 2) paper loop başlatıldı")
         # OAR Swing Sistem (BTC+ETH 4h, değer alanı terk + %15 kırılım range/fib)
         from oar_swing import dongu as oar_swing_dongu
         asyncio.create_task(oar_swing_dongu())
@@ -2493,6 +2497,13 @@ async def oar_paper_endpoint():
     d = durum_ozet()
     d["market_kapisi"] = await _market_kapisi_teshis()
     return d
+
+
+@app.get("/api/oar-trend")
+async def oar_trend_endpoint():
+    """SİSTEM 2 — Trend (kırılım-devam) paper-trade: bakiye, açık pozisyonlar, son işlemler."""
+    from oar_trend_paper import durum_ozet
+    return durum_ozet()
 
 
 @app.get("/api/oar-altcoin")

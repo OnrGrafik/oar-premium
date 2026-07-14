@@ -368,8 +368,14 @@ function scrLeader(){
         <span>HOLDOUT <b style="color:#ffb13c">${t.holdout_puan}</b> (WR%${t.holdout_wr}, n${t.holdout_trade})</span>
         ${t.beklenti!=null?`<span>beklenti <b style="color:#1ff0ad">${t.beklenti>0?'+':''}${t.beklenti}%</b></span>`:''}
         ${t.pf!=null?`<span>PF <b style="color:#1ff0ad">${t.pf}</b></span>`:''}
-        <span style="color:#5e716f">canlı paper-trade: hazırlanıyor</span>
       </div>
+      ${(()=>{const tr=ST.oarTrend;if(!tr)return '<div style="font-size:10px;color:#5e716f;margin-top:6px">canlı paper yükleniyor…</div>';
+        const ac=Object.entries(tr.acik||{});
+        return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #141d1b;display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
+          <span style="color:#8a9c99">CANLI: $1000 · 5x → bakiye <b style="color:${(tr.bakiye||0)>=(tr.baslangic||1000)?'#1ff0ad':'#ff5d6c'}">$${tr.bakiye!=null?tr.bakiye.toLocaleString():'—'}</b></span>
+          <span style="color:#8a9c99">işlem: <b style="color:#cdd9d8">${tr.islem_sayisi||0}</b></span>
+          ${ac.length?ac.map(([s,p])=>`<span style="color:#56a8ff">📍 ${s} ${p.yon} @ ${p.giris} (TP ${p.tp} / SL ${p.sl})</span>`).join(''):'<span style="color:#5e716f">açık pozisyon yok — kırılım bekleniyor</span>'}
+        </div>`;})()}
     </div>`;})()}
     <div style="background:#0a0f0f;border:1px solid #2a2410;border-radius:7px;padding:11px 13px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -1673,6 +1679,7 @@ async function loadKnowledge(){
 }
 async function loadOarSistem(){
   const d=await jget('/api/oar-sistem');if(d)ST.oarSistem=d;
+  const t=await jget('/api/oar-trend');if(t)ST.oarTrend=t;
   if(ST.tab==='leader')render();
 }
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
