@@ -96,6 +96,11 @@
 - ✅ DOĞRULANDI (şampiyon SABİT `--sampiyon-blok poc_taraf,footprint_absorpsiyon,footprint_kalicilik`): A=gerçek şampiyon PF 3.12/+273%/maxDD%4.6/OOS+0.111; B=A+confirm PF 3.31/maxDD%4.54/OOS+0.115 (71 riskli işlem elenir, per-trade kalite↑, toplam +273→+262% yani risk-azaltıcı koruyucu, getiri artırıcı DEĞİL); C çöp. Confirm = güvenli, OOS-sağlam, marjinal. Canlıya filtre olarak bağlamak kullanıcı onayına bağlı (şampiyon bloğuna DOKUNMADAN, üstüne filtre).
 - 💰 $1000 COMPOUND EQUITY (2019→2025, kronolojik): A filtresiz 1x $14.9k / 3x $2.75M / 5x $398M (maxDD %4.9/14.3/23); B filtreli 1x $13.3k / 3x $1.99M / 5x $238M (maxDD %4.7/13.7/22.3). İKİSİ DE HİÇ LİKİDE OLMADI (5x'te bile tek işlem ≤−%20 yok), dip hep $1000'in üstünde. SONUÇ: FİLTRE PARA KAYBETTİRİYOR (5x $398M→$238M, ~%40 getiri feda) sadece 0.7 puan DD için → filtre EKLENMEZ. Şampiyon zaten güvenli+kontrollü DD. UYARI: mutlak $ rakamları fantezi (full-size compound, slippage/funding/likidite yok); güvenilir olan = likide olmama + kontrollü DD + tutarlılık, mutlak getiri DEĞİL.
 
+## 5i. VERİ DÜZELTMESİ (kritik — tüm eski sonuçları etkiler)
+- "⚠ 260640 bozuk klines satırı" bozuk veri DEĞİLDİ: _ms_olcekle medyan-tabanlıydı; 2019-24(ms)+2025(µs) karışınca 2025 H1 (181 gün) sessizce atılıyordu → TÜM klines analizleri fiilen 2024-12'de bitiyordu ("2192 gün"=2019-2024). Düzeltildi: satır-bazlı ölçekleme. ARTIK 2025 H1 dahil.
+- SONUÇ ETKİSİ: eski sonuçlar 2019-2024 için geçerli, "2025-06'a kadar" etiketi yanlıştı. Yeni koşular 2025 H1'i de kapsar (2373 gün olmalı) → sayılar biraz değişebilir; OOS/holdout artık gerçekten 2025'i içerir (daha değerli doğrulama).
+- ⚠ CACHE'LER ESKİ (2025'siz): kullanıcı yeni koşudan önce cache temizlemeli: `.seans_cache` klasörünü ve `<veri>/_kesif_cache` klasörünü sil (yoksa eski 2025'siz sonuç döner). Vardiya sonrası "2192 gün" görünüyorsa cache silinmemiş demektir; 2373 gün ≈ doğru.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
