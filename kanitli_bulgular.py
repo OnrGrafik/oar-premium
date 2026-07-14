@@ -26,14 +26,14 @@ def _now():
 
 def _yukle() -> list:
     try:
-        return json.loads(KANIT_FILE.read_text()) if KANIT_FILE.exists() else []
+        return json.loads(KANIT_FILE.read_text(encoding="utf-8")) if KANIT_FILE.exists() else []
     except Exception:
         return []
 
 
 def _kaydet(bulgular: list):
     try:
-        KANIT_FILE.write_text(json.dumps(bulgular, ensure_ascii=False, indent=2))
+        KANIT_FILE.write_text(json.dumps(bulgular, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         pass
 

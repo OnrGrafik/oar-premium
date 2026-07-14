@@ -52,7 +52,7 @@ def _stil_sampiyonu(adaylar):
 
 def _portfoy_yaz(portfoy):
     try:
-        PORTFOY.write_text(json.dumps(portfoy, ensure_ascii=False, indent=2))
+        PORTFOY.write_text(json.dumps(portfoy, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         print(f"[ÇokluŞampiyon] portföy yazılamadı: {str(e)[:60]}", flush=True)
 

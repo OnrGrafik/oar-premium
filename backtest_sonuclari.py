@@ -26,14 +26,14 @@ def _now():
 
 def _yukle() -> dict:
     try:
-        return json.loads(DEFTER.read_text()) if DEFTER.exists() else {"kayitlar": {}, "guncelleme": None}
+        return json.loads(DEFTER.read_text(encoding="utf-8")) if DEFTER.exists() else {"kayitlar": {}, "guncelleme": None}
     except Exception:
         return {"kayitlar": {}, "guncelleme": None}
 
 
 def _kaydet(d: dict):
     try:
-        DEFTER.write_text(json.dumps(d, ensure_ascii=False, indent=2))
+        DEFTER.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         pass
 
