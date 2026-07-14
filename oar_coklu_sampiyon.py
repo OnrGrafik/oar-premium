@@ -105,15 +105,15 @@ def main():
             "oos_puan": sampiyon.get("oos_puan"), "oos_wr": sampiyon.get("oos_wr"),
             "holdout_puan": sampiyon.get("holdout_puan"), "holdout_wr": sampiyon.get("holdout_wr"),
             "holdout_trade": sampiyon.get("holdout_trade"),
-            "beklenti": bek.get("beklenti"), "aday_n": n,
-            "equity_1x_son": eq1.get("son"), "equity_3x_son": eq3.get("son"),
+            "beklenti": bek.get("ort_net"), "pf": bek.get("pf"), "aday_n": n,
+            "equity_1x_son": eq1.get("final"), "equity_3x_son": eq3.get("final"),
         }
         portfoy["stiller"].append(kayit)
         rapor.append(
             f"\n▸ {stil_ad} [{'+'.join(sampiyon.get('bloklar', []))}] {'✅ SAĞLAM' if saglam else '⚠ holdout zayıf'}"
             f"\n    OOS puan {kayit['oos_puan']} WR%{kayit['oos_wr']} · HOLDOUT puan {kayit['holdout_puan']} "
-            f"WR%{kayit['holdout_wr']} (n{kayit['holdout_trade']}) · beklenti {kayit['beklenti']}"
-            f"\n    $1000 equity → 1x {eq1.get('son')} · 3x {eq3.get('son')}")
+            f"WR%{kayit['holdout_wr']} (n{kayit['holdout_trade']}) · beklenti {kayit['beklenti']} · PF {kayit['pf']}"
+            f"\n    $1000 equity → 1x {eq1.get('final')} · 3x {eq3.get('final')}")
 
     saglamlar = [s for s in portfoy["stiller"] if s["saglam"]]
     rapor.append(f"\n═══ PORTFÖY: {len(saglamlar)}/{len(portfoy['stiller'])} stil SAĞLAM şampiyon üretti ═══")
