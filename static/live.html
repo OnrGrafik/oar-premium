@@ -335,7 +335,7 @@ function scrLeader(){
   const baslikKutu=(ad,renk,icerik)=>`
     <div style="background:#0a0f0f;border:1px solid #18211f;border-left:2px solid ${renk};border-radius:7px;padding:11px 13px">
       <div class="sg" style="font-size:9px;letter-spacing:.12em;color:${renk};margin-bottom:6px">${ad}</div>
-      <div style="font-size:10.5px;color:#b8c6c3;line-height:1.55">${icerik?vurgu(icerik):'<span style="color:#5e716f">yükleniyor...</span>'}</div>
+      <div style="font-size:11.5px;color:#b8c6c3;line-height:1.55">${icerik?vurgu(icerik):'<span style="color:#5e716f">yükleniyor...</span>'}</div>
     </div>`;
 
   // OAR SİSTEMİ — SADELEŞTİRİLDİ (kullanıcı: kural/şampiyon detayı ziyaretçiye
@@ -401,7 +401,7 @@ function scrLeader(){
       <span class="sg" style="font-weight:700;font-size:16px;color:${regColor}">${rejim}</span>
       ${pv.move_source?`<span style="font-size:10px;color:#8a9c99;border:1px solid #1a2422;padding:2px 8px;border-radius:5px">${pv.move_source}</span>`:''}
     </div>
-    <div style="font-size:11.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${has3?'':vurgu(pd.yorum||'Piyasa durumu analizi yükleniyor... (opsiyon + makro + indikatör + kitap harmanı)')}</div>
+    <div style="font-size:12.5px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${has3?'':vurgu(pd.yorum||'Piyasa durumu analizi yükleniyor... (opsiyon + makro + indikatör + kitap harmanı)')}</div>
     ${has3?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px">
       ${baslikKutu('📊 TEKNİK','#1ff0ad',bol.teknik)}
       ${baslikKutu('🏛 TEMEL','#56a8ff',bol.temel)}
@@ -982,7 +982,7 @@ async function kbAra(){
   if(d&&d.sonuclar&&d.sonuclar.length){
     el.innerHTML=d.sonuclar.map(s=>`<div style="padding:9px 0;border-bottom:1px solid #131918">
       <div style="font-size:10px;color:#56a8ff;margin-bottom:3px">${esc(s.title)} <span style="color:#5e716f">· ${s.category}</span></div>
-      <div style="font-size:10px;color:#b8c6c3;line-height:1.5">${esc(s.content.slice(0,260))}...</div></div>`).join('');
+      <div style="font-size:11px;color:#b8c6c3;line-height:1.5">${esc(s.content.slice(0,260))}...</div></div>`).join('');
   } else el.innerHTML='<div style="font-size:10px;color:#5e716f">Sonuç bulunamadı.</div>';
 }
 function feedHtmlGen(){
