@@ -339,7 +339,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',syste
     <!-- DERİBİT OPSİYON PANELİ (OAR opsiyon overlay'i kullanıyor → kalır) -->
     <div class="deribit-box">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <span class="sec-hd" style="padding:0;border:none;">🎯 Deribit Opsiyonlar</span>
+        <span class="sec-hd" style="padding:0;border:none;">🎯 Opsiyonlar</span>
         <div class="dbtab">
           <div class="dbtab-btn active" id="dbtab-btc" onclick="switchDeribit('BTC')">BTC</div>
           <div class="dbtab-btn" id="dbtab-eth" onclick="switchDeribit('ETH')">ETH</div>
@@ -361,7 +361,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',syste
       <div id="welcome">
         <div class="wico">🤖</div>
         <h2>OAR Premium</h2>
-        <p>Binance ve CoinGecko'dan gerçek zamanlı kripto verisi alan ve görsel/dosya analizi yapan OAR yapay zeka asistanı.</p>
+        <p>Gerçek zamanlı kripto verisiyle çalışan ve görsel/dosya analizi yapan OAR yapay zeka asistanı.</p>
         <div class="chips">
           <span class="chip" onclick="ask('Bitcoin şu an ne durumda? Fiyat, trend ve önemli seviyeler')">₿ Bitcoin</span>
           <span class="chip" onclick="ask('Ethereum analizi: güncel fiyat, ETH 2.0 gelişmeleri ve teknik görünüm')">Ξ Ethereum</span>
@@ -700,7 +700,7 @@ async function send(){
     // İlk istekten gelen data objesini kontrol et
     if(allReplies._kbUsed)   badges.push('<span class="badge" style="color:#a78bfa;border-color:#a78bfa30">🧠 Hafıza</span>');
     if(allReplies._autoSaved) badges.push('<span class="badge" style="color:#34d399;border-color:#34d39930">💾 Kaydedildi</span>');
-    badges.push(`<span class="badge model">⚡ ${window._lastModel||'gemini-2.5-flash'}</span>`);
+    
 
     ad.innerHTML=`
       <div class="av ai">🤖</div>
@@ -1001,7 +1001,7 @@ async function openBacktest(){
     html+='\n---\n\n'+data.reply;
 
     const ad=document.createElement('div'); ad.className='msg';
-    ad.innerHTML=`<div class="av ai">🤖</div><div><div class="bbl">${md2html(html)}</div><div class="badge-row"><span class="badge live">📊 Backtest</span><span class="badge model">⚡ gemini-2.5-flash</span></div></div>`;
+    ad.innerHTML=`<div class="av ai">🤖</div><div><div class="bbl">${md2html(html)}</div><div class="badge-row"><span class="badge live">📊 Backtest</span></div></div>`;
     msgs.appendChild(ad);
   }catch(err){
     document.getElementById('typing')?.remove();

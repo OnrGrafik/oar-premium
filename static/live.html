@@ -517,7 +517,7 @@ function odK(n){if(n==null||!isFinite(n))return '—';const x=Number(n),a=Math.a
 // ── i. STRİKE TOPOGRAFYASI (merdiven) ──
 function odLadder(t,lv,spot){
   const all=(t.strikes||[]);
-  if(!all.length||!spot)return '<div class="od-empty">Opsiyon verisi yükleniyor (Deribit)…</div>';
+  if(!all.length||!spot)return '<div class="od-empty">Opsiyon verisi yükleniyor…</div>';
   const lo=spot*0.90,hi=spot*1.10;
   const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>b.strike-a.strike);
   if(!vis.length)return '<div class="od-empty">Bu vade için strike yok.</div>';
@@ -752,7 +752,7 @@ function scrOptions(){
   return `<div class="od">
     <div class="od-top">
       <h1 class="od-title">Opsiyon Masası</h1>
-      <span class="od-sub">Deribit · Black-Scholes · ${spot?_optCur+' $'+fmtNum(Math.round(spot)):'yükleniyor'}</span>
+      <span class="od-sub">Opsiyon Analizi · ${spot?_optCur+' $'+fmtNum(Math.round(spot)):'yükleniyor'}</span>
       <div class="od-vade">${curChip('BTC')}${curChip('ETH')}<span style="width:10px;display:inline-block"></span>${chip('all','Tümü')}${chip('0-7d','0-7g')}${chip('8-45d','8-45g')}${chip('45d+','45+g')}</div>
     </div>
 
@@ -767,7 +767,7 @@ function scrOptions(){
     </section>
 
     <section class="od-sec">
-      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>Order Flow · Kapanan</h2><span class="od-meta">OPSİYON CVD · SON 3 GÜN · DERIBIT</span></div>
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>Order Flow · Kapanan</h2><span class="od-meta">OPSİYON CVD · SON 3 GÜN</span></div>
       ${odCvd(cvd.opsiyon_cvd,'1 · Opsiyon CVD (kontrat) + spot','','Renkli çizgi kontrat bazlı CVD (Call buy +, Put sell + / Call sell −, Put buy −), turuncu çizgi spot fiyat. Aynı yönde → teyit, zıt → divergence. Alttaki barlar saatlik hacim.',{spot:true,detay:true})}
       ${odCvd(cvd.premium_cvd,'2 · Premium CVD (USD) — para nereye akıyor','$','Dolar tabanlı premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi artıyor.')}
       ${odCvd(cvd.whale_cvd,'3 · Whale CVD — büyük işlemler','','Balina opsiyon akışı (≥5 BTC tekil işlem). Genel CVD ile aynı yöndeyse teyit, ters yönde divergence uyarısı.')}
@@ -797,7 +797,7 @@ function scrOptions(){
       ${odPozisyon(lv,spot,g,oy)}
     </section>
 
-    <div class="od-foot"><div><div style="font-weight:500;margin-bottom:4px">Opsiyon Masası · ${_optCur} · Deribit</div><div style="color:${OD.mute}">Black-Scholes · Hull 11e · ${(t.strikes||[]).length} kullanım</div></div><div class="od-foot-pg">— ${_optCur} Gamma —</div></div>
+    <div class="od-foot"><div><div style="font-weight:500;margin-bottom:4px">Opsiyon Masası · ${_optCur}</div><div style="color:${OD.mute}">Hull 11e (Options, Futures and Other Derivatives) · ${(t.strikes||[]).length} kullanım</div></div><div class="od-foot-pg">— ${_optCur} Gamma —</div></div>
   </div>`;
 }
 
@@ -1302,7 +1302,7 @@ function cioKararHtml(){
         <div style="font-size:12px;font-weight:600;color:#ffb13c">IV %${vl.iv_pct}</div>
         <div style="font-size:9.5px;color:#7d908d;margin-top:3px">Günlük ±%${vl.expected_move_pct||0} · IV/RV: ${vl.vol_oran||'—'}</div>
         <div style="font-size:9px;color:#9fb0ad;margin-top:4px">${vl.durum||''}</div>
-      `:'<div style="font-size:10px;color:#3a4a47;margin-top:8px">Deribit IV bekleniyor</div>'}
+      `:'<div style="font-size:10px;color:#3a4a47;margin-top:8px">IV verisi bekleniyor</div>'}
     </div>
     <div style="background:#060d0c;border:1px solid #18211f;border-radius:7px;padding:9px 11px">
       <div style="font-size:9px;color:#5e716f;letter-spacing:.1em;margin-bottom:4px">OY DAĞILIMI</div>
