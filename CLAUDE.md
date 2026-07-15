@@ -21,6 +21,10 @@
 - Commit → push sonrası kullanıcıya `git pull` + çalıştırma komutunu ver.
 
 ## 3. Şampiyon sistem (ANAYASA #8 kapsamında — dokunmadan önce CAPS uyarı)
+- ⚠️ ARTIK **İKİ DOKUNULMAZ ŞAMPİYON** VAR (ikisi de #8 koruması altında — SORMADAN DEĞİŞTİRME):
+  ① FADE: `poc_taraf+footprint_absorpsiyon+footprint_kalicilik` (PF 3.02, beklenti +0.266%, OOS 78, $1000→1x $5.2k/3x $123k)
+  ② TREND: `poc_taraf+footprint_trapped+gun_bias_uyum` (PF 2.98, beklenti +0.116%, OOS 60/holdout 60, $1000→1x $4.4k/3x $80k)
+  Kaynak: oar_sampiyon_portfoy.json (2025 dahil koşu, 15 Tem 2026). Bloklara/TP-SL'e/canlı bağlantıya dokunmak = önce CAPS uyarı + açık onay.
 - ⚠️ ETİKET DÜZELTMESİ (kanıtlandı): "fade+htf_vpfr" sadece KISALTMAydı, gerçek blok listesi DEĞİL. Sabitleyip test edince `mod_fade+htf_vpfr+range_rejimi` → PF 0.55, −244% (BATIYOR). GERÇEK ŞAMPİYON = kesfet'in bulduğu **`poc_taraf + footprint_absorpsiyon + footprint_kalicilik`** → PF 3.12, +273%, maxDD %4.6 (bilinen ~2.3/+197-272% ile uyumlu). "fade+htf_vpfr" diye BLOK sabitleme; gerçek şampiyon bloklarını kesfet çıktısından / yüklü OAR_KESIF_SAMPIYON kaydından al.
 - **Şampiyon (gerçek): `poc_taraf+footprint_absorpsiyon+footprint_kalicilik`** (Asia range ekstremlerinde fade; POC-tarafı + absorpsiyon + büyük-delta kalıcılığı). BTC+ETH: PF ~3.1, +273%, maxDD %4.6, OOS +0.111, SAĞLAM.
 - ✅ PER-SEMBOL DOĞRULANDI (edge tek coin taşımıyor): BTC n637 PF 3.19 OOS+0.15 maxDD%3.66; ETH n679 PF 3.07 OOS+0.076 maxDD%4.6. İkisi de bağımsız güçlü, ~aynı, ikisi de 5x'te likide olmuyor → yapısal edge, fluke değil.
