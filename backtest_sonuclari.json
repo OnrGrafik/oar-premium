@@ -10,7 +10,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675472+00:00"
+      "tarih": "2026-07-15T09:55:59.395686+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·haftasonu → TP1=-0.618": {
       "wr": 85.5,
@@ -22,7 +22,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675484+00:00"
+      "tarih": "2026-07-15T09:55:59.395709+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Pazar → TP1=1.618": {
       "wr": 83.0,
@@ -34,7 +34,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675488+00:00"
+      "tarih": "2026-07-15T09:55:59.395715+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·haftasonu → TP1=1.618": {
       "wr": 82.7,
@@ -46,7 +46,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675491+00:00"
+      "tarih": "2026-07-15T09:55:59.395718+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Pazartesi → TP1=-0.618": {
       "wr": 82.0,
@@ -58,7 +58,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675494+00:00"
+      "tarih": "2026-07-15T09:55:59.395721+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Cuma → FULL=2.618": {
       "wr": 42.9,
@@ -70,7 +70,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675497+00:00"
+      "tarih": "2026-07-15T09:55:59.395723+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Pazar → TP1=-0.618": {
       "wr": 79.5,
@@ -82,7 +82,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675499+00:00"
+      "tarih": "2026-07-15T09:55:59.395726+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Çarşamba → FULL=-1.618": {
       "wr": 44.4,
@@ -94,7 +94,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675502+00:00"
+      "tarih": "2026-07-15T09:55:59.395728+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Pazar → TP1=1.618": {
       "wr": 77.3,
@@ -106,7 +106,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675513+00:00"
+      "tarih": "2026-07-15T09:55:59.395731+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Salı → TP1=1.618": {
       "wr": 77.1,
@@ -118,7 +118,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675515+00:00"
+      "tarih": "2026-07-15T09:55:59.395733+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Pazartesi → TP1=1.618": {
       "wr": 77.0,
@@ -130,7 +130,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675518+00:00"
+      "tarih": "2026-07-15T09:55:59.395735+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·hepsi → TP1=-0.618": {
       "wr": 78.2,
@@ -142,7 +142,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675520+00:00"
+      "tarih": "2026-07-15T09:55:59.395755+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Pazar → TP1=1.618": {
       "wr": 76.4,
@@ -154,7 +154,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675523+00:00"
+      "tarih": "2026-07-15T09:55:59.395759+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Çarşamba → TP1=-0.618": {
       "wr": 77.8,
@@ -166,7 +166,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675525+00:00"
+      "tarih": "2026-07-15T09:55:59.395763+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Salı → TP1=-0.618": {
       "wr": 77.1,
@@ -178,7 +178,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675527+00:00"
+      "tarih": "2026-07-15T09:55:59.395767+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Pazartesi → TP1=-0.618": {
       "wr": 77.0,
@@ -190,7 +190,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675530+00:00"
+      "tarih": "2026-07-15T09:55:59.395769+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Çarşamba → TP1=-0.618": {
       "wr": 77.0,
@@ -202,7 +202,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675532+00:00"
+      "tarih": "2026-07-15T09:55:59.395772+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·haftaiçi → TP1=-0.618": {
       "wr": 76.9,
@@ -214,7 +214,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675534+00:00"
+      "tarih": "2026-07-15T09:55:59.395774+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·hepsi → TP1=1.618": {
       "wr": 75.2,
@@ -226,7 +226,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675537+00:00"
+      "tarih": "2026-07-15T09:55:59.395777+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·haftasonu → FULL=2.618": {
       "wr": 39.5,
@@ -238,7 +238,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675539+00:00"
+      "tarih": "2026-07-15T09:55:59.395779+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Cuma → TP1=-0.618": {
       "wr": 75.6,
@@ -250,7 +250,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675541+00:00"
+      "tarih": "2026-07-15T09:55:59.395782+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Pazar → FULL=2.618": {
       "wr": 38.3,
@@ -262,7 +262,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675543+00:00"
+      "tarih": "2026-07-15T09:55:59.395784+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Cuma → TP1=1.618": {
       "wr": 73.8,
@@ -274,7 +274,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675546+00:00"
+      "tarih": "2026-07-15T09:55:59.395787+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·haftasonu → TP1=1.618": {
       "wr": 73.6,
@@ -286,7 +286,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675549+00:00"
+      "tarih": "2026-07-15T09:55:59.395789+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·haftaiçi → TP1=1.618": {
       "wr": 73.6,
@@ -298,7 +298,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675551+00:00"
+      "tarih": "2026-07-15T09:55:59.395791+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Pazartesi → TP1=1.618": {
       "wr": 73.3,
@@ -310,7 +310,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675554+00:00"
+      "tarih": "2026-07-15T09:55:59.395794+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Perşembe → FULL=-1.618": {
       "wr": 39.9,
@@ -322,7 +322,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675557+00:00"
+      "tarih": "2026-07-15T09:55:59.395796+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·haftasonu → TP1=1.618": {
       "wr": 73.1,
@@ -334,7 +334,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675559+00:00"
+      "tarih": "2026-07-15T09:55:59.395799+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Çarşamba → FULL=-1.618": {
       "wr": 39.6,
@@ -346,7 +346,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675561+00:00"
+      "tarih": "2026-07-15T09:55:59.395801+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Salı → FULL=2.618": {
       "wr": 37.1,
@@ -358,7 +358,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675563+00:00"
+      "tarih": "2026-07-15T09:55:59.395804+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·haftaiçi → TP1=1.618": {
       "wr": 72.7,
@@ -370,7 +370,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675566+00:00"
+      "tarih": "2026-07-15T09:55:59.395806+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·haftaiçi → FULL=2.618": {
       "wr": 37.1,
@@ -382,7 +382,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675568+00:00"
+      "tarih": "2026-07-15T09:55:59.395808+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Perşembe → TP1=-0.618": {
       "wr": 74.2,
@@ -394,7 +394,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675570+00:00"
+      "tarih": "2026-07-15T09:55:59.395811+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Çarşamba → FULL=-1.618": {
       "wr": 39.3,
@@ -406,7 +406,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675573+00:00"
+      "tarih": "2026-07-15T09:55:59.395813+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·haftasonu → TP1=-0.618": {
       "wr": 73.9,
@@ -418,7 +418,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675575+00:00"
+      "tarih": "2026-07-15T09:55:59.395816+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·haftaiçi → FULL=-1.618": {
       "wr": 39.1,
@@ -430,7 +430,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675577+00:00"
+      "tarih": "2026-07-15T09:55:59.395818+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Pazartesi → FULL=2.618": {
       "wr": 36.5,
@@ -442,7 +442,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675579+00:00"
+      "tarih": "2026-07-15T09:55:59.395821+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·hepsi → FULL=2.618": {
       "wr": 36.3,
@@ -454,7 +454,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675581+00:00"
+      "tarih": "2026-07-15T09:55:59.395823+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Salı → FULL=-1.618": {
       "wr": 38.6,
@@ -466,7 +466,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675583+00:00"
+      "tarih": "2026-07-15T09:55:59.395825+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Pazar → TP1=1.618": {
       "wr": 71.8,
@@ -478,7 +478,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675586+00:00"
+      "tarih": "2026-07-15T09:55:59.395828+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Çarşamba → TP1=-0.618": {
       "wr": 73.3,
@@ -490,7 +490,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675588+00:00"
+      "tarih": "2026-07-15T09:55:59.395830+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Perşembe → TP1=-0.618": {
       "wr": 73.3,
@@ -502,7 +502,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675590+00:00"
+      "tarih": "2026-07-15T09:55:59.395833+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Pazar → FULL=2.618": {
       "wr": 36.0,
@@ -514,7 +514,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675592+00:00"
+      "tarih": "2026-07-15T09:55:59.395835+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Perşembe → FULL=-1.618": {
       "wr": 38.3,
@@ -526,7 +526,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675595+00:00"
+      "tarih": "2026-07-15T09:55:59.395837+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Pazartesi → FULL=2.618": {
       "wr": 35.8,
@@ -538,7 +538,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675597+00:00"
+      "tarih": "2026-07-15T09:55:59.395839+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·hepsi → TP1=-0.618": {
       "wr": 72.9,
@@ -550,7 +550,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675600+00:00"
+      "tarih": "2026-07-15T09:55:59.395842+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Pazartesi → FULL=-1.618": {
       "wr": 38.0,
@@ -562,7 +562,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675602+00:00"
+      "tarih": "2026-07-15T09:55:59.395844+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Pazartesi → TP1=1.618": {
       "wr": 71.2,
@@ -574,7 +574,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675604+00:00"
+      "tarih": "2026-07-15T09:55:59.395847+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·haftaiçi → FULL=2.618": {
       "wr": 35.6,
@@ -586,7 +586,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675606+00:00"
+      "tarih": "2026-07-15T09:55:59.395849+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·Pazar → FULL=2.618": {
       "wr": 35.6,
@@ -598,7 +598,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675609+00:00"
+      "tarih": "2026-07-15T09:55:59.395852+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·haftaiçi → TP1=-0.618": {
       "wr": 72.6,
@@ -610,7 +610,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675611+00:00"
+      "tarih": "2026-07-15T09:55:59.395854+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Pazartesi → FULL=-1.618": {
       "wr": 37.7,
@@ -622,7 +622,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675613+00:00"
+      "tarih": "2026-07-15T09:55:59.395856+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Pazartesi → FULL=-1.618": {
       "wr": 37.6,
@@ -634,7 +634,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675615+00:00"
+      "tarih": "2026-07-15T09:55:59.395859+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·hepsi → FULL=-1.618": {
       "wr": 37.6,
@@ -646,7 +646,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675618+00:00"
+      "tarih": "2026-07-15T09:55:59.395861+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·haftaiçi → FULL=-1.618": {
       "wr": 37.5,
@@ -658,7 +658,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675620+00:00"
+      "tarih": "2026-07-15T09:55:59.395863+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Çarşamba → TP1=-0.618": {
       "wr": 72.3,
@@ -670,7 +670,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675622+00:00"
+      "tarih": "2026-07-15T09:55:59.395866+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Perşembe → TP1=1.618": {
       "wr": 70.7,
@@ -682,7 +682,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675625+00:00"
+      "tarih": "2026-07-15T09:55:59.395868+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Çarşamba → TP1=1.618": {
       "wr": 70.6,
@@ -694,7 +694,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675627+00:00"
+      "tarih": "2026-07-15T09:55:59.395870+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Perşembe → FULL=-1.618": {
       "wr": 37.3,
@@ -706,7 +706,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675629+00:00"
+      "tarih": "2026-07-15T09:55:59.395872+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Çarşamba → FULL=2.618": {
       "wr": 34.9,
@@ -718,7 +718,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675630+00:00"
+      "tarih": "2026-07-15T09:55:59.395874+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Perşembe → FULL=2.618": {
       "wr": 34.9,
@@ -730,7 +730,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675633+00:00"
+      "tarih": "2026-07-15T09:55:59.395877+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·haftaiçi → FULL=-1.618": {
       "wr": 37.1,
@@ -742,7 +742,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675644+00:00"
+      "tarih": "2026-07-15T09:55:59.395879+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Pazartesi → FULL=2.618": {
       "wr": 34.7,
@@ -754,7 +754,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675646+00:00"
+      "tarih": "2026-07-15T09:55:59.395882+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Cumartesi → TP1=1.618": {
       "wr": 70.3,
@@ -766,7 +766,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675649+00:00"
+      "tarih": "2026-07-15T09:55:59.395884+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Pazartesi → TP1=-0.618": {
       "wr": 71.8,
@@ -778,7 +778,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675651+00:00"
+      "tarih": "2026-07-15T09:55:59.395886+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Salı → FULL=2.618": {
       "wr": 34.6,
@@ -790,7 +790,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675653+00:00"
+      "tarih": "2026-07-15T09:55:59.395888+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Cuma → TP1=1.618": {
       "wr": 70.1,
@@ -802,7 +802,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675655+00:00"
+      "tarih": "2026-07-15T09:55:59.395890+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Çarşamba → TP1=1.618": {
       "wr": 70.1,
@@ -814,7 +814,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675657+00:00"
+      "tarih": "2026-07-15T09:55:59.395893+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Cuma → FULL=-1.618": {
       "wr": 36.7,
@@ -826,7 +826,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675659+00:00"
+      "tarih": "2026-07-15T09:55:59.395895+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Salı → FULL=-1.618": {
       "wr": 36.6,
@@ -838,7 +838,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675661+00:00"
+      "tarih": "2026-07-15T09:55:59.395897+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·hepsi → TP1=1.618": {
       "wr": 69.8,
@@ -850,7 +850,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675663+00:00"
+      "tarih": "2026-07-15T09:55:59.395899+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Pazar → FULL=-1.618": {
       "wr": 36.4,
@@ -862,7 +862,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675665+00:00"
+      "tarih": "2026-07-15T09:55:59.395902+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Cumartesi → TP1=1.618": {
       "wr": 69.4,
@@ -874,7 +874,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675667+00:00"
+      "tarih": "2026-07-15T09:55:59.395904+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Pazar → TP1=-0.618": {
       "wr": 70.9,
@@ -886,7 +886,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675670+00:00"
+      "tarih": "2026-07-15T09:55:59.395906+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Salı → FULL=2.618": {
       "wr": 33.7,
@@ -898,7 +898,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675672+00:00"
+      "tarih": "2026-07-15T09:55:59.395908+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Perşembe → FULL=2.618": {
       "wr": 33.7,
@@ -910,7 +910,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675674+00:00"
+      "tarih": "2026-07-15T09:55:59.395913+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Cuma → TP1=1.618": {
       "wr": 69.3,
@@ -922,7 +922,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675676+00:00"
+      "tarih": "2026-07-15T09:55:59.395915+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Pazar → FULL=2.618": {
       "wr": 33.7,
@@ -934,7 +934,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675678+00:00"
+      "tarih": "2026-07-15T09:55:59.395917+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·haftaiçi → FULL=2.618": {
       "wr": 33.6,
@@ -946,7 +946,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675680+00:00"
+      "tarih": "2026-07-15T09:55:59.395920+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·haftaiçi → TP1=1.618": {
       "wr": 69.0,
@@ -958,7 +958,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675683+00:00"
+      "tarih": "2026-07-15T09:55:59.395922+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Pazartesi → TP1=1.618": {
       "wr": 69.0,
@@ -970,7 +970,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675693+00:00"
+      "tarih": "2026-07-15T09:55:59.395925+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Pazar → TP1=1.618": {
       "wr": 69.0,
@@ -982,7 +982,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675696+00:00"
+      "tarih": "2026-07-15T09:55:59.395928+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Cuma → TP1=1.618": {
       "wr": 69.0,
@@ -994,7 +994,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675698+00:00"
+      "tarih": "2026-07-15T09:55:59.395930+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·hepsi → FULL=-1.618": {
       "wr": 35.7,
@@ -1006,7 +1006,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675701+00:00"
+      "tarih": "2026-07-15T09:55:59.395932+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Çarşamba → FULL=2.618": {
       "wr": 33.3,
@@ -1018,7 +1018,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675703+00:00"
+      "tarih": "2026-07-15T09:55:59.395935+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Pazar → TP1=-0.618": {
       "wr": 70.4,
@@ -1030,7 +1030,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675706+00:00"
+      "tarih": "2026-07-15T09:55:59.395937+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Çarşamba → TP1=-0.618": {
       "wr": 70.3,
@@ -1042,7 +1042,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675709+00:00"
+      "tarih": "2026-07-15T09:55:59.395940+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Salı → FULL=-1.618": {
       "wr": 35.5,
@@ -1054,7 +1054,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675711+00:00"
+      "tarih": "2026-07-15T09:55:59.395942+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Cuma → FULL=2.618": {
       "wr": 33.1,
@@ -1066,7 +1066,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675713+00:00"
+      "tarih": "2026-07-15T09:55:59.395944+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·haftasonu → FULL=2.618": {
       "wr": 33.1,
@@ -1078,7 +1078,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675716+00:00"
+      "tarih": "2026-07-15T09:55:59.395946+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·haftaiçi → TP1=-0.618": {
       "wr": 70.2,
@@ -1090,7 +1090,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675718+00:00"
+      "tarih": "2026-07-15T09:55:59.395949+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Salı → TP1=-0.618": {
       "wr": 70.2,
@@ -1102,7 +1102,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675720+00:00"
+      "tarih": "2026-07-15T09:55:59.395951+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·haftaiçi → FULL=2.618": {
       "wr": 33.0,
@@ -1114,7 +1114,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675723+00:00"
+      "tarih": "2026-07-15T09:55:59.395954+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Çarşamba → TP1=1.618": {
       "wr": 68.6,
@@ -1126,7 +1126,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675725+00:00"
+      "tarih": "2026-07-15T09:55:59.395956+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Perşembe → TP1=-0.618": {
       "wr": 70.1,
@@ -1138,7 +1138,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675727+00:00"
+      "tarih": "2026-07-15T09:55:59.395959+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·hepsi → FULL=2.618": {
       "wr": 32.7,
@@ -1150,7 +1150,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675729+00:00"
+      "tarih": "2026-07-15T09:55:59.395961+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Çarşamba → TP1=1.618": {
       "wr": 68.3,
@@ -1162,7 +1162,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675732+00:00"
+      "tarih": "2026-07-15T09:55:59.395963+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·haftaiçi → TP1=1.618": {
       "wr": 68.2,
@@ -1174,7 +1174,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675734+00:00"
+      "tarih": "2026-07-15T09:55:59.395966+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Salı → TP1=1.618": {
       "wr": 68.2,
@@ -1186,7 +1186,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675736+00:00"
+      "tarih": "2026-07-15T09:55:59.395968+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Cumartesi → FULL=2.618": {
       "wr": 32.4,
@@ -1198,7 +1198,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675738+00:00"
+      "tarih": "2026-07-15T09:55:59.395970+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·hepsi → FULL=-1.618": {
       "wr": 34.6,
@@ -1210,7 +1210,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675741+00:00"
+      "tarih": "2026-07-15T09:55:59.395972+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·hepsi → FULL=2.618": {
       "wr": 32.0,
@@ -1222,7 +1222,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675743+00:00"
+      "tarih": "2026-07-15T09:55:59.395975+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·haftasonu → FULL=2.618": {
       "wr": 31.9,
@@ -1234,7 +1234,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675745+00:00"
+      "tarih": "2026-07-15T09:55:59.395977+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Pazartesi → TP1=1.618": {
       "wr": 67.5,
@@ -1246,7 +1246,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675747+00:00"
+      "tarih": "2026-07-15T09:55:59.395980+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Cuma → TP1=-0.618": {
       "wr": 68.9,
@@ -1258,7 +1258,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675749+00:00"
+      "tarih": "2026-07-15T09:55:59.395982+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Cuma → FULL=-1.618": {
       "wr": 34.1,
@@ -1270,7 +1270,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675752+00:00"
+      "tarih": "2026-07-15T09:55:59.395984+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Çarşamba → FULL=2.618": {
       "wr": 31.7,
@@ -1282,7 +1282,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675754+00:00"
+      "tarih": "2026-07-15T09:55:59.395986+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·hepsi → FULL=2.618": {
       "wr": 31.6,
@@ -1294,7 +1294,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675756+00:00"
+      "tarih": "2026-07-15T09:55:59.395988+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·haftasonu → TP1=1.618": {
       "wr": 67.1,
@@ -1306,7 +1306,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675759+00:00"
+      "tarih": "2026-07-15T09:55:59.395991+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Çarşamba → TP1=-0.618": {
       "wr": 68.5,
@@ -1318,7 +1318,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675761+00:00"
+      "tarih": "2026-07-15T09:55:59.395994+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Cuma → FULL=2.618": {
       "wr": 31.2,
@@ -1330,7 +1330,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675763+00:00"
+      "tarih": "2026-07-15T09:55:59.395996+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Cuma → FULL=-1.618": {
       "wr": 33.5,
@@ -1342,7 +1342,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675766+00:00"
+      "tarih": "2026-07-15T09:55:59.395999+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·haftaiçi → TP1=1.618": {
       "wr": 66.7,
@@ -1354,7 +1354,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675768+00:00"
+      "tarih": "2026-07-15T09:55:59.396016+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·hepsi → TP1=-0.618": {
       "wr": 68.2,
@@ -1366,7 +1366,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675770+00:00"
+      "tarih": "2026-07-15T09:55:59.396018+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Çarşamba → FULL=2.618": {
       "wr": 31.0,
@@ -1378,7 +1378,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675782+00:00"
+      "tarih": "2026-07-15T09:55:59.396020+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Salı → FULL=2.618": {
       "wr": 31.0,
@@ -1390,7 +1390,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675784+00:00"
+      "tarih": "2026-07-15T09:55:59.396022+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Çarşamba → FULL=-1.618": {
       "wr": 33.2,
@@ -1402,7 +1402,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675787+00:00"
+      "tarih": "2026-07-15T09:55:59.396025+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·hepsi → TP1=1.618": {
       "wr": 66.4,
@@ -1414,7 +1414,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675790+00:00"
+      "tarih": "2026-07-15T09:55:59.396027+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·haftasonu → TP1=-0.618": {
       "wr": 67.9,
@@ -1426,7 +1426,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675792+00:00"
+      "tarih": "2026-07-15T09:55:59.396030+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik1-2·Perşembe → FULL=2.618": {
       "wr": 30.7,
@@ -1438,7 +1438,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675794+00:00"
+      "tarih": "2026-07-15T09:55:59.396032+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Pazar → TP1=1.618": {
       "wr": 66.2,
@@ -1450,7 +1450,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675797+00:00"
+      "tarih": "2026-07-15T09:55:59.396034+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Pazar → FULL=-1.618": {
       "wr": 32.8,
@@ -1462,7 +1462,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675799+00:00"
+      "tarih": "2026-07-15T09:55:59.396053+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Pazar → FULL=2.618": {
       "wr": 30.3,
@@ -1474,7 +1474,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675801+00:00"
+      "tarih": "2026-07-15T09:55:59.396055+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Salı → TP1=-0.618": {
       "wr": 67.3,
@@ -1486,7 +1486,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675803+00:00"
+      "tarih": "2026-07-15T09:55:59.396057+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Çarşamba → FULL=2.618": {
       "wr": 30.1,
@@ -1498,7 +1498,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675806+00:00"
+      "tarih": "2026-07-15T09:55:59.396060+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Pazar → TP1=-0.618": {
       "wr": 67.2,
@@ -1510,7 +1510,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675808+00:00"
+      "tarih": "2026-07-15T09:55:59.396062+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Perşembe → FULL=2.618": {
       "wr": 30.0,
@@ -1522,7 +1522,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675810+00:00"
+      "tarih": "2026-07-15T09:55:59.396065+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Pazartesi → FULL=2.618": {
       "wr": 30.0,
@@ -1534,7 +1534,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675812+00:00"
+      "tarih": "2026-07-15T09:55:59.396067+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Çarşamba → FULL=-1.618": {
       "wr": 32.3,
@@ -1546,7 +1546,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675814+00:00"
+      "tarih": "2026-07-15T09:55:59.396069+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Perşembe → TP1=-0.618": {
       "wr": 67.1,
@@ -1558,7 +1558,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675817+00:00"
+      "tarih": "2026-07-15T09:55:59.396071+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Çarşamba → FULL=-1.618": {
       "wr": 32.3,
@@ -1570,7 +1570,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675819+00:00"
+      "tarih": "2026-07-15T09:55:59.396073+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·haftaiçi → FULL=2.618": {
       "wr": 29.9,
@@ -1582,7 +1582,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675821+00:00"
+      "tarih": "2026-07-15T09:55:59.396075+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Çarşamba → TP1=-0.618": {
       "wr": 67.0,
@@ -1594,7 +1594,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675823+00:00"
+      "tarih": "2026-07-15T09:55:59.396077+00:00"
     },
     "Üst ekstrem temas·genlik1-2 → 0.5 fade": {
       "wr": 39.1,
@@ -1606,7 +1606,7 @@
       "karar": "kazanan",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675834+00:00"
+      "tarih": "2026-07-15T09:55:59.396080+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Cuma → FULL=2.618": {
       "wr": 29.7,
@@ -1618,7 +1618,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675837+00:00"
+      "tarih": "2026-07-15T09:55:59.396082+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Salı → TP1=1.618": {
       "wr": 65.2,
@@ -1630,7 +1630,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675839+00:00"
+      "tarih": "2026-07-15T09:55:59.396084+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Pazartesi → TP1=1.618": {
       "wr": 65.1,
@@ -1642,7 +1642,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675841+00:00"
+      "tarih": "2026-07-15T09:55:59.396086+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Perşembe → TP1=1.618": {
       "wr": 65.1,
@@ -1654,7 +1654,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675843+00:00"
+      "tarih": "2026-07-15T09:55:59.396088+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Perşembe → TP1=1.618": {
       "wr": 65.0,
@@ -1666,7 +1666,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675845+00:00"
+      "tarih": "2026-07-15T09:55:59.396091+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Perşembe → TP1=-0.618": {
       "wr": 66.5,
@@ -1678,7 +1678,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675847+00:00"
+      "tarih": "2026-07-15T09:55:59.396093+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·hepsi → TP1=1.618": {
       "wr": 64.9,
@@ -1690,7 +1690,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675850+00:00"
+      "tarih": "2026-07-15T09:55:59.396095+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·hepsi → TP1=1.618": {
       "wr": 64.9,
@@ -1702,7 +1702,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675852+00:00"
+      "tarih": "2026-07-15T09:55:59.396097+00:00"
     },
     "Alt ekstrem temas·genlik1-2 → 0.5 fade": {
       "wr": 42.0,
@@ -1714,7 +1714,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675854+00:00"
+      "tarih": "2026-07-15T09:55:59.396099+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·haftasonu → TP1=1.618": {
       "wr": 64.6,
@@ -1726,7 +1726,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675856+00:00"
+      "tarih": "2026-07-15T09:55:59.396102+00:00"
     },
     "Cumartesi·Asia-HIGH kırılım → hafta bull": {
       "wr": 56.3,
@@ -1738,7 +1738,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675859+00:00"
+      "tarih": "2026-07-15T09:55:59.396104+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Pazar → FULL=2.618": {
       "wr": 28.6,
@@ -1750,7 +1750,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675861+00:00"
+      "tarih": "2026-07-15T09:55:59.396106+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Perşembe → TP1=1.618": {
       "wr": 64.1,
@@ -1762,7 +1762,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675863+00:00"
+      "tarih": "2026-07-15T09:55:59.396108+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·Pazar → FULL=-1.618": {
       "wr": 30.6,
@@ -1774,7 +1774,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675865+00:00"
+      "tarih": "2026-07-15T09:55:59.396110+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Pazar → FULL=2.618": {
       "wr": 28.2,
@@ -1786,7 +1786,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675867+00:00"
+      "tarih": "2026-07-15T09:55:59.396112+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik1-2·Cumartesi → FULL=2.618": {
       "wr": 28.2,
@@ -1798,7 +1798,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675869+00:00"
+      "tarih": "2026-07-15T09:55:59.396115+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Çarşamba → FULL=2.618": {
       "wr": 28.1,
@@ -1810,7 +1810,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675871+00:00"
+      "tarih": "2026-07-15T09:55:59.396117+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Cuma → TP1=1.618": {
       "wr": 63.7,
@@ -1822,7 +1822,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675874+00:00"
+      "tarih": "2026-07-15T09:55:59.396119+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·hepsi → TP1=-0.618": {
       "wr": 65.2,
@@ -1834,7 +1834,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675876+00:00"
+      "tarih": "2026-07-15T09:55:59.396122+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Pazartesi → TP1=1.618": {
       "wr": 63.6,
@@ -1846,7 +1846,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675878+00:00"
+      "tarih": "2026-07-15T09:55:59.396124+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·haftaiçi → TP1=1.618": {
       "wr": 63.4,
@@ -1858,7 +1858,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675880+00:00"
+      "tarih": "2026-07-15T09:55:59.396126+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Pazartesi → TP1=1.618": {
       "wr": 63.3,
@@ -1870,7 +1870,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675882+00:00"
+      "tarih": "2026-07-15T09:55:59.396128+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Pazartesi → FULL=2.618": {
       "wr": 27.7,
@@ -1882,7 +1882,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675885+00:00"
+      "tarih": "2026-07-15T09:55:59.396131+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Pazartesi → TP1=-0.618": {
       "wr": 64.8,
@@ -1894,7 +1894,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675887+00:00"
+      "tarih": "2026-07-15T09:55:59.396133+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·haftasonu → FULL=-1.618": {
       "wr": 29.9,
@@ -1906,7 +1906,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675889+00:00"
+      "tarih": "2026-07-15T09:55:59.396135+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Pazar → FULL=2.618": {
       "wr": 27.5,
@@ -1918,7 +1918,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675891+00:00"
+      "tarih": "2026-07-15T09:55:59.396138+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·haftaiçi → TP1=-0.618": {
       "wr": 64.6,
@@ -1930,7 +1930,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675893+00:00"
+      "tarih": "2026-07-15T09:55:59.396140+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Pazar → TP1=-0.618": {
       "wr": 64.5,
@@ -1942,7 +1942,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675896+00:00"
+      "tarih": "2026-07-15T09:55:59.396142+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·haftasonu → TP1=-0.618": {
       "wr": 64.5,
@@ -1954,7 +1954,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675898+00:00"
+      "tarih": "2026-07-15T09:55:59.396145+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Çarşamba → TP1=1.618": {
       "wr": 62.9,
@@ -1966,7 +1966,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675900+00:00"
+      "tarih": "2026-07-15T09:55:59.396147+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·hepsi → FULL=2.618": {
       "wr": 27.3,
@@ -1978,7 +1978,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675902+00:00"
+      "tarih": "2026-07-15T09:55:59.396150+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Çarşamba → TP1=1.618": {
       "wr": 62.8,
@@ -1990,7 +1990,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675904+00:00"
+      "tarih": "2026-07-15T09:55:59.396152+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Cuma → TP1=-0.618": {
       "wr": 64.3,
@@ -2002,7 +2002,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675906+00:00"
+      "tarih": "2026-07-15T09:55:59.396154+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Çarşamba → FULL=2.618": {
       "wr": 27.1,
@@ -2014,7 +2014,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675908+00:00"
+      "tarih": "2026-07-15T09:55:59.396156+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Cumartesi → TP1=1.618": {
       "wr": 62.7,
@@ -2026,7 +2026,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675911+00:00"
+      "tarih": "2026-07-15T09:55:59.396158+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Perşembe → TP1=-0.618": {
       "wr": 64.2,
@@ -2038,7 +2038,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675913+00:00"
+      "tarih": "2026-07-15T09:55:59.396160+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Cuma → TP1=1.618": {
       "wr": 62.6,
@@ -2050,7 +2050,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675915+00:00"
+      "tarih": "2026-07-15T09:55:59.396163+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Pazartesi → FULL=2.618": {
       "wr": 26.9,
@@ -2062,7 +2062,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675919+00:00"
+      "tarih": "2026-07-15T09:55:59.396165+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Cuma → TP1=1.618": {
       "wr": 62.4,
@@ -2074,7 +2074,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675922+00:00"
+      "tarih": "2026-07-15T09:55:59.396167+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Pazartesi → FULL=2.618": {
       "wr": 26.8,
@@ -2086,7 +2086,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675924+00:00"
+      "tarih": "2026-07-15T09:55:59.396169+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·haftasonu → FULL=2.618": {
       "wr": 26.8,
@@ -2098,7 +2098,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675925+00:00"
+      "tarih": "2026-07-15T09:55:59.396171+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Cumartesi → TP1=-0.618": {
       "wr": 63.9,
@@ -2110,7 +2110,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675928+00:00"
+      "tarih": "2026-07-15T09:55:59.396174+00:00"
     },
     "Cuma·Asia-HIGH kırılım → hafta bull": {
       "wr": 54.2,
@@ -2122,7 +2122,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675930+00:00"
+      "tarih": "2026-07-15T09:55:59.396176+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik1-2·haftasonu → FULL=-1.618": {
       "wr": 29.0,
@@ -2134,7 +2134,7 @@
       "karar": "marjinal",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675932+00:00"
+      "tarih": "2026-07-15T09:55:59.396178+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Pazar → FULL=-1.618": {
       "wr": 28.9,
@@ -2146,7 +2146,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675934+00:00"
+      "tarih": "2026-07-15T09:55:59.396180+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Perşembe → FULL=2.618": {
       "wr": 26.4,
@@ -2158,7 +2158,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675936+00:00"
+      "tarih": "2026-07-15T09:55:59.396183+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·haftaiçi → FULL=2.618": {
       "wr": 26.3,
@@ -2170,7 +2170,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675938+00:00"
+      "tarih": "2026-07-15T09:55:59.396185+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·hepsi → FULL=2.618": {
       "wr": 26.3,
@@ -2182,7 +2182,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675940+00:00"
+      "tarih": "2026-07-15T09:55:59.396187+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Salı → TP1=1.618": {
       "wr": 61.9,
@@ -2194,7 +2194,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675943+00:00"
+      "tarih": "2026-07-15T09:55:59.396189+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Cuma → FULL=-1.618": {
       "wr": 28.6,
@@ -2206,7 +2206,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675945+00:00"
+      "tarih": "2026-07-15T09:55:59.396191+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·hepsi → TP1=-0.618": {
       "wr": 63.4,
@@ -2218,7 +2218,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675947+00:00"
+      "tarih": "2026-07-15T09:55:59.396194+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Pazar → TP1=1.618": {
       "wr": 61.8,
@@ -2230,7 +2230,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675949+00:00"
+      "tarih": "2026-07-15T09:55:59.396196+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·haftasonu → TP1=1.618": {
       "wr": 61.7,
@@ -2242,7 +2242,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675951+00:00"
+      "tarih": "2026-07-15T09:55:59.396198+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·haftaiçi → TP1=-0.618": {
       "wr": 63.2,
@@ -2254,7 +2254,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675954+00:00"
+      "tarih": "2026-07-15T09:55:59.396200+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·haftasonu → FULL=2.618": {
       "wr": 26.0,
@@ -2266,7 +2266,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675956+00:00"
+      "tarih": "2026-07-15T09:55:59.396202+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Cumartesi → TP1=1.618": {
       "wr": 61.6,
@@ -2278,7 +2278,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675958+00:00"
+      "tarih": "2026-07-15T09:55:59.396205+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Pazartesi → TP1=-0.618": {
       "wr": 63.1,
@@ -2290,7 +2290,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675960+00:00"
+      "tarih": "2026-07-15T09:55:59.396207+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·hepsi → TP1=1.618": {
       "wr": 61.5,
@@ -2302,7 +2302,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675962+00:00"
+      "tarih": "2026-07-15T09:55:59.396209+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·haftasonu → FULL=2.618": {
       "wr": 25.9,
@@ -2314,7 +2314,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675965+00:00"
+      "tarih": "2026-07-15T09:55:59.396211+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Cumartesi → TP1=-0.618": {
       "wr": 63.0,
@@ -2326,7 +2326,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675967+00:00"
+      "tarih": "2026-07-15T09:55:59.396214+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Çarşamba → TP1=-0.618": {
       "wr": 62.9,
@@ -2338,7 +2338,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675969+00:00"
+      "tarih": "2026-07-15T09:55:59.396216+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·haftaiçi → FULL=2.618": {
       "wr": 25.7,
@@ -2350,7 +2350,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675971+00:00"
+      "tarih": "2026-07-15T09:55:59.396219+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Çarşamba → FULL=2.618": {
       "wr": 25.7,
@@ -2362,7 +2362,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675973+00:00"
+      "tarih": "2026-07-15T09:55:59.396221+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·hepsi → TP1=1.618": {
       "wr": 61.3,
@@ -2374,7 +2374,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675975+00:00"
+      "tarih": "2026-07-15T09:55:59.396223+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·haftaiçi → FULL=-1.618": {
       "wr": 27.9,
@@ -2386,7 +2386,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675978+00:00"
+      "tarih": "2026-07-15T09:55:59.396225+00:00"
     },
     "haftasonu·Asia-HIGH kırılım → hafta bull": {
       "wr": 53.0,
@@ -2398,7 +2398,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675980+00:00"
+      "tarih": "2026-07-15T09:55:59.396228+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Pazar → TP1=1.618": {
       "wr": 61.1,
@@ -2410,7 +2410,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675983+00:00"
+      "tarih": "2026-07-15T09:55:59.396230+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·haftaiçi → TP1=-0.618": {
       "wr": 62.6,
@@ -2422,7 +2422,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675985+00:00"
+      "tarih": "2026-07-15T09:55:59.396233+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Perşembe → FULL=-1.618": {
       "wr": 27.8,
@@ -2434,7 +2434,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675987+00:00"
+      "tarih": "2026-07-15T09:55:59.396235+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Pazar → FULL=-1.618": {
       "wr": 27.8,
@@ -2446,7 +2446,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675989+00:00"
+      "tarih": "2026-07-15T09:55:59.396237+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·haftasonu → FULL=2.618": {
       "wr": 25.4,
@@ -2458,7 +2458,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675991+00:00"
+      "tarih": "2026-07-15T09:55:59.396239+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·haftasonu → TP1=-0.618": {
       "wr": 62.5,
@@ -2470,7 +2470,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675993+00:00"
+      "tarih": "2026-07-15T09:55:59.396241+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Cuma → FULL=-1.618": {
       "wr": 27.7,
@@ -2482,7 +2482,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675995+00:00"
+      "tarih": "2026-07-15T09:55:59.396244+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Çarşamba → FULL=2.618": {
       "wr": 25.2,
@@ -2494,7 +2494,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.675998+00:00"
+      "tarih": "2026-07-15T09:55:59.396261+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Salı → TP1=1.618": {
       "wr": 60.8,
@@ -2506,7 +2506,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676000+00:00"
+      "tarih": "2026-07-15T09:55:59.396263+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Pazartesi → TP1=-0.618": {
       "wr": 62.3,
@@ -2518,7 +2518,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676002+00:00"
+      "tarih": "2026-07-15T09:55:59.396265+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·haftaiçi → TP1=1.618": {
       "wr": 60.7,
@@ -2530,7 +2530,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676005+00:00"
+      "tarih": "2026-07-15T09:55:59.396268+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Çarşamba → TP1=-0.618": {
       "wr": 62.2,
@@ -2542,7 +2542,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676007+00:00"
+      "tarih": "2026-07-15T09:55:59.396270+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Cuma → TP1=-0.618": {
       "wr": 62.2,
@@ -2554,7 +2554,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676009+00:00"
+      "tarih": "2026-07-15T09:55:59.396273+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Cumartesi → FULL=2.618": {
       "wr": 25.0,
@@ -2566,7 +2566,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676011+00:00"
+      "tarih": "2026-07-15T09:55:59.396275+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·haftasonu → TP1=1.618": {
       "wr": 60.5,
@@ -2578,7 +2578,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676014+00:00"
+      "tarih": "2026-07-15T09:55:59.396277+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Pazar → FULL=2.618": {
       "wr": 24.8,
@@ -2590,7 +2590,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676016+00:00"
+      "tarih": "2026-07-15T09:55:59.396279+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·hepsi → TP1=1.618": {
       "wr": 60.3,
@@ -2602,7 +2602,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676018+00:00"
+      "tarih": "2026-07-15T09:55:59.396282+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·hepsi → FULL=2.618": {
       "wr": 24.7,
@@ -2614,7 +2614,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676020+00:00"
+      "tarih": "2026-07-15T09:55:59.396284+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Perşembe → TP1=1.618": {
       "wr": 60.3,
@@ -2626,7 +2626,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676022+00:00"
+      "tarih": "2026-07-15T09:55:59.396286+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·hepsi → TP1=-0.618": {
       "wr": 61.8,
@@ -2638,7 +2638,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676025+00:00"
+      "tarih": "2026-07-15T09:55:59.396289+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·hepsi → FULL=-1.618": {
       "wr": 27.0,
@@ -2650,7 +2650,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676027+00:00"
+      "tarih": "2026-07-15T09:55:59.396291+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Pazartesi → FULL=-1.618": {
       "wr": 27.0,
@@ -2662,7 +2662,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676029+00:00"
+      "tarih": "2026-07-15T09:55:59.396293+00:00"
     },
     "hepsi·Asia-HIGH kırılım → hafta bull": {
       "wr": 52.1,
@@ -2674,7 +2674,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676037+00:00"
+      "tarih": "2026-07-15T09:55:59.396295+00:00"
     },
     "Üst ekstrem temas·genlik≥%1 → 0.5 fade": {
       "wr": 33.9,
@@ -2686,7 +2686,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676039+00:00"
+      "tarih": "2026-07-15T09:55:59.396298+00:00"
     },
     "Alt ekstrem temas·genlik≥%1 → 0.5 fade": {
       "wr": 37.5,
@@ -2698,7 +2698,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676041+00:00"
+      "tarih": "2026-07-15T09:55:59.396300+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·hepsi → FULL=2.618": {
       "wr": 24.6,
@@ -2710,7 +2710,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676043+00:00"
+      "tarih": "2026-07-15T09:55:59.396302+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·haftaiçi → TP1=1.618": {
       "wr": 60.2,
@@ -2722,7 +2722,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676045+00:00"
+      "tarih": "2026-07-15T09:55:59.396304+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Perşembe → TP1=-0.618": {
       "wr": 61.7,
@@ -2734,7 +2734,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676047+00:00"
+      "tarih": "2026-07-15T09:55:59.396307+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Cumartesi → FULL=-1.618": {
       "wr": 26.9,
@@ -2746,7 +2746,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676049+00:00"
+      "tarih": "2026-07-15T09:55:59.396309+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Çarşamba → TP1=1.618": {
       "wr": 60.1,
@@ -2758,7 +2758,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676051+00:00"
+      "tarih": "2026-07-15T09:55:59.396311+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Cuma → FULL=-1.618": {
       "wr": 26.8,
@@ -2770,7 +2770,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676053+00:00"
+      "tarih": "2026-07-15T09:55:59.396313+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·haftaiçi → FULL=-1.618": {
       "wr": 26.8,
@@ -2782,7 +2782,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676055+00:00"
+      "tarih": "2026-07-15T09:55:59.396316+00:00"
     },
     "Pazartesi·Asia-HIGH kırılım → hafta bull": {
       "wr": 51.9,
@@ -2794,7 +2794,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676057+00:00"
+      "tarih": "2026-07-15T09:55:59.396318+00:00"
     },
     "Salı·Asia-HIGH kırılım → hafta bull": {
       "wr": 51.9,
@@ -2806,7 +2806,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676060+00:00"
+      "tarih": "2026-07-15T09:55:59.396320+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Pazar → TP1=1.618": {
       "wr": 60.0,
@@ -2818,7 +2818,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676062+00:00"
+      "tarih": "2026-07-15T09:55:59.396323+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·haftaiçi → FULL=2.618": {
       "wr": 24.4,
@@ -2830,7 +2830,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676064+00:00"
+      "tarih": "2026-07-15T09:55:59.396325+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Cumartesi → TP1=1.618": {
       "wr": 60.0,
@@ -2842,7 +2842,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676066+00:00"
+      "tarih": "2026-07-15T09:55:59.396327+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Cumartesi → TP1=-0.618": {
       "wr": 61.5,
@@ -2854,7 +2854,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676068+00:00"
+      "tarih": "2026-07-15T09:55:59.396330+00:00"
     },
     "haftaiçi·Asia-HIGH kırılım → hafta bull": {
       "wr": 51.8,
@@ -2866,7 +2866,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676070+00:00"
+      "tarih": "2026-07-15T09:55:59.396332+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·haftaiçi → FULL=-1.618": {
       "wr": 26.6,
@@ -2878,7 +2878,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676072+00:00"
+      "tarih": "2026-07-15T09:55:59.396334+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·hepsi → FULL=-1.618": {
       "wr": 26.6,
@@ -2890,7 +2890,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676074+00:00"
+      "tarih": "2026-07-15T09:55:59.396337+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·haftasonu → FULL=-1.618": {
       "wr": 26.5,
@@ -2902,7 +2902,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676077+00:00"
+      "tarih": "2026-07-15T09:55:59.396339+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·hepsi → FULL=-1.618": {
       "wr": 26.4,
@@ -2914,7 +2914,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676079+00:00"
+      "tarih": "2026-07-15T09:55:59.396341+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Cumartesi → FULL=-1.618": {
       "wr": 26.4,
@@ -2926,7 +2926,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676081+00:00"
+      "tarih": "2026-07-15T09:55:59.396343+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Pazartesi → FULL=-1.618": {
       "wr": 26.3,
@@ -2938,7 +2938,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676083+00:00"
+      "tarih": "2026-07-15T09:55:59.396345+00:00"
     },
     "Çarşamba·Asia-HIGH kırılım → hafta bull": {
       "wr": 51.2,
@@ -2950,7 +2950,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676085+00:00"
+      "tarih": "2026-07-15T09:55:59.396347+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Cuma → FULL=2.618": {
       "wr": 23.7,
@@ -2962,7 +2962,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676087+00:00"
+      "tarih": "2026-07-15T09:55:59.396350+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Perşembe → FULL=-1.618": {
       "wr": 26.0,
@@ -2974,7 +2974,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676089+00:00"
+      "tarih": "2026-07-15T09:55:59.396352+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Pazartesi → TP1=1.618": {
       "wr": 59.1,
@@ -2986,7 +2986,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676091+00:00"
+      "tarih": "2026-07-15T09:55:59.396354+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·haftasonu → TP1=1.618": {
       "wr": 59.0,
@@ -2998,7 +2998,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676093+00:00"
+      "tarih": "2026-07-15T09:55:59.396356+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·haftasonu → FULL=-1.618": {
       "wr": 25.6,
@@ -3010,7 +3010,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676104+00:00"
+      "tarih": "2026-07-15T09:55:59.396358+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Perşembe → TP1=1.618": {
       "wr": 58.8,
@@ -3022,7 +3022,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676106+00:00"
+      "tarih": "2026-07-15T09:55:59.396361+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Çarşamba → FULL=2.618": {
       "wr": 23.2,
@@ -3034,7 +3034,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676108+00:00"
+      "tarih": "2026-07-15T09:55:59.396363+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Pazartesi → FULL=-1.618": {
       "wr": 25.5,
@@ -3046,7 +3046,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676110+00:00"
+      "tarih": "2026-07-15T09:55:59.396365+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Cumartesi → TP1=-0.618": {
       "wr": 60.3,
@@ -3058,7 +3058,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676113+00:00"
+      "tarih": "2026-07-15T09:55:59.396367+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Perşembe → FULL=2.618": {
       "wr": 23.1,
@@ -3070,7 +3070,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676115+00:00"
+      "tarih": "2026-07-15T09:55:59.396369+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Perşembe → FULL=2.618": {
       "wr": 23.0,
@@ -3082,7 +3082,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676117+00:00"
+      "tarih": "2026-07-15T09:55:59.396371+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Cumartesi → FULL=2.618": {
       "wr": 22.8,
@@ -3094,7 +3094,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676119+00:00"
+      "tarih": "2026-07-15T09:55:59.396374+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥%1·Salı → FULL=2.618": {
       "wr": 22.8,
@@ -3106,7 +3106,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676121+00:00"
+      "tarih": "2026-07-15T09:55:59.396376+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Perşembe → TP1=-0.618": {
       "wr": 59.9,
@@ -3118,7 +3118,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676124+00:00"
+      "tarih": "2026-07-15T09:55:59.396379+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·haftasonu → FULL=-1.618": {
       "wr": 25.1,
@@ -3130,7 +3130,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676126+00:00"
+      "tarih": "2026-07-15T09:55:59.396381+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Perşembe → TP1=-0.618": {
       "wr": 59.7,
@@ -3142,7 +3142,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676129+00:00"
+      "tarih": "2026-07-15T09:55:59.396383+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Salı → TP1=-0.618": {
       "wr": 59.7,
@@ -3154,7 +3154,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676131+00:00"
+      "tarih": "2026-07-15T09:55:59.396385+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Cuma → FULL=2.618": {
       "wr": 22.4,
@@ -3166,7 +3166,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676133+00:00"
+      "tarih": "2026-07-15T09:55:59.396387+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Cuma → FULL=2.618": {
       "wr": 22.4,
@@ -3178,7 +3178,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676135+00:00"
+      "tarih": "2026-07-15T09:55:59.396390+00:00"
     },
     "Pazar·Asia-HIGH kırılım → hafta bull": {
       "wr": 49.8,
@@ -3190,7 +3190,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676137+00:00"
+      "tarih": "2026-07-15T09:55:59.396392+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Cuma → TP1=-0.618": {
       "wr": 59.4,
@@ -3202,7 +3202,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676139+00:00"
+      "tarih": "2026-07-15T09:55:59.396394+00:00"
     },
     "Perşembe·Asia-HIGH kırılım → hafta bull": {
       "wr": 49.7,
@@ -3214,7 +3214,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676149+00:00"
+      "tarih": "2026-07-15T09:55:59.396396+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Perşembe → TP1=1.618": {
       "wr": 57.8,
@@ -3226,7 +3226,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676151+00:00"
+      "tarih": "2026-07-15T09:55:59.396398+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Salı → FULL=-1.618": {
       "wr": 24.5,
@@ -3238,7 +3238,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676153+00:00"
+      "tarih": "2026-07-15T09:55:59.396400+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Salı → FULL=2.618": {
       "wr": 22.1,
@@ -3250,7 +3250,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676155+00:00"
+      "tarih": "2026-07-15T09:55:59.396403+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·haftasonu → TP1=-0.618": {
       "wr": 59.2,
@@ -3262,7 +3262,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676167+00:00"
+      "tarih": "2026-07-15T09:55:59.396405+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Pazartesi → TP1=1.618": {
       "wr": 57.6,
@@ -3274,7 +3274,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676169+00:00"
+      "tarih": "2026-07-15T09:55:59.396407+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Pazar → FULL=-1.618": {
       "wr": 24.3,
@@ -3286,7 +3286,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676171+00:00"
+      "tarih": "2026-07-15T09:55:59.396409+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Çarşamba → FULL=-1.618": {
       "wr": 24.2,
@@ -3298,7 +3298,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676173+00:00"
+      "tarih": "2026-07-15T09:55:59.396411+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Perşembe → FULL=-1.618": {
       "wr": 24.2,
@@ -3310,7 +3310,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676175+00:00"
+      "tarih": "2026-07-15T09:55:59.396413+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Pazartesi → FULL=2.618": {
       "wr": 21.8,
@@ -3322,7 +3322,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676177+00:00"
+      "tarih": "2026-07-15T09:55:59.396415+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·haftasonu → FULL=-1.618": {
       "wr": 24.1,
@@ -3334,7 +3334,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676179+00:00"
+      "tarih": "2026-07-15T09:55:59.396418+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·haftasonu → FULL=2.618": {
       "wr": 21.7,
@@ -3346,7 +3346,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676181+00:00"
+      "tarih": "2026-07-15T09:55:59.396420+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Cumartesi → TP1=-0.618": {
       "wr": 58.7,
@@ -3358,7 +3358,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676184+00:00"
+      "tarih": "2026-07-15T09:55:59.396422+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik1-2·Cumartesi → FULL=2.618": {
       "wr": 21.5,
@@ -3370,7 +3370,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676187+00:00"
+      "tarih": "2026-07-15T09:55:59.396424+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·hepsi → TP1=1.618": {
       "wr": 57.1,
@@ -3382,7 +3382,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676190+00:00"
+      "tarih": "2026-07-15T09:55:59.396426+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥2·haftaiçi → TP1=1.618": {
       "wr": 57.1,
@@ -3394,7 +3394,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676192+00:00"
+      "tarih": "2026-07-15T09:55:59.396429+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Cumartesi → TP1=1.618": {
       "wr": 56.9,
@@ -3406,7 +3406,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676194+00:00"
+      "tarih": "2026-07-15T09:55:59.396431+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Çarşamba → TP1=1.618": {
       "wr": 56.9,
@@ -3418,7 +3418,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676196+00:00"
+      "tarih": "2026-07-15T09:55:59.396433+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Pazartesi → FULL=2.618": {
       "wr": 21.2,
@@ -3430,7 +3430,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676199+00:00"
+      "tarih": "2026-07-15T09:55:59.396436+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Cuma → TP1=-0.618": {
       "wr": 58.3,
@@ -3442,7 +3442,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676201+00:00"
+      "tarih": "2026-07-15T09:55:59.396438+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·haftasonu → FULL=2.618": {
       "wr": 21.1,
@@ -3454,7 +3454,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676211+00:00"
+      "tarih": "2026-07-15T09:55:59.396440+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Salı → FULL=2.618": {
       "wr": 21.0,
@@ -3466,7 +3466,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676213+00:00"
+      "tarih": "2026-07-15T09:55:59.396442+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥%1·Salı → FULL=-1.618": {
       "wr": 23.3,
@@ -3478,7 +3478,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676215+00:00"
+      "tarih": "2026-07-15T09:55:59.396444+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Çarşamba → FULL=-1.618": {
       "wr": 23.1,
@@ -3490,7 +3490,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676217+00:00"
+      "tarih": "2026-07-15T09:55:59.396446+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Cuma → FULL=-1.618": {
       "wr": 23.0,
@@ -3502,7 +3502,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676220+00:00"
+      "tarih": "2026-07-15T09:55:59.396448+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Salı → TP1=-0.618": {
       "wr": 57.7,
@@ -3514,7 +3514,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676222+00:00"
+      "tarih": "2026-07-15T09:55:59.396450+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·haftasonu → FULL=-1.618": {
       "wr": 22.9,
@@ -3526,7 +3526,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676224+00:00"
+      "tarih": "2026-07-15T09:55:59.396453+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·Cumartesi → TP1=1.618": {
       "wr": 56.1,
@@ -3538,7 +3538,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676226+00:00"
+      "tarih": "2026-07-15T09:55:59.396455+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·haftasonu → TP1=-0.618": {
       "wr": 57.6,
@@ -3550,7 +3550,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676229+00:00"
+      "tarih": "2026-07-15T09:55:59.396457+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·hepsi → FULL=2.618": {
       "wr": 20.4,
@@ -3562,7 +3562,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676231+00:00"
+      "tarih": "2026-07-15T09:55:59.396459+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Pazartesi → TP1=-0.618": {
       "wr": 57.5,
@@ -3574,7 +3574,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676233+00:00"
+      "tarih": "2026-07-15T09:55:59.396461+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Cumartesi → FULL=-1.618": {
       "wr": 22.7,
@@ -3586,7 +3586,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676235+00:00"
+      "tarih": "2026-07-15T09:55:59.396463+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Cuma → TP1=1.618": {
       "wr": 55.9,
@@ -3598,7 +3598,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676237+00:00"
+      "tarih": "2026-07-15T09:55:59.396466+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Pazar → FULL=2.618": {
       "wr": 20.3,
@@ -3610,7 +3610,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676244+00:00"
+      "tarih": "2026-07-15T09:55:59.396468+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·haftaiçi → TP1=1.618": {
       "wr": 55.9,
@@ -3622,7 +3622,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676246+00:00"
+      "tarih": "2026-07-15T09:55:59.396470+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Salı → FULL=-1.618": {
       "wr": 22.6,
@@ -3634,7 +3634,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676248+00:00"
+      "tarih": "2026-07-15T09:55:59.396472+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Pazartesi → FULL=2.618": {
       "wr": 20.1,
@@ -3646,7 +3646,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676250+00:00"
+      "tarih": "2026-07-15T09:55:59.396474+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Çarşamba → FULL=-1.618": {
       "wr": 22.3,
@@ -3658,7 +3658,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676252+00:00"
+      "tarih": "2026-07-15T09:55:59.396476+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Salı → TP1=1.618": {
       "wr": 55.5,
@@ -3670,7 +3670,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676255+00:00"
+      "tarih": "2026-07-15T09:55:59.396479+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·haftasonu → FULL=-1.618": {
       "wr": 22.2,
@@ -3682,7 +3682,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676257+00:00"
+      "tarih": "2026-07-15T09:55:59.396481+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·haftasonu → TP1=-0.618": {
       "wr": 56.9,
@@ -3694,7 +3694,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676259+00:00"
+      "tarih": "2026-07-15T09:55:59.396483+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Cuma → TP1=1.618": {
       "wr": 55.3,
@@ -3706,7 +3706,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676261+00:00"
+      "tarih": "2026-07-15T09:55:59.396485+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Salı → TP1=-0.618": {
       "wr": 56.8,
@@ -3718,7 +3718,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676263+00:00"
+      "tarih": "2026-07-15T09:55:59.396487+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·haftasonu → TP1=1.618": {
       "wr": 55.2,
@@ -3730,7 +3730,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676265+00:00"
+      "tarih": "2026-07-15T09:55:59.396489+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·haftasonu → TP1=1.618": {
       "wr": 55.2,
@@ -3742,7 +3742,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676267+00:00"
+      "tarih": "2026-07-15T09:55:59.396491+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥%1·Salı → TP1=1.618": {
       "wr": 55.1,
@@ -3754,7 +3754,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676270+00:00"
+      "tarih": "2026-07-15T09:55:59.396494+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Cuma → TP1=1.618": {
       "wr": 55.1,
@@ -3766,7 +3766,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676272+00:00"
+      "tarih": "2026-07-15T09:55:59.396496+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·haftaiçi → FULL=2.618": {
       "wr": 19.4,
@@ -3778,7 +3778,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676275+00:00"
+      "tarih": "2026-07-15T09:55:59.396498+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Pazar → FULL=-1.618": {
       "wr": 21.7,
@@ -3790,7 +3790,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676277+00:00"
+      "tarih": "2026-07-15T09:55:59.396500+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Çarşamba → TP1=1.618": {
       "wr": 54.8,
@@ -3802,7 +3802,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676279+00:00"
+      "tarih": "2026-07-15T09:55:59.396502+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Cumartesi → TP1=1.618": {
       "wr": 54.8,
@@ -3814,7 +3814,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676281+00:00"
+      "tarih": "2026-07-15T09:55:59.396504+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Perşembe → FULL=2.618": {
       "wr": 19.1,
@@ -3826,7 +3826,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676283+00:00"
+      "tarih": "2026-07-15T09:55:59.396506+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·hepsi → TP1=1.618": {
       "wr": 54.4,
@@ -3838,7 +3838,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676286+00:00"
+      "tarih": "2026-07-15T09:55:59.396508+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥2·hepsi → TP1=1.618": {
       "wr": 54.4,
@@ -3850,7 +3850,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676289+00:00"
+      "tarih": "2026-07-15T09:55:59.396511+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·hepsi → TP1=-0.618": {
       "wr": 55.9,
@@ -3862,7 +3862,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676291+00:00"
+      "tarih": "2026-07-15T09:55:59.396513+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥2·haftaiçi → FULL=2.618": {
       "wr": 18.7,
@@ -3874,7 +3874,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676293+00:00"
+      "tarih": "2026-07-15T09:55:59.396515+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥%1·Cumartesi → FULL=2.618": {
       "wr": 18.6,
@@ -3886,7 +3886,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676295+00:00"
+      "tarih": "2026-07-15T09:55:59.396517+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·Pazar → TP1=1.618": {
       "wr": 54.2,
@@ -3898,7 +3898,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676297+00:00"
+      "tarih": "2026-07-15T09:55:59.396519+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·hepsi → TP1=-0.618": {
       "wr": 55.7,
@@ -3910,7 +3910,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676299+00:00"
+      "tarih": "2026-07-15T09:55:59.396522+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Pazar → TP1=-0.618": {
       "wr": 55.6,
@@ -3922,7 +3922,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676301+00:00"
+      "tarih": "2026-07-15T09:55:59.396524+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·haftaiçi → TP1=-0.618": {
       "wr": 55.6,
@@ -3934,7 +3934,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676303+00:00"
+      "tarih": "2026-07-15T09:55:59.396526+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·hepsi → TP1=1.618": {
       "wr": 54.0,
@@ -3946,7 +3946,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676305+00:00"
+      "tarih": "2026-07-15T09:55:59.396528+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·haftasonu → FULL=2.618": {
       "wr": 18.4,
@@ -3958,7 +3958,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676307+00:00"
+      "tarih": "2026-07-15T09:55:59.396530+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Cuma → FULL=2.618": {
       "wr": 18.4,
@@ -3970,7 +3970,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676309+00:00"
+      "tarih": "2026-07-15T09:55:59.396532+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·haftasonu → FULL=-1.618": {
       "wr": 20.7,
@@ -3982,7 +3982,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676311+00:00"
+      "tarih": "2026-07-15T09:55:59.396534+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Cumartesi → FULL=-1.618": {
       "wr": 20.7,
@@ -3994,7 +3994,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676313+00:00"
+      "tarih": "2026-07-15T09:55:59.396536+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Pazar → FULL=-1.618": {
       "wr": 20.7,
@@ -4006,7 +4006,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676315+00:00"
+      "tarih": "2026-07-15T09:55:59.396539+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥%1·Cumartesi → FULL=-1.618": {
       "wr": 20.7,
@@ -4018,7 +4018,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676317+00:00"
+      "tarih": "2026-07-15T09:55:59.396541+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·haftaiçi → TP1=-0.618": {
       "wr": 55.4,
@@ -4030,7 +4030,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676319+00:00"
+      "tarih": "2026-07-15T09:55:59.396543+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Pazar → TP1=-0.618": {
       "wr": 55.4,
@@ -4042,7 +4042,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676322+00:00"
+      "tarih": "2026-07-15T09:55:59.396549+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·haftaiçi → FULL=2.618": {
       "wr": 18.2,
@@ -4054,7 +4054,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676324+00:00"
+      "tarih": "2026-07-15T09:55:59.396552+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Pazar → TP1=1.618": {
       "wr": 53.8,
@@ -4066,7 +4066,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676326+00:00"
+      "tarih": "2026-07-15T09:55:59.396554+00:00"
     },
     "Alt ekstrem temas·genlik≥2 → 0.5 fade": {
       "wr": 31.0,
@@ -4078,7 +4078,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676329+00:00"
+      "tarih": "2026-07-15T09:55:59.396556+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·haftaiçi → TP1=1.618": {
       "wr": 53.7,
@@ -4090,7 +4090,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676331+00:00"
+      "tarih": "2026-07-15T09:55:59.396558+00:00"
     },
     "Üst ekstrem temas·genlik≥2 → 0.5 fade": {
       "wr": 27.3,
@@ -4102,7 +4102,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676333+00:00"
+      "tarih": "2026-07-15T09:55:59.396560+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Perşembe → TP1=1.618": {
       "wr": 53.6,
@@ -4114,7 +4114,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676339+00:00"
+      "tarih": "2026-07-15T09:55:59.396562+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Pazartesi → FULL=-1.618": {
       "wr": 20.3,
@@ -4126,7 +4126,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676341+00:00"
+      "tarih": "2026-07-15T09:55:59.396565+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·haftasonu → TP1=1.618": {
       "wr": 53.4,
@@ -4138,7 +4138,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676343+00:00"
+      "tarih": "2026-07-15T09:55:59.396567+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·hepsi → FULL=2.618": {
       "wr": 17.7,
@@ -4150,7 +4150,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676345+00:00"
+      "tarih": "2026-07-15T09:55:59.396569+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·hepsi → FULL=2.618": {
       "wr": 17.7,
@@ -4162,7 +4162,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676347+00:00"
+      "tarih": "2026-07-15T09:55:59.396571+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·haftaiçi → TP1=1.618": {
       "wr": 53.2,
@@ -4174,7 +4174,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676349+00:00"
+      "tarih": "2026-07-15T09:55:59.396573+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·haftaiçi → FULL=2.618": {
       "wr": 17.6,
@@ -4186,7 +4186,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676351+00:00"
+      "tarih": "2026-07-15T09:55:59.396575+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Cumartesi → TP1=1.618": {
       "wr": 53.1,
@@ -4198,7 +4198,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676353+00:00"
+      "tarih": "2026-07-15T09:55:59.396577+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Çarşamba → TP1=1.618": {
       "wr": 53.0,
@@ -4210,7 +4210,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676355+00:00"
+      "tarih": "2026-07-15T09:55:59.396580+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Cumartesi → FULL=-1.618": {
       "wr": 19.7,
@@ -4222,7 +4222,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676357+00:00"
+      "tarih": "2026-07-15T09:55:59.396582+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·hepsi → TP1=-0.618": {
       "wr": 54.5,
@@ -4234,7 +4234,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676360+00:00"
+      "tarih": "2026-07-15T09:55:59.396584+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·haftaiçi → TP1=-0.618": {
       "wr": 54.5,
@@ -4246,7 +4246,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676362+00:00"
+      "tarih": "2026-07-15T09:55:59.396586+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·haftasonu → TP1=-0.618": {
       "wr": 54.5,
@@ -4258,7 +4258,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676364+00:00"
+      "tarih": "2026-07-15T09:55:59.396588+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Pazar → TP1=-0.618": {
       "wr": 54.5,
@@ -4270,7 +4270,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676366+00:00"
+      "tarih": "2026-07-15T09:55:59.396591+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Pazar → FULL=-1.618": {
       "wr": 19.7,
@@ -4282,7 +4282,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676368+00:00"
+      "tarih": "2026-07-15T09:55:59.396593+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Pazartesi → TP1=-0.618": {
       "wr": 54.4,
@@ -4294,7 +4294,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676370+00:00"
+      "tarih": "2026-07-15T09:55:59.396595+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Perşembe → FULL=2.618": {
       "wr": 17.2,
@@ -4306,7 +4306,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676374+00:00"
+      "tarih": "2026-07-15T09:55:59.396597+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Cuma → FULL=-1.618": {
       "wr": 19.4,
@@ -4318,7 +4318,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676376+00:00"
+      "tarih": "2026-07-15T09:55:59.396599+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Cuma → FULL=-1.618": {
       "wr": 19.4,
@@ -4330,7 +4330,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676378+00:00"
+      "tarih": "2026-07-15T09:55:59.396601+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Perşembe → TP1=1.618": {
       "wr": 52.5,
@@ -4342,7 +4342,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676380+00:00"
+      "tarih": "2026-07-15T09:55:59.396604+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Pazar → FULL=2.618": {
       "wr": 16.8,
@@ -4354,7 +4354,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676383+00:00"
+      "tarih": "2026-07-15T09:55:59.396606+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Perşembe → FULL=2.618": {
       "wr": 16.8,
@@ -4366,7 +4366,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676385+00:00"
+      "tarih": "2026-07-15T09:55:59.396608+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Cumartesi → FULL=-1.618": {
       "wr": 19.0,
@@ -4378,7 +4378,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676387+00:00"
+      "tarih": "2026-07-15T09:55:59.396610+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Cumartesi → FULL=2.618": {
       "wr": 16.4,
@@ -4390,7 +4390,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676390+00:00"
+      "tarih": "2026-07-15T09:55:59.396612+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·hepsi → FULL=-1.618": {
       "wr": 18.7,
@@ -4402,7 +4402,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676392+00:00"
+      "tarih": "2026-07-15T09:55:59.396614+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·hepsi → FULL=-1.618": {
       "wr": 18.7,
@@ -4414,7 +4414,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676394+00:00"
+      "tarih": "2026-07-15T09:55:59.396616+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Pazartesi → TP1=-0.618": {
       "wr": 53.4,
@@ -4426,7 +4426,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676396+00:00"
+      "tarih": "2026-07-15T09:55:59.396618+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·hepsi → FULL=-1.618": {
       "wr": 18.5,
@@ -4438,7 +4438,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676398+00:00"
+      "tarih": "2026-07-15T09:55:59.396620+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Cumartesi → TP1=-0.618": {
       "wr": 53.2,
@@ -4450,7 +4450,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676400+00:00"
+      "tarih": "2026-07-15T09:55:59.396622+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik1-2·Cumartesi → FULL=2.618": {
       "wr": 15.8,
@@ -4462,7 +4462,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676402+00:00"
+      "tarih": "2026-07-15T09:55:59.396624+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Pazartesi → FULL=-1.618": {
       "wr": 18.1,
@@ -4474,7 +4474,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676404+00:00"
+      "tarih": "2026-07-15T09:55:59.396626+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·haftasonu → FULL=2.618": {
       "wr": 15.7,
@@ -4486,7 +4486,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676406+00:00"
+      "tarih": "2026-07-15T09:55:59.396628+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Salı → TP1=1.618": {
       "wr": 51.3,
@@ -4498,7 +4498,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676408+00:00"
+      "tarih": "2026-07-15T09:55:59.396630+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥%1·Cumartesi → TP1=-0.618": {
       "wr": 52.8,
@@ -4510,7 +4510,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676411+00:00"
+      "tarih": "2026-07-15T09:55:59.396632+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Pazartesi → FULL=-1.618": {
       "wr": 18.0,
@@ -4522,7 +4522,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676413+00:00"
+      "tarih": "2026-07-15T09:55:59.396634+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·haftaiçi → FULL=-1.618": {
       "wr": 17.9,
@@ -4534,7 +4534,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676415+00:00"
+      "tarih": "2026-07-15T09:55:59.396636+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·haftaiçi → FULL=-1.618": {
       "wr": 17.9,
@@ -4546,7 +4546,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676418+00:00"
+      "tarih": "2026-07-15T09:55:59.396638+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Perşembe → TP1=1.618": {
       "wr": 51.1,
@@ -4558,7 +4558,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676420+00:00"
+      "tarih": "2026-07-15T09:55:59.396640+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·haftaiçi → FULL=-1.618": {
       "wr": 17.8,
@@ -4570,7 +4570,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676422+00:00"
+      "tarih": "2026-07-15T09:55:59.396642+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Cuma → FULL=2.618": {
       "wr": 15.4,
@@ -4582,7 +4582,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676424+00:00"
+      "tarih": "2026-07-15T09:55:59.396644+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥2·hepsi → FULL=2.618": {
       "wr": 15.4,
@@ -4594,7 +4594,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676426+00:00"
+      "tarih": "2026-07-15T09:55:59.396647+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik1-2·Cumartesi → TP1=-0.618": {
       "wr": 52.5,
@@ -4606,7 +4606,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676428+00:00"
+      "tarih": "2026-07-15T09:55:59.396649+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik1-2·Cumartesi → FULL=-1.618": {
       "wr": 17.4,
@@ -4618,7 +4618,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676430+00:00"
+      "tarih": "2026-07-15T09:55:59.396651+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Cumartesi → TP1=1.618": {
       "wr": 50.4,
@@ -4630,7 +4630,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676432+00:00"
+      "tarih": "2026-07-15T09:55:59.396653+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥%1·Cumartesi → FULL=2.618": {
       "wr": 14.8,
@@ -4642,7 +4642,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676434+00:00"
+      "tarih": "2026-07-15T09:55:59.396655+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Perşembe → FULL=-1.618": {
       "wr": 17.0,
@@ -4654,7 +4654,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676436+00:00"
+      "tarih": "2026-07-15T09:55:59.396657+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Cumartesi → FULL=2.618": {
       "wr": 14.6,
@@ -4666,7 +4666,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676438+00:00"
+      "tarih": "2026-07-15T09:55:59.396659+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Cuma → TP1=-0.618": {
       "wr": 51.5,
@@ -4678,7 +4678,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676440+00:00"
+      "tarih": "2026-07-15T09:55:59.396661+00:00"
     },
     "Asia-HIGH kırılım·hacim-patlama·genlik≥2·Salı → FULL=2.618": {
       "wr": 14.3,
@@ -4690,7 +4690,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676442+00:00"
+      "tarih": "2026-07-15T09:55:59.396663+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥2·haftasonu → TP1=1.618": {
       "wr": 48.9,
@@ -4702,7 +4702,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676445+00:00"
+      "tarih": "2026-07-15T09:55:59.396665+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Cuma → FULL=2.618": {
       "wr": 13.2,
@@ -4714,7 +4714,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676447+00:00"
+      "tarih": "2026-07-15T09:55:59.396667+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Perşembe → FULL=-1.618": {
       "wr": 15.2,
@@ -4726,7 +4726,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676449+00:00"
+      "tarih": "2026-07-15T09:55:59.396670+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Cuma → TP1=-0.618": {
       "wr": 50.0,
@@ -4738,7 +4738,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676451+00:00"
+      "tarih": "2026-07-15T09:55:59.396672+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Perşembe → FULL=-1.618": {
       "wr": 15.0,
@@ -4750,7 +4750,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676453+00:00"
+      "tarih": "2026-07-15T09:55:59.396674+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Cuma → TP1=-0.618": {
       "wr": 49.6,
@@ -4762,7 +4762,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676455+00:00"
+      "tarih": "2026-07-15T09:55:59.396676+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Salı → FULL=2.618": {
       "wr": 12.1,
@@ -4774,7 +4774,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676459+00:00"
+      "tarih": "2026-07-15T09:55:59.396678+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Salı → FULL=2.618": {
       "wr": 11.7,
@@ -4786,7 +4786,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676461+00:00"
+      "tarih": "2026-07-15T09:55:59.396681+00:00"
     },
     "Asia-HIGH kırılım·hacim-farketmez·genlik≥2·Salı → TP1=1.618": {
       "wr": 46.8,
@@ -4798,7 +4798,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676463+00:00"
+      "tarih": "2026-07-15T09:55:59.396683+00:00"
     },
     "Asia-HIGH kırılım·hacim-destekli·genlik≥2·Salı → TP1=1.618": {
       "wr": 46.7,
@@ -4810,7 +4810,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676465+00:00"
+      "tarih": "2026-07-15T09:55:59.396685+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Salı → TP1=-0.618": {
       "wr": 48.1,
@@ -4822,7 +4822,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676467+00:00"
+      "tarih": "2026-07-15T09:55:59.396687+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Salı → TP1=-0.618": {
       "wr": 48.0,
@@ -4834,7 +4834,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676470+00:00"
+      "tarih": "2026-07-15T09:55:59.396689+00:00"
     },
     "Asia-LOW kırılım·hacim-patlama·genlik≥2·Salı → FULL=-1.618": {
       "wr": 13.0,
@@ -4846,7 +4846,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676472+00:00"
+      "tarih": "2026-07-15T09:55:59.396691+00:00"
     },
     "Asia-LOW kırılım·hacim-destekli·genlik≥2·Salı → FULL=-1.618": {
       "wr": 12.7,
@@ -4858,7 +4858,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676474+00:00"
+      "tarih": "2026-07-15T09:55:59.396694+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Salı → FULL=-1.618": {
       "wr": 12.1,
@@ -4870,7 +4870,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676476+00:00"
+      "tarih": "2026-07-15T09:55:59.396696+00:00"
     },
     "Asia-HIGH kırılım·hacim-kuruma·genlik≥2·haftasonu → FULL=2.618": {
       "wr": 8.9,
@@ -4882,7 +4882,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676478+00:00"
+      "tarih": "2026-07-15T09:55:59.396698+00:00"
     },
     "Asia-LOW kırılım·hacim-farketmez·genlik≥2·Salı → TP1=-0.618": {
       "wr": 46.0,
@@ -4894,7 +4894,7 @@
       "karar": "elendi",
       "kaynak": "hipotez_motoru",
       "aralik": "['BTCUSDT', 'ETHUSDT']",
-      "tarih": "2026-07-14T15:34:30.676481+00:00"
+      "tarih": "2026-07-15T09:55:59.396700+00:00"
     },
     "[stil] STİL-3: kırılım sonrası 1.377/-0.377 dönüşü (TP=EQ, SL=next-fib)": {
       "wr": 23.9,
@@ -4906,7 +4906,7 @@
       "karar": "elendi",
       "kaynak": "stil_backtest",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:34:53.220900+00:00"
+      "tarih": "2026-07-15T09:56:24.333878+00:00"
     },
     "[stil] STİL-4: Asia-EQ 30dk kalıcılık + hacim (TP=karşı ekstrem, SL=diğer uç)": {
       "wr": 47.3,
@@ -4918,7 +4918,7 @@
       "karar": "elendi",
       "kaynak": "stil_backtest",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:34:53.220916+00:00"
+      "tarih": "2026-07-15T09:56:24.333894+00:00"
     },
     "[micro] fib +1.377 ilk-temas SHORT (TP/SL=1 fib)": {
       "wr": 37.3,
@@ -4930,7 +4930,7 @@
       "karar": "elendi",
       "kaynak": "micro_scalp",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:13.566572+00:00"
+      "tarih": "2026-07-15T09:56:43.838192+00:00"
     },
     "[micro] fib +1.618 ilk-temas SHORT (TP/SL=1 fib)": {
       "wr": 73.0,
@@ -4942,7 +4942,7 @@
       "karar": "elendi",
       "kaynak": "micro_scalp",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:13.566589+00:00"
+      "tarih": "2026-07-15T09:56:43.838210+00:00"
     },
     "[micro] fib +2.272 ilk-temas SHORT (TP/SL=1 fib)": {
       "wr": 35.0,
@@ -4954,7 +4954,7 @@
       "karar": "elendi",
       "kaynak": "micro_scalp",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:13.566594+00:00"
+      "tarih": "2026-07-15T09:56:43.838214+00:00"
     },
     "[micro] fib -0.377 ilk-temas LONG (TP/SL=1 fib)": {
       "wr": 44.3,
@@ -4966,7 +4966,7 @@
       "karar": "elendi",
       "kaynak": "micro_scalp",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:13.566596+00:00"
+      "tarih": "2026-07-15T09:56:43.838217+00:00"
     },
     "[micro] fib -0.618 ilk-temas LONG (TP/SL=1 fib)": {
       "wr": 81.4,
@@ -4978,7 +4978,7 @@
       "karar": "elendi",
       "kaynak": "micro_scalp",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:13.566599+00:00"
+      "tarih": "2026-07-15T09:56:43.838220+00:00"
     },
     "[micro] fib -1.272 ilk-temas LONG (TP/SL=1 fib)": {
       "wr": 40.0,
@@ -4990,7 +4990,7 @@
       "karar": "elendi",
       "kaynak": "micro_scalp",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:13.566601+00:00"
+      "tarih": "2026-07-15T09:56:43.838222+00:00"
     },
     "[paslaşma] +0.000↔+0.500 hacimli scalp": {
       "wr": 37.5,
@@ -5002,7 +5002,7 @@
       "karar": "elendi",
       "kaynak": "fib_paslasma",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:43.064932+00:00"
+      "tarih": "2026-07-15T09:57:05.446667+00:00"
     },
     "[paslaşma] +0.000↔+0.500 hacimsiz scalp": {
       "wr": 36.4,
@@ -5014,7 +5014,7 @@
       "karar": "elendi",
       "kaynak": "fib_paslasma",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:43.065013+00:00"
+      "tarih": "2026-07-15T09:57:05.446683+00:00"
     },
     "[paslaşma] -0.377↔+0.000 hacimli scalp": {
       "wr": 27.7,
@@ -5026,7 +5026,7 @@
       "karar": "elendi",
       "kaynak": "fib_paslasma",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:43.065042+00:00"
+      "tarih": "2026-07-15T09:57:05.446688+00:00"
     },
     "[paslaşma] -0.377↔+0.000 hacimsiz scalp": {
       "wr": 13.6,
@@ -5038,7 +5038,7 @@
       "karar": "elendi",
       "kaynak": "fib_paslasma",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:43.065062+00:00"
+      "tarih": "2026-07-15T09:57:05.446691+00:00"
     },
     "[paslaşma] +0.500↔+1.000 hacimli scalp": {
       "wr": 38.6,
@@ -5050,7 +5050,7 @@
       "karar": "elendi",
       "kaynak": "fib_paslasma",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:43.065083+00:00"
+      "tarih": "2026-07-15T09:57:05.446693+00:00"
     },
     "[paslaşma] +0.500↔+1.000 hacimsiz scalp": {
       "wr": 36.8,
@@ -5062,8 +5062,8 @@
       "karar": "elendi",
       "kaynak": "fib_paslasma",
       "aralik": "BTCUSDT,ETHUSDT",
-      "tarih": "2026-07-14T15:35:43.065103+00:00"
+      "tarih": "2026-07-15T09:57:05.446695+00:00"
     }
   },
-  "guncelleme": "2026-07-14T15:35:43.065119+00:00"
+  "guncelleme": "2026-07-15T09:57:05.446697+00:00"
 }
