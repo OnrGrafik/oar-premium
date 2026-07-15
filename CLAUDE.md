@@ -132,6 +132,7 @@
 - NOT: Railway REDEPLOY + hard-refresh (Ctrl+Shift+R) şart. JS düzenledikten sonra `awk '/^<script>/{f=1;next}/^<\/script>/{f=0}f' static/live.html > /tmp/live.js && node --check /tmp/live.js` ile doğrula.
 - KULLANICI GIT (tekrar): vim swap'ta MERGE_MSG'de takıldı. Çıkış: vim'de `:q!` → sonra `git merge --abort` → `git pull`. (Ya da swap prompt'unda D=delete.)
 - Fear&Greed sidebar kutusu kaldırıldı (renderFNG no-op). "Bilgi Bankası & Hafıza" butonu+modalı kaldırıldı (kitap sorunu çözüldü; erişilemezse lider Telegram'dan bildirir, PC kapalıyken DEĞİL).
+- 🚫 KALICI KURAL: sitede ZİYARETÇİYE GÖRÜNEN hiçbir yerde kaynak kod/yöntem/altyapı/veri-kaynağı adı YAZMAZ (Gemini, Groq, Deribit, Binance, CoinGecko, Black-Scholes, Railway, model adları…). Tek istisna: kaynak KİTAP adları (ör. Hull 11e) yazabilir. Yeni panel/metin eklerken buna uy (temizlendi: live.html sidebar+opsiyon sayfası, index.html welcome+badge'ler).
 - Deribit opsiyon paneli KALIR (OAR opsiyon overlay'i kullanıyor). KALAN: index.html'deki jenerik "Gemini kripto asistanı" welcome/chip'leri (Kazanan/Kaybeden, genel risk) hâlâ OAR-dışı → sadeleştirilecek.
 - KULLANICI GIT: local `MERGING` durumunda kaldı (MERGE_HEAD exists → pull bloke). Çözüm: `git merge --abort` (ya da `git commit` ile merge'i bitir) → sonra `git pull`.
 
