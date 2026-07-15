@@ -1522,6 +1522,11 @@ async def options_cvd_ep(currency: str = "BTC"):
     from options_engine import opsiyon_cvd
     return await opsiyon_cvd(currency)
 
+@app.get("/api/options/vade-masasi")
+async def options_vade_masasi(currency: str = "BTC"):
+    from options_engine import vade_masasi
+    return await vade_masasi(currency)
+
 @app.get("/api/options/topografya")
 async def options_topografya(currency: str = "BTC", vade: str = "all"):
     from options_engine import strike_topografya
