@@ -280,8 +280,6 @@ async def alarm_levels(currency="BTC"):
 # Hesap yöntemleri (genel geçer, Hull 11e):
 #  • Destek  = o vadenin en büyük |put GEX| strike'ı (put wall — dealer hedge alımı)
 #  • Direnç  = o vadenin en büyük call GEX strike'ı (call wall — dealer hedge satışı)
-#  • Flip    = o vadenin net dealer gamma'sının işaret değiştirdiği fiyat
-#              (yalnız o vadenin opsiyonlarıyla _zero_gamma bisection)
 #  • Net GEX = Σ gamma·OI·S²·%1 (call +, put −)
 #  • Max-Pain(expiry) = argmin_S [ Σ callOI·max(0,S−K) + Σ putOI·max(0,K−S) ]
 #  • Pin     = o vadede en yüksek toplam OI'li strike (gamma pin adayı)
@@ -332,12 +330,9 @@ async def vade_masasi(currency="BTC"):
         for k,x in agg.items():
             if abs(x["putGex"])>maxP: maxP=abs(x["putGex"]); destek=k
             if x["callGex"]>maxC: maxC=x["callGex"]; direnc=k
-        flip=_zero_gamma(eopts,spot)
         netgex=round(sum(o["gex"] for o in eopts))
-        uyari=bool(flip and destek and direnc and not (min(destek,direnc)<=flip<=max(destek,direnc)))
         gex_tablo.append({"vade":ad,"expiry":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%Y-%m-%d"),
-                          "destek":destek,"flip":round(flip) if flip else None,"flip_uyari":uyari,
-                          "direnc":direnc,"net_gex":netgex})
+                          "destek":destek,"direnc":direnc,"net_gex":netgex})
 
     # ── Max-Pain & Pin takvimi: 8 güne kadar tüm expiry'ler
     takvim=[]

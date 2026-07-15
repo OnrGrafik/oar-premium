@@ -606,7 +606,6 @@ function odVadeMasasi(vm){
   const gexRows=vm.gex_tablo.map(r=>`<tr>
       <td style="${td};text-align:left;color:${OD.t2};font-weight:700">${esc(r.vade)}<span style="color:${OD.mute};font-weight:400;font-size:9px"> ${esc(r.expiry||'')}</span></td>
       <td style="${td};color:${OD.neg}">${r.destek?fmtNum(r.destek):'—'}</td>
-      <td style="${td};color:#ffb13c">${r.flip?fmtNum(r.flip):'—'}${r.flip_uyari?' <span title="flip destek-direnç bandının dışında">⚠</span>':''}</td>
       <td style="${td};color:${OD.pos}">${r.direnc?fmtNum(r.direnc):'—'}</td>
       <td style="${td};color:${(r.net_gex||0)>=0?OD.text:OD.neg};font-weight:700">${(r.net_gex||0)>=0?'+':''}${fmtNum(r.net_gex||0)}</td>
     </tr>`).join('');
@@ -621,12 +620,11 @@ function odVadeMasasi(vm){
     <b style="color:${OD.mute}">Hesap yöntemi (Hull 11e, Böl. 19):</b>
     <b style="color:${OD.neg}">Destek</b> = o vadenin en büyük put-gamma strike'ı (put wall): spot düşerken dealer delta-hedge için ALIR → fiyat tutunur.
     <b style="color:${OD.pos}">Direnç</b> = en büyük call-gamma strike'ı (call wall): spot yükselirken dealer SATAR → fiyat sıkışır.
-    <b style="color:#ffb13c">Flip</b> = yalnız o vadenin opsiyonlarıyla net dealer gamma'nın işaret değiştirdiği fiyat (kök bulma ile, bu yüzden küsuratlı) — üstü sakinleştirici long-gamma, altı hızlandırıcı short-gamma rejimi; ⚠ = flip destek-direnç bandı dışında (rejim sınırı kayık, seviye güvenilirliği düşük).
     <b>Net GEX</b> = Σ γ·OI·S²·%1 (call +, put −).
     <b style="color:${OD.acc}">Max-Pain</b> = her vade için tüm opsiyon alıcılarına toplam ödemeyi [Σ callOI·max(0,S−K) + Σ putOI·max(0,K−S)] MİNİMUM yapan strike — vade günü theta+charm hedge akışı fiyatı buraya çeker.
     <b style="color:${OD.buy}">Pin</b> = o vadede en yüksek açık pozisyonlu strike (pin-risk adayı). <b>OAR okuması:</b> 0DTE destek/direnç Asia range ekstremleri/fib ile çakışıyorsa fade seviyesi güçlenir; max-pain spota &lt;%1 ise expiry günü mıknatıs etkisi beklenir.</div>`;
   return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <tr><th style="${th};text-align:left">VADE</th><th style="${th}">DESTEK</th><th style="${th}">FLİP</th><th style="${th}">DİRENÇ</th><th style="${th}">NET GEX</th></tr>
+      <tr><th style="${th};text-align:left">VADE</th><th style="${th}">DESTEK</th><th style="${th}">DİRENÇ</th><th style="${th}">NET GEX</th></tr>
       ${gexRows}</table></div>
     <div class="od-sheet-label" style="margin-top:18px">Max Pain · spot $${fmtNum(Math.round(spot||0))}</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
@@ -804,12 +802,12 @@ function scrOptions(){
     </section>
 
     <section class="od-sec">
-      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>GEX Vade Tablosu · Max-Pain &amp; Pin</h2><span class="od-meta">DESTEK · FLİP · DİRENÇ · NET GEX</span></div>
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>GEX Vade Tablosu · Max-Pain &amp; Pin</h2><span class="od-meta">DESTEK · DİRENÇ · NET GEX</span></div>
       ${odVadeMasasi(ST.optVadeMasasi)}
     </section>
 
     <section class="od-sec">
-      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iv.</span>Order Flow · Kapanan</h2><span class="od-meta">OPSİYON CVD · SON 3 GÜN</span></div>
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iv.</span>Opsiyon CVD</h2><span class="od-meta">SON 3 GÜN</span></div>
       ${odCvd(cvd.opsiyon_cvd,'1 · Opsiyon CVD (kontrat) + spot','','Renkli çizgi kontrat bazlı CVD (Call buy +, Put sell + / Call sell −, Put buy −), turuncu çizgi spot fiyat. Aynı yönde → teyit, zıt → divergence. Alttaki barlar saatlik hacim.',{spot:true,detay:true})}
       ${odCvd(cvd.premium_cvd,'2 · Premium CVD (USD) — para nereye akıyor','$','Dolar tabanlı premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi artıyor.')}
       ${odCvd(cvd.whale_cvd,'3 · Whale CVD — büyük işlemler','','Balina opsiyon akışı (≥5 BTC tekil işlem). Genel CVD ile aynı yöndeyse teyit, ters yönde divergence uyarısı.')}
