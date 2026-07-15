@@ -343,6 +343,7 @@ function scrLeader(){
   // trade kutuları (paper BTC+ETH + altcoin) + $1000 5x paneli. Detaylar Telegram'da.
   const os=ST.oarSistem||null;
   const eq5=os&&os.equity?os.equity.kaldirac['5x']:null;
+  const kapiChip=os&&os.canli_kapi?`<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${os.canli_kapi.acik===true?'#0e2018':os.canli_kapi.acik===false?'#201410':'#151515'};border:1px solid ${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ff8a3c':'#333'};color:${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ffb13c':'#8a9c99'}">${os.canli_kapi.acik===true?'🟢 TRADE AÇIK':os.canli_kapi.acik===false?'🔴 TRADE KAPALI':'⏳'}</span>`:'';
   const oarSistemHtml=os?`
   <div class="card" style="padding:15px 17px;margin-bottom:13px;border-left:2px solid #1ff0ad">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -352,7 +353,7 @@ function scrLeader(){
     </div>
     <div style="background:#0a0f0f;border:1px solid #15301f;border-radius:7px;padding:11px 13px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 SİSTEM 1 — FADE · BTC+ETH · $1000 · 5x (canlı forward-test)</span>
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 ŞAMPİYON 1 — FADE · BTC+ETH · $1000 · 5x</span> ${kapiChip}
         <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
       </div>
       <div id="oar-paper-panel">${oarPaperHtml()}</div>
@@ -360,7 +361,7 @@ function scrLeader(){
     ${(()=>{const t=(os.stil_portfoy||[]).find(s=>s.stil==='kirilim_devam_trend');if(!t)return '';
       return `<div style="background:#0a0f0f;border:1px solid #1a2a3a;border-radius:7px;padding:11px 13px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff">⚡ SİSTEM 2 — TREND (KIRILIM-DEVAM) · BTC+ETH</span>
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff">⚡ ŞAMPİYON 2 — TREND (KIRILIM-DEVAM) · BTC+ETH · $1000 · 5x</span> ${kapiChip}
         <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${t.saglam?'#0e2018':'#201410'};border:1px solid ${t.saglam?'#1ff0ad':'#ff8a3c'};color:${t.saglam?'#1ff0ad':'#ffb13c'}">${t.saglam?'✅ BACKTEST-DOĞRULANMIŞ (SAĞLAM)':'⚠ doğrulama sürüyor'}</span>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:#8a9c99">
@@ -379,7 +380,7 @@ function scrLeader(){
     </div>`;})()}
     <div style="background:#0a0f0f;border:1px solid #2a2410;border-radius:7px;padding:11px 13px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 SİSTEM 3 — Altcoin · paper-trade · haftalık K/Z</span>
+        <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 ALTCOIN SİSTEM · $1000 · 5x · haftalık K/Z</span> ${kapiChip}
         <button onclick="loadOarAltcoin().then(()=>{render();})" style="font-size:10px;color:#ffd479;background:none;border:1px solid #2a2410;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
       </div>
       <div id="oar-altcoin-panel">${oarAltcoinHtml()}</div>
