@@ -2116,17 +2116,64 @@ async def _piyasa_durumu_hesapla():
             veri["put_wall"] = gex.get("put_wall")
             veri["zero_gamma"] = gex.get("zero_gamma")
     except Exception: pass
-    # Market context (regime + move source)
+    # Market context (regime + move source) — OAR Score KALDIRILDI (eski kalıntı,
+    # böyle bir skor sistemde yok). Fear&Greed KALDIRILDI (kullanıcı tüm sistemden attı).
     if ctx:
         veri["rejim"] = ctx.get("regime", {}).get("rejim")
         veri["move_source"] = ctx.get("move_source", {}).get("kaynak")
-        veri["oar_score"] = ctx.get("oar_score", {}).get("skor")
-    # Korku endeksi
+    # OAR Asia durumu (asıl sistemimiz — yorum OAR bağlamında olmalı)
     try:
-        async with httpx.AsyncClient(timeout=6) as cl:
-            r = await cl.get("https://api.alternative.me/fng/")
-            d = r.json()["data"][0]
-            veri["korku"] = f"{d['value']} ({d['value_classification']})"
+        from oar_session_agent import oar_analiz
+        oa = await oar_analiz("BTCUSDT")
+        a = oa.get("asia") or {}
+        veri["asia_range_pct"] = a.get("range_pct")
+        veri["asia_high"] = a.get("high"); veri["asia_low"] = a.get("low"); veri["asia_poc"] = a.get("poc")
+        veri["oar_rejim"] = oa.get("oar_rejim")   # fade / trend_devam
+    except Exception: pass
+    # Funding + OI değişimi (Binance futures) — pozisyonlanma/kalabalık verisi
+    try:
+        async with httpx.AsyncClient(timeout=8) as cl:
+            r = await cl.get("https://fapi.binance.com/fapi/v1/premiumIndex", params={"symbol": "BTCUSDT"})
+            veri["funding_pct"] = round(float(r.json().get("lastFundingRate", 0)) * 100, 4)
+            r2 = await cl.get("https://fapi.binance.com/futures/data/openInterestHist",
+                              params={"symbol": "BTCUSDT", "period": "1h", "limit": 24})
+            oi = r2.json()
+            if isinstance(oi, list) and len(oi) >= 2:
+                o0, o1 = float(oi[0]["sumOpenInterestValue"]), float(oi[-1]["sumOpenInterestValue"])
+                veri["oi_24s_pct"] = round((o1 - o0) / o0 * 100, 2) if o0 else None
+            # CVD (son 12×15m taker delta) — akış yönü
+            r3 = await cl.get("https://fapi.binance.com/fapi/v1/klines",
+                              params={"symbol": "BTCUSDT", "interval": "15m", "limit": 12})
+            kk = r3.json()
+            if isinstance(kk, list):
+                cvd = sum(2 * float(x[9]) - float(x[7]) for x in kk)   # taker_buy_quote*2 − quote_vol
+                veri["cvd_3s_musd"] = round(cvd / 1e6, 1)
+    except Exception: pass
+    # Deribit DVOL (implied vol rejimi)
+    try:
+        import time as _t
+        async with httpx.AsyncClient(timeout=8) as cl:
+            r = await cl.get("https://www.deribit.com/api/v2/public/get_volatility_index_data",
+                             params={"currency": "BTC", "resolution": "3600",
+                                     "start_timestamp": int(_t.time()*1000) - 86400000,
+                                     "end_timestamp": int(_t.time()*1000)})
+            data = r.json().get("result", {}).get("data", [])
+            if data:
+                veri["dvol"] = round(data[-1][4], 1)
+                veri["dvol_24s_degisim"] = round(data[-1][4] - data[0][4], 1)
+    except Exception: pass
+    # Makro özet (Fed faizi + CPI + işsizlik — yapısal bağlam)
+    try:
+        from macro_engine import makro_veri
+        m = await makro_veri()
+        g = (m or {}).get("gostergeler", m or {})
+        parca = []
+        for k, ad in (("fedFaiz", "Fed"), ("cpi", "CPI"), ("isRate", "İşsizlik")):
+            v = g.get(k)
+            if isinstance(v, dict) and v.get("deger") is not None:
+                parca.append(f"{ad} {v['deger']}")
+        if parca:
+            veri["makro"] = " · ".join(parca)
     except Exception: pass
     # Kitaplardan ilgili bilgi (mevcut duruma göre) — kaynak başlıklarını TUT
     kitap_notu = ""
@@ -2147,18 +2194,23 @@ async def _piyasa_durumu_hesapla():
     if not api_key:
         yorum = "⚠ AI piyasa yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."
     if api_key:
-        prompt = f"""Sen OAR Premium piyasa analistisin. BTC için ÜÇ BAŞLIKTA piyasa durumu analizi yap.
-Bilimsel, matematiksel, Türkçe. Önemli rakam/seviyeleri **çift yıldız** ile vurgula.
+        prompt = f"""Sen OAR Premium'un kantitatif piyasa analistisin. BTC için ÜÇ BAŞLIKTA derin analiz yap.
+KURALLAR: Bilimsel ve matematiksel yaz — her iddiaya SAYI ve MEKANİZMA bağla ("X çünkü Y" formunda:
+ör. "negatif gamma'da dealer hedge'i düşüşte satış getirir → hareket büyür"). Genel geçer laf YOK
+("piyasa belirsiz" gibi cümleler YASAK). Fear&Greed endeksi KULLANMA (sistemden kaldırıldı).
+Türkçe; önemli rakam/seviyeleri **çift yıldız** ile vurgula. Kitap bilgisini ilgili başlıkta kaynak olarak kullan.
 
 CANLI VERİLER:
-İndikatör skoru: {veri.get('indikator_skor')} ({veri.get('indikator_yon')})
-Piyasa rejimi: {veri.get('rejim')} · Move source: {veri.get('move_source')} · OAR Score: {veri.get('oar_score')}/100
-Gamma rejim: {veri.get('gamma_rejim')} · CW/PW/ZG: {veri.get('call_wall')}/{veri.get('put_wall')}/{veri.get('zero_gamma')}
-Korku endeksi: {veri.get('korku')} · Fiyat: {veri.get('fiyat')}
+Fiyat: {veri.get('fiyat')} · İndikatör skoru: {veri.get('indikator_skor')} ({veri.get('indikator_yon')})
+Rejim: {veri.get('rejim')} · Move source: {veri.get('move_source')}
+OAR: Asia range %{veri.get('asia_range_pct')} (H {veri.get('asia_high')} / L {veri.get('asia_low')} / POC {veri.get('asia_poc')}) · OAR rejimi: {veri.get('oar_rejim')} (fade=range günü, trend_devam=Asia<%1)
+Opsiyon: gamma {veri.get('gamma_rejim')} · CW {veri.get('call_wall')} · PW {veri.get('put_wall')} · ZeroGamma {veri.get('zero_gamma')} · DVOL {veri.get('dvol')} (24s Δ{veri.get('dvol_24s_degisim')})
+Akış/pozisyonlanma: funding %{veri.get('funding_pct')} · OI 24s Δ%{veri.get('oi_24s_pct')} · CVD(3s) {veri.get('cvd_3s_musd')}M$
+Makro: {veri.get('makro')}
 Kitap bilgisi: {kitap_notu[:500]}
 
 SADECE şu JSON'u döndür (başka metin yok):
-{{"teknik":"İndikatör skoru, rejim, fib/seviye, move source açısından teknik durum (2-3 cümle, **vurgular**)","temel":"Opsiyon konumu (CW/PW/ZG dealer gamma), makro bağlam açısından yapısal durum (2-3 cümle)","psikoloji":"Korku/açgözlülük endeksi, funding, kalabalık davranışı, sentiment (2-3 cümle)"}}"""
+{{"teknik":"PRICE ACTION + OAR: fiyatın Asia range/fib/POC'a göre konumu, rejim (fade mi trend-devam mı), indikatör skoru — seviyeler ve mekanizmayla, 3-4 cümle","temel":"OPSİYON + MAKRO yapı: dealer gamma konumunun fiyata mekanik etkisi (CW/PW/ZG mıknatıs-fren), DVOL rejimi, makro bağlam — 3-4 cümle","psikoloji":"POZİSYONLANMA: funding (long/short kalabalığı ve maliyeti), OI değişimi (yeni pozisyon mu kapanış mı), CVD akış yönü, kalabalığın yanlış tarafta olma ihtimali — kitaplardaki davranışsal ilkelerle, 3-4 cümle"}}"""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
