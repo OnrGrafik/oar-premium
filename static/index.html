@@ -361,7 +361,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',syste
       <div id="welcome">
         <div class="wico">🤖</div>
         <h2>OAR Premium</h2>
-        <p>Gemini 2.0 Flash ile güçlendirilmiş, Binance ve CoinGecko'dan gerçek zamanlı kripto verisi alan ve görsel/dosya analizi yapan yapay zeka asistanın.</p>
+        <p>Binance ve CoinGecko'dan gerçek zamanlı kripto verisi alan ve görsel/dosya analizi yapan OAR yapay zeka asistanı.</p>
         <div class="chips">
           <span class="chip" onclick="ask('Bitcoin şu an ne durumda? Fiyat, trend ve önemli seviyeler')">₿ Bitcoin</span>
           <span class="chip" onclick="ask('Ethereum analizi: güncel fiyat, ETH 2.0 gelişmeleri ve teknik görünüm')">Ξ Ethereum</span>
@@ -424,7 +424,7 @@ async function loadMarket(){
     renderCoins(d.coins||[]);
     renderTicker(d.coins||[]);
     renderFNG(d.fear_greed||{});
-    document.getElementById('conn-txt').textContent = 'Aktif · Gemini 2.0 Flash';
+    document.getElementById('conn-txt').textContent = 'Aktif';
   }catch(e){
     document.getElementById('conn-txt').textContent = 'Veri hatası';
   }
@@ -717,7 +717,7 @@ async function send(){
     document.getElementById('typing')?.remove();
     const isHighDemand = err.message.includes('high demand') || err.message.includes('overloaded') || err.message.includes('503');
     const errMsg = isHighDemand
-      ? '⏳ Gemini sunucuları şu an yoğun. Birkaç saniye bekleyip tekrar deneyin.'
+      ? '⏳ Sunucular şu an yoğun. Birkaç saniye bekleyip tekrar deneyin.'
       : `⚠️ Hata: ${err.message}`;
     const ed=document.createElement('div'); ed.className='msg';
     const lastUserTxt = txt;
@@ -796,7 +796,7 @@ async function callWithRetry(fd, maxRetries=3){
       // Typing mesajını güncelle
       const t = document.getElementById('typing');
       if(t) t.querySelector('.bbl').innerHTML =
-        `<div style="font-size:.78rem;color:var(--gold)">⏳ Gemini yoğun, ${wait} saniye sonra tekrar deneniyor... (${attempt+1}/${maxRetries-1})</div>`;
+        `<div style="font-size:.78rem;color:var(--gold)">⏳ Sunucu yoğun, ${wait} saniye sonra tekrar deneniyor... (${attempt+1}/${maxRetries-1})</div>`;
       await new Promise(r=>setTimeout(r, wait*1000));
       continue;
     }
@@ -1255,7 +1255,7 @@ setInterval(loadDeribit, 120000);
 setInterval(()=>loadSignals(false), 900000); // Her 15dk sinyalleri güncelle
 fetch('/api/health').then(r=>r.json()).then(d=>{
   document.getElementById('conn-txt').textContent =
-    d.api_key_set ? `Aktif · ${d.model} · ${d.preview}` : '⚠️ Gemini API Key eksik!';
+    d.api_key_set ? 'Aktif' : '⚠️ API Key eksik!';
 });
 </script>
 <!-- BİLGİ BANKASI MODAL -->
