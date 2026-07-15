@@ -282,46 +282,9 @@ async def alarm_levels(currency="BTC"):
 #  • Direnç  = o vadenin en büyük call GEX strike'ı (call wall — dealer hedge satışı)
 #  • Flip    = o vadenin net dealer gamma'sının işaret değiştirdiği fiyat
 #              (yalnız o vadenin opsiyonlarıyla _zero_gamma bisection)
-#  • Net GEX = Σ gamma·OI·S²·%1 (call +, put −); 1sa/4sa/1G değişim snapshot'tan
+#  • Net GEX = Σ gamma·OI·S²·%1 (call +, put −)
 #  • Max-Pain(expiry) = argmin_S [ Σ callOI·max(0,S−K) + Σ putOI·max(0,K−S) ]
 #  • Pin     = o vadede en yüksek toplam OI'li strike (gamma pin adayı)
-
-def _gex_gecmis_dosya(currency):
-    try:
-        from data_ingest import hist_dir
-        return hist_dir() / f"gex_vade_gecmis_{currency}.json"
-    except Exception:
-        return None
-
-def _gex_degisim(currency, vade_ad, netgex):
-    """Snapshot kaydet + 1sa/4sa/1G yüzde değişim hesapla (yoksa None)."""
-    import json as _json
-    yol=_gex_gecmis_dosya(currency)
-    if yol is None: return {}
-    try:
-        kayit=_json.loads(yol.read_text(encoding="utf-8")) if yol.exists() else []
-    except Exception:
-        kayit=[]
-    now=time.time()
-    son=[k for k in kayit if k.get("vade")==vade_ad]
-    # 10 dk'dan sık yazma
-    if not son or now-son[-1]["ts"]>=600:
-        kayit.append({"ts":now,"vade":vade_ad,"netgex":netgex})
-        kayit=[k for k in kayit if now-k["ts"]<=2.2*86400]   # 2 gün tut
-        try:
-            yol.parent.mkdir(parents=True,exist_ok=True)
-            yol.write_text(_json.dumps(kayit),encoding="utf-8")
-        except Exception:
-            pass
-    out={}
-    for etiket,saniye in (("1sa",3600),("4sa",4*3600),("1g",86400)):
-        hedef=now-saniye
-        adaylar=[k for k in son if k["ts"]<=hedef+300]
-        if not adaylar: out[etiket]=None; continue
-        ref=min(adaylar,key=lambda k:abs(k["ts"]-hedef))
-        eski=ref.get("netgex") or 0
-        out[etiket]=round((netgex-eski)/abs(eski)*100,1) if eski else None
-    return out
 
 def _expiry_max_pain(eopts):
     """Tek vadenin opsiyonlarından max-pain strike'ı (standart formül)."""
@@ -372,10 +335,9 @@ async def vade_masasi(currency="BTC"):
         flip=_zero_gamma(eopts,spot)
         netgex=round(sum(o["gex"] for o in eopts))
         uyari=bool(flip and destek and direnc and not (min(destek,direnc)<=flip<=max(destek,direnc)))
-        deg=_gex_degisim(currency,ad,netgex)
         gex_tablo.append({"vade":ad,"expiry":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%Y-%m-%d"),
                           "destek":destek,"flip":round(flip) if flip else None,"flip_uyari":uyari,
-                          "direnc":direnc,"net_gex":netgex,"degisim":deg})
+                          "direnc":direnc,"net_gex":netgex})
 
     # ── Max-Pain & Pin takvimi: 8 güne kadar tüm expiry'ler
     takvim=[]
