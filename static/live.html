@@ -598,17 +598,7 @@ function odWalls(t,lv,spot,g){
 }
 
 // ── ii-b. VADE MASASI: GEX vade tablosu + Max-Pain & Pin takvimi ──
-async function optPineKopyala(){
-  const btn=document.getElementById('opt-pine-btn');
-  if(btn)btn.textContent='⏳ hazırlanıyor…';
-  try{
-    const r=await fetch('/api/options/pine-kod?currency='+_optCur);
-    const kod=await r.text();
-    if(kod.startsWith('{')){if(btn)btn.textContent='⚠ veri bekleniyor';return;}
-    await navigator.clipboard.writeText(kod);
-    if(btn){btn.textContent='✓ Kod kopyalandı — Pine Editor\'e yapıştırın';setTimeout(()=>{btn.textContent='📋 OAR indikatör kodunu kopyala (bugünün seviyeleri gömülü)';},4000);}
-  }catch(e){if(btn)btn.textContent='⚠ hata';}
-}
+
 
 function odVadeMasasi(vm){
   if(!vm||!vm.gex_tablo)return '<div class="od-empty">Vade verisi yükleniyor…</div>';
@@ -638,8 +628,7 @@ function odVadeMasasi(vm){
   return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <tr><th style="${th};text-align:left">VADE</th><th style="${th}">DESTEK</th><th style="${th}">DİRENÇ</th><th style="${th}">NET GEX</th></tr>
       ${gexRows}</table></div>
-    <div style="margin-top:8px"><button id="opt-pine-btn" onclick="optPineKopyala()" style="background:#0c1112;border:1px solid #1a2422;border-radius:4px;color:#8a9c99;font-size:11px;padding:5px 12px;cursor:pointer;font-family:'Inter',system-ui,sans-serif">📋 OAR indikatör kodunu kopyala (bugünün seviyeleri gömülü)</button><span style="font-size:10px;color:#5e716f;margin-left:10px">Pine Editor → tümünü seç → yapıştır → Save. Seviyeler koda gömülü gelir, elle giriş yok</span></div>
-    <div class="od-sheet-label" style="margin-top:18px">Max Pain · spot $${fmtNum(Math.round(spot||0))}</div>
+        <div class="od-sheet-label" style="margin-top:18px">Max Pain · spot $${fmtNum(Math.round(spot||0))}</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <tr><th style="${th};text-align:left">EXPIRY</th><th style="${th}">VADE</th><th style="${th}">TOP OI</th><th style="${th}">MAX-PAIN</th><th style="${th}">PİN STRIKE</th></tr>
       ${mpRows}</table></div>${not}`;

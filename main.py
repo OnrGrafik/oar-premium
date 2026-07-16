@@ -1527,33 +1527,6 @@ async def options_vade_masasi(currency: str = "BTC"):
     from options_engine import vade_masasi
     return await vade_masasi(currency)
 
-@app.get("/api/options/pine-kod")
-async def options_pine_kod(currency: str = "BTC"):
-    """OAR indikatör kodunu BUGÜNÜN opsiyon seviyeleri gömülü olarak üret.
-    Kullanıcı tek tıkla kopyalayıp Pine Editor'e yapıştırır (elle sayı girmek yok)."""
-    import re
-    from pathlib import Path
-    from fastapi.responses import PlainTextResponse
-    from options_engine import vade_masasi
-    yol = Path(__file__).parent / "oar_indikator.pine"
-    if not yol.exists():
-        return {"error": "oar_indikator.pine bulunamadı"}
-    kod = yol.read_text(encoding="utf-8")
-    vm = await vade_masasi(currency)
-    if vm.get("error"):
-        return vm
-    g = {r["vade"]: r for r in vm.get("gex_tablo", [])}
-    d0, d1 = g.get("0DTE", {}), g.get("0DTE+1", {})
-    mp = (vm.get("takvim") or [{}])[0].get("max_pain")
-    degerler = {"0DTE Destek": d0.get("destek"), "0DTE Direnç": d0.get("direnc"),
-                "0DTE+1 Destek": d1.get("destek"), "0DTE+1 Direnç": d1.get("direnc"),
-                "Max Pain (bugün)": mp}
-    for ad, v in degerler.items():
-        if v:
-            kod = re.sub(r'input\.float\(\s*[\d.]+\s*,\s*"' + re.escape(ad) + '"',
-                         f'input.float({float(v)}, "{ad}"', kod)
-    return PlainTextResponse(kod, media_type="text/plain; charset=utf-8")
-
 @app.get("/api/options/topografya")
 async def options_topografya(currency: str = "BTC", vade: str = "all"):
     from options_engine import strike_topografya
