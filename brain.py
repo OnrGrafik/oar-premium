@@ -49,6 +49,7 @@ async def get_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 
                         "low":    float(k[3]),
                         "close":  float(k[4]),
                         "volume": float(k[5]),
+                        "tbv":    float(k[9]) if len(k) > 9 else None,  # taker-buy hacim (delta için)
                     })
                 return candles
         except Exception:

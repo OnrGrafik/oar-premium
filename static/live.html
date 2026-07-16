@@ -675,20 +675,30 @@ async function kGrafikVeri(sym,zorla){
     if(pv!=null&&Math.abs(pv-spot)/spot<=0.30)c.optLvl.push({p:pv,ad:t,col:col});
   });
 
-  // ── Volume Profile (son 24 saat, 40 kova)
-  const t24=sonTs-86400;
-  const vpM=M.filter(x=>x.t>=t24);
+  // ── FRVP (kullanıcı ayarı): gün başından (DO, 03:00 TR) · 180 satır · Delta hacim · VA %70
+  const gunBasi=Math.floor(sonTs/86400)*86400;   // TR 03:00 = UTC gün başı
+  const vpM=mumlar.filter(x=>Math.floor(x.ts/1000)>=gunBasi);
   c.vp=null;
   if(vpM.length){
-    let lo=Math.min(...vpM.map(x=>x.l)),hi=Math.max(...vpM.map(x=>x.h));
+    let lo=Math.min(...vpM.map(x=>x.low)),hi=Math.max(...vpM.map(x=>x.high));
     if(hi>lo){
-      const N=40,kova=new Array(N).fill(0),adim=(hi-lo)/N;
+      const N=180,kova=new Array(N).fill(0),adim=(hi-lo)/N;
       for(const x of vpM){
-        const orta=(x.h+x.l)/2;
+        // Delta = alıcı − satıcı (taker-buy varsa); yoksa toplam hacim
+        const d=(x.tbv!=null)?Math.abs(2*x.tbv-(x.volume||0)):(x.volume||0);
+        const orta=(x.high+x.low)/2;
         let i=Math.floor((orta-lo)/adim);i=Math.max(0,Math.min(N-1,i));
-        kova[i]+=x.v;
+        kova[i]+=d;
       }
-      c.vp={lo,hi,kova,maxV:Math.max(...kova),t1:t24};
+      const top=kova.reduce((a2,b2)=>a2+b2,0);
+      let pocI=0;for(let i=0;i<N;i++)if(kova[i]>kova[pocI])pocI=i;
+      // Değer Alanı %70: POC'tan iki yana, büyük komşuyu ekleyerek genişle
+      let cum=kova[pocI],u=pocI,dn=pocI;
+      while(cum<top*0.70&&(u<N-1||dn>0)){
+        const yuk=u<N-1?kova[u+1]:-1, alt=dn>0?kova[dn-1]:-1;
+        if(yuk>=alt){u++;cum+=kova[u];}else{dn--;cum+=kova[dn];}
+      }
+      c.vp={lo,hi,kova,maxV:Math.max(...kova),t1:gunBasi,pocI,vahI:u,valI:dn};
     }
   }
 
@@ -712,16 +722,19 @@ function kOverlayCiz(sym){
   // volume profile (en altta çizilir — arka plan)
   if(_kAyar.vp&&c.vp){
     const x0=ts.timeToCoordinate(c.vp.t1+K_TZ)??0;
-    const maxW=Math.min(150,(xSon??W)-x0>0?((xSon??W)-x0)*0.35:120);
+    const maxW=Math.min(170,(xSon??W)-x0>0?((xSon??W)-x0)*0.4:130);
     const N=c.vp.kova.length,adim=(c.vp.hi-c.vp.lo)/N;
-    let pocI=0;for(let i=0;i<N;i++)if(c.vp.kova[i]>c.vp.kova[pocI])pocI=i;
     for(let i=0;i<N;i++){
+      if(!c.vp.kova[i])continue;
       const p1=c.vp.lo+i*adim,p2=p1+adim;
       const y1=c.ca.priceToCoordinate(p2),y2=c.ca.priceToCoordinate(p1);
       if(y1==null||y2==null)continue;
       const w=c.vp.maxV>0?(c.vp.kova[i]/c.vp.maxV)*maxW:0;
-      g.fillStyle=i===pocI?'rgba(239,108,0,.45)':'rgba(96,125,139,.18)';
-      g.fillRect(x0,y1,w,Math.max(y2-y1-1,1));
+      // POC mavi · VAH/VAL siyah · kalan gri — kutu boyu kendi hacmi kadar
+      g.fillStyle=i===c.vp.pocI?'rgba(41,98,255,.8)'
+        :(i===c.vp.vahI||i===c.vp.valI)?'rgba(0,0,0,.75)'
+        :'rgba(120,130,140,.33)';
+      g.fillRect(x0,y1,w,Math.max(y2-y1-0.5,1));
     }
   }
   // seans kutuları
