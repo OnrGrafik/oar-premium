@@ -433,7 +433,7 @@ function komutaGrafikKart(sym,ad){
     </div>
     <div style="position:relative">
       <div id="kchart-${sym}" style="height:340px"></div>
-      <canvas id="kover-${sym}" style="position:absolute;left:0;top:0;pointer-events:none"></canvas>
+      <canvas id="kover-${sym}" style="position:absolute;left:0;top:0;pointer-events:none;z-index:10"></canvas>
     </div>
     <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-left:2px solid #1ff0ad;border-radius:7px;padding:11px 13px">
       <div class="sg" style="font-size:9px;letter-spacing:.12em;color:#7af0c4;margin-bottom:6px">◆ LİDER YORUMU — OAR · OPSİYON · MAKRO</div>
@@ -531,8 +531,12 @@ async function kGrafikVeri(sym,zorla){
   // ── Fiyat çizgileri: fib (son Asia) + key levels + opsiyon seviyeleri
   c.lines.forEach(l=>{try{c.ca.removePriceLine(l);}catch(e){}});c.lines=[];
   const asialar=kutular.filter(k=>k.ad==='Asia');
-  if(asialar.length){
-    const A=asialar[asialar.length-1], r=A.hi-A.lo;
+  // Asia hâlâ oluşuyorsa (son bar 03:00-07:00 TR içindeyse) fib'i ÖNCEKİ tamamlanmış Asia'dan çiz
+  const sonDk=_trDak(sonTs);
+  const asiaSuruyor=sonDk>=180&&sonDk<420;
+  const fibAsia=(asiaSuruyor&&asialar.length>1)?asialar[asialar.length-2]:asialar[asialar.length-1];
+  if(fibAsia){
+    const A=fibAsia, r=A.hi-A.lo;
     for(const[v,col]of K_FIB){
       const pf=A.lo+r*v;
       if(Math.abs(pf-spot)/spot>0.30)continue;
@@ -556,8 +560,8 @@ async function kGrafikVeri(sym,zorla){
   [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['max_pain','#ffb13c','Max Pain'],['zero_gamma','#8a9c99','ZG']].forEach(([key,col,t])=>{
     if(k[key]&&Math.abs(k[key]-spot)/spot<=0.30)c.lines.push(c.ca.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
   });
-  try{c.ch.timeScale().fitContent();}catch(e){}
-  kOverlayCiz(sym);
+  try{c.ch.timeScale().setVisibleRange({from:sonTs-36*3600,to:sonTs+2*3600});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
+  setTimeout(()=>kOverlayCiz(sym),50);
 }
 
 // Seans kutularını canvas'a çiz (pan/zoom'da yeniden)
