@@ -461,6 +461,7 @@ const K_SEANS=[
   {ad:'NY Close',b:1230, e:1380, renk:'#4caf50'},
   {ad:'CBDR',    b:1380, e:1620, renk:'#ff9800'},  // 23:00 → 03:00 (+1 gün)
 ];
+const K_TZ=10800; // grafik ekseni TR saati göstersin diye kaydırma
 const K_FIB=[[2.618,'#4caf50'],[2.272,'#4caf50'],[1.618,'#2196f3'],[1.377,'#9e9e9e'],[1.0,'#4caf50'],[0.5,'#9c27b0'],[0.0,'#4caf50'],[-0.377,'#9e9e9e'],[-0.618,'#2196f3'],[-1.272,'#f44336'],[-1.618,'#f44336']];
 
 async function initKomutaGrafikler(){
@@ -497,7 +498,7 @@ async function kGrafikVeri(sym,zorla){
   const c=_kcharts[sym];if(!c)return;
   ST.kgraf=ST.kgraf||{};
   let d=ST.kgraf[sym];
-  if(zorla||!d||Date.now()-d.ts>60000){
+  if(zorla||!d||Date.now()-d.ts>20000){
     const cur=sym.startsWith('BTC')?'BTC':'ETH';
     const[oh,lv,vm]=await Promise.all([
       jget('/api/ohlcv?symbol='+sym+'&interval=5m&limit=700'),
@@ -509,7 +510,7 @@ async function kGrafikVeri(sym,zorla){
   const mumlar=(d.oh&&d.oh.candles)||[];
   if(!mumlar.length)return;
   const M=mumlar.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
-  c.ca.setData(M.map(x=>({time:x.t,open:x.o,high:x.h,low:x.l,close:x.c})));
+  c.ca.setData(M.map(x=>({time:x.t+K_TZ,open:x.o,high:x.h,low:x.l,close:x.c})));
   const spot=M[M.length-1].c, sonTs=M[M.length-1].t;
   c.sonTs=sonTs;
 
@@ -519,7 +520,7 @@ async function kGrafikVeri(sym,zorla){
   for(const x of M){
     if(Math.floor(x.t/86400)!==bugunAnc)continue;
     const hlc=(x.h+x.l+x.c)/3;cv+=x.v;cpv+=hlc*x.v;
-    if(cv>0)vwd.push({time:x.t,value:cpv/cv});
+    if(cv>0)vwd.push({time:x.t+K_TZ,value:cpv/cv});
   }
   c.vw.setData(vwd);
 
@@ -585,7 +586,7 @@ async function kGrafikVeri(sym,zorla){
     if(pv!=null&&Math.abs(pv-spot)/spot<=0.30)c.optLvl.push({p:pv,ad:t,col:col});
   });
 
-  try{c.ch.timeScale().setVisibleRange({from:sonTs-36*3600,to:sonTs+3*3600});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
+  try{c.ch.timeScale().setVisibleRange({from:sonTs-36*3600+K_TZ,to:sonTs+3*3600+K_TZ});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
   setTimeout(()=>kOverlayCiz(sym),50);
 }
 
@@ -598,13 +599,13 @@ function kOverlayCiz(sym){
   cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const ts=c.ch.timeScale();
-  const xSon=ts.timeToCoordinate(c.sonTs||0);
+  const xSon=ts.timeToCoordinate((c.sonTs||0)+K_TZ);
   const xBitis=(xSon!=null?xSon:W-70)+26;   // mumlardan belli uzaklık (etiket mesafesi)
   const fmtP=v=>v>=1000?v.toLocaleString('tr-TR',{maximumFractionDigits:1}):v.toFixed(2);
 
   // seans kutuları
   for(const kt of(c.kutular||[])){
-    let x1=ts.timeToCoordinate(kt.t1),x2=ts.timeToCoordinate(kt.t2);
+    let x1=ts.timeToCoordinate(kt.t1+K_TZ),x2=ts.timeToCoordinate(kt.t2+K_TZ);
     const y1=c.ca.priceToCoordinate(kt.hi),y2=c.ca.priceToCoordinate(kt.lo);
     if(x1==null&&x2==null)continue;
     if(x1==null)x1=0;if(x2==null)x2=W-70;
@@ -629,10 +630,10 @@ function kOverlayCiz(sym){
     g.restore();
   };
   // fib: Asia başlangıcından
-  const xFib=c.fibT1!=null?(ts.timeToCoordinate(c.fibT1)??0):0;
+  const xFib=c.fibT1!=null?(ts.timeToCoordinate(c.fibT1+K_TZ)??0):0;
   for(const f of(c.fibler||[]))seviye(f.p,xFib,`${f.v} (${fmtP(f.p)})`,f.col,false,'700 9.5px');
   // key levels: bugünden
-  const xGun=c.gunT1!=null?(ts.timeToCoordinate(c.gunT1)??0):0;
+  const xGun=c.gunT1!=null?(ts.timeToCoordinate(c.gunT1+K_TZ)??0):0;
   for(const k of(c.keyLvl||[]))seviye(k.p,xGun,`${k.ad} (${fmtP(k.p)})`,k.col,true,'9px');
   // opsiyon seviyeleri: bugünden, kalın etiket
   for(const o of(c.optLvl||[]))seviye(o.p,xGun,`${o.ad} (${fmtP(o.p)})`,o.col,true,'700 9.5px');
@@ -1954,8 +1955,8 @@ async function boot(){
   const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
-  setInterval(async()=>{if(ST.tab==='leader'){kGrafikVeri('BTCUSDT',true);kGrafikVeri('ETHUSDT',true);}
-  await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
+  setInterval(()=>{if(ST.tab==='leader'){kGrafikVeri('BTCUSDT',true);kGrafikVeri('ETHUSDT',true);}},30000);
+  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
   setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
