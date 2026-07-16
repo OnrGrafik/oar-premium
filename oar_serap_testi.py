@@ -201,6 +201,21 @@ def _bh_fdr(ad_p: list, q: float = 0.05) -> dict:
     return {ad: (ad in gecen) for ad, _ in ad_p}
 
 
+def _kronolojik_equity(seri: list, kaldirac: float, baslangic: float = 1000.0) -> dict:
+    """$baslangic ile GERÇEK zaman sırasında compound equity. Tek işlem ≤−(100/kaldıraç)%
+    → likidasyon (sıfırlanır). MC değil — gerçek kronolojik dizi."""
+    ss = sorted(seri, key=lambda x: x[0])          # ts'e göre kronolojik
+    eq = tepe = baslangic; maxdd = 0.0; likide = False; esik = -100.0 / kaldirac
+    for _ts, p in ss:
+        if p <= esik:
+            eq = 0.0; likide = True; break
+        eq *= (1.0 + kaldirac * p / 100.0)
+        tepe = max(tepe, eq)
+        maxdd = max(maxdd, (tepe - eq) / tepe if tepe > 0 else 0.0)
+    return {"final": round(eq, 2), "kat": round(eq / baslangic, 1) if baslangic else 0,
+            "maxdd_pct": round(maxdd * 100, 1), "likide": likide}
+
+
 def serap_karnesi(ad: str, pcts_list: list, ts_list: list, n_deneme: int) -> dict:
     """Bir sistemin realize işlem serisine TÜM bateriyi uygula → tam karne."""
     pcts = np.asarray(pcts_list, dtype=float)
@@ -371,6 +386,8 @@ def calistir(semboller, bas, bit, taze=False, telegram=False) -> dict:
         pcts = [p for _, p in seri]; ts = [t for t, _ in seri]
         print(f"  · {ad}: n={len(seri)} — bateri uygulanıyor…", flush=True)
         karneler[ad] = serap_karnesi(ad, pcts, ts, veri["n_deneme"])
+        # $1000 kronolojik compound equity — 1x/3x/5x (şampiyon sorusu)
+        karneler[ad]["equity_1000"] = {f"{k}x": _kronolojik_equity(seri, k) for k in (1, 3, 5)}
 
     # Çoklu-test düzeltmesi: TÜM sistemlerin permütasyon p'lerine BH-FDR
     ad_p = [(ad, k["permutasyon_p"]) for ad, k in karneler.items()]
@@ -413,6 +430,17 @@ def _yazdir(karneler: dict):
               f"{(liq if liq is not None else -1):>7}  {k.get('karar','')}")
     print("═" * 100)
     print("DSR≥0.95 + CI-alt>0 + perm-p<0.05 (FDR) + liq5x=0 → GERÇEK EDGE. Aksi serap/marjinal.")
+    # $1000 kronolojik compound equity — yalnız GERÇEK EDGE / şampiyonlar
+    print("\n💰 $1000 COMPOUND EQUITY (2019-2025, kronolojik) — GERÇEK EDGE sistemler:")
+    for ad, k in karneler.items():
+        if not k.get("karar", "").startswith("✅"):
+            continue
+        eq = k.get("equity_1000") or {}
+        p = lambda d: (f"${d['final']:,.0f} ({d['kat']}x, maxDD%{d['maxdd_pct']}"
+                       f"{', 💀LİKİDE' if d['likide'] else ''})") if d else "—"
+        print(f"  {ad}: 1x {p(eq.get('1x'))} · 3x {p(eq.get('3x'))} · 5x {p(eq.get('5x'))}")
+    print("  UYARI: mutlak $ = fantezi (full-size compound, slippage/funding/likidite yok). "
+          "Güvenilir olan: likide olmama + kontrollü DD + tutarlılık.")
 
 
 def _telegram_raporla(karneler: dict, aralik: str):
