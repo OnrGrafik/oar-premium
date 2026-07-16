@@ -2092,6 +2092,7 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
                 f"({sw.get('tp_etiket')}), SL {sw.get('sl')}, R:R {sw.get('rr')}"
             )
         prompt = f"""Sen OAR Premium'un LİDER analistisin. {cur} grafiğini OAR sistemi çerçevesinde canlı yorumla.
+DOĞRUDAN analizle başla — "Sen ... yorumluyorum" gibi rol/giriş cümlesi KURMA, kendinden bahsetme.
 Yorum 3 eksende olsun (kısa, akıcı tek paragraf, 4-6 cümle, Türkçe, **seviyeleri vurgula**):
 ① OAR: Asia range (H/L/POC), range genliği ve market kapısı durumuna göre bugün fade mi trend-devam günü mü; fiyatın Asia ekstremlerine/fib'e göre konumu.
 ② OPSİYON: CW/PW/ZG/Max-Pain seviyelerinin fiyata mesafesi ve dealer hedge etkisi (duvar=direnç/destek, ZG üstü sakin/altı hızlanma, expiry yaklaşırken max-pain mıknatısı).

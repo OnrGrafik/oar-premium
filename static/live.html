@@ -478,6 +478,12 @@ async function initKomutaGrafikler(){
     const ciz=()=>kOverlayCiz(sym);
     ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
     new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});ciz();}catch(e){}}).observe(el);
+    // dikey pan/zoom (fiyat ekseni) hiçbir event vermiyor → rAF döngüsüyle sürekli senkron çiz
+    (function dongu(){
+      if(!document.body.contains(el)){try{ch.remove();}catch(e){}return;}
+      kOverlayCiz(sym);
+      requestAnimationFrame(dongu);
+    })();
     kGrafikVeri(sym);
   }
 }
