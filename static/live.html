@@ -466,13 +466,13 @@ async function initKomutaGrafikler(){
     el.dataset.init='1';
     if(_kcharts[sym]&&_kcharts[sym].ch){try{_kcharts[sym].ch.remove();}catch(e){}}
     const ch=LightweightCharts.createChart(el,{
-      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
-      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
-      timeScale:{borderColor:'#18211f',timeVisible:true,rightOffset:6},
-      rightPriceScale:{borderColor:'#18211f'},
+      layout:{background:{color:'#ffffff'},textColor:'#555'},
+      grid:{vertLines:{color:'#f0f0f0'},horzLines:{color:'#f0f0f0'}},
+      timeScale:{borderColor:'#ddd',timeVisible:true,rightOffset:14},
+      rightPriceScale:{borderColor:'#ddd'},
       width:el.clientWidth,height:340});
-    const ca=ch.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
-      borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
+    const ca=ch.addCandlestickSeries({upColor:'#ffffff',downColor:'#111111',
+      borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
     const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     _kcharts[sym]={ch,ca,vw,lines:[],kutular:[]};
     const ciz=()=>kOverlayCiz(sym);
@@ -488,23 +488,25 @@ async function kGrafikVeri(sym,zorla){
   let d=ST.kgraf[sym];
   if(zorla||!d||Date.now()-d.ts>60000){
     const cur=sym.startsWith('BTC')?'BTC':'ETH';
-    const[oh,lv]=await Promise.all([
+    const[oh,lv,vm]=await Promise.all([
       jget('/api/ohlcv?symbol='+sym+'&interval=5m&limit=700'),
-      jget('/api/options/levels?currency='+cur)]);
-    d={ts:Date.now(),oh,lv};ST.kgraf[sym]=d;
+      jget('/api/options/levels?currency='+cur),
+      jget('/api/options/vade-masasi?currency='+cur)]);
+    d={ts:Date.now(),oh,lv,vm};ST.kgraf[sym]=d;
   }
   if(!_kcharts[sym]||_kcharts[sym]!==c)return;
   const mumlar=(d.oh&&d.oh.candles)||[];
   if(!mumlar.length)return;
   const M=mumlar.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
   c.ca.setData(M.map(x=>({time:x.t,open:x.o,high:x.h,low:x.l,close:x.c})));
-  const spot=M[M.length-1].c;
+  const spot=M[M.length-1].c, sonTs=M[M.length-1].t;
+  c.sonTs=sonTs;
 
-  // ── VWAP(D): her gün TR 03:00 çapalı (indikatörle aynı)
-  const vwd=[];let cv=0,cpv=0,gun=null;
+  // ── VWAP(D): yalnız BUGÜNE ait (TR 03:00 çapası = UTC gün başı)
+  const bugunAnc=Math.floor(sonTs/86400);
+  let cv=0,cpv=0;const vwd=[];
   for(const x of M){
-    const anc=Math.floor(x.t/86400);   // TR 03:00 = UTC 00:00 → günlük VWAP çapası UTC gün
-    if(anc!==gun){gun=anc;cv=0;cpv=0;}
+    if(Math.floor(x.t/86400)!==bugunAnc)continue;
     const hlc=(x.h+x.l+x.c)/3;cv+=x.v;cpv+=hlc*x.v;
     if(cv>0)vwd.push({time:x.t,value:cpv/cv});
   }
@@ -512,7 +514,7 @@ async function kGrafikVeri(sym,zorla){
 
   // ── Seans kutuları (son 3 gün)
   const kutular=[];
-  const sonTs=M[M.length-1].t, esik=sonTs-3*86400;
+  const esik=sonTs-3*86400;
   for(const sn of K_SEANS){
     let grup=null;
     for(const x of M){
@@ -528,43 +530,55 @@ async function kGrafikVeri(sym,zorla){
   }
   c.kutular=kutular;
 
-  // ── Fiyat çizgileri: fib (son Asia) + key levels + opsiyon seviyeleri
-  c.lines.forEach(l=>{try{c.ca.removePriceLine(l);}catch(e){}});c.lines=[];
+  // ── Fib: Asia H/L'den (oluşurken önceki tamamlanmış Asia) — overlay'de çizilir
   const asialar=kutular.filter(k=>k.ad==='Asia');
-  // Asia hâlâ oluşuyorsa (son bar 03:00-07:00 TR içindeyse) fib'i ÖNCEKİ tamamlanmış Asia'dan çiz
   const sonDk=_trDak(sonTs);
   const asiaSuruyor=sonDk>=180&&sonDk<420;
   const fibAsia=(asiaSuruyor&&asialar.length>1)?asialar[asialar.length-2]:asialar[asialar.length-1];
+  c.fibler=[];c.fibT1=null;
   if(fibAsia){
-    const A=fibAsia, r=A.hi-A.lo;
+    c.fibT1=fibAsia.t1;
+    const r=fibAsia.hi-fibAsia.lo;
     for(const[v,col]of K_FIB){
-      const pf=A.lo+r*v;
+      const pf=fibAsia.lo+r*v;
       if(Math.abs(pf-spot)/spot>0.30)continue;
-      c.lines.push(c.ca.createPriceLine({price:pf,color:col,lineWidth:1,lineStyle:0,title:String(v)}));
+      c.fibler.push({p:pf,v:v,col:col});
     }
   }
-  // Key levels: Midnight(07:00 TR open) · DO(TR gün açılışı 03:00) · PDH/PDL (önceki TR günü)
+
+  // ── Key levels: Midnight/DO/PDH/PDL — bugünün başından itibaren
   const bugun=_trGun(sonTs);
-  let mid=null,doV=null,pdh=null,pdl=null;
+  let mid=null,doV=null,pdh=null,pdl=null,gunT1=null;
   for(const x of M){
     const g=_trGun(x.t),dk=_trDak(x.t);
+    if(g===bugun&&gunT1==null&&dk>=180)gunT1=x.t;
     if(g===bugun&&dk===420&&mid==null)mid=x.o;
     if(g===bugun&&dk===180&&doV==null)doV=x.o;
     if(g===bugun-1){pdh=Math.max(pdh==null?-1e18:pdh,x.h);pdl=Math.min(pdl==null?1e18:pdl,x.l);}
   }
-  [[mid,'#9e9e9e','Midnight',2],[doV,'#8a9c99','DO',2],[pdh,'#ff5252','PDH',2],[pdl,'#ff5252','PDL',2]].forEach(([pv,col,t,st])=>{
-    if(pv!=null&&Math.abs(pv-spot)/spot<=0.30)c.lines.push(c.ca.createPriceLine({price:pv,color:col,lineWidth:1,lineStyle:st,title:t}));
+  c.gunT1=gunT1||sonTs-86400;
+  c.keyLvl=[];
+  [[mid,'#9e9e9e','Midnight'],[doV,'#757575','DO'],[pdh,'#ff5252','PDH'],[pdl,'#ff5252','PDL']].forEach(([pv,col,t])=>{
+    if(pv!=null&&Math.abs(pv-spot)/spot<=0.30)c.keyLvl.push({p:pv,ad:t,col:col});
   });
-  // Opsiyon seviyeleri
-  const k=(d.lv&&(d.lv.kisa||d.lv.genel))||{};
-  [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['max_pain','#ffb13c','Max Pain'],['zero_gamma','#8a9c99','ZG']].forEach(([key,col,t])=>{
-    if(k[key]&&Math.abs(k[key]-spot)/spot<=0.30)c.lines.push(c.ca.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
+
+  // ── Opsiyon seviyeleri: SİTEDEKİ 0DTE tablosuyla AYNI kaynak (vade-masasi)
+  //    Destek = bugünün en büyük negatif (put) GEX'i · Direnç = en büyük pozitif (call) GEX'i
+  //    Max Pain = bugünün expiry'sinin max pain'i · ZG = 0-7g zero gamma
+  c.optLvl=[];
+  const g0=((d.vm&&d.vm.gex_tablo)||[]).find(r=>r.vade==='0DTE')||{};
+  const mp0=(d.vm&&d.vm.takvim&&d.vm.takvim[0])?d.vm.takvim[0].max_pain:null;
+  const zg=(d.lv&&d.lv.kisa&&d.lv.kisa.zero_gamma)||null;
+  [[g0.destek,'#0a8f66','0DTE Destek'],[g0.direnc,'#d32f2f','0DTE Direnç'],
+   [mp0,'#f59e0b','Max Pain (0g)'],[zg,'#757575','Zero Gamma']].forEach(([pv,col,t])=>{
+    if(pv!=null&&Math.abs(pv-spot)/spot<=0.30)c.optLvl.push({p:pv,ad:t,col:col});
   });
-  try{c.ch.timeScale().setVisibleRange({from:sonTs-36*3600,to:sonTs+2*3600});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
+
+  try{c.ch.timeScale().setVisibleRange({from:sonTs-36*3600,to:sonTs+3*3600});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
   setTimeout(()=>kOverlayCiz(sym),50);
 }
 
-// Seans kutularını canvas'a çiz (pan/zoom'da yeniden)
+// Seans kutuları + fib + key/opsiyon seviyeleri — canvas overlay (pan/zoom'da yeniden)
 function kOverlayCiz(sym){
   const c=_kcharts[sym];if(!c)return;
   const el=document.getElementById('kchart-'+sym),cv=document.getElementById('kover-'+sym);
@@ -573,21 +587,44 @@ function kOverlayCiz(sym){
   cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const ts=c.ch.timeScale();
+  const xSon=ts.timeToCoordinate(c.sonTs||0);
+  const xBitis=(xSon!=null?xSon:W-70)+26;   // mumlardan belli uzaklık (etiket mesafesi)
+  const fmtP=v=>v>=1000?v.toLocaleString('tr-TR',{maximumFractionDigits:1}):v.toFixed(2);
+
+  // seans kutuları
   for(const kt of(c.kutular||[])){
     let x1=ts.timeToCoordinate(kt.t1),x2=ts.timeToCoordinate(kt.t2);
     const y1=c.ca.priceToCoordinate(kt.hi),y2=c.ca.priceToCoordinate(kt.lo);
     if(x1==null&&x2==null)continue;
-    if(x1==null)x1=0;if(x2==null)x2=W-60;
+    if(x1==null)x1=0;if(x2==null)x2=W-70;
     if(y1==null||y2==null)continue;
     g.save();
     g.strokeStyle=kt.renk;g.lineWidth=1;g.setLineDash([3,3]);
-    g.globalAlpha=0.06;g.fillStyle=kt.renk;g.fillRect(x1,y1,x2-x1,y2-y1);
-    g.globalAlpha=0.55;g.strokeRect(x1,y1,x2-x1,y2-y1);
-    g.globalAlpha=0.9;g.setLineDash([]);
+    g.globalAlpha=0.05;g.fillStyle=kt.renk;g.fillRect(x1,y1,x2-x1,y2-y1);
+    g.globalAlpha=0.7;g.strokeRect(x1,y1,x2-x1,y2-y1);
+    g.globalAlpha=1;g.setLineDash([]);
     g.font='700 9px "JetBrains Mono",monospace';g.fillStyle=kt.renk;g.textAlign='center';
     g.fillText(kt.ad,(x1+x2)/2,Math.max(y1-4,9));
     g.restore();
   }
+  // çizgi+etiket yardımcısı
+  const seviye=(p,x1,etiket,col,dash,fs)=>{
+    const y=c.ca.priceToCoordinate(p);if(y==null)return;
+    g.save();
+    g.strokeStyle=col;g.lineWidth=1;if(dash)g.setLineDash([4,4]);
+    g.beginPath();g.moveTo(Math.max(x1,0),y);g.lineTo(xBitis,y);g.stroke();
+    g.setLineDash([]);g.font=(fs||'9px')+' "JetBrains Mono",monospace';g.fillStyle=col;g.textAlign='left';
+    g.fillText(etiket,xBitis+4,y+3);
+    g.restore();
+  };
+  // fib: Asia başlangıcından
+  const xFib=c.fibT1!=null?(ts.timeToCoordinate(c.fibT1)??0):0;
+  for(const f of(c.fibler||[]))seviye(f.p,xFib,`${f.v} (${fmtP(f.p)})`,f.col,false,'700 9.5px');
+  // key levels: bugünden
+  const xGun=c.gunT1!=null?(ts.timeToCoordinate(c.gunT1)??0):0;
+  for(const k of(c.keyLvl||[]))seviye(k.p,xGun,`${k.ad} (${fmtP(k.p)})`,k.col,true,'9px');
+  // opsiyon seviyeleri: bugünden, kalın etiket
+  for(const o of(c.optLvl||[]))seviye(o.p,xGun,`${o.ad} (${fmtP(o.p)})`,o.col,true,'700 9.5px');
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
