@@ -422,16 +422,19 @@ function scrLeader(){
   ${komutaGrafikKart('ETHUSDT','ETH')}`;
 }
 
-// ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu ───
+// ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 function komutaGrafikKart(sym,ad){
   const gy=(ST.grafikYorum||{})[sym]||{};
   const vurgu=(t)=>esc(t||'').replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>');
   return `<div class="card" style="padding:15px 17px;margin-bottom:13px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · 15M</span>
-      <span style="font-size:9.5px;color:#5e716f">Asia fib + opsiyon seviyeleri (CW/PW/Max-Pain) otomatik çizilir</span>
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · 5M · OAR</span>
+      <span style="font-size:9.5px;color:#5e716f">Seanslar · Asia fib · Midnight/DO/PDH-PDL · VWAP(D) · opsiyon seviyeleri — otomatik</span>
     </div>
-    <div id="kchart-${sym}" style="height:300px"></div>
+    <div style="position:relative">
+      <div id="kchart-${sym}" style="height:340px"></div>
+      <canvas id="kover-${sym}" style="position:absolute;left:0;top:0;pointer-events:none"></canvas>
+    </div>
     <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-left:2px solid #1ff0ad;border-radius:7px;padding:11px 13px">
       <div class="sg" style="font-size:9px;letter-spacing:.12em;color:#7af0c4;margin-bottom:6px">◆ LİDER YORUMU — OAR · OPSİYON · MAKRO</div>
       <div style="font-size:13px;color:#b8c6c3;line-height:1.6">${gy.yorum?vurgu(gy.yorum):'<span style="color:#5e716f">Lider analiz ediyor…</span>'}</div>
@@ -441,6 +444,20 @@ function komutaGrafikKart(sym,ad){
 }
 
 let _kcharts={};
+// TR (UTC+3) gün-içi dakika
+function _trDak(tsSec){const d=new Date((tsSec+3*3600)*1000);return d.getUTCHours()*60+d.getUTCMinutes();}
+function _trGun(tsSec){return Math.floor((tsSec+3*3600)/86400);} // TR takvim günü no
+// Seans tanımları (OAR indikatörü ile birebir, TR saati)
+const K_SEANS=[
+  {ad:'Asia',    b:180,  e:420,  renk:'#f44336'},
+  {ad:'London Open', b:540, e:720, renk:'#2196f3'},
+  {ad:'NY Open', b:840,  e:1020, renk:'#4caf50'},
+  {ad:'London Close', b:1020, e:1140, renk:'#2196f3'},
+  {ad:'NY Close',b:1230, e:1380, renk:'#4caf50'},
+  {ad:'CBDR',    b:1380, e:1620, renk:'#ff9800'},  // 23:00 → 03:00 (+1 gün)
+];
+const K_FIB=[[2.618,'#4caf50'],[2.272,'#4caf50'],[1.618,'#2196f3'],[1.377,'#9e9e9e'],[1.0,'#4caf50'],[0.5,'#9c27b0'],[0.0,'#4caf50'],[-0.377,'#9e9e9e'],[-0.618,'#2196f3'],[-1.272,'#f44336'],[-1.618,'#f44336']];
+
 async function initKomutaGrafikler(){
   if(typeof LightweightCharts==='undefined')return;
   for(const sym of ['BTCUSDT','ETHUSDT']){
@@ -451,39 +468,122 @@ async function initKomutaGrafikler(){
     const ch=LightweightCharts.createChart(el,{
       layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
       grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
-      timeScale:{borderColor:'#18211f',timeVisible:true},
+      timeScale:{borderColor:'#18211f',timeVisible:true,rightOffset:6},
       rightPriceScale:{borderColor:'#18211f'},
-      width:el.clientWidth,height:300});
+      width:el.clientWidth,height:340});
     const ca=ch.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
       borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
-    new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});}catch(e){}}).observe(el);
-    _kcharts[sym]={ch,ca,lines:[]};
+    const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    _kcharts[sym]={ch,ca,vw,lines:[],kutular:[]};
+    const ciz=()=>kOverlayCiz(sym);
+    ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
+    new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});ciz();}catch(e){}}).observe(el);
     kGrafikVeri(sym);
   }
 }
+
 async function kGrafikVeri(sym,zorla){
   const c=_kcharts[sym];if(!c)return;
   ST.kgraf=ST.kgraf||{};
   let d=ST.kgraf[sym];
   if(zorla||!d||Date.now()-d.ts>60000){
     const cur=sym.startsWith('BTC')?'BTC':'ETH';
-    const[oh,lv,fib]=await Promise.all([
-      jget('/api/ohlcv?symbol='+sym+'&interval=15m&limit=192'),
-      jget('/api/options/levels?currency='+cur),
-      jget('/api/oar-fib?symbol='+sym)]);
-    d={ts:Date.now(),oh,lv,fib};ST.kgraf[sym]=d;
+    const[oh,lv]=await Promise.all([
+      jget('/api/ohlcv?symbol='+sym+'&interval=5m&limit=700'),
+      jget('/api/options/levels?currency='+cur)]);
+    d={ts:Date.now(),oh,lv};ST.kgraf[sym]=d;
   }
   if(!_kcharts[sym]||_kcharts[sym]!==c)return;
-  if(d.oh&&d.oh.candles)c.ca.setData(d.oh.candles.map(x=>({time:Math.floor(x.ts/1000),open:x.open,high:x.high,low:x.low,close:x.close})));
+  const mumlar=(d.oh&&d.oh.candles)||[];
+  if(!mumlar.length)return;
+  const M=mumlar.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
+  c.ca.setData(M.map(x=>({time:x.t,open:x.o,high:x.h,low:x.l,close:x.c})));
+  const spot=M[M.length-1].c;
+
+  // ── VWAP(D): her gün TR 03:00 çapalı (indikatörle aynı)
+  const vwd=[];let cv=0,cpv=0,gun=null;
+  for(const x of M){
+    const anc=Math.floor(x.t/86400);   // TR 03:00 = UTC 00:00 → günlük VWAP çapası UTC gün
+    if(anc!==gun){gun=anc;cv=0;cpv=0;}
+    const hlc=(x.h+x.l+x.c)/3;cv+=x.v;cpv+=hlc*x.v;
+    if(cv>0)vwd.push({time:x.t,value:cpv/cv});
+  }
+  c.vw.setData(vwd);
+
+  // ── Seans kutuları (son 3 gün)
+  const kutular=[];
+  const sonTs=M[M.length-1].t, esik=sonTs-3*86400;
+  for(const sn of K_SEANS){
+    let grup=null;
+    for(const x of M){
+      if(x.t<esik)continue;
+      let dk=_trDak(x.t);
+      let icinde=sn.e<=1440?(dk>=sn.b&&dk<sn.e):(dk>=sn.b||dk<(sn.e-1440));
+      if(icinde){
+        if(!grup)grup={t1:x.t,t2:x.t,hi:x.h,lo:x.l};
+        else{grup.t2=x.t;grup.hi=Math.max(grup.hi,x.h);grup.lo=Math.min(grup.lo,x.l);}
+      }else if(grup){kutular.push({...grup,ad:sn.ad,renk:sn.renk});grup=null;}
+    }
+    if(grup)kutular.push({...grup,ad:sn.ad,renk:sn.renk});
+  }
+  c.kutular=kutular;
+
+  // ── Fiyat çizgileri: fib (son Asia) + key levels + opsiyon seviyeleri
   c.lines.forEach(l=>{try{c.ca.removePriceLine(l);}catch(e){}});c.lines=[];
+  const asialar=kutular.filter(k=>k.ad==='Asia');
+  if(asialar.length){
+    const A=asialar[asialar.length-1], r=A.hi-A.lo;
+    for(const[v,col]of K_FIB){
+      const pf=A.lo+r*v;
+      if(Math.abs(pf-spot)/spot>0.30)continue;
+      c.lines.push(c.ca.createPriceLine({price:pf,color:col,lineWidth:1,lineStyle:0,title:String(v)}));
+    }
+  }
+  // Key levels: Midnight(07:00 TR open) · DO(TR gün açılışı 03:00) · PDH/PDL (önceki TR günü)
+  const bugun=_trGun(sonTs);
+  let mid=null,doV=null,pdh=null,pdl=null;
+  for(const x of M){
+    const g=_trGun(x.t),dk=_trDak(x.t);
+    if(g===bugun&&dk===420&&mid==null)mid=x.o;
+    if(g===bugun&&dk===180&&doV==null)doV=x.o;
+    if(g===bugun-1){pdh=Math.max(pdh==null?-1e18:pdh,x.h);pdl=Math.min(pdl==null?1e18:pdl,x.l);}
+  }
+  [[mid,'#9e9e9e','Midnight',2],[doV,'#8a9c99','DO',2],[pdh,'#ff5252','PDH',2],[pdl,'#ff5252','PDL',2]].forEach(([pv,col,t,st])=>{
+    if(pv!=null&&Math.abs(pv-spot)/spot<=0.30)c.lines.push(c.ca.createPriceLine({price:pv,color:col,lineWidth:1,lineStyle:st,title:t}));
+  });
+  // Opsiyon seviyeleri
   const k=(d.lv&&(d.lv.kisa||d.lv.genel))||{};
   [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['max_pain','#ffb13c','Max Pain'],['zero_gamma','#8a9c99','ZG']].forEach(([key,col,t])=>{
-    if(k[key])c.lines.push(c.ca.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
-  });
-  if(d.fib&&d.fib.seviyeler)Object.entries(d.fib.seviyeler).forEach(([adx,fiyat])=>{
-    c.lines.push(c.ca.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+adx}));
+    if(k[key]&&Math.abs(k[key]-spot)/spot<=0.30)c.lines.push(c.ca.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
   });
   try{c.ch.timeScale().fitContent();}catch(e){}
+  kOverlayCiz(sym);
+}
+
+// Seans kutularını canvas'a çiz (pan/zoom'da yeniden)
+function kOverlayCiz(sym){
+  const c=_kcharts[sym];if(!c)return;
+  const el=document.getElementById('kchart-'+sym),cv=document.getElementById('kover-'+sym);
+  if(!el||!cv)return;
+  const W=el.clientWidth,H=el.clientHeight,dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const ts=c.ch.timeScale();
+  for(const kt of(c.kutular||[])){
+    let x1=ts.timeToCoordinate(kt.t1),x2=ts.timeToCoordinate(kt.t2);
+    const y1=c.ca.priceToCoordinate(kt.hi),y2=c.ca.priceToCoordinate(kt.lo);
+    if(x1==null&&x2==null)continue;
+    if(x1==null)x1=0;if(x2==null)x2=W-60;
+    if(y1==null||y2==null)continue;
+    g.save();
+    g.strokeStyle=kt.renk;g.lineWidth=1;g.setLineDash([3,3]);
+    g.globalAlpha=0.06;g.fillStyle=kt.renk;g.fillRect(x1,y1,x2-x1,y2-y1);
+    g.globalAlpha=0.55;g.strokeRect(x1,y1,x2-x1,y2-y1);
+    g.globalAlpha=0.9;g.setLineDash([]);
+    g.font='700 9px "JetBrains Mono",monospace';g.fillStyle=kt.renk;g.textAlign='center';
+    g.fillText(kt.ad,(x1+x2)/2,Math.max(y1-4,9));
+    g.restore();
+  }
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───

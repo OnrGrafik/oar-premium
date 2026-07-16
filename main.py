@@ -2967,7 +2967,7 @@ async def live_page():
 
 @app.get("/api/ohlcv")
 async def api_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200):
-    candles = await get_ohlcv(symbol, interval, min(limit, 500))
+    candles = await get_ohlcv(symbol, interval, min(limit, 1000))
     return {"symbol": symbol, "candles": candles}
 
 @app.get("/api/walls")
