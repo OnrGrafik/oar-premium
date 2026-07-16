@@ -435,6 +435,14 @@ function kAyarSet(k,v){
     kOverlayCiz(sym);
   }
 }
+function kAyarFsToggle(sym){
+  const el=document.getElementById('kayarfs-'+sym);if(!el)return;
+  if(el.style.display==='block'){el.style.display='none';return;}
+  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
+  el.innerHTML='<div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>'
+    +cb('seans','Seans kutuları')+cb('fib','Asia Fibonacci')+cb('key','Key Levels (Two/DO/WO/MO…)')+cb('vwap','VWAP (D)')+cb('opt','Opsiyon seviyeleri')+cb('vp','Volume Profile (FRVP)');
+  el.style.display='block';
+}
 function kAyarPanelToggle(sym){
   const el=document.getElementById('kayar-'+sym);
   if(el)el.style.display=el.style.display==='none'?'block':'none';
@@ -463,7 +471,12 @@ function komutaGrafikKart(sym,ad){
       <canvas id="kover-${sym}" style="position:absolute;left:0;top:0;pointer-events:none;z-index:10"></canvas>
       <div id="kyorumfs-${sym}" style="display:none;position:absolute;left:0;right:0;bottom:0;z-index:20;background:rgba(7,10,10,.78);backdrop-filter:blur(3px);padding:12px 46px 12px 16px;font-size:12.5px;color:#d5e2df;line-height:1.55;max-height:32%;overflow-y:auto"></div>
       <button id="kyorumbtn-${sym}" onclick="kYorumToggle('${sym}')" style="display:none;position:absolute;right:10px;bottom:10px;z-index:21;background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#7af0c4;font-size:11px;padding:5px 10px;cursor:pointer">▼ yorumu gizle</button>
-      <button id="kfsx-${sym}" onclick="kGrafikTamEkran('${sym}')" style="display:none;position:absolute;right:10px;top:10px;z-index:21;background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#d5e2df;font-size:11px;padding:5px 10px;cursor:pointer">✕ çık</button>
+      <div id="kfsbar-${sym}" style="display:none;position:absolute;right:10px;top:10px;z-index:21;gap:7px">
+        <button onclick="kAyarFsToggle('${sym}')" style="background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#8a9c99;font-size:11px;padding:5px 10px;cursor:pointer">⚙ Ayarlar</button>
+        <button onclick="kSS('${sym}')" style="background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#8a9c99;font-size:11px;padding:5px 10px;cursor:pointer">📷 İndir</button>
+        <button onclick="kGrafikTamEkran('${sym}')" style="background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#d5e2df;font-size:11px;padding:5px 10px;cursor:pointer">✕ çık</button>
+      </div>
+      <div id="kayarfs-${sym}" style="display:none;position:absolute;right:10px;top:46px;z-index:22;background:#0c1112;border:1px solid #1a2422;border-radius:8px;padding:11px 15px;box-shadow:0 8px 28px rgba(0,0,0,.5);min-width:200px"></div>
     </div>
     <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-left:2px solid #1ff0ad;border-radius:7px;padding:11px 13px">
       <div class="sg" style="font-size:9px;letter-spacing:.12em;color:#7af0c4;margin-bottom:6px">◆ LİDER YORUMU — OAR · OPSİYON · MAKRO</div>
@@ -676,29 +689,46 @@ async function kGrafikVeri(sym,zorla){
   });
 
   // ── FRVP (kullanıcı ayarı): gün başından (DO, 03:00 TR) · 180 satır · Delta hacim · VA %70
+  //    Bilimsel yöntem: her mumun hacmi/deltası, mumun [low,high] aralığının kestiği
+  //    TÜM satırlara ORANTILI dağıtılır (tek-kutu yaklaşımı değil). Satır deltası İŞARETLİ
+  //    birikir (alıcı-satıcı netleşir), çubuk boyu |net delta|. POC/VAH/VAL standart
+  //    market-profile tanımıyla TOPLAM hacimden hesaplanır (VA %70, POC'tan iki yana genişleme).
   const gunBasi=Math.floor(sonTs/86400)*86400;   // TR 03:00 = UTC gün başı
-  const vpM=mumlar.filter(x=>Math.floor(x.ts/1000)>=gunBasi);
+  const vpM=M.filter(x=>x.t>=gunBasi);
   c.vp=null;
   if(vpM.length){
-    let lo=Math.min(...vpM.map(x=>x.low)),hi=Math.max(...vpM.map(x=>x.high));
+    let lo=Math.min(...vpM.map(x=>x.l)),hi=Math.max(...vpM.map(x=>x.h));
     if(hi>lo){
-      const N=180,kova=new Array(N).fill(0),adim=(hi-lo)/N;
+      const N=180,vol=new Array(N).fill(0),del=new Array(N).fill(0),adim=(hi-lo)/N;
+      let deltaVar=false;
       for(const x of vpM){
-        // Delta = alıcı − satıcı (taker-buy varsa); yoksa toplam hacim
-        const d=(x.tbv!=null)?Math.abs(2*x.tbv-(x.volume||0)):(x.volume||0);
-        const orta=(x.high+x.low)/2;
-        let i=Math.floor((orta-lo)/adim);i=Math.max(0,Math.min(N-1,i));
-        kova[i]+=d;
+        const v=x.v||0;
+        const dRaw=(x.tbv!=null)?(2*x.tbv-v):null;
+        if(dRaw!=null)deltaVar=true;
+        const aralik=Math.max(x.h-x.l,1e-9);
+        let i1=Math.floor((x.l-lo)/adim),i2=Math.floor((x.h-lo)/adim);
+        i1=Math.max(0,Math.min(N-1,i1));i2=Math.max(0,Math.min(N-1,i2));
+        for(let i=i1;i<=i2;i++){
+          const s1=lo+i*adim,s2=s1+adim;
+          const kes=Math.max(0,Math.min(x.h,s2)-Math.max(x.l,s1));
+          const frac=(i1===i2)?1:(kes/aralik);
+          vol[i]+=v*frac;
+          if(dRaw!=null)del[i]+=dRaw*frac;
+        }
       }
-      const top=kova.reduce((a2,b2)=>a2+b2,0);
-      let pocI=0;for(let i=0;i<N;i++)if(kova[i]>kova[pocI])pocI=i;
-      // Değer Alanı %70: POC'tan iki yana, büyük komşuyu ekleyerek genişle
-      let cum=kova[pocI],u=pocI,dn=pocI;
+      // POC + Değer Alanı %70 — TOPLAM hacim üzerinden (standart tanım)
+      const top=vol.reduce((a2,b2)=>a2+b2,0);
+      let pocI=0;for(let i=0;i<N;i++)if(vol[i]>vol[pocI])pocI=i;
+      let cum=vol[pocI],u=pocI,dn=pocI;
       while(cum<top*0.70&&(u<N-1||dn>0)){
-        const yuk=u<N-1?kova[u+1]:-1, alt=dn>0?kova[dn-1]:-1;
-        if(yuk>=alt){u++;cum+=kova[u];}else{dn--;cum+=kova[dn];}
+        const yuk=u<N-1?vol[u+1]:-1, alt=dn>0?vol[dn-1]:-1;
+        if(yuk>=alt&&u<N-1){u++;cum+=vol[u];}
+        else if(dn>0){dn--;cum+=vol[dn];}
+        else break;
       }
-      c.vp={lo,hi,kova,maxV:Math.max(...kova),t1:gunBasi,pocI,vahI:u,valI:dn};
+      // çubuk boyu: Delta modunda |net delta|, taker verisi yoksa toplam hacim
+      const bar=deltaVar?del.map(Math.abs):vol.slice();
+      c.vp={lo,hi,kova:bar,maxV:Math.max(...bar),t1:gunBasi,pocI,vahI:u,valI:dn};
     }
   }
 
@@ -799,10 +829,11 @@ document.addEventListener('fullscreenchange',()=>{
     const w=document.getElementById('kwrap-'+sym),el=document.getElementById('kchart-'+sym),c=_kcharts[sym];
     if(!w||!el||!c)continue;
     const fs=document.fullscreenElement===w;
-    const xbtn=document.getElementById('kfsx-'+sym);
+    const bar=document.getElementById('kfsbar-'+sym),pnl=document.getElementById('kayarfs-'+sym);
     el.style.height=fs?(window.innerHeight+'px'):'340px';
     try{c.ch.applyOptions({width:w.clientWidth,height:fs?window.innerHeight:340});}catch(e){}
-    if(xbtn)xbtn.style.display=fs?'block':'none';
+    if(bar)bar.style.display=fs?'flex':'none';
+    if(pnl&&!fs)pnl.style.display='none';
     kFsYorumGuncelle(sym);
   }
 });
