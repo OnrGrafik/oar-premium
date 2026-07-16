@@ -670,6 +670,21 @@ async function kGrafikVeri(sym,zorla){
       }
     }
   }
+  // NAKED kuralı (indikatörle aynı): temas edilen PDH/PDL/PWH/PWL çizilmez.
+  // PD: bugünün mumları (5m) · PW: bu haftanın mumları (1h, Pazartesi'den itibaren)
+  const temas=(pv,arr)=>pv!=null&&arr.some(x=>x.l<=pv&&pv<=x.h);
+  const bugunM=M.filter(x=>_trGun(x.t)===bugun);
+  if(temas(pdh,bugunM))pdh=null;
+  if(temas(pdl,bugunM))pdl=null;
+  let haftaBasiTs=null;
+  if(D1.length>=2){
+    const dow2=new Date((D1[D1.length-1].t+K_TZ)*1000).getUTCDay()||7;
+    const mi2=D1.length-1-(dow2-1);
+    if(mi2>=0)haftaBasiTs=D1[mi2].t;
+  }
+  const haftaH1=haftaBasiTs!=null?H1.filter(x=>x.t>=haftaBasiTs):[];
+  if(temas(pwh,haftaH1))pwh=null;
+  if(temas(pwl,haftaH1))pwl=null;
   ekle(mid,'Midnight','#9e9e9e');
   ekle(two,'Two','#00a862');ekle(twao,'Twao','#00a862');
   ekle(doV,'DO','#757575');ekle(wo,'WO','#2196f3');ekle(mo,'MO','#ff9800');ekle(qo,'QO','#e91e63');

@@ -1708,6 +1708,15 @@ async def _grafik_ozeti(symbol: str = "BTCUSDT") -> dict:
         if mi >= 1:
             onceki = D[max(0, mi - 7):mi]
             key["PWH"] = max(x["h"] for x in onceki); key["PWL"] = min(x["l"] for x in onceki)
+        # NAKED kuralı: temas edilen PDH/PDL/PWH/PWL listeden düşer (indikatörle aynı)
+        bugun_m = [x for x in M if gun(x["t"]) == bugun]
+        def _temas(pv, arr):
+            return pv is not None and any(x["l"] <= pv <= x["h"] for x in arr)
+        if _temas(key.get("PDH"), bugun_m): key.pop("PDH", None)
+        if _temas(key.get("PDL"), bugun_m): key.pop("PDL", None)
+        hafta_h1 = [{"l": c["low"], "h": c["high"]} for c in (h1 or []) if c["ts"] // 1000 >= D[mi]["t"]] if mi >= 0 else []
+        if _temas(key.get("PWH"), hafta_h1): key.pop("PWH", None)
+        if _temas(key.get("PWL"), hafta_h1): key.pop("PWL", None)
         simdi = datetime.fromtimestamp(D[-1]["t"] + 10800, tz=timezone.utc)
         for x in D:
             dt = datetime.fromtimestamp(x["t"] + 10800, tz=timezone.utc)
