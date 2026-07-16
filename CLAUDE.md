@@ -133,6 +133,8 @@
 - KULLANICI GIT (tekrar): vim swap'ta MERGE_MSG'de takıldı. Çıkış: vim'de `:q!` → sonra `git merge --abort` → `git pull`. (Ya da swap prompt'unda D=delete.)
 - Fear&Greed sidebar kutusu kaldırıldı (renderFNG no-op). "Bilgi Bankası & Hafıza" butonu+modalı kaldırıldı (kitap sorunu çözüldü; erişilemezse lider Telegram'dan bildirir, PC kapalıyken DEĞİL).
 - 🚫 KALICI KURAL: sitede ZİYARETÇİYE GÖRÜNEN hiçbir yerde kaynak kod/yöntem/altyapı/veri-kaynağı adı YAZMAZ (Gemini, Groq, Deribit, Binance, CoinGecko, Black-Scholes, Railway, model adları…). Tek istisna: kaynak KİTAP adları (ör. Hull 11e) yazabilir. Yeni panel/metin eklerken buna uy (temizlendi: live.html sidebar+opsiyon sayfası, index.html welcome+badge'ler).
+- ❌ İPTAL (kalıcı): "indikatör kodu kopyala" sistemi kaldırıldı (buton+/api/options/pine-kod+oar_indikator.pine) — indikatör kodu SİTEDE ASLA gösterilmez/kopyalatılmaz. OAR TradingView indikatörü eski halinde (elle), Pine Seeds kapısı TradingView'de suspendli.
+- ✅ Komuta Merkezi: BTC+ETH canlı grafikler (LightweightCharts, 15m, /api/ohlcv) + Asia fib (/api/oar-fib) + CW/PW/MaxPain/ZG (/api/options/levels) otomatik çizim; altlarında lider yorumu (/api/grafik-yorum?symbol= — OAR şampiyon/market-kapısı + opsiyon + makro bağlamıyla, blok adları gizli). initKomutaGrafikler render() sonrası kurulur, veri 60s cache.
 - Deribit opsiyon paneli KALIR (OAR opsiyon overlay'i kullanıyor). KALAN: index.html'deki jenerik "Gemini kripto asistanı" welcome/chip'leri (Kazanan/Kaybeden, genel risk) hâlâ OAR-dışı → sadeleştirilecek.
 - KULLANICI GIT: local `MERGING` durumunda kaldı (MERGE_HEAD exists → pull bloke). Çözüm: `git merge --abort` (ya da `git commit` ile merge'i bitir) → sonra `git pull`.
 
