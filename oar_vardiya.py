@@ -69,6 +69,11 @@ def main():
             _calistir("ÇOKLU ŞAMPİYON KEŞFİ (ağır, günde 1)",
                       ["oar_coklu_sampiyon.py", "--symbol", SEMBOL,
                        "--from", BAS, "--to", BIT, "--telegram"])
+            # 4) SERAP TESTİ (edge gerçek mi/şans mı — DSR+permütasyon+bootstrap+MC+FDR)
+            #    Kendi cache'i var → şampiyon havuzunu yeniden işlemez; sonuç KALICI json.
+            _calistir("SERAP TESTİ (edge doğrulama, günde 1)",
+                      ["oar_serap_testi.py", "--symbol", SEMBOL,
+                       "--from", BAS, "--to", BIT, "--telegram"])
             son_agir = time.time()
         print(f"\n[VARDİYA] Tur {tur} tamam. {ARALIK_SAAT} saat uyku… "
               f"(sonuçlar: Telegram 4129 + kanitli_bulgular.json + backtest_sonuclari.json)\n"

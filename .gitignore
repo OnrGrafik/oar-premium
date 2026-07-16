@@ -15,3 +15,4 @@ data/
 .env
 .seans_cache/
 .hipotez_hafiza.json
+.serap_cache/
