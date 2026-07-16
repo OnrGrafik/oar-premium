@@ -245,6 +245,7 @@ function tickClock(){
 
 // ════════════ SCREENS ════════════
 function render(){
+  if(document.fullscreenElement){return;}  // tam ekrandayken DOM'u yeniden kurma (grafiği söker)
   const m=$('screen');
   if(ST.tab==='leader'){m.innerHTML=scrLeader();setTimeout(initKomutaGrafikler,0);}
   else if(ST.tab==='options')m.innerHTML=scrOptions();
@@ -430,10 +431,14 @@ function komutaGrafikKart(sym,ad){
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
       <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · 5M · OAR</span>
       <span style="font-size:9.5px;color:#5e716f">Seanslar · Asia fib · Midnight/DO/PDH-PDL · VWAP(D) · opsiyon seviyeleri — otomatik</span>
+      <button onclick="kGrafikTamEkran('${sym}')" style="margin-left:auto;background:none;border:1px solid #1a2422;border-radius:6px;color:#8a9c99;font-size:11px;padding:4px 10px;cursor:pointer">⛶ Tam ekran</button>
     </div>
-    <div style="position:relative">
+    <div id="kwrap-${sym}" style="position:relative;background:#fff">
       <div id="kchart-${sym}" style="height:340px"></div>
       <canvas id="kover-${sym}" style="position:absolute;left:0;top:0;pointer-events:none;z-index:10"></canvas>
+      <div id="kyorumfs-${sym}" style="display:none;position:absolute;left:0;right:0;bottom:0;z-index:20;background:rgba(7,10,10,.78);backdrop-filter:blur(3px);padding:12px 46px 12px 16px;font-size:12.5px;color:#d5e2df;line-height:1.55;max-height:32%;overflow-y:auto"></div>
+      <button id="kyorumbtn-${sym}" onclick="kYorumToggle('${sym}')" style="display:none;position:absolute;right:10px;bottom:10px;z-index:21;background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#7af0c4;font-size:11px;padding:5px 10px;cursor:pointer">▼ yorumu gizle</button>
+      <button id="kfsx-${sym}" onclick="kGrafikTamEkran('${sym}')" style="display:none;position:absolute;right:10px;top:10px;z-index:21;background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#d5e2df;font-size:11px;padding:5px 10px;cursor:pointer">✕ çık</button>
     </div>
     <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-left:2px solid #1ff0ad;border-radius:7px;padding:11px 13px">
       <div class="sg" style="font-size:9px;letter-spacing:.12em;color:#7af0c4;margin-bottom:6px">◆ LİDER YORUMU — OAR · OPSİYON · MAKRO</div>
@@ -632,6 +637,44 @@ function kOverlayCiz(sym){
   // opsiyon seviyeleri: bugünden, kalın etiket
   for(const o of(c.optLvl||[]))seviye(o.p,xGun,`${o.ad} (${fmtP(o.p)})`,o.col,true,'700 9.5px');
 }
+
+// ─── Grafik tam ekran + yorum overlay ───
+let _kfsYorumGizli=false;
+function kGrafikTamEkran(sym){
+  const w=document.getElementById('kwrap-'+sym);if(!w)return;
+  if(document.fullscreenElement){document.exitFullscreen();return;}
+  w.requestFullscreen&&w.requestFullscreen();
+}
+function kYorumToggle(sym){
+  _kfsYorumGizli=!_kfsYorumGizli;
+  kFsYorumGuncelle(sym);
+}
+function kFsYorumGuncelle(sym){
+  const pan=document.getElementById('kyorumfs-'+sym),btn=document.getElementById('kyorumbtn-'+sym);
+  if(!pan||!btn)return;
+  const fs=document.fullscreenElement&&document.fullscreenElement.id==='kwrap-'+sym;
+  if(!fs){pan.style.display='none';btn.style.display='none';return;}
+  btn.style.display='block';
+  if(_kfsYorumGizli){pan.style.display='none';btn.textContent='▲ yorumu göster';}
+  else{
+    const gy=(ST.grafikYorum||{})[sym]||{};
+    pan.innerHTML='<span style="color:#7af0c4;font-weight:700;font-size:9.5px;letter-spacing:.12em">◆ LİDER YORUMU · OAR · OPSİYON · MAKRO</span><br>'+
+      (gy.yorum?esc(gy.yorum).replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>'):'<span style="color:#8a9c99">Lider analiz ediyor…</span>');
+    pan.style.display='block';btn.textContent='▼ yorumu gizle';
+  }
+}
+document.addEventListener('fullscreenchange',()=>{
+  for(const sym of ['BTCUSDT','ETHUSDT']){
+    const w=document.getElementById('kwrap-'+sym),el=document.getElementById('kchart-'+sym),c=_kcharts[sym];
+    if(!w||!el||!c)continue;
+    const fs=document.fullscreenElement===w;
+    const xbtn=document.getElementById('kfsx-'+sym);
+    el.style.height=fs?(window.innerHeight+'px'):'340px';
+    try{c.ch.applyOptions({width:w.clientWidth,height:fs?window.innerHeight:340});}catch(e){}
+    if(xbtn)xbtn.style.display=fs?'block':'none';
+    kFsYorumGuncelle(sym);
+  }
+});
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
 // ─── THEORY LAB ───
@@ -1843,7 +1886,7 @@ async function loadOarFib(){const d=await jget('/api/oar-fib?symbol=BTCUSDT');if
 async function loadPiyasaDurumu(){const d=await jget('/api/piyasa-durumu');if(d)ST.piyasaDurumu=d;}
 async function loadKomuta(){const d=await jget('/api/komuta-merkezi');if(d&&d.kutular)ST.komuta=d;}
 async function loadOpsiyonYorum(){const d=await jget('/api/opsiyon-yorum?currency=BTC');if(d)ST.opsiyonYorum=d;}
-async function loadGrafikYorum(){const[b,e]=await Promise.all([jget('/api/grafik-yorum?symbol=BTCUSDT'),jget('/api/grafik-yorum?symbol=ETHUSDT')]);ST.grafikYorum={BTCUSDT:b||{},ETHUSDT:e||{}};if(ST.tab==='leader')render();}
+async function loadGrafikYorum(){const[b,e]=await Promise.all([jget('/api/grafik-yorum?symbol=BTCUSDT'),jget('/api/grafik-yorum?symbol=ETHUSDT')]);ST.grafikYorum={BTCUSDT:b||{},ETHUSDT:e||{}};if(document.fullscreenElement){for(const s2 of ['BTCUSDT','ETHUSDT'])kFsYorumGuncelle(s2);}if(ST.tab==='leader')render();}
 async function loadTheoryHipotez(){
   const d=await jget('/api/theory/hipotezler');if(d)ST.theoryHipotez=d;
   const y=await jget('/api/theory/yorum');if(y)ST.theoryYorum=y;
