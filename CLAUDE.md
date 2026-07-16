@@ -116,6 +116,13 @@
 - SİSTEM 2 TREND (oar_trend_paper): BTC+ETH kırılım-devam (backtest-doğrulanmış stil). Tetik Asia-high/low kırılım, TP/SL=tp_sl_breakout birebir (LONG TP=1.377/SL=0.5), onay gun_bias_uyum. trapped/poc_taraf tick ister → canlı yaklaşım. /api/oar-trend + main.py startup.
 - SİSTEM 3 ALTCOIN (oar_altcoin_sistem): $1000·5x compound bakiye eklendi (göç: geçmiş işlemlerden). Komuta Merkezi OAR SİSTEMİ panelinde 3 kutu; SİSTEM 2'de canlı bakiye+pozisyon da görünür.
 
+## 5l. oar_serap_testi.py (SERAP/mirage testi — edge gerçek mi şans mı, KALICI)
+- Kullanıcı sorusu: "şampiyonlarda edge+likidasyon ölçümü var mı, diğer backtestlerde serap görmeyelim?" → TÜM sistemleri (2 şampiyon + elenen adaylar: stil3/4, micro fib seviyeleri, paslaşma koridorları) TEK bilimsel bateriden geçirir.
+- BATERİ (saf numpy+NormalDist, sentetik-veri doğrulandı): ① yıllık Sharpe (işlem FREKANSINA göre, √252 sabiti DEĞİL) ② Deflated Sharpe DSR (Bailey-LdP; N-deneme çoklu-karşılaştırma düzeltmesi; DSR≥0.95 geçer) ③ permütasyon p (işaret-çevirme, p<0.05) ④ bootstrap beklenti %95 CI (alt>0) ⑤ Monte-Carlo equity (işlem sırası bootstrap → 1x/3x/5x likidasyon oranı + maxDD dağılımı) ⑥ BH-FDR (tüm p'lere q=0.05 çoklu-test). KARAR: DSR≥0.95 ∧ CI-alt>0 ∧ FDR-p<0.05 ∧ 5x-likidasyon=0 → ✅ GERÇEK EDGE; aksi ⚠ MARJİNAL / ❌ SERAP.
+- Şampiyon havuzu = confirm._analiz (aggTrades, AĞIR ~saatler) bir kez → portföy bloklarıyla _filtre (2 şampiyon). Elenenler = kendi _analiz (klines, hızlı). Şampiyon koduna DOKUNMAZ (ANAYASA #8), sadece okur.
+- Çalıştırma: `python oar_serap_testi.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`. Cache .serap_cache/ (gitignore) → re-run dakikalar; --taze sıfırdan. KALICI çıktı: serap_testi_sonuc.json (repo kökü, git-senkron → commit+push edilince lider+Claude okur, TEKRAR backtest gerekmez). Vardiyaya eklendi (günde 1, çoklu-şampiyon sonrası).
+- DSR n_deneme girişi = o sistemi bulmak için denenen konfig sayısı (şampiyon 300 konservatif, micro 12, paslaşma 6, stil 4). Küçük-n yüksek-WR "kazananlar" (Pazar n49 OOS%100 tipi) bu bateride ❌ SERAP çıkar — çoklu-karşılaştırma serabının net testi.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
