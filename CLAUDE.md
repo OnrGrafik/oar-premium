@@ -123,6 +123,16 @@
 - Çalıştırma: `python oar_serap_testi.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`. Cache .serap_cache/ (gitignore) → re-run dakikalar; --taze sıfırdan. KALICI çıktı: serap_testi_sonuc.json (repo kökü, git-senkron → commit+push edilince lider+Claude okur, TEKRAR backtest gerekmez). Vardiyaya eklendi (günde 1, çoklu-şampiyon sonrası).
 - DSR n_deneme girişi = o sistemi bulmak için denenen konfig sayısı (şampiyon 300 konservatif, micro 12, paslaşma 6, stil 4). Küçük-n yüksek-WR "kazananlar" (Pazar n49 OOS%100 tipi) bu bateride ❌ SERAP çıkar — çoklu-karşılaştırma serabının net testi.
 
+## 5m. SERAP TESTİ SONUCU (2019-2025, KESİN — tekrar test GEREKMEZ)
+- ✅✅ İKİ ŞAMPİYON = GERÇEK EDGE (en güçlü skor, serap DEĞİL): 
+  ① FADE ekstrem_donus_fade: n1425 WR%37.7 PF3.08 beklenti+0.202 SR-yıl 4.51 **DSR 1.0** perm-p 5e-05 CI-alt+0.168 5x-likidasyon %0.
+  ② TREND kirilim_devam_trend: n897 WR%36.0 PF3.06 beklenti+0.168 SR-yıl 3.37 **DSR 1.0** perm-p 5e-05 CI-alt+0.129 5x-likidasyon %0.
+  DSR=1.0 → 300 deneme çoklu-karşılaştırma düzeltmesinden SONRA bile edge gerçek olma olasılığı ~%100. Düşük WR + PF~3 = düşük-WR/yüksek-R:R yapısı (kazançlar kayıpların ~5 katı); Sharpe 4.5 bunu doğruluyor. LİKİDASYON YOK (5x'te bile).
+- ⚠ TEK MARJİNAL: MICRO fib -0.618 LONG n1524 WR%81.4 PF1.17 beklenti+0.047 DSR 0.60 CI-alt+0.0017 (~sıfır) → çoklu-testten sonra güvenilmez, TEK BAŞINA tradeable değil (önceki OOS-negatif bulgusuyla uyumlu).
+- ❌ GERİ KALAN HEPSİ SERAP (kanıtlandı): stil-3/4, micro fib +1.377/+1.618/+2.272/-0.377/-1.272, paslaşma 3↔4/4↔5/5↔6 — hepsi negatif beklenti, DSR 0, perm-p~1, CI-alt negatif. PASLAŞMA 3↔4 ve 4↔5 ayrıca 5x'te %86.8/%62.4 LİKİDE oluyor (MC yakaladı) → felaket.
+- KRİTİK DERS: hipotez motorunun yüksek-WR "97 kazananı" (Pazar n49 OOS%100 tipi) gerçek işleme çevrilince (micro/stil/paslaşma) SERAP çıktı → vuruş-oranı ≠ edge bir kez daha, bu sefer DSR+permütasyon+MC ile KESİN. Bu adayları tekrar kovalama.
+- Kaynak: serap_testi_sonuc.json (repo kökü, git-senkron). Kullanıcı koştu (BTC 11058 + ETH 12974 aday, tam 2019-2025), commit+push edildi.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
