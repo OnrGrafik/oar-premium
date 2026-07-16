@@ -246,7 +246,7 @@ function tickClock(){
 // ════════════ SCREENS ════════════
 function render(){
   const m=$('screen');
-  if(ST.tab==='leader'){m.innerHTML=scrLeader();}
+  if(ST.tab==='leader'){m.innerHTML=scrLeader();setTimeout(initKomutaGrafikler,0);}
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
@@ -255,7 +255,6 @@ function render(){
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
 // ─── KOMUTA MERKEZİ (v3) ───
-let _kcoin='BTCUSDT';  // grafik kaldırıldı; _kcoin yalnız grafik-yorum endpoint'i için
 
 // ─── KOMUTA MERKEZİ: 4 GÜVENİLİRLİK KUTUSU (Top-50 coin) ───
 function komutaKutulariHtml(){
@@ -326,7 +325,6 @@ function scrLeader(){
     </div>`).join(''):'<div style="font-size:10px;color:#5e716f">İndikatör verisi yükleniyor...</div>';
 
   const bol=pd.bolumler||{};
-  const gy=ST.grafikYorum||{};
   const vurgu=(t)=>esc(t||'').replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>');
   const has3=bol.teknik||bol.temel||bol.psikoloji;
   const rejim=pv.rejim||'—';
@@ -420,9 +418,72 @@ function scrLeader(){
     </div>`:''}
   </div>
 
-  <!-- CANLI GRAFİK YORUMU kaldırıldı (Piyasa Durumu ile mükerrerdi — lider katkısı
-       pd.yorum'da). OPSİYON GENEL DURUM kaldırıldı (Opsiyon & GEX sayfasında var).
-       Paper/Altcoin kutuları yukarıda OAR SİSTEMİ paneline taşındı. -->`;
+  ${komutaGrafikKart('BTCUSDT','BTC')}
+  ${komutaGrafikKart('ETHUSDT','ETH')}`;
+}
+
+// ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu ───
+function komutaGrafikKart(sym,ad){
+  const gy=(ST.grafikYorum||{})[sym]||{};
+  const vurgu=(t)=>esc(t||'').replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>');
+  return `<div class="card" style="padding:15px 17px;margin-bottom:13px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · 15M</span>
+      <span style="font-size:9.5px;color:#5e716f">Asia fib + opsiyon seviyeleri (CW/PW/Max-Pain) otomatik çizilir</span>
+    </div>
+    <div id="kchart-${sym}" style="height:300px"></div>
+    <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-left:2px solid #1ff0ad;border-radius:7px;padding:11px 13px">
+      <div class="sg" style="font-size:9px;letter-spacing:.12em;color:#7af0c4;margin-bottom:6px">◆ LİDER YORUMU — OAR · OPSİYON · MAKRO</div>
+      <div style="font-size:13px;color:#b8c6c3;line-height:1.6">${gy.yorum?vurgu(gy.yorum):'<span style="color:#5e716f">Lider analiz ediyor…</span>'}</div>
+      ${(gy.kitap_kaynaklar&&gy.kitap_kaynaklar.length)?`<div style="margin-top:8px">${gy.kitap_kaynaklar.map(k=>`<span style="font-size:9px;color:#56a8ff;border:1px solid #1a2a3a;padding:2px 7px;border-radius:4px;margin-right:5px">${esc(k)}</span>`).join('')}</div>`:''}
+    </div>
+  </div>`;
+}
+
+let _kcharts={};
+async function initKomutaGrafikler(){
+  if(typeof LightweightCharts==='undefined')return;
+  for(const sym of ['BTCUSDT','ETHUSDT']){
+    const el=document.getElementById('kchart-'+sym);
+    if(!el||el.dataset.init)continue;
+    el.dataset.init='1';
+    if(_kcharts[sym]&&_kcharts[sym].ch){try{_kcharts[sym].ch.remove();}catch(e){}}
+    const ch=LightweightCharts.createChart(el,{
+      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
+      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
+      timeScale:{borderColor:'#18211f',timeVisible:true},
+      rightPriceScale:{borderColor:'#18211f'},
+      width:el.clientWidth,height:300});
+    const ca=ch.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
+      borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
+    new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});}catch(e){}}).observe(el);
+    _kcharts[sym]={ch,ca,lines:[]};
+    kGrafikVeri(sym);
+  }
+}
+async function kGrafikVeri(sym,zorla){
+  const c=_kcharts[sym];if(!c)return;
+  ST.kgraf=ST.kgraf||{};
+  let d=ST.kgraf[sym];
+  if(zorla||!d||Date.now()-d.ts>60000){
+    const cur=sym.startsWith('BTC')?'BTC':'ETH';
+    const[oh,lv,fib]=await Promise.all([
+      jget('/api/ohlcv?symbol='+sym+'&interval=15m&limit=192'),
+      jget('/api/options/levels?currency='+cur),
+      jget('/api/oar-fib?symbol='+sym)]);
+    d={ts:Date.now(),oh,lv,fib};ST.kgraf[sym]=d;
+  }
+  if(!_kcharts[sym]||_kcharts[sym]!==c)return;
+  if(d.oh&&d.oh.candles)c.ca.setData(d.oh.candles.map(x=>({time:Math.floor(x.ts/1000),open:x.open,high:x.high,low:x.low,close:x.close})));
+  c.lines.forEach(l=>{try{c.ca.removePriceLine(l);}catch(e){}});c.lines=[];
+  const k=(d.lv&&(d.lv.kisa||d.lv.genel))||{};
+  [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['max_pain','#ffb13c','Max Pain'],['zero_gamma','#8a9c99','ZG']].forEach(([key,col,t])=>{
+    if(k[key])c.lines.push(c.ca.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
+  });
+  if(d.fib&&d.fib.seviyeler)Object.entries(d.fib.seviyeler).forEach(([adx,fiyat])=>{
+    c.lines.push(c.ca.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+adx}));
+  });
+  try{c.ch.timeScale().fitContent();}catch(e){}
 }
 
 // ─── AGENTLAR & BOTLAR (v3 — başarı skoru, win rate yok) ───
@@ -1635,59 +1696,7 @@ async function loadOarFib(){const d=await jget('/api/oar-fib?symbol=BTCUSDT');if
 async function loadPiyasaDurumu(){const d=await jget('/api/piyasa-durumu');if(d)ST.piyasaDurumu=d;}
 async function loadKomuta(){const d=await jget('/api/komuta-merkezi');if(d&&d.kutular)ST.komuta=d;}
 async function loadOpsiyonYorum(){const d=await jget('/api/opsiyon-yorum?currency=BTC');if(d)ST.opsiyonYorum=d;}
-async function loadGrafikYorum(){const d=await jget('/api/grafik-yorum?symbol='+_kcoin);if(d)ST.grafikYorum=d;if(ST.tab==='leader')render();}
-let _lchart,_lcandle,_locvd,_locvdLine,_lpriceLines=[];
-async function renderLeaderChart(){
-  const el=document.getElementById('lchart');
-  if(!el||typeof LightweightCharts==='undefined')return;
-  // grafik bir kez kur
-  if(!_lchart){
-    _lchart=LightweightCharts.createChart(el,{
-      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
-      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
-      timeScale:{borderColor:'#18211f',timeVisible:true},
-      rightPriceScale:{borderColor:'#18211f'},
-      width:el.clientWidth,height:230});
-    _lcandle=_lchart.addCandlestickSeries({upColor:'#1ff0ad',downColor:'#ff5d6c',
-      borderUpColor:'#1ff0ad',borderDownColor:'#ff5d6c',wickUpColor:'#1ff0ad',wickDownColor:'#ff5d6c'});
-    const ocel=document.getElementById('ocvdchart');
-    _locvd=LightweightCharts.createChart(ocel,{
-      layout:{background:{color:'#0c1112'},textColor:'#5e716f'},
-      grid:{vertLines:{color:'#141d1b'},horzLines:{color:'#141d1b'}},
-      timeScale:{visible:false},rightPriceScale:{borderColor:'#18211f'},
-      width:ocel.clientWidth,height:80});
-    _locvdLine=_locvd.addLineSeries({color:'#8b5cf6',lineWidth:2});
-    new ResizeObserver(()=>{if(_lchart)_lchart.applyOptions({width:el.clientWidth});if(_locvd)_locvd.applyOptions({width:document.getElementById('ocvdchart').clientWidth});}).observe(el);
-  }
-  // mum verisi
-  const oh=await jget('/api/ohlcv?symbol=BTCUSDT&interval=5m&limit=200');
-  if(oh&&oh.candles){
-    _lcandle.setData(oh.candles.map(c=>({time:Math.floor(c.ts/1000),open:c.open,high:c.high,low:c.low,close:c.close})));
-  }
-  // opsiyon seviyeleri (0-7g) + OAR fib çizgileri
-  _lpriceLines.forEach(l=>_lcandle.removePriceLine(l));_lpriceLines=[];
-  const lv=await jget('/api/options/levels?currency=BTC');
-  if(lv&&lv.kisa){
-    const k=lv.kisa;
-    [['call_wall','#1ff0ad','CW'],['put_wall','#ff5d6c','PW'],['zero_gamma','#ffb13c','ZG']].forEach(([key,col,t])=>{
-      if(k[key])_lpriceLines.push(_lcandle.createPriceLine({price:k[key],color:col,lineWidth:1,lineStyle:t==='ZG'?2:0,title:t}));
-    });
-  }
-  // OAR fib (Asia range TR 03-07 → fib 0.377/0.618)
-  const fib=await jget('/api/oar-fib?symbol=BTCUSDT');
-  if(fib&&fib.seviyeler){
-    Object.entries(fib.seviyeler).forEach(([ad,fiyat])=>{
-      _lpriceLines.push(_lcandle.createPriceLine({price:fiyat,color:'#56a8ff',lineWidth:1,lineStyle:2,title:'fib '+ad}));
-    });
-  }
-  // opsiyon CVD
-  const ocvd=await jget('/api/options/cvd?currency=BTC');
-  if(ocvd&&ocvd.data){
-    _locvdLine.setData(ocvd.data.map((p,i)=>({time:Math.floor(p.ts/1000),value:p.cvd})));
-    const yel=document.getElementById('ocvd-yon');
-    if(yel)yel.innerHTML=`${ocvd.yon==='YUKARI'?'<span style="color:#1ff0ad">▲ YUKARI</span>':'<span style="color:#ff5d6c">▼ AŞAĞI</span>'} · güncel ${ocvd.guncel}`;
-  }
-}
+async function loadGrafikYorum(){const[b,e]=await Promise.all([jget('/api/grafik-yorum?symbol=BTCUSDT'),jget('/api/grafik-yorum?symbol=ETHUSDT')]);ST.grafikYorum={BTCUSDT:b||{},ETHUSDT:e||{}};if(ST.tab==='leader')render();}
 async function loadTheoryHipotez(){
   const d=await jget('/api/theory/hipotezler');if(d)ST.theoryHipotez=d;
   const y=await jget('/api/theory/yorum');if(y)ST.theoryYorum=y;
@@ -1755,7 +1764,8 @@ async function boot(){
   const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
-  setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
+  setInterval(async()=>{if(ST.tab==='leader'){kGrafikVeri('BTCUSDT',true);kGrafikVeri('ETHUSDT',true);}
+  await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
   setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();

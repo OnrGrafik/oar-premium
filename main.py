@@ -2027,6 +2027,7 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
             veri["cw"] = lv.get("genel", {}).get("call_wall")
             veri["pw"] = lv.get("genel", {}).get("put_wall")
             veri["zg"] = lv.get("genel", {}).get("zero_gamma")
+            veri["max_pain"] = lv.get("kisa", {}).get("max_pain") or lv.get("genel", {}).get("max_pain")
     except Exception: pass
     try:
         from market_context import son_baglam
@@ -2034,6 +2035,27 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
         if ctx:
             veri["rejim"] = ctx.get("regime", {}).get("rejim")
             veri["whale"] = ctx.get("move_source", {}).get("kaynak")
+    except Exception: pass
+    # OAR Asia + şampiyon/market-kapısı bağlamı (yorumun ana çerçevesi)
+    try:
+        from oar_session_agent import oar_analiz, _market_fade_gunu
+        oa = await oar_analiz(symbol)
+        a = oa.get("asia") or {}
+        veri["asia_high"] = a.get("high"); veri["asia_low"] = a.get("low")
+        veri["asia_poc"] = a.get("poc"); veri["asia_range_pct"] = a.get("range_pct")
+        veri["oar_rejim"] = oa.get("oar_rejim")
+        kapi, btc_pct, eth_pct = await _market_fade_gunu()
+        veri["market_kapisi"] = ("AÇIK — BTC+ETH Asia ≥%1, fade günü" if kapi is True
+                                 else f"KAPALI — BTC %{btc_pct} / ETH %{eth_pct} (<%1, yeni işlem yok)")
+    except Exception: pass
+    # Makro (Fed/CPI/işsizlik — kısa özet)
+    try:
+        from macro_engine import makro_veri
+        mk = await makro_veri()
+        def _mv(k):
+            v = (mk or {}).get(k) or {}
+            return v.get("guncel", {}).get("deger") if isinstance(v.get("guncel"), dict) else v.get("deger")
+        veri["makro"] = {"fed_faiz": _mv("fedFaiz"), "cpi": _mv("cpi"), "issizlik": _mv("isRate")}
     except Exception: pass
 
     kitap_kaynaklar = []
@@ -2069,17 +2091,19 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
                 f"  SWING: giriş {sw.get('giris')}, TP {sw.get('tp')}→{sw.get('tp2')} "
                 f"({sw.get('tp_etiket')}), SL {sw.get('sl')}, R:R {sw.get('rr')}"
             )
-        prompt = f"""Sen OAR Premium grafik analistisin. {cur} 5M ASIA RANGE grafiğini canlı yorumla.
-Lider Agent adına, agentların (indikatör, opsiyon, whale) bulgularını gözlemle ve
-ÖNERİLEN İŞLEM seviyelerini gerekçelendir. 3-4 cümle, Türkçe, **seviyeleri vurgula**.
+        prompt = f"""Sen OAR Premium'un LİDER analistisin. {cur} grafiğini OAR sistemi çerçevesinde canlı yorumla.
+Yorum 3 eksende olsun (kısa, akıcı tek paragraf, 4-6 cümle, Türkçe, **seviyeleri vurgula**):
+① OAR: Asia range (H/L/POC), range genliği ve market kapısı durumuna göre bugün fade mi trend-devam günü mü; fiyatın Asia ekstremlerine/fib'e göre konumu.
+② OPSİYON: CW/PW/ZG/Max-Pain seviyelerinin fiyata mesafesi ve dealer hedge etkisi (duvar=direnç/destek, ZG üstü sakin/altı hızlanma, expiry yaklaşırken max-pain mıknatısı).
+③ MAKRO: Fed faizi/CPI/işsizlik ortamının risk iştahına etkisi (tek cümle yeter).
+KURALLAR: Her iddiaya SAYI ve mekanizma ekle ("X çünkü Y"). Jenerik laf yasak. Sistemin iç kural/blok adlarını ASLA yazma (gizli); sadece seviye ve yön yorumu yap.
 
-İndikatör skoru: {veri.get('skor')} ({veri.get('yon')}) · Fiyat: {veri.get('fiyat')}
-Rejim: {veri.get('rejim')} · Whale/Move: {veri.get('whale')}
-Opsiyon CW/PW/ZG: {veri.get('cw')}/{veri.get('pw')}/{veri.get('zg')}
+OAR: Asia H {veri.get('asia_high')} / L {veri.get('asia_low')} / POC {veri.get('asia_poc')} · genlik %{veri.get('asia_range_pct')} · rejim {veri.get('oar_rejim')} · Market kapısı: {veri.get('market_kapisi')}
+Fiyat: {veri.get('fiyat')} · İndikatör: {veri.get('skor')} ({veri.get('yon')}) · Piyasa rejimi: {veri.get('rejim')} · Whale/Move: {veri.get('whale')}
+Opsiyon: CW {veri.get('cw')} / PW {veri.get('pw')} / ZG {veri.get('zg')} / MaxPain {veri.get('max_pain')}
+Makro: {json.dumps(veri.get('makro') or {}, ensure_ascii=False)}
 En etkili indikatörler: {json.dumps(veri.get('detay', []), ensure_ascii=False)[:300]}
-Kitap: {kitap_notu[:300]}{setup_metin}
-
-İşlem skorunu, fib/duvar konumunu ve giriş-TP-SL mantığını açıkla. İşlem skoru düşükse (<60) neden temkinli olunması gerektiğini söyle."""
+Kitap: {kitap_notu[:300]}{setup_metin}"""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             async with httpx.AsyncClient(timeout=30) as cl:
