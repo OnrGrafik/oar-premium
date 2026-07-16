@@ -1657,6 +1657,161 @@ async def tarihsel_backtest_gecmis():
     from historical_backtest import gecmis_testler
     return {"testler": gecmis_testler()}
 
+async def _grafik_ozeti(symbol: str = "BTCUSDT") -> dict:
+    """Komuta Merkezi grafiğinin GÖSTERDİĞİ her şeyi sunucu tarafında hesapla —
+    lider grafiği 'okur': Asia H/L+fib, TÜM key level'lar, bugünkü VWAP, VP POC."""
+    from brain import get_ohlcv
+    m5, h1, d1 = await asyncio.gather(
+        get_ohlcv(symbol, "5m", 700), get_ohlcv(symbol, "1h", 240), get_ohlcv(symbol, "1d", 370))
+    if not m5:
+        return {}
+    M = [{"t": c["ts"] // 1000, "o": c["open"], "h": c["high"], "l": c["low"], "c": c["close"], "v": c["volume"]} for c in m5]
+    spot = M[-1]["c"]; son = M[-1]["t"]
+    dk = lambda t: ((t // 60) + 180) % 1440          # TR gün-içi dakika
+    gun = lambda t: (t + 10800) // 86400             # TR takvim günü
+    # Asia kutuları (03:00-07:00 TR)
+    asialar, grup = [], None
+    for x in M:
+        if 180 <= dk(x["t"]) < 420:
+            if not grup: grup = {"t1": x["t"], "hi": x["h"], "lo": x["l"]}
+            else: grup["hi"] = max(grup["hi"], x["h"]); grup["lo"] = min(grup["lo"], x["l"])
+        elif grup: asialar.append(grup); grup = None
+    if grup: asialar.append(grup)
+    suruyor = 180 <= dk(son) < 420
+    A = (asialar[-2] if (suruyor and len(asialar) > 1) else (asialar[-1] if asialar else None))
+    fib = {}
+    if A:
+        r = A["hi"] - A["lo"]
+        for v in (2.618, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.618):
+            fib[str(v)] = round(A["lo"] + r * v, 2)
+    # Key levels
+    key = {}
+    bugun = gun(son)
+    for x in M:
+        if gun(x["t"]) == bugun and dk(x["t"]) == 420 and "Midnight" not in key: key["Midnight"] = x["o"]
+        if gun(x["t"]) == bugun and dk(x["t"]) == 180 and "DO" not in key: key["DO"] = x["o"]
+    for c in (h1 or []):
+        t = c["ts"] // 1000
+        dt = datetime.fromtimestamp(t + 10800, tz=timezone.utc)
+        if dt.hour == 7 and gun(t) > bugun - 7:
+            if dt.weekday() == 0: key["Two"] = c["open"]
+            if dt.weekday() == 1: key["Twao"] = c["open"]
+    D = [{"t": c["ts"] // 1000, "o": c["open"], "h": c["high"], "l": c["low"]} for c in (d1 or [])]
+    if len(D) >= 2:
+        key.setdefault("DO", D[-1]["o"])
+        key["PDH"], key["PDL"] = D[-2]["h"], D[-2]["l"]
+        dow = datetime.fromtimestamp(D[-1]["t"] + 10800, tz=timezone.utc).weekday()
+        mi = len(D) - 1 - dow
+        if mi >= 0:
+            key["WO"] = D[mi]["o"]; key["Monday-H"] = D[mi]["h"]; key["Monday-L"] = D[mi]["l"]
+            key["Monday-EQ"] = round((D[mi]["h"] + D[mi]["l"]) / 2, 2)
+        if mi >= 1:
+            onceki = D[max(0, mi - 7):mi]
+            key["PWH"] = max(x["h"] for x in onceki); key["PWL"] = min(x["l"] for x in onceki)
+        simdi = datetime.fromtimestamp(D[-1]["t"] + 10800, tz=timezone.utc)
+        for x in D:
+            dt = datetime.fromtimestamp(x["t"] + 10800, tz=timezone.utc)
+            if dt.day == 1:
+                if dt.year == simdi.year and dt.month == simdi.month: key["MO"] = x["o"]
+                if dt.month in (1, 4, 7, 10): key["QO"] = x["o"]
+    # Bugünkü VWAP + son 24s volume-profile POC
+    cv = cpv = 0.0
+    for x in M:
+        if x["t"] // 86400 != son // 86400: continue
+        cv += x["v"]; cpv += (x["h"] + x["l"] + x["c"]) / 3 * x["v"]
+    vwap = round(cpv / cv, 2) if cv else None
+    vp = [x for x in M if x["t"] >= son - 86400]
+    poc = None
+    if vp:
+        lo, hi = min(x["l"] for x in vp), max(x["h"] for x in vp)
+        if hi > lo:
+            N = 40; kova = [0.0] * N
+            for x in vp:
+                i = min(N - 1, max(0, int(((x["h"] + x["l"]) / 2 - lo) / (hi - lo) * N)))
+                kova[i] += x["v"]
+            bi = kova.index(max(kova))
+            poc = round(lo + (bi + 0.5) * (hi - lo) / N, 2)
+    return {"spot": spot, "asia_high": A and A["hi"], "asia_low": A and A["lo"],
+            "asia_range_pct": A and round((A["hi"] - A["lo"]) / A["lo"] * 100, 3),
+            "fib": fib, "key_levels": {k: round(v, 2) for k, v in key.items()},
+            "vwap_bugun": vwap, "vp_poc_24s": poc}
+
+_site_baglam_cache = {"ts": 0, "metin": ""}
+
+async def _site_baglami() -> str:
+    """SİTEDEKİ HER ŞEY tek metinde — liderin zorunlu bilgisi (sohbet+yorum bağlamına girer).
+    Grafikler (BTC+ETH özet), GEX vade tablosu, Max Pain takvimi, şampiyonlar,
+    3 canlı sistem, kanıtlı bulgular + backtest defteri, makro."""
+    import time as _t
+    if _t.time() - _site_baglam_cache["ts"] < 120 and _site_baglam_cache["metin"]:
+        return _site_baglam_cache["metin"]
+    par = []
+    try:
+        gb, ge = await asyncio.gather(_grafik_ozeti("BTCUSDT"), _grafik_ozeti("ETHUSDT"))
+        for ad, gz in (("BTC", gb), ("ETH", ge)):
+            if not gz: continue
+            par.append(f"[GRAFİK {ad}] spot {gz['spot']} · Asia H/L {gz['asia_high']}/{gz['asia_low']} "
+                       f"(genlik %{gz['asia_range_pct']}) · fib0.5 {gz['fib'].get('0.5')} fib1.618 {gz['fib'].get('1.618')} "
+                       f"fib-0.618 {gz['fib'].get('-0.618')} · VWAP(bugün) {gz['vwap_bugun']} · VP-POC(24s) {gz['vp_poc_24s']} · "
+                       f"KeyLevels: " + " ".join(f"{k}={v}" for k, v in list(gz["key_levels"].items())[:14]))
+    except Exception as e:
+        par.append(f"[GRAFİK] hata: {str(e)[:60]}")
+    try:
+        from options_engine import vade_masasi
+        vm = await vade_masasi("BTC")
+        if not vm.get("error"):
+            gt = " · ".join(f"{r['vade']}: destek {r['destek']} direnç {r['direnc']} netGEX {r['net_gex']:+,}"
+                            for r in vm.get("gex_tablo", []))
+            tk = " · ".join(f"{r['expiry']}({r['gun']}g): MP {r['max_pain']} pin {r['pin_strike']}"
+                            for r in vm.get("takvim", [])[:4])
+            par.append(f"[GEX VADE TABLOSU · BTC] {gt}")
+            par.append(f"[MAX PAIN TAKVİMİ] {tk}")
+    except Exception: pass
+    try:
+        pj = Path(__file__).parent / "oar_sampiyon_portfoy.json"
+        if pj.exists():
+            pf = json.loads(pj.read_text(encoding="utf-8"))
+            for st in pf.get("stiller", []):
+                par.append(f"[ŞAMPİYON {st.get('stil')}] bloklar={'+'.join(st.get('bloklar', []))} "
+                           f"OOS {st.get('oos_puan')} holdout {st.get('holdout_puan')} PF {st.get('pf')} beklenti {st.get('beklenti')}")
+    except Exception: pass
+    try:
+        from oar_session_agent import _market_fade_gunu
+        kapi, bp, ep = await _market_fade_gunu()
+        par.append(f"[MARKET KAPISI] {'AÇIK (fade günü)' if kapi else 'KAPALI'} — BTC %{bp} / ETH %{ep} (eşik %1)")
+    except Exception: pass
+    try:
+        from oar_paper_box import durum_ozet as p1
+        d = p1(); par.append(f"[SİSTEM 1 FADE] bakiye ${d.get('bakiye')} açık {len(d.get('acik_pozisyonlar') or d.get('acik') or [])}")
+    except Exception: pass
+    try:
+        from oar_trend_paper import durum_ozet as p2
+        d = p2(); par.append(f"[SİSTEM 2 TREND] bakiye ${d.get('bakiye')} açık {len(d.get('acik') or {})}")
+    except Exception: pass
+    try:
+        from oar_altcoin_sistem import durum_ozet as p3
+        d = p3(); par.append(f"[SİSTEM 3 ALTCOIN] hafta {d.get('hafta')} işlem {d.get('bu_hafta_islem')} net %{d.get('bu_hafta_net_pct')} açık {d.get('acik_sayisi')}")
+    except Exception: pass
+    try:
+        from backtest_sonuclari import ozet as bt_ozet
+        par.append(f"[BACKTEST DEFTERİ] {bt_ozet()}")
+    except Exception: pass
+    try:
+        from leader_agent import _kanitli_bulgu_baglami
+        par.append(_kanitli_bulgu_baglami()[:900])
+    except Exception: pass
+    try:
+        from macro_engine import makro_veri
+        mk = await makro_veri()
+        def _mv(k):
+            v = (mk or {}).get(k) or {}
+            return v.get("guncel", {}).get("deger") if isinstance(v.get("guncel"), dict) else v.get("deger")
+        par.append(f"[MAKRO] FedFaiz {_mv('fedFaiz')} · CPI {_mv('cpi')} · İşsizlik {_mv('isRate')} · NFP {_mv('nfp')}")
+    except Exception: pass
+    metin = "═══ SİTE BAĞLAMI (Komuta Merkezi + Opsiyon + Makro sayfalarının CANLI verisi) ═══\n" + "\n".join(par)
+    _site_baglam_cache["ts"] = _t.time(); _site_baglam_cache["metin"] = metin
+    return metin
+
 async def _lider_baglam_topla() -> str:
     """Lider Agent'ın ZEKASI: her soruda tüm canlı + tarihsel bağlamı topla."""
     parcalar = []
@@ -1753,6 +1908,10 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
+    try:
+        parcalar.append(await _site_baglami())
+    except Exception as e:
+        parcalar.append(f"[site bağlamı hatası: {str(e)[:60]}]")
     return "\n".join(parcalar)
 
 
@@ -2048,6 +2207,13 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
         veri["market_kapisi"] = ("AÇIK — BTC+ETH Asia ≥%1, fade günü" if kapi is True
                                  else f"KAPALI — BTC %{btc_pct} / ETH %{eth_pct} (<%1, yeni işlem yok)")
     except Exception: pass
+    # Grafiğin gösterdiği her şey: key levels + VWAP + hacim POC (lider grafiği OKUR)
+    try:
+        gz = await _grafik_ozeti(symbol)
+        veri["key_levels"] = gz.get("key_levels")
+        veri["vwap_bugun"] = gz.get("vwap_bugun")
+        veri["vp_poc_24s"] = gz.get("vp_poc_24s")
+    except Exception: pass
     # Makro (Fed/CPI/işsizlik — kısa özet)
     try:
         from macro_engine import makro_veri
@@ -2102,6 +2268,8 @@ KURALLAR: Her iddiaya SAYI ve mekanizma ekle ("X çünkü Y"). Jenerik laf yasak
 OAR: Asia H {veri.get('asia_high')} / L {veri.get('asia_low')} / POC {veri.get('asia_poc')} · genlik %{veri.get('asia_range_pct')} · rejim {veri.get('oar_rejim')} · Market kapısı: {veri.get('market_kapisi')}
 Fiyat: {veri.get('fiyat')} · İndikatör: {veri.get('skor')} ({veri.get('yon')}) · Piyasa rejimi: {veri.get('rejim')} · Whale/Move: {veri.get('whale')}
 Opsiyon: CW {veri.get('cw')} / PW {veri.get('pw')} / ZG {veri.get('zg')} / MaxPain {veri.get('max_pain')}
+Grafikteki key-level'lar: {json.dumps(veri.get('key_levels') or {}, ensure_ascii=False)[:400]}
+VWAP(bugün): {veri.get('vwap_bugun')} · 24s hacim-POC: {veri.get('vp_poc_24s')} — fiyatın bunlara göre konumunu da yorumla
 Makro: {json.dumps(veri.get('makro') or {}, ensure_ascii=False)}
 En etkili indikatörler: {json.dumps(veri.get('detay', []), ensure_ascii=False)[:300]}
 Kitap: {kitap_notu[:300]}{setup_metin}"""
