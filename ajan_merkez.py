@@ -58,15 +58,45 @@ def _log_kaydet(kayit: dict):
         pass
 
 
+DEDUP_FILE = DATA_DIR / "ajan_dedup.json"
+DEDUP_SAAT = 24          # aynı (ajan+özet) mesajı 24 saat içinde TEKRAR gitmez
+DEDUP_SAAT_EKSIK = 6     # arıza bildirimi 6 saatte bir tekrar edebilir
+
+
+def _dedup_gecti(ajan: str, tur: str, ozet: str) -> bool:
+    """True = bu mesaj yakın zamanda zaten gönderildi → ATLAMA (restart/redeploy spamı önlenir)."""
+    import hashlib, time
+    h = hashlib.sha1(f"{ajan}|{ozet}".encode("utf-8")).hexdigest()[:16]
+    try:
+        d = json.loads(DEDUP_FILE.read_text(encoding="utf-8")) if DEDUP_FILE.exists() else {}
+    except Exception:
+        d = {}
+    simdi = time.time()
+    ttl = (DEDUP_SAAT_EKSIK if tur.lower() == "eksik" else DEDUP_SAAT) * 3600
+    if simdi - d.get(h, 0) < ttl:
+        return True
+    d[h] = simdi
+    d = {k: v for k, v in d.items() if simdi - v < 72 * 3600}   # 3 günden eskiyi temizle
+    try:
+        DEDUP_FILE.write_text(json.dumps(d), encoding="utf-8")
+    except Exception:
+        pass
+    return False
+
+
 async def bildir(ajan: str, tur: str, ozet: str, detay: str = "") -> bool:
     """
     Bir agent aktivitesini merkezi kanala gönder + diske logla.
     ajan: agent adı · tur: görüş/research/backtest/çıktı/öneri/eksik/istek/durum
     ozet: tek satır · detay: opsiyonel açıklama.
+    Aynı (ajan+özet) 24 saat içinde İKİNCİ kez Telegram'a GİTMEZ (kalıcı disk dedup —
+    redeploy/restart döngüsünde aynı mesajın tekrar tekrar atılmasını keser).
     """
     emoji = TUR_EMOJI.get(tur.lower(), "ℹ️")
     kayit = {"tarih": _now(), "ajan": ajan, "tur": tur, "ozet": ozet, "detay": detay[:500]}
     _log_kaydet(kayit)
+    if _dedup_gecti(ajan, tur, ozet):
+        return False
     satirlar = [f"{emoji} *{ajan}* — {tur.upper()}", ozet]
     if detay:
         satirlar.append(f"_{detay[:600]}_")

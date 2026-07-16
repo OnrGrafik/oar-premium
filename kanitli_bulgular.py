@@ -18,6 +18,28 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 KANIT_FILE = Path(__file__).resolve().parent / "kanitli_bulgular.json"
+# Bildirilen adlar KALICI diskte de tutulur: repo dosyası her deploy'da git'ten
+# (bildirildi bayrağı olmadan) gelir → yalnız repo bayrağına güvenmek her restart'ta
+# aynı bulguların Telegram'a TEKRAR atılmasına yol açıyordu.
+import os as _os
+_DATA_DIR = Path(_os.environ.get("DATA_DIR") or _os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")
+                 or ("/var/data" if Path("/var/data").exists() else "data"))
+_BILDIRILEN_FILE = _DATA_DIR / "kanitli_bildirilen.json"
+
+
+def _bildirilen_yukle() -> set:
+    try:
+        return set(json.loads(_BILDIRILEN_FILE.read_text(encoding="utf-8")))
+    except Exception:
+        return set()
+
+
+def _bildirilen_kaydet(adlar: set):
+    try:
+        _BILDIRILEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _BILDIRILEN_FILE.write_text(json.dumps(sorted(adlar), ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def _now():
@@ -68,8 +90,9 @@ def bulgular_al(n: int = 100) -> list:
 
 
 def bildirilmemis() -> list:
-    """Lider'in henüz Telegram'a atmadığı kanıtlı bulgular."""
-    return [b for b in _yukle() if not b.get("bildirildi")]
+    """Lider'in henüz Telegram'a atmadığı kanıtlı bulgular (kalıcı disk + repo bayrağı birlikte)."""
+    eski = _bildirilen_yukle()
+    return [b for b in _yukle() if not b.get("bildirildi") and b["ad"] not in eski]
 
 
 def bildirildi_isaretle(adlar: list):
@@ -79,6 +102,7 @@ def bildirildi_isaretle(adlar: list):
         if b["ad"] in ad_set:
             b["bildirildi"] = True
     _kaydet(bulgular)
+    _bildirilen_kaydet(_bildirilen_yukle() | ad_set)
 
 
 def ozet_metni(n: int = 8) -> str:

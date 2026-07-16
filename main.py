@@ -1390,12 +1390,9 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] opsiyon_sinyal_loop: {str(e)[:80]}")
 
-    try:
-        from ajan_merkez import bildir
-        asyncio.create_task(bildir("Sistem", "durum",
-            "Ajan merkezi aktif — tüm agent görüş/research/backtest/öneri/eksik burada."))
-    except Exception as e:
-        print(f"[Startup] ajan_merkez ping: {str(e)[:60]}")
+    # "Ajan merkezi aktif" açılış pingi KALDIRILDI — her redeploy/restart'ta Telegram'a
+    # spam atıyordu (kullanıcı sitemi). Kanal yalnız gerçek değer taşır (kural 6b).
+    print("[Startup] ajan_merkez hazır (açılış pingi kapalı)")
 
     print("[LiderAgent] ✅ Startup tamamlandı (kademeli mod — 512MB OOM önlemi)")
 
