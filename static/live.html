@@ -375,7 +375,21 @@ function scrLeader(){
           <span style="color:#8a9c99">CANLI: $1000 · 5x → bakiye <b style="color:${(tr.bakiye||0)>=(tr.baslangic||1000)?'#1ff0ad':'#ff5d6c'}">$${tr.bakiye!=null?tr.bakiye.toLocaleString():'—'}</b></span>
           <span style="color:#8a9c99">işlem: <b style="color:#cdd9d8">${tr.islem_sayisi||0}</b></span>
           ${ac.length?ac.map(([s,p])=>`<span style="color:#56a8ff">📍 ${s} ${p.yon} @ ${p.giris} (TP ${p.tp} / SL ${p.sl})</span>`).join(''):'<span style="color:#5e716f">açık pozisyon yok — kırılım bekleniyor</span>'}
-        </div>`;})()}
+        </div>
+        ${(()=>{const isl=tr.son_islemler||[];if(!isl.length)return '<div style="font-size:10px;color:#5e716f;margin-top:6px">henüz kapanmış işlem yok</div>';
+          const zf=t=>{try{return new Date(t).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}};
+          return `<div style="margin-top:8px;border-top:1px solid #141d1b;padding-top:7px">
+            <div class="sg" style="font-size:8.5px;letter-spacing:.12em;color:#5e716f;margin-bottom:5px">SON İŞLEMLER (${tr.islem_sayisi||isl.length})</div>
+            <div style="max-height:220px;overflow-y:auto">
+            ${isl.map(t=>{const eq=(t.net_fiyat_pct||0)*(tr.kaldirac||5);const kaz=eq>=0;
+              return `<div style="display:grid;grid-template-columns:38px 42px 1fr auto;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid #101614;font-size:10px">
+                <span style="color:#9fb0ad;font-weight:600">${(t.sembol||'').replace('USDT','')}</span>
+                <span style="color:${t.yon==='LONG'?'#1ff0ad':'#ff5d6c'};font-weight:600">${t.yon}</span>
+                <span style="color:#7d908d">${t.giris}→${t.cikis} · <span style="color:${t.sonuc==='TP'?'#1ff0ad':t.sonuc==='SL'?'#ff5d6c':'#8a9c99'}">${t.sonuc}</span> · ${zf(t.kapanis)}</span>
+                <span style="text-align:right;font-weight:700;color:${kaz?'#1ff0ad':'#ff5d6c'}">${kaz?'+':''}${eq.toFixed(2)}%</span>
+              </div>`;}).join('')}
+            </div></div>`;})()}
+      </div>`;})()}
     </div>`;})()}
     <div style="background:#0a0f0f;border:1px solid #2a2410;border-radius:7px;padding:11px 13px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">

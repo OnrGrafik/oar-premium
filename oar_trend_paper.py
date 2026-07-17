@@ -176,4 +176,4 @@ def durum_ozet() -> dict:
     return {"bakiye": d.get("bakiye"), "baslangic": d.get("baslangic_bakiye"),
             "kaldirac": d.get("kaldirac"), "basladi": d.get("basladi"),
             "acik": d.get("acik", {}), "islem_sayisi": len(d.get("islemler", [])),
-            "son_islemler": d.get("islemler", [])[-5:]}
+            "son_islemler": list(reversed(d.get("islemler", [])))[:30]}
