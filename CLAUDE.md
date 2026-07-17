@@ -132,6 +132,11 @@
 - ❌ opsiyon_duvar_yakin: blok STUB olarak eklendi ama AKTIF DEĞİL — GEÇMİŞ opsiyon zinciri verisi YOK (sadece canlı Deribit) → 2019-2025 backtest edilemez; canlı confirm katmanı olarak KALAN İŞ.
 - ⚠ CACHE: yeni feature'ların hesaplanması için kullanıcı ESKİ candidate cache'i temizlemeli (.seans_cache + <veri>/_kesif_cache + .serap_cache) → yoksa eski adaylar yeni alanları taşımaz, bloklar None döner (keşifte pas geçilir). Temizleyip vardiya/çoklu-şampiyon çalıştırınca kesfet 28 blok (19+10) kombinasyonunu tarar → yeni şampiyon çıkabilir; çıkmazsa "bu boyutlarda edge yok" diye KESİN öğrenilir. Sonuç serap testinden geçmeli (DSR≥0.95).
 
+## 5o. SEANS-ÖLÇEKLİ ABSORPSİYON BLOĞU (kullanıcı FP gözlemi — kalıcı)
+- Kullanıcı gözlemi: "şampiyon zarar etti; FP'de net absorbtion + opsiyon desteklerinde long gördüm; satıcı pasife düşüp fiyat sürülüyor ama şampiyon bakmıyor." → HAKLI: şampiyonun footprint_absorpsiyon'u DAR/ANLIK (giriş dakikası vol_z≥1 + sonraki 5 bar fiyat tutunması). Seans-ölçekli "satıcı pasif + fiyat kademeli sürülüyor" olayına BAKMIYOR.
+- EKLENEN (oar_local_backtest.aday_sinyaller_uret, no-lookahead, girişten önceki ~60 bar [lo..j]): seans_absorp_up (satış deltası geldi ama fiyat düşmedi ≥%60 + net sürülme≥%0.3 yukarı), seans_absorp_dn (ayna), seans_absorp_fade_uyum (fade: SHORT ancak DOWN-absorp'ta/LONG ancak UP-absorp'ta güvenli — SÜRÜLEN YÖNE FADE=TEHLİKE; trend: yönünde sürülüyorsa teyit). 3 blok AKTIF_BLOKLAR'a eklendi (artık 31 blok).
+- ÖNEMLİ: tek günlük zarar edge bozulması DEĞİL (serap DSR 1.0, 1425 işlem PF3.08). Bu blok şampiyonu DEĞİŞTİRMEZ — kesfet'in yeni kombinasyon aramasına malzeme; combined backtest + serap testinden (DSR≥0.95) geçerse değerli. Kullanıcı cache temizleyip (.seans_cache+_kesif_cache+.serap_cache) çoklu-şampiyon/vardiya koşmalı.
+
 ## 5m. SERAP TESTİ SONUCU (2019-2025, KESİN — tekrar test GEREKMEZ)
 - ✅✅ İKİ ŞAMPİYON = GERÇEK EDGE (en güçlü skor, serap DEĞİL): 
   ① FADE ekstrem_donus_fade: n1425 WR%37.7 PF3.08 beklenti+0.202 SR-yıl 4.51 **DSR 1.0** perm-p 5e-05 CI-alt+0.168 5x-likidasyon %0.

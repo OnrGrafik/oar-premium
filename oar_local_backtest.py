@@ -748,6 +748,33 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             # gizli delta divergence: SHORT tepede cvd negatif / LONG dipte cvd pozitif
             kayit["delta_divergence"] = bool(
                 (yon == "SHORT" and cvd_d < 0) or (yon == "LONG" and cvd_d > 0))
+            # 4) SEANS-ÖLÇEKLİ ABSORPSİYON (kullanıcı FP gözlemi, no-lookahead):
+            #    "satıcılar pasife düşüyor + fiyat sürülüyor" — girişten önceki ~60 barda
+            #    satış deltası geliyor AMA fiyat düşmüyor (absorbe) + net fiyat kademeli
+            #    yukarı sürülmüş = UP absorpsiyon (yükseliş devam sinyali). Aynası DOWN.
+            _lo_i = max(0, j - 60)
+            _seg = close_list[_lo_i: j + 1]
+            if len(_seg) >= 20 and _seg[0] > 0:
+                _surus = (fiyat - _seg[0]) / _seg[0] * 100.0        # net sürüklenme %
+                _sat = _sat_abs = _alis = _alis_abs = 0
+                for _k in range(_lo_i, j):                          # k+1 ≤ j → no-lookahead
+                    _dl = _dk_deger(delta_map, ts_list[_k])
+                    if _dl < 0:                                     # satış deltası geldi
+                        _sat += 1
+                        if close_list[_k + 1] >= close_list[_k] * 0.9995:   # ama fiyat düşmedi
+                            _sat_abs += 1
+                    elif _dl > 0:                                   # alış deltası geldi
+                        _alis += 1
+                        if close_list[_k + 1] <= close_list[_k] * 1.0005:   # ama fiyat çıkmadı
+                            _alis_abs += 1
+                up_abs = (_sat >= 5 and _sat_abs / _sat >= 0.6 and _surus >= 0.3)
+                dn_abs = (_alis >= 5 and _alis_abs / _alis >= 0.6 and _surus <= -0.3)
+                kayit["seans_absorp_up"] = bool(up_abs)            # satıcı pasif + fiyat yukarı sürülüyor
+                kayit["seans_absorp_dn"] = bool(dn_abs)            # alıcı pasif + fiyat aşağı sürülüyor
+                # fade-uyum: SHORT ancak seans DOWN-absorp'ta güvenli (tepe zayıf);
+                # LONG ancak seans UP-absorp'ta güvenli. Sürülen yöne fade = TEHLİKE.
+                kayit["seans_absorp_fade_uyum"] = bool(
+                    (yon == "SHORT" and dn_abs) or (yon == "LONG" and up_abs))
             kayit["mod"] = "fade"
             adaylar.append(kayit)
 
@@ -803,6 +830,12 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                     (yon_t == "LONG" and konum == "vah") or (yon_t == "SHORT" and konum == "val"))
             kayit_t["delta_divergence"] = bool(
                 (yon_t == "LONG" and cvd_d > 0) or (yon_t == "SHORT" and cvd_d < 0))
+            # seans-absorp trend-uyum: LONG kırılım seans UP-absorp'ta / SHORT DOWN-absorp'ta
+            # güçlenir (fiyat zaten o yöne sürülüyor = devam teyidi)
+            if "seans_absorp_up" in kayit:
+                kayit_t["seans_absorp_fade_uyum"] = bool(
+                    (yon_t == "LONG" and kayit.get("seans_absorp_up")) or
+                    (yon_t == "SHORT" and kayit.get("seans_absorp_dn")))
             adaylar.append(kayit_t)
     return adaylar
 

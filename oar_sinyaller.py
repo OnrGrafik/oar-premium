@@ -238,6 +238,24 @@ def opsiyon_duvar_yakin(s):
     return s.get("opsiyon_duvar_ok")
 
 
+def seans_absorp_up(s):
+    """SEANS-ÖLÇEKLİ absorpsiyon YUKARI: girişten önceki ~60 barda satıcı deltası
+    geldi ama fiyat düşmedi (absorbe) + fiyat kademeli yukarı sürüldü. Kullanıcının
+    FP gözlemi ('satıcı pasife düşüyor + fiyat sürülüyor')."""
+    return s.get("seans_absorp_up")
+
+
+def seans_absorp_dn(s):
+    """SEANS-ÖLÇEKLİ absorpsiyon AŞAĞI (ayna): alıcı pasife düşüyor + fiyat aşağı sürülüyor."""
+    return s.get("seans_absorp_dn")
+
+
+def seans_absorp_fade_uyum(s):
+    """Seans absorpsiyonu işlem yönüyle uyumlu mu — sürülen yöne fade = TEHLİKE
+    (fade: SHORT ancak seans-DOWN'da / LONG ancak seans-UP'ta; trend: yönünde sürülüyorsa teyit)."""
+    return s.get("seans_absorp_fade_uyum")
+
+
 BLOKLAR = {
     "cvd_yon": cvd_yon,
     "cvd_guclu": cvd_guclu,
@@ -276,6 +294,9 @@ BLOKLAR = {
     "delta_kuruma": delta_kuruma,
     "delta_divergence": delta_divergence,
     "opsiyon_duvar_yakin": opsiyon_duvar_yakin,   # backtest'te None (veri yok)
+    "seans_absorp_up": seans_absorp_up,
+    "seans_absorp_dn": seans_absorp_dn,
+    "seans_absorp_fade_uyum": seans_absorp_fade_uyum,
 }
 
 # Şu an VERİSİ olan, keşifte kullanılabilecek bloklar (öğrendikçe genişler).
@@ -293,6 +314,7 @@ AKTIF_BLOKLAR = [
     "gun_vwap_ust", "vwap_uzak", "vwap_fade_uyum",       # günlük VWAP mesafe/gerilme
     "frvp_vah", "frvp_val", "frvp_poc", "frvp_kenar_fade",  # gün-içi FRVP değer alanı konumu
     "delta_patlama", "delta_kuruma", "delta_divergence",   # delta-profil davranışı
+    "seans_absorp_up", "seans_absorp_dn", "seans_absorp_fade_uyum",  # SEANS-ölçekli absorpsiyon (kullanıcı FP gözlemi)
     # "opsiyon_duvar_yakin" AKTIF DEĞİL: geçmiş opsiyon verisi yok → canlı confirm için KALAN
 ]
 
