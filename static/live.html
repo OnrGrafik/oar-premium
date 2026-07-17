@@ -798,20 +798,29 @@ function kOverlayCiz(sym){
     g.fillText(kt.ad,(x1+x2)/2,Math.max(y1-4,9));
     g.restore();
   }
-  const seviye=(p,x1,etiket,col,dash,fs)=>{
+  // lblX: etiketin yazılacağı x (varsayılan xBitis+4). Opsiyon seviyeleri kendi
+  // ayrı sütununda (daha sağda) → OAR fib/key etiketleriyle iç içe girmez.
+  const seviye=(p,x1,etiket,col,dash,fs,lblX)=>{
     const y=c.ca.priceToCoordinate(p);if(y==null)return;
     g.save();
     g.strokeStyle=col;g.lineWidth=1;if(dash)g.setLineDash([4,4]);
     g.beginPath();g.moveTo(Math.max(x1,0),y);g.lineTo(xBitis,y);g.stroke();
+    const lx=lblX||(xBitis+4);
+    if(lblX){ // ayrı sütun → ince noktalı bağlayıcı çiz
+      g.setLineDash([1,3]);g.globalAlpha=0.5;
+      g.beginPath();g.moveTo(xBitis,y);g.lineTo(lblX-3,y);g.stroke();g.globalAlpha=1;
+    }
     g.setLineDash([]);g.font=(fs||'9px')+' '+K_FONT;g.fillStyle=col;g.textAlign='left';
-    g.fillText(etiket,xBitis+4,y+3);
+    g.fillText(etiket,lx,y+3);
     g.restore();
   };
   const xFib=c.fibT1!=null?(ts.timeToCoordinate(c.fibT1+K_TZ)??0):0;
   if(_kAyar.fib)for(const f of(c.fibler||[]))seviye(f.p,xFib,`${f.v} (${fmtP(f.p)})`,f.col,false,'700 9.5px');
   const xGun=c.gunT1!=null?(ts.timeToCoordinate(c.gunT1+K_TZ)??0):0;
   if(_kAyar.key)for(const k of(c.keyLvl||[]))seviye(k.p,xGun,`${k.ad} (${fmtP(k.p)})`,k.col,true,'9px');
-  if(_kAyar.opt)for(const o of(c.optLvl||[]))seviye(o.p,xGun,`${o.ad} (${fmtP(o.p)})`,o.col,true,'700 9.5px');
+  // Opsiyon seviyeleri: ayrı sütun (OAR etiketlerinden ~115px daha sağda)
+  const xOpt=xBitis+118;
+  if(_kAyar.opt)for(const o of(c.optLvl||[]))seviye(o.p,xGun,`${o.ad} (${fmtP(o.p)})`,o.col,true,'700 9.5px',xOpt);
 }
 
 // ─── Grafik tam ekran + yorum overlay ───
