@@ -1090,23 +1090,14 @@ async def sistem_denetimi() -> dict:
     """Tüm dış bağlantıları tek tek kontrol et."""
     sonuc = {"tarih": _now(), "servisler": {}}
     
+    # Vercel KALDIRILDI: opsiyon/makro artık DOĞRUDAN Deribit/kaynaktan geliyor
+    # (options_engine "Vercel'e GEREK YOK"). Vercel kontrolleri her saat sahte
+    # "vercel_macro arızalı" alarmı üretiyordu → çıkarıldı.
     kontroller = [
-        ("render_bot",     os.environ.get("BOT_URL", "") + "/"),
-        ("render_bot_signals", os.environ.get("BOT_URL", "") + "/signals?limit=1"),
-        ("vercel_levels",  None),  # config'den okunacak
-        ("vercel_macro",   None),
         ("binance",        "https://api.binance.com/api/v3/ping"),
         ("deribit",        "https://www.deribit.com/api/v2/public/test"),
     ]
-    
-    # Vercel URL'ini config'den al
-    cfg_file = DATA_DIR / "config.json"
-    cfg = _load(cfg_file, {})
-    vercel = cfg.get("vercel_url", os.environ.get("VERCEL_URL", "https://project-vtcqr.vercel.app"))
-    
-    kontroller[2] = ("vercel_levels", f"{vercel}/api/alarm-levels")
-    kontroller[3] = ("vercel_macro",  f"{vercel}/api/macro")
-    
+
     async with httpx.AsyncClient(timeout=12) as cl:
         for ad, url in kontroller:
             try:
@@ -1394,9 +1385,11 @@ Win Rate: %{backtest.get('genel_win_rate',0)}
                 arizali = [ad for ad, s in denetim.get("servisler", {}).items()
                            if s.get("durum") != "ok"]
                 if arizali:
+                    # Yalnız arızalı servis listesi — AI yorumu (eski bot win-rate'leri
+                    # vb.) EKLENMEZ (kullanıcı sitemi: gürültü + artık olmayan OAR
+                    # Kombo/Pattern botlarına atıf yapıyordu).
                     await bildir("Lider Agent", "eksik",
-                                 f"⚠️ {len(arizali)} servis arızalı: {', '.join(arizali)}",
-                                 detay=(ai or "") + f"\nÇakışan sinyal: {len(cakisma)}")
+                                 f"⚠️ {len(arizali)} servis arızalı: {', '.join(arizali)}")
             except Exception as e:
                 print(f"[LiderSaatlik] ajan_merkez: {str(e)[:60]}")
             print(f"[LiderSaatlik] ✅ {denetim['ozet']}")

@@ -1296,7 +1296,9 @@ async def startup_event():
         asyncio.create_task(sinyal_toplayici_loop())       # kendi içinde 240s bekler
         asyncio.create_task(sinyal_degerlendirici_loop())  # kendi içinde 60s bekler
         asyncio.create_task(saatlik_lider_raporu_loop(api_key))  # kendi içinde 900s bekler
-        asyncio.create_task(saatlik_backtest_loop())       # kendi içinde 1800s bekler
+        # saatlik_backtest_loop KALDIRILDI: "OAR Kombo" (CVD/OI pattern) eski sinyal
+        # üreticisiydi — OAR şampiyon sistemiyle alakasız, lider raporunu kirletiyordu
+        # (kullanıcı: "böyle bir kombo diye bir şeyimiz yok"). ANAYASA #9.
         asyncio.create_task(saatlik_research_loop())       # kendi içinde 2100s bekler
         asyncio.create_task(kanitli_bulgu_bildir_loop())   # kanıtlı bulgu → Telegram (300s sonra)
         # GERÇEK otonom backtest motoru (Binance+OI+GEX+VPFR) — eskiden hiç
@@ -1355,12 +1357,9 @@ async def startup_event():
 
     # Grup 4 — ağır (feature engine kendi içinde 90s + 300s bekler)
     await asyncio.sleep(2)
-    try:
-        from feature_engine import zenginlestirici_loop, pattern_sinyal_loop
-        asyncio.create_task(zenginlestirici_loop())
-        asyncio.create_task(pattern_sinyal_loop())
-    except Exception as e:
-        print(f"[Startup] feature_engine: {str(e)[:80]}")
+    # feature_engine KALDIRILDI: "OAR Pattern" (kazanan-profil eşleştirme) eski sinyal
+    # üreticisiydi — OAR şampiyon sistemiyle alakasız (kullanıcı: "böyle bir pattern
+    # diye bir şeyimiz yok"). ANAYASA #9: tüm enerji OAR Asia Range için.
 
     # Grup 5 — background scanner (360s bekler) + telegram + lider yorum
     await asyncio.sleep(2)
