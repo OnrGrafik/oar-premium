@@ -180,6 +180,64 @@ def makro_korelasyon(s):
     return s.get("makro_ok")
 
 
+# ─── YENİ BLOKLAR (kullanıcı isteği — genişletilmiş uzay, no-lookahead) ──────
+# aday_sinyaller_uret bu alanları hesaplar (klines+aggTrades'ten, geçmişe bakmadan).
+def gun_vwap_ust(s):
+    """Fiyat gün-içi VWAP'ın ÜSTÜNDE mi (trend bağlamı)."""
+    return s.get("gun_vwap_ust")
+
+
+def vwap_uzak(s):
+    """Fiyat gün-içi VWAP'tan ≥%0.8 uzak mı (ekstrem gerilme → mean-reversion)."""
+    return s.get("vwap_uzak")
+
+
+def vwap_fade_uyum(s):
+    """VWAP gerilmesi işlem yönüyle uyumlu mu (fade: karşı yöne gerilmiş; trend: yönünde geçmiş)."""
+    return s.get("vwap_fade_uyum")
+
+
+def frvp_vah(s):
+    """Fiyat gün-içi FRVP değer alanı ÜST kenarında mı (VAH = direnç)."""
+    return s.get("frvp_vah")
+
+
+def frvp_val(s):
+    """Fiyat gün-içi FRVP değer alanı ALT kenarında mı (VAL = destek)."""
+    return s.get("frvp_val")
+
+
+def frvp_poc(s):
+    """Fiyat gün-içi FRVP POC'ta mı (en yoğun hacim = mıknatıs)."""
+    return s.get("frvp_poc")
+
+
+def frvp_kenar_fade(s):
+    """Değer alanı kenarı işlem yönüyle uyumlu mu (fade: SHORT@VAH/LONG@VAL kenar dönüşü)."""
+    return s.get("frvp_kenar_fade")
+
+
+def delta_patlama(s):
+    """Yüksek hacim + büyük delta ama absorpsiyon DEĞİL → agresif patlama hareketi."""
+    return s.get("delta_patlama")
+
+
+def delta_kuruma(s):
+    """Hacim kuruması (vol z ≤ −0.5) — likidite boşluğu / ilgisizlik."""
+    return s.get("delta_kuruma")
+
+
+def delta_divergence(s):
+    """Gizli delta uyumsuzluğu (fade: ekstremde ters CVD; trend: yön CVD teyidi)."""
+    return s.get("delta_divergence")
+
+
+def opsiyon_duvar_yakin(s):
+    """0DTE call/put duvarı + Max Pain konfluensi. GEÇMİŞ opsiyon verisi YOK →
+    backtest'te None (kullanılmaz); canlıda confirm olarak bağlanabilir (KALAN İŞ)."""
+    return s.get("opsiyon_duvar_ok")
+
+
 BLOKLAR = {
     "cvd_yon": cvd_yon,
     "cvd_guclu": cvd_guclu,
@@ -206,6 +264,18 @@ BLOKLAR = {
     "dvol_skew_bearish": dvol_skew_bearish,
     "vol_sinyali": vol_sinyali,
     "makro_korelasyon": makro_korelasyon,
+    # YENİ (kullanıcı isteği — genişletilmiş uzay)
+    "gun_vwap_ust": gun_vwap_ust,
+    "vwap_uzak": vwap_uzak,
+    "vwap_fade_uyum": vwap_fade_uyum,
+    "frvp_vah": frvp_vah,
+    "frvp_val": frvp_val,
+    "frvp_poc": frvp_poc,
+    "frvp_kenar_fade": frvp_kenar_fade,
+    "delta_patlama": delta_patlama,
+    "delta_kuruma": delta_kuruma,
+    "delta_divergence": delta_divergence,
+    "opsiyon_duvar_yakin": opsiyon_duvar_yakin,   # backtest'te None (veri yok)
 }
 
 # Şu an VERİSİ olan, keşifte kullanılabilecek bloklar (öğrendikçe genişler).
@@ -219,6 +289,11 @@ AKTIF_BLOKLAR = [
     "gun_bias_uyum", "breakout_teyit", # trend teyit yığını (bias devamı + CVD/absorpsiyon)
     "oi_yuksek", "whale_retail_zit", "oi_tuzak",   # metrics varsa devreye girer (kısmi-veri OK)
     "htf_vwap", "htf_vpfr",             # klines'tan hesaplanır (her zaman var)
+    # YENİ boyutlar (klines+aggTrades'ten, no-lookahead — genişletilmiş keşif uzayı):
+    "gun_vwap_ust", "vwap_uzak", "vwap_fade_uyum",       # günlük VWAP mesafe/gerilme
+    "frvp_vah", "frvp_val", "frvp_poc", "frvp_kenar_fade",  # gün-içi FRVP değer alanı konumu
+    "delta_patlama", "delta_kuruma", "delta_divergence",   # delta-profil davranışı
+    # "opsiyon_duvar_yakin" AKTIF DEĞİL: geçmiş opsiyon verisi yok → canlı confirm için KALAN
 ]
 
 

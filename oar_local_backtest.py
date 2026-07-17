@@ -525,6 +525,52 @@ def _dk_deger(harita: dict, ts: int):
     return harita[max(adaylar)] if adaylar else 0.0
 
 
+def _frvp_konum(closes, vols, fiyat, bins=48, va_oran=0.70):
+    """
+    NO-LOOKAHEAD intraday FRVP: verilen [0..j] mumların hacim-fiyat profili → POC/VAH/VAL.
+    Fiyatın hangi bölgede olduğunu döner: 'vah' (üst kenar=direnç), 'val' (alt kenar=destek),
+    'poc' (yoğunluk/mıknatıs), 'ic' (değer alanı içi), None (yetersiz).
+    Standart market-profile: POC=en yoğun bin, VA=%70 hacmi kapsayan POC etrafı.
+    """
+    if len(closes) < 10:
+        return None
+    lo, hi = min(closes), max(closes)
+    if hi <= lo:
+        return None
+    hac = [0.0] * bins
+    genislik = (hi - lo) / bins
+    for c, v in zip(closes, vols):
+        i = int((c - lo) / genislik)
+        if i >= bins: i = bins - 1
+        if i < 0: i = 0
+        hac[i] += max(v, 0.0)
+    toplam = sum(hac)
+    if toplam <= 0:
+        return None
+    poc_i = max(range(bins), key=lambda i: hac[i])
+    kum = hac[poc_i]; u = d = poc_i
+    while kum < toplam * va_oran and (u < bins - 1 or d > 0):
+        yuk = hac[u + 1] if u < bins - 1 else -1
+        alt = hac[d - 1] if d > 0 else -1
+        if yuk >= alt and u < bins - 1:
+            u += 1; kum += hac[u]
+        elif d > 0:
+            d -= 1; kum += hac[d]
+        else:
+            break
+    vah = lo + (u + 1) * genislik      # değer alanı üst
+    val = lo + d * genislik            # değer alanı alt
+    poc_fiyat = lo + (poc_i + 0.5) * genislik
+    tol = fiyat * 0.0015               # %0.15 tolerans
+    if abs(fiyat - poc_fiyat) <= tol:
+        return "poc"
+    if fiyat >= vah - tol:
+        return "vah"
+    if fiyat <= val + tol:
+        return "val"
+    return "ic"
+
+
 def _cvd_delta(cvd_map, ts, pencere):
     """ts anındaki CVD ile pencere dk öncesi CVD farkı (yön/ivme)."""
     dk = int(ts // 60_000)
@@ -590,6 +636,13 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
         ts_list, close_list = g["post_ts"], g["post_close"]
         alinan = set()
         bd_run = 0.0; bd_lvl = None      # girişe kadarki en büyük |delta| barı (no-lookahead)
+        # ── YENİ BLOK FEATURE'LARI (no-lookahead) — kullanıcı isteği: genişletilmiş uzay
+        # Günlük VWAP running dizisi (yalnız [0..j] birikimi → geleceğe bakmaz)
+        _gv_cvol = 0.0; _gv_cpv = 0.0; gun_vwap_arr = []
+        for _ts_b, _cl_b in zip(ts_list, close_list):
+            _v_b = _dk_deger(vol_map, _ts_b)
+            _gv_cvol += _v_b; _gv_cpv += _cl_b * _v_b
+            gun_vwap_arr.append(_gv_cpv / _gv_cvol if _gv_cvol > 0 else _cl_b)
         for j, (ts, fiyat) in enumerate(zip(ts_list, close_list)):
             # Çalışan "büyük delta seviyesi" — yalnız [0..j] barları (geleceğe bakmaz)
             _d = _dk_deger(delta_map, ts)
@@ -663,6 +716,38 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
             if any(v is not None for v in vpfr_sev):
                 yakin_vp = any(v and abs(fiyat - v) / fiyat * 100 <= 0.5 for v in vpfr_sev)
                 kayit["htf_vpfr_ok"] = bool(yakin_vp)
+            # ═══ YENİ BLOK FEATURE'LARI (no-lookahead, kullanıcı isteği) ═══
+            # 1) VWAP-MESAFE (günlük): fiyatın gün-içi VWAP'a göre konumu/gerilmesi
+            gv = gun_vwap_arr[j]
+            if gv and gv > 0:
+                vwap_mesafe = (fiyat - gv) / gv * 100.0
+                kayit["gun_vwap_ust"] = bool(fiyat >= gv)
+                kayit["vwap_uzak"] = bool(abs(vwap_mesafe) >= 0.8)      # ekstrem gerilme
+                # fade-uyum: SHORT ise VWAP ÜSTÜNDE (yukarı gerilmiş→aşağı fade),
+                # LONG ise VWAP ALTINDA (aşağı gerilmiş→yukarı fade)
+                kayit["vwap_fade_uyum"] = bool(
+                    (yon == "SHORT" and vwap_mesafe >= 0.3) or
+                    (yon == "LONG" and vwap_mesafe <= -0.3))
+            # 2) FRVP KONUM (gün-içi değer alanı, [0..j] no-lookahead)
+            _cl_now = close_list[: j + 1]
+            _vl_now = [_dk_deger(vol_map, t) for t in ts_list[: j + 1]]
+            konum = _frvp_konum(_cl_now, _vl_now, fiyat)
+            if konum is not None:
+                kayit["frvp_vah"] = bool(konum == "vah")
+                kayit["frvp_val"] = bool(konum == "val")
+                kayit["frvp_poc"] = bool(konum == "poc")
+                # kenar-fade uyumu: SHORT VAH'ta (direnç) / LONG VAL'de (destek)
+                kayit["frvp_kenar_fade"] = bool(
+                    (yon == "SHORT" and konum == "vah") or
+                    (yon == "LONG" and konum == "val"))
+            # 3) DELTA-PROFİL: patlama / kuruma / divergence
+            kayit["delta_patlama"] = bool(vol_z >= 1.0 and
+                                          balina_esik > 0 and abs(bar_delta) >= balina_esik and
+                                          not absorp)                   # hacim+büyük delta ama absorp değil = patlama
+            kayit["delta_kuruma"] = bool(vol_z <= -0.5)                 # hacim kuruması
+            # gizli delta divergence: SHORT tepede cvd negatif / LONG dipte cvd pozitif
+            kayit["delta_divergence"] = bool(
+                (yon == "SHORT" and cvd_d < 0) or (yon == "LONG" and cvd_d > 0))
             kayit["mod"] = "fade"
             adaylar.append(kayit)
 
@@ -704,6 +789,20 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                 kayit_t["gun_bias_uyum"] = bool(onc == yon_t)
             # breakout_teyit: CVD yönünde + absorpsiyon (pasif karşı taraf tükendi)
             kayit_t["breakout_teyit"] = bool(cvd_ok and absorp_t)
+            # YENİ yön-bağımlı feature'ları TREND yönüne göre DÜZELT (kopyalanan fade
+            # yönlü değerler yanıltmasın). Yön-nötr olanlar (gun_vwap_ust/vwap_uzak/
+            # frvp_vah/val/poc/delta_patlama/delta_kuruma) kayit'ten aynen geçerli.
+            if gv and gv > 0:
+                vm_t = (fiyat - gv) / gv * 100.0
+                # trend: kırılım yönünde VWAP'ı geçmiş mi (momentum teyidi)
+                kayit_t["vwap_fade_uyum"] = bool(
+                    (yon_t == "LONG" and vm_t >= 0.3) or (yon_t == "SHORT" and vm_t <= -0.3))
+            if konum is not None:
+                # trend: LONG VAH'ı kırıyor / SHORT VAL'ı kırıyor (değer alanı dışına taşma)
+                kayit_t["frvp_kenar_fade"] = bool(
+                    (yon_t == "LONG" and konum == "vah") or (yon_t == "SHORT" and konum == "val"))
+            kayit_t["delta_divergence"] = bool(
+                (yon_t == "LONG" and cvd_d > 0) or (yon_t == "SHORT" and cvd_d < 0))
             adaylar.append(kayit_t)
     return adaylar
 

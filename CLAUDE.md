@@ -123,6 +123,15 @@
 - Çalıştırma: `python oar_serap_testi.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`. Cache .serap_cache/ (gitignore) → re-run dakikalar; --taze sıfırdan. KALICI çıktı: serap_testi_sonuc.json (repo kökü, git-senkron → commit+push edilince lider+Claude okur, TEKRAR backtest gerekmez). Vardiyaya eklendi (günde 1, çoklu-şampiyon sonrası).
 - DSR n_deneme girişi = o sistemi bulmak için denenen konfig sayısı (şampiyon 300 konservatif, micro 12, paslaşma 6, stil 4). Küçük-n yüksek-WR "kazananlar" (Pazar n49 OOS%100 tipi) bu bateride ❌ SERAP çıkar — çoklu-karşılaştırma serabının net testi.
 
+## 5n. BLOK UZAYI GENİŞLETİLDİ (kullanıcı isteği — yeni şampiyon aramak için)
+- HEDEF (kullanıcı, kalıcı): serap değil GERÇEK EDGE'li, likide olmayan ÇOK sayıda şampiyon (scalp+swing) → cüzdana bağlı sürekli kazanan sistem. "Çok çalışan metriğin yanına yeni şeyler deneyerek" 3.-10. şampiyonları çıkar. Aynı veriyi tekrar taramak yeni şampiyon getirmez → BLOK uzayını büyütmek gerçek kaldıraç.
+- EKLENEN 10 YENİ BLOK (oar_sinyaller.py BLOKLAR+AKTIF_BLOKLAR; feature'lar oar_local_backtest.aday_sinyaller_uret'te NO-LOOKAHEAD hesaplanır — şampiyon alanlarına DOKUNULMADI, yalnız yeni alan eklendi, ANAYASA #8 korundu): 
+  ① VWAP-mesafe: gun_vwap_ust, vwap_uzak (≥%0.8 gerilme), vwap_fade_uyum (yön-uyumlu, trend adayında yön-düzeltmeli)
+  ② FRVP konum (gün-içi değer alanı, _frvp_konum helper %70 VA): frvp_vah/frvp_val/frvp_poc/frvp_kenar_fade
+  ③ Delta-profil: delta_patlama (hacim+büyük delta ama absorp değil), delta_kuruma (vol_z≤−0.5), delta_divergence (gizli CVD uyumsuzluğu)
+- ❌ opsiyon_duvar_yakin: blok STUB olarak eklendi ama AKTIF DEĞİL — GEÇMİŞ opsiyon zinciri verisi YOK (sadece canlı Deribit) → 2019-2025 backtest edilemez; canlı confirm katmanı olarak KALAN İŞ.
+- ⚠ CACHE: yeni feature'ların hesaplanması için kullanıcı ESKİ candidate cache'i temizlemeli (.seans_cache + <veri>/_kesif_cache + .serap_cache) → yoksa eski adaylar yeni alanları taşımaz, bloklar None döner (keşifte pas geçilir). Temizleyip vardiya/çoklu-şampiyon çalıştırınca kesfet 28 blok (19+10) kombinasyonunu tarar → yeni şampiyon çıkabilir; çıkmazsa "bu boyutlarda edge yok" diye KESİN öğrenilir. Sonuç serap testinden geçmeli (DSR≥0.95).
+
 ## 5m. SERAP TESTİ SONUCU (2019-2025, KESİN — tekrar test GEREKMEZ)
 - ✅✅ İKİ ŞAMPİYON = GERÇEK EDGE (en güçlü skor, serap DEĞİL): 
   ① FADE ekstrem_donus_fade: n1425 WR%37.7 PF3.08 beklenti+0.202 SR-yıl 4.51 **DSR 1.0** perm-p 5e-05 CI-alt+0.168 5x-likidasyon %0.
