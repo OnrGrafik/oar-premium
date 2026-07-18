@@ -132,6 +132,13 @@
 - ❌ opsiyon_duvar_yakin: blok STUB olarak eklendi ama AKTIF DEĞİL — GEÇMİŞ opsiyon zinciri verisi YOK (sadece canlı Deribit) → 2019-2025 backtest edilemez; canlı confirm katmanı olarak KALAN İŞ.
 - ⚠ CACHE: yeni feature'ların hesaplanması için kullanıcı ESKİ candidate cache'i temizlemeli (.seans_cache + <veri>/_kesif_cache + .serap_cache) → yoksa eski adaylar yeni alanları taşımaz, bloklar None döner (keşifte pas geçilir). Temizleyip vardiya/çoklu-şampiyon çalıştırınca kesfet 28 blok (19+10) kombinasyonunu tarar → yeni şampiyon çıkabilir; çıkmazsa "bu boyutlarda edge yok" diye KESİN öğrenilir. Sonuç serap testinden geçmeli (DSR≥0.95).
 
+## 5p. GENİŞLETİLMİŞ BLOK KOŞUSU SONUCU (31 blok, KESİN — tekrar deneme)
+- Kullanıcı cache temizleyip çoklu-şampiyon koştu (31 blok: 19 eski + VWAP/FRVP/delta + seans-absorp). SONUÇ: 
+  ✅ FADE DEĞİŞMEDİ = poc_taraf+footprint_absorpsiyon+footprint_kalicilik (yeni bloklar onu YENEMEDİ → zaten güçlü, serap DSR 1.0).
+  ⚠ TREND keşfi YENİ combo buldu (poc_taraf+frvp_poc+delta_patlama, OOS73) ama SERAP: serap testi n200 DSR 0.022, perm-p 0.198, CI-alt −0.041 → ŞANS/OVERFIT, canlıya ALINMAZ. Equity de zayıftı (3x $1664 vs kanıtlı trend $79628).
+- KESİN DERS: yeni bloklar (frvp/vwap/delta/seans-absorp) bu koşuda GERÇEK yeni şampiyon çıkarmadı. İki kanıtlı şampiyon (fade+eski trend, ikisi DSR 1.0) yerinde kalır. "Bu boyutlarda kolay 3. şampiyon yok" öğrenildi (blok eklemek garanti şampiyon getirmez; çoğu combo serap).
+- ⚠ TASARIM RİSKİ (dikkat): oar_coklu_sampiyon OOS-puanına göre seçip kanıtlı trend şampiyonunu portföy json'da SERAP combo ile SESSİZCE değiştirdi. Kural: çoklu-şampiyon çıktısı SERAP TESTİNDEN (DSR≥0.95) geçmeden canlı portföye/­siteye ALINMAZ; kanıtlı şampiyon incumbent kalır. Kullanıcı yerel json'u `git checkout oar_sampiyon_portfoy.json` ile geri almalı; serap combo push EDİLMEZ.
+
 ## 5o. SEANS-ÖLÇEKLİ ABSORPSİYON BLOĞU (kullanıcı FP gözlemi — kalıcı)
 - Kullanıcı gözlemi: "şampiyon zarar etti; FP'de net absorbtion + opsiyon desteklerinde long gördüm; satıcı pasife düşüp fiyat sürülüyor ama şampiyon bakmıyor." → HAKLI: şampiyonun footprint_absorpsiyon'u DAR/ANLIK (giriş dakikası vol_z≥1 + sonraki 5 bar fiyat tutunması). Seans-ölçekli "satıcı pasif + fiyat kademeli sürülüyor" olayına BAKMIYOR.
 - EKLENEN (oar_local_backtest.aday_sinyaller_uret, no-lookahead, girişten önceki ~60 bar [lo..j]): seans_absorp_up (satış deltası geldi ama fiyat düşmedi ≥%60 + net sürülme≥%0.3 yukarı), seans_absorp_dn (ayna), seans_absorp_fade_uyum (fade: SHORT ancak DOWN-absorp'ta/LONG ancak UP-absorp'ta güvenli — SÜRÜLEN YÖNE FADE=TEHLİKE; trend: yönünde sürülüyorsa teyit). 3 blok AKTIF_BLOKLAR'a eklendi (artık 31 blok).
