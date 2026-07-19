@@ -74,6 +74,10 @@ def main():
             _calistir("SERAP TESTİ (edge doğrulama, günde 1)",
                       ["oar_serap_testi.py", "--symbol", SEMBOL,
                        "--from", BAS, "--to", BIT, "--telegram"])
+            # 5) İŞLEM ANALİZİ (MAE/MFE + metrik + exit-opt + cycle-WF + falsification)
+            _calistir("İŞLEM ANALİZİ (prop-metrik + exit optimizasyonu, günde 1)",
+                      ["oar_trade_analiz.py", "--symbol", SEMBOL,
+                       "--from", BAS, "--to", BIT, "--telegram"])
             son_agir = time.time()
         print(f"\n[VARDİYA] Tur {tur} tamam. {ARALIK_SAAT} saat uyku… "
               f"(sonuçlar: Telegram 4129 + kanitli_bulgular.json + backtest_sonuclari.json)\n"

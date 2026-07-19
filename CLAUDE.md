@@ -132,6 +132,12 @@
 - ❌ opsiyon_duvar_yakin: blok STUB olarak eklendi ama AKTIF DEĞİL — GEÇMİŞ opsiyon zinciri verisi YOK (sadece canlı Deribit) → 2019-2025 backtest edilemez; canlı confirm katmanı olarak KALAN İŞ.
 - ⚠ CACHE: yeni feature'ların hesaplanması için kullanıcı ESKİ candidate cache'i temizlemeli (.seans_cache + <veri>/_kesif_cache + .serap_cache) → yoksa eski adaylar yeni alanları taşımaz, bloklar None döner (keşifte pas geçilir). Temizleyip vardiya/çoklu-şampiyon çalıştırınca kesfet 28 blok (19+10) kombinasyonunu tarar → yeni şampiyon çıkabilir; çıkmazsa "bu boyutlarda edge yok" diye KESİN öğrenilir. Sonuç serap testinden geçmeli (DSR≥0.95).
 
+## 5q. oar_trade_analiz.py (PROF İŞLEM ANALİZİ — mevcut veriden daha fazla bilgi, serap değil)
+- Dış prof-trader değerlendirmesinin DÜŞÜK-SERAP-RİSKLİ önerileri (MAE/MFE, metrik seti, exit-opt, cycle-WF, falsification). İLKE: yeni feature EKLEME (sabit veride overfit=serap fabrikası, DSR cezalandırır — 31-blok koşusu bunu kanıtladı); mevcut ŞAMPİYON işlemlerinden daha fazla bilgi ÇIKAR. ŞAMPİYONA DOKUNMAZ (analiz katmanı).
+- ❌ REDDEDİLEN öneriler (bilinçli): "100+ feature topla" + "XGBoost/SHAP feature importance" → sabit 2373 gün/1400 işlemde overfit tuzağı (López de Prado'nun DSR'yle uyardığı şey). Bunların ürettiğini serap testi zaten eler.
+- Şampiyon işlem serisi = confirm._analiz havuzu (.serap_cache'ten, YENİDEN işlemez) → portföy bloklarıyla _filtre. Forward fiyat yolu klines'tan yürünür (MAE/MFE + 8 exit varyantı). Exit'ler serap-testli (DSR≥0.95). Cycle-WF: 2019/covid/2021-bull/2022-bear/2023/ETF-2024 dönem-dönem PF. Falsification: adayın KENDİ feature'larından invalidasyon skoru → yüksek-invalidasyon işlemleri daha kötü mü.
+- Çalıştırma: `python oar_trade_analiz.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`. KALICI: trade_analiz_sonuc.json. Vardiyaya eklendi (günde 1, serap sonrası). Şampiyon TP/SL'i değiştirmez — sadece "daha iyi exit var mı" RAPORLAR; değişiklik ancak serap-geçer + kullanıcı onayı ile.
+
 ## 5p. GENİŞLETİLMİŞ BLOK KOŞUSU SONUCU (31 blok, KESİN — tekrar deneme)
 - Kullanıcı cache temizleyip çoklu-şampiyon koştu (31 blok: 19 eski + VWAP/FRVP/delta + seans-absorp). SONUÇ: 
   ✅ FADE DEĞİŞMEDİ = poc_taraf+footprint_absorpsiyon+footprint_kalicilik (yeni bloklar onu YENEMEDİ → zaten güçlü, serap DSR 1.0).
