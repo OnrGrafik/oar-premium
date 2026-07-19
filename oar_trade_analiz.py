@@ -313,10 +313,17 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
             m = _metrik_seti(seri)
             ts_list = [c["ts"] for c in trades][: len(seri)]
             k = serap_karnesi(f"{stil}:{ad}", seri, ts_list, 9)   # 9 exit denemesi
+            liq5 = ((k.get("mc_equity") or {}).get("5x") or {})
+            # exit varyantının KENDİ cycle-WF'i (her dönemde tutuyor mu)
+            cyc = _cycle_wf([{"ts": t, "pct": p} for t, p in zip(ts_list, seri)])
+            neg_donem = [c["donem"] for c in cyc if c.get("beklenti") is not None and c["beklenti"] <= 0]
             exit_ozet[ad] = {"pf": m.get("pf"), "beklenti": m.get("beklenti"),
                              "toplam_net": m.get("toplam_net"), "sqn": m.get("sqn"),
                              "dsr": (k.get("deflated_sharpe") or {}).get("dsr"),
-                             "perm_p": k.get("permutasyon_p")}
+                             "perm_p": k.get("permutasyon_p"),
+                             "liq5x": liq5.get("likidasyon_orani"),
+                             "mc_maxdd5x_p95": liq5.get("maxdd_p95_pct"),
+                             "negatif_donem": neg_donem}
         # 4) cycle walk-forward
         cycle = _cycle_wf([{"ts": c["ts"], "pct": p} for c, p in zip(trades, base_pcts)])
         # 5) falsification: invalidasyon skoru → performans
@@ -347,8 +354,12 @@ def _yazdir(stil, m, exits, cycle, inval):
           f"ort tutma {m.get('ort_hold_bar')} bar (medyan {m.get('medyan_hold_bar')})", flush=True)
     print(f"  EXIT KARŞILAŞTIRMA (base + varyantlar; DSR≥0.95 gerçek):", flush=True)
     for ad, e in sorted(exits.items(), key=lambda x: -(x[1].get("toplam_net") or -1e9)):
+        nd = e.get("negatif_donem") or []
+        guvenli = "✅GERÇEK" if (e.get("dsr") and e["dsr"] >= 0.95 and e.get("liq5x") == 0 and not nd) else "⚠ŞÜPHE"
         print(f"    {ad:<12} PF {str(e.get('pf')):<6} beklenti {str(e.get('beklenti')):<9} "
-              f"toplam {str(e.get('toplam_net')):<9} SQN {str(e.get('sqn')):<6} DSR {e.get('dsr')} perm-p {e.get('perm_p')}", flush=True)
+              f"toplam {str(e.get('toplam_net')):<8} DSR {str(e.get('dsr')):<6} "
+              f"liq5x%{str(e.get('liq5x')):<5} maxDD5x%{str(e.get('mc_maxdd5x_p95')):<6} "
+              f"neg-dönem:{len(nd)} {guvenli}", flush=True)
     print(f"  CYCLE WALK-FORWARD (edge her dönemde tutuyor mu):", flush=True)
     for c in cycle:
         if c.get("n", 0) >= 5:
