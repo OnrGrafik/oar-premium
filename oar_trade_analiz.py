@@ -160,6 +160,27 @@ def _islem_analiz(giris, yon, tp, sl, seg_close, seg_high, seg_low, seg_vol):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  METRİK SETİ (prop-firma) — bir net-% serisine
 # ═══════════════════════════════════════════════════════════════════════════════
+def _sabit_risk_equity(seri_R: list, risk_pct: float, baslangic: float = 1000.0) -> dict:
+    """
+    SABİT-RİSK boyutlandırma: her işlemde bakiyenin risk_pct%'i riske atılır.
+    seri_R = [(ts, R_realize)]. R_realize = net% / SL_mesafe% (SL vurursa ≈−1, TP_3R ≈+3).
+    bakiye *= (1 + risk_pct/100 · R_realize). Full-compound DEĞİL → gerçekçi, likide olmaz
+    (tek işlem en fazla ~risk_pct% kaybettirir).
+    """
+    ss = sorted(seri_R, key=lambda x: x[0])
+    eq = tepe = baslangic; maxdd = 0.0; en_kotu = 0.0
+    for _ts, Rr in ss:
+        katki = risk_pct / 100.0 * Rr
+        en_kotu = min(en_kotu, katki)
+        eq *= (1 + katki)
+        if eq <= 0:
+            eq = 0.0; break
+        tepe = max(tepe, eq)
+        maxdd = max(maxdd, (tepe - eq) / tepe if tepe > 0 else 0.0)
+    return {"final": round(eq, 2), "kat": round(eq / baslangic, 1) if baslangic else 0,
+            "maxdd_pct": round(maxdd * 100, 1), "tek_islem_en_kotu_pct": round(en_kotu * 100, 1)}
+
+
 def _metrik_seti(pcts, holds=None, maes=None, mfes=None):
     p = np.asarray(pcts, dtype=float); n = len(p)
     if n < 3:
@@ -285,6 +306,7 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
         holds = []; maes = []; mfes = []; base_pcts = []
         inval_kova = {}  # invalidasyon skoru → [pct]
         sembol_exit = {}  # sembol → {exit adı → [(ts, pct)]}  (per-sembol $1000 equity için)
+        sembol_R = {}     # sembol → [(ts, R_realize)]  (sabit-risk equity için, TP_3R)
         for c in trades:
             g = gun_veri.get(c.get("_sembol"), {}).get(c.get("_gun"))
             if not g:
@@ -303,6 +325,10 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
             for ad, v in r["exits"].items():
                 exit_seri.setdefault(ad, []).append(v)
                 sd.setdefault(ad, []).append((c["ts"], v))
+            # R_realize (TP_3R net% / SL mesafe%) — sabit-risk boyutlandırma için
+            sl_mesafe = abs(giris - sl) / giris * 100 if giris else 0
+            if sl_mesafe > 0:
+                sembol_R.setdefault(sym, []).append((c["ts"], r["exits"]["TP_3R"] / sl_mesafe))
             holds.append(r["hold_bar"]); maes.append(r["mae_R"]); mfes.append(r["mfe_R"])
             base_pcts.append(r["exits"]["base"])
             inval_kova.setdefault(_invalidasyon(c), []).append(r["exits"]["base"])
@@ -317,6 +343,17 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
                 if len(seri) >= 5:
                     eq_ps[sym][ex] = {f"{k}x": _kronolojik_equity(seri, k) for k in (1, 3, 5)}
                     eq_ps[sym][ex]["n"] = len(seri)
+
+        # ── SABİT-RİSK EQUITY per-sembol (TP_3R) — her işlemde bakiyenin %X'i riske ──
+        #    R_realize = net% / SL_mesafe% (SL vurursa ≈−1R, TP_3R vurursa ≈+3R). Full-
+        #    compound DEĞİL: bakiye *= (1 + risk% · R_realize). Gerçek para yönetimi.
+        risk_eq = {}
+        for sym, srR in sembol_R.items():
+            if len(srR) < 5:
+                continue
+            risk_eq[sym] = {"n": len(srR)}
+            for rp in (1, 5, 10, 20):
+                risk_eq[sym][f"%{rp}"] = _sabit_risk_equity(srR, rp)
 
         # 1+2) metrik seti (base)
         metrik = _metrik_seti(base_pcts, holds, maes, mfes)
@@ -347,8 +384,8 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
             m = _metrik_seti(seri)
             inval[str(skor)] = {"n": m.get("n"), "wr": m.get("wr"), "beklenti": m.get("beklenti"), "pf": m.get("pf")}
 
-        sonuc.setdefault("_eq_ps", {})[stil] = eq_ps
-        sonuc["sistemler"][stil] = {"equity_per_sembol": eq_ps, "bloklar": bloklar, "metrik": metrik,
+        sonuc["sistemler"][stil] = {"equity_per_sembol": eq_ps, "sabit_risk_equity": risk_eq,
+                                    "bloklar": bloklar, "metrik": metrik,
                                     "exit_karsilastirma": exit_ozet, "cycle_wf": cycle,
                                     "falsification": inval}
         _yazdir(stil, metrik, exit_ozet, cycle, inval)
@@ -361,6 +398,15 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
                     continue
                 fmt = lambda d: f"${d['final']:,.0f}({d['kat']}x,DD%{d['maxdd_pct']}{',💀' if d['likide'] else ''})"
                 print(f"    {sym:<9} {ex:<6} n{e.get('n')}: 1x {fmt(e['1x'])} · 3x {fmt(e['3x'])} · 5x {fmt(e['5x'])}", flush=True)
+        # SABİT-RİSK (gerçekçi para yönetimi — TP_3R, full-compound DEĞİL)
+        print(f"  💵 SABİT-RİSK EQUITY (TP_3R; her işlem bakiyenin %X'i, gerçekçi):", flush=True)
+        for sym, rd in risk_eq.items():
+            parts = []
+            for rp in (1, 5, 10, 20):
+                d = rd.get(f"%{rp}")
+                if d:
+                    parts.append(f"%{rp}→${d['final']:,.0f}({d['kat']}x,DD%{d['maxdd_pct']})")
+            print(f"    {sym:<9} n{rd.get('n')}: " + " · ".join(parts), flush=True)
 
     SONUC_FILE.write_text(json.dumps(sonuc, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[Analiz] KALICI kayıt → {SONUC_FILE.name} (commit+push et → lider+ben okur)", flush=True)
