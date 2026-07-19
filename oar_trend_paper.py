@@ -85,19 +85,26 @@ def _ac_karar_trend(analiz, bias):
     fiyat = analiz.get("fiyat")
     if not (hi and lo and fiyat) or hi <= lo:
         return None
+    # TP_3R EXIT (kullanıcı onayı, ANAYASA #8): SL=mid (0.5, şampiyonla aynı),
+    # TP = giriş ± 3R (R=|giriş−mid|). Analiz: base(TP=1.377) toplam 162 → TP_3R toplam
+    # 1467 (~9x), 5x-likidasyon %0, her dönem +, DSR 1.0. Time-stop seans sonu kapatır.
     fibs = _fib_seviyeleri(lo, hi)
     mid = fibs[0.5]
     if fiyat > hi:                       # üst kırılım → LONG devam
         if bias != "LONG":
             return None
-        tp, sl = fibs[1.377], mid
+        sl = mid
+        R = fiyat - sl
+        tp = fiyat + 3.0 * R
         if not (sl < fiyat < tp):
             return None
         return {"yon": "LONG", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}
     if fiyat < lo:                       # alt kırılım → SHORT devam
         if bias != "SHORT":
             return None
-        tp, sl = fibs[-0.377], mid
+        sl = mid
+        R = sl - fiyat
+        tp = fiyat - 3.0 * R
         if not (tp < fiyat < sl):
             return None
         return {"yon": "SHORT", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}

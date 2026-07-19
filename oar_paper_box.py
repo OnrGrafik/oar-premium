@@ -100,21 +100,24 @@ def _ac_karar(analiz: dict) -> dict | None:
     fiyat = analiz.get("fiyat")
     if not (poc and hi and lo and fiyat) or hi <= lo:
         return None
-    # ── BACKTEST ŞAMPİYONUYLA BİREBİR TP/SL (tp_sl_seviyeleri ile aynı) ──
-    #    TP = fib 0.5 (range ORTASI) · SL = girişin ötesindeki BİR SONRAKİ fib.
-    #    (Eski canlı: TP=POC, SL=ekstrem±%0.2 → şampiyondan farklıydı, düzeltildi.)
+    # ── TP_3R EXIT (kullanıcı onayı, ANAYASA #8) — SL şampiyonla AYNI (bir sonraki
+    #    fib), TP = giriş ± 3R (R=|giriş−SL|). İşlem analizi (oar_trade_analiz) kanıtladı:
+    #    base (TP=fib0.5) kazananları erken kesiyordu; ort MFE 9.2R. TP_3R → toplam ~4.6x,
+    #    5x-likidasyon %0, her market döneminde pozitif, DSR 1.0. Neither TP ne SL vurursa
+    #    time-stop (MAX_SAAT/seans sonu) kapatır (backtest ile birebir).
     fibs = _fib_seviyeleri(lo, hi)
-    mid = fibs[0.5]
     if yon == "SHORT":                       # üst ekstrem fade → aşağı
-        tp = mid if (mid and mid < fiyat) else fiyat * 0.995
         ust = [v for v in fibs.values() if v > fiyat]
         sl = min(ust) if ust else fiyat * 1.01
+        R = sl - fiyat
+        tp = fiyat - 3.0 * R
         if not (tp < fiyat < sl):
             return None
     else:                                    # alt ekstrem fade → yukarı
-        tp = mid if (mid and mid > fiyat) else fiyat * 1.005
         alt = [v for v in fibs.values() if v < fiyat]
         sl = max(alt) if alt else fiyat * 0.99
+        R = fiyat - sl
+        tp = fiyat + 3.0 * R
         if not (sl < fiyat < tp):
             return None
     # Ateşlenen teyitleri sakla → aylık forward-test: hangi filtre hangi WR (bilimsel)

@@ -31,6 +31,7 @@
 - **Market kapısı (rejim anahtarı):** BTC **VE** ETH Asia range ≥ %1 → fade-işlem günü; değilse işlem yok.
 - Asia < %1 → trend-devam modu. Trend modu holdout'ta 3 kez battı; şampiyon fade'dir.
 - Yaşadığı dosya: `oar_local_backtest.py` (şampiyon burada — CAPS uyarısı olmadan değiştirme).
+- ✅ TP_3R EXIT (kullanıcı onaylı ANAYASA #8 değişikliği, işlem analiziyle kanıtlandı): CANLI paper sistemlerin çıkışı base(TP=fib0.5/1.377)→TP_3R yapıldı (SL AYNI=bir sonraki fib/mid; TP=giriş±3R, R=|giriş−SL|; neither vurmazsa time-stop seans sonu). Kanıt (oar_trade_analiz): FADE toplam 310→1437 (~4.6x), TREND 162→1467 (~9x), İKİSİ DE 5x-likidasyon %0 + her market döneminde pozitif + DSR 1.0; ort MFE 9.2R (base kazananları erken kesiyordu). Giriş BLOKLARI/keşif DEĞİŞMEDİ (tp_sl_seviyeleri/tp_sl_breakout backtest'te aynı → şampiyon kimliği korundu); yalnız oar_paper_box._ac_karar + oar_trend_paper._ac_karar_trend canlı TP'si büyüdü. UYARI: 5x'te maxDD %44-52 (1x ~%9-10), likidasyon yok. Portföy json base-exit sayılarını tutar (keşif kaydı); canlı TP_3R.
 
 ## 4. Seanslar (UTC) & veri
 - Asia 00:00–04:00 · London 07:00–11:00 · NY 13:00–17:00 (UTC).
