@@ -284,6 +284,7 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
         exit_seri = {}   # exit adı → [pct]
         holds = []; maes = []; mfes = []; base_pcts = []
         inval_kova = {}  # invalidasyon skoru → [pct]
+        sembol_exit = {}  # sembol → {exit adı → [(ts, pct)]}  (per-sembol $1000 equity için)
         for c in trades:
             g = gun_veri.get(c.get("_sembol"), {}).get(c.get("_gun"))
             if not g:
@@ -298,11 +299,24 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
                               g["close"][idx + 1:], g["high"][idx + 1:], g["low"][idx + 1:], g["vol"][idx + 1:])
             if not r:
                 continue
+            sym = c.get("_sembol"); sd = sembol_exit.setdefault(sym, {})
             for ad, v in r["exits"].items():
                 exit_seri.setdefault(ad, []).append(v)
+                sd.setdefault(ad, []).append((c["ts"], v))
             holds.append(r["hold_bar"]); maes.append(r["mae_R"]); mfes.append(r["mfe_R"])
             base_pcts.append(r["exits"]["base"])
             inval_kova.setdefault(_invalidasyon(c), []).append(r["exits"]["base"])
+
+        # ── $1000 · 5x KRONOLOJİK EQUITY per-sembol (base vs TP_3R) ──
+        from oar_serap_testi import _kronolojik_equity
+        eq_ps = {}
+        for sym, sd in sembol_exit.items():
+            eq_ps[sym] = {}
+            for ex in ("base", "TP_3R"):
+                seri = sd.get(ex, [])
+                if len(seri) >= 5:
+                    eq_ps[sym][ex] = {f"{k}x": _kronolojik_equity(seri, k) for k in (1, 3, 5)}
+                    eq_ps[sym][ex]["n"] = len(seri)
 
         # 1+2) metrik seti (base)
         metrik = _metrik_seti(base_pcts, holds, maes, mfes)
@@ -333,10 +347,20 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
             m = _metrik_seti(seri)
             inval[str(skor)] = {"n": m.get("n"), "wr": m.get("wr"), "beklenti": m.get("beklenti"), "pf": m.get("pf")}
 
-        sonuc["sistemler"][stil] = {"bloklar": bloklar, "metrik": metrik,
+        sonuc.setdefault("_eq_ps", {})[stil] = eq_ps
+        sonuc["sistemler"][stil] = {"equity_per_sembol": eq_ps, "bloklar": bloklar, "metrik": metrik,
                                     "exit_karsilastirma": exit_ozet, "cycle_wf": cycle,
                                     "falsification": inval}
         _yazdir(stil, metrik, exit_ozet, cycle, inval)
+        # $1000·5x per-sembol (base vs TP_3R)
+        print(f"  💰 $1000 COMPOUND EQUITY (per-sembol, base vs TP_3R):", flush=True)
+        for sym, exd in eq_ps.items():
+            for ex in ("base", "TP_3R"):
+                e = exd.get(ex)
+                if not e:
+                    continue
+                fmt = lambda d: f"${d['final']:,.0f}({d['kat']}x,DD%{d['maxdd_pct']}{',💀' if d['likide'] else ''})"
+                print(f"    {sym:<9} {ex:<6} n{e.get('n')}: 1x {fmt(e['1x'])} · 3x {fmt(e['3x'])} · 5x {fmt(e['5x'])}", flush=True)
 
     SONUC_FILE.write_text(json.dumps(sonuc, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[Analiz] KALICI kayıt → {SONUC_FILE.name} (commit+push et → lider+ben okur)", flush=True)
