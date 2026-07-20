@@ -5,7 +5,7 @@ Backtest'le doğrulanan 2. şampiyonun (kirilim_devam_trend) canlı forward-test
 Sistem 1 (fade paper) ile AYNI çerçeve: $1000 başlangıç, 5x, compound, fee dahil.
 
 CANLI KURALLAR (backtest trend adayı üreticisiyle hizalı — tp_sl_breakout birebir):
-  • Market kapısı: BTC VE ETH Asia ≥ %1 (Sistem 1 ile aynı kapı).
+  • Market kapısı: PER-SEMBOL — her coin KENDİ Asia ≥ %1 (Sistem 1 ile aynı per-sembol kapı).
   • Tetik: post-Asia fiyat Asia-HIGH üstünde → LONG devam · Asia-LOW altında → SHORT devam.
   • TP/SL = tp_sl_breakout birebir: LONG TP=1.377 fib, SL=0.5 (range ortası, geçersizlik);
     SHORT TP=-0.377 fib, SL=0.5.
