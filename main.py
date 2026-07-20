@@ -1001,19 +1001,25 @@ async def oar_sistem():
             }
     except Exception:
         pass
-    # CANLI MARKET KAPISI (bugün): BTC+ETH Asia range → kapı açık mı? Kullanıcı
-    # "trade açamıyor" endişesi → sessiz gün (kapı kapalı) mü, arıza mı GÖRÜNSÜN.
+    # CANLI MARKET KAPISI (bugün): PER-SEMBOL — her coin KENDİ Asia≥%1'ine göre açık.
+    # Kullanıcı onaylı (ANAYASA #8): biri ≥%1 ise o coin trade edilebilir (iki-kapı
+    # ETH getirisini ~yarıya indiriyordu, risk faydası yok). Sessiz gün mü, arıza mı GÖRÜNSÜN.
     canli_kapi = None
     try:
-        from oar_session_agent import _market_fade_gunu
-        uygun, btc_pct, eth_pct = await _market_fade_gunu()
-        if btc_pct is not None and eth_pct is not None:
+        from oar_session_agent import _sembol_fade_gunu
+        b_acik, btc_pct = await _sembol_fade_gunu("BTCUSDT")
+        e_acik, eth_pct = await _sembol_fade_gunu("ETHUSDT")
+        if btc_pct is not None or eth_pct is not None:
+            acik_coinler = [c for c, a in (("BTC", b_acik), ("ETH", e_acik)) if a is True]
             canli_kapi = {
-                "btc_asia_pct": btc_pct, "eth_asia_pct": eth_pct, "acik": bool(uygun),
-                "aciklama": (f"Kapı AÇIK — BTC %{btc_pct} ve ETH %{eth_pct}, ikisi de ≥%1 → fade günü, setup beklenir."
-                             if uygun else
-                             f"Kapı KAPALI — BTC %{btc_pct} · ETH %{eth_pct} (ikisi de ≥%1 olmalı). "
-                             f"Bugün trade YOK = normal, arıza değil. Şampiyon seçici (haftada ~4 işlem)."),
+                "btc_asia_pct": btc_pct, "eth_asia_pct": eth_pct,
+                "btc_acik": b_acik is True, "eth_acik": e_acik is True,
+                "acik": bool(acik_coinler),
+                "aciklama": (f"Kapı AÇIK ({'+'.join(acik_coinler)}) — BTC %{btc_pct} · ETH %{eth_pct}; "
+                             f"kendi Asia≥%1 olan coin(ler)de fade günü, setup beklenir. (per-sembol kapı)"
+                             if acik_coinler else
+                             f"Kapı KAPALI — BTC %{btc_pct} · ETH %{eth_pct} (ikisi de <%1). "
+                             f"Bugün trade YOK = normal, arıza değil. Şampiyon seçici."),
             }
         else:
             canli_kapi = {"acik": None, "aciklama": "Asia range verisi henüz gelmedi (kapı bugün hesaplanamadı)."}
@@ -1021,7 +1027,7 @@ async def oar_sistem():
         canli_kapi = {"acik": None, "aciklama": f"Kapı okunamadı: {str(e)[:60]}"}
     return {
         "sampiyon": sampiyon,
-        "market_kapisi": "BTC VE ETH Asia range ≥ %1 → fade-işlem günü; değilse işlem yok. Asia <%1 → trend-devam modu.",
+        "market_kapisi": "PER-SEMBOL kapı: her coin KENDİ Asia range ≥ %1 → o coinde fade-işlem günü; altı → o coinde işlem yok.",
         "canli_kapi": canli_kapi,
         "seanslar_utc": {"Asia": "00:00-04:00", "London": "07:00-11:00", "NY": "13:00-17:00"},
         "fib": [2.618, 2.272, 1.618, 1.377, 1.0, 0.5, 0.0, -0.377, -0.618, -1.272, -1.618],
@@ -1781,9 +1787,12 @@ async def _site_baglami() -> str:
                            f"OOS {st.get('oos_puan')} holdout {st.get('holdout_puan')} PF {st.get('pf')} beklenti {st.get('beklenti')}")
     except Exception: pass
     try:
-        from oar_session_agent import _market_fade_gunu
-        kapi, bp, ep = await _market_fade_gunu()
-        par.append(f"[MARKET KAPISI] {'AÇIK (fade günü)' if kapi else 'KAPALI'} — BTC %{bp} / ETH %{ep} (eşik %1)")
+        from oar_session_agent import _sembol_fade_gunu
+        b_acik, bp = await _sembol_fade_gunu("BTCUSDT")
+        e_acik, ep = await _sembol_fade_gunu("ETHUSDT")
+        acik_coinler = [c for c, a in (("BTC", b_acik), ("ETH", e_acik)) if a is True]
+        par.append(f"[MARKET KAPISI · per-sembol] {'AÇIK: '+'+'.join(acik_coinler) if acik_coinler else 'KAPALI'} "
+                   f"— BTC %{bp} / ETH %{ep} (eşik %1, her coin kendi Asia'sına bakar)")
     except Exception: pass
     try:
         from oar_paper_box import durum_ozet as p1
@@ -2202,15 +2211,15 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
     except Exception: pass
     # OAR Asia + şampiyon/market-kapısı bağlamı (yorumun ana çerçevesi)
     try:
-        from oar_session_agent import oar_analiz, _market_fade_gunu
+        from oar_session_agent import oar_analiz, _sembol_fade_gunu
         oa = await oar_analiz(symbol)
         a = oa.get("asia") or {}
         veri["asia_high"] = a.get("high"); veri["asia_low"] = a.get("low")
         veri["asia_poc"] = a.get("poc"); veri["asia_range_pct"] = a.get("range_pct")
         veri["oar_rejim"] = oa.get("oar_rejim")
-        kapi, btc_pct, eth_pct = await _market_fade_gunu()
-        veri["market_kapisi"] = ("AÇIK — BTC+ETH Asia ≥%1, fade günü" if kapi is True
-                                 else f"KAPALI — BTC %{btc_pct} / ETH %{eth_pct} (<%1, yeni işlem yok)")
+        kapi, s_pct = await _sembol_fade_gunu(symbol)   # PER-SEMBOL: bu coinin kendi kapısı
+        veri["market_kapisi"] = (f"AÇIK — {symbol.replace('USDT','')} Asia %{s_pct} ≥%1, fade günü" if kapi is True
+                                 else f"KAPALI — {symbol.replace('USDT','')} Asia %{s_pct} <%1, bu coinde yeni işlem yok")
     except Exception: pass
     # Grafiğin gösterdiği her şey: key levels + VWAP + hacim POC (lider grafiği OKUR)
     try:
@@ -2731,16 +2740,20 @@ async def paper_trades_gecmis(limit: int = 100, sembol: str = None):
 
 
 async def _market_kapisi_teshis():
-    """Market kapısı durumu: neden işlem açılmıyor (kapı kapalı mı, veri mi yok)."""
+    """PER-SEMBOL market kapısı durumu: her coin KENDİ Asia≥%1'ine göre açık mı."""
     try:
-        from oar_session_agent import _market_fade_gunu
-        fade, btc, eth = await _market_fade_gunu()
-        if fade is None:
+        from oar_session_agent import _sembol_fade_gunu
+        b_acik, btc = await _sembol_fade_gunu("BTCUSDT")
+        e_acik, eth = await _sembol_fade_gunu("ETHUSDT")
+        if b_acik is None and e_acik is None:
             return {"durum": "veri_yok", "aciklama": "BTC/ETH Asia verisi çekilemedi (tekrar denenecek)"}
-        return {"durum": "acik" if fade else "kapali",
+        acik_coinler = [c for c, a in (("BTC", b_acik), ("ETH", e_acik)) if a is True]
+        return {"durum": "acik" if acik_coinler else "kapali",
                 "btc_asia_pct": btc, "eth_asia_pct": eth,
-                "aciklama": ("Fade günü — işlem açılabilir" if fade
-                             else f"Asia dar (BTC %{btc}/ETH %{eth} <%1) → bugün trade yok")}
+                "btc_acik": b_acik is True, "eth_acik": e_acik is True,
+                "aciklama": (f"Fade günü ({'+'.join(acik_coinler)}) — kendi Asia≥%1 coin(ler)de işlem açılabilir"
+                             if acik_coinler
+                             else f"Asia dar (BTC %{btc}/ETH %{eth} ikisi de <%1) → bugün trade yok")}
     except Exception as e:
         return {"durum": "hata", "aciklama": str(e)[:80]}
 

@@ -201,6 +201,36 @@ async def _market_fade_gunu():
     return val
 
 
+_SEMBOL_GUNU_CACHE = {}   # {sembol: {"gun": ..., "val": (bool, pct)}}
+
+
+async def _sembol_fade_gunu(sembol: str):
+    """
+    PER-SEMBOL market kapısı: yalnız BU sembolün Asia range ≥ %1 mi.
+    Backtest kanıtı (oar_kapi_analiz, kullanıcı onaylı ANAYASA #8 değişikliği):
+    şampiyonlar her sembolü KENDİ Asia≥%1'iyle değerlendirince en yüksek getiri +
+    likidasyon YOK (5x dahil). Eski iki-kapı (BTC VE ETH ≥%1) ETH'nin tek başına
+    %1 yaptığı ~363 pozitif-beklentili günü çöpe atıp ETH getirisini ~yarıya
+    indiriyordu, hiçbir risk faydası olmadan (maxDD birebir aynı). Döner:
+    (uygun_bool | None, pct | None). Gün bazında SEMBOL BAŞINA cache'lenir
+    (tik başına klines'ı yeniden çekmez). Veri gelemezse cache YAZILMAZ.
+    """
+    from datetime import datetime, timezone
+    bugun = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    c = _SEMBOL_GUNU_CACHE.get(sembol)
+    if c and c["gun"] == bugun and c["val"] is not None:
+        return c["val"]
+    try:
+        p = await _asia_range_pct(sembol)
+    except Exception:
+        return None, None
+    if p is None:
+        return None, None
+    val = (bool(p >= 1.0), round(p, 2))
+    _SEMBOL_GUNU_CACHE[sembol] = {"gun": bugun, "val": val}
+    return val
+
+
 async def _asia_range_pct(sembol: str):
     """Bugünün Asia (00:00-04:00 UTC) range yüzdesi. Veri yoksa None."""
     mumlar = await _ohlcv_al(sembol, "15m", 112)

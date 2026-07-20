@@ -133,11 +133,11 @@ async def _kapat(d, sembol, cikis, sonuc):
 
 async def tik(d=None):
     """5 dk'lık adım: açıkları yönet; kapı+pencere uygunsa kırılım-devam aç."""
-    from oar_session_agent import oar_analiz, _market_fade_gunu
+    from oar_session_agent import oar_analiz, _sembol_fade_gunu
     d = d if d is not None else _yukle()
 
-    fade_gunu, _, _ = await _market_fade_gunu()   # aynı kapı: BTC&ETH Asia ≥%1
-
+    # PER-SEMBOL kapı (kullanıcı onaylı, ANAYASA #8): her coin kendi Asia≥%1'inde
+    # açar (döngü içinde). Eski iki-kapı ETH getirisini ~yarıya indiriyordu.
     for sembol in SEMBOLLER:
         if sembol in d["acik"]:
             poz = d["acik"][sembol]
@@ -148,7 +148,8 @@ async def tik(d=None):
             elif _sure_saat(poz["acilis"]) >= MAX_SAAT:
                 await _kapat(d, sembol, (high + low) / 2, "TIME_STOP")
             continue
-        if d["bakiye"] <= 0 or fade_gunu is not True or not trade_penceresi_uygun():
+        sfade, _spct = await _sembol_fade_gunu(sembol)   # per-sembol kapı
+        if d["bakiye"] <= 0 or sfade is not True or not trade_penceresi_uygun():
             continue
         try:
             analiz = await oar_analiz(sembol)

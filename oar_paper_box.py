@@ -209,13 +209,12 @@ async def _kapat(durum, sembol, cikis, sonuc):
 
 async def tik(durum=None):
     """Bir döngü adımı: açıkları kontrol/kapat, market kapısı uygunsa OAR Asia Range sinyalinde aç."""
-    from oar_session_agent import oar_analiz, _market_fade_gunu
+    from oar_session_agent import oar_analiz, _sembol_fade_gunu
     durum = durum if durum is not None else _yukle()
     _ay_kontrol(durum)
 
-    # MARKET KAPISI: BTC ve ETH Asia ≥%1 değilse o gün YENİ işlem yok (açıklar yönetilir)
-    fade_gunu, btc_pct, eth_pct = await _market_fade_gunu()
-
+    # PER-SEMBOL MARKET KAPISI (kullanıcı onaylı, ANAYASA #8): her coin KENDİ
+    # Asia≥%1'inde işlem açar. Kapı sembol döngüsü İÇİNDE kontrol edilir (aşağıda).
     for sembol in SEMBOLLER:
         # 1) Açık pozisyon → TP/SL/time-stop kontrolü
         if sembol in durum["acik"]:
@@ -231,8 +230,9 @@ async def tik(durum=None):
         # 2) Açık yok → yeni işlem
         if durum["bakiye"] <= 0:
             continue
-        # MARKET KAPISI: BTC+ETH Asia ≥%1 sağlanmadıysa o gün trade yok
-        if fade_gunu is not True:
+        # PER-SEMBOL KAPI: bu sembolün Asia genliği ≥%1 değilse o gün trade yok
+        sfade, _spct = await _sembol_fade_gunu(sembol)
+        if sfade is not True:
             continue
         try:
             analiz = await oar_analiz(sembol)
