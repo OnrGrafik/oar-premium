@@ -321,15 +321,31 @@ async def vade_masasi(currency="BTC"):
     gex_tablo=[]
     for ad,ts in hedefler:
         eopts=by_exp[ts]
+        # ── Destek/Direnç = Açık Pozisyon (OI) duvarları ──────────────
+        # Direnç = spot ÜSTÜ en yüksek call OI strike; Destek = spot ALTI
+        # en yüksek put OI strike. Vade süresinden BAĞIMSIZ.
+        # (Eski yöntem GEX=gamma·OI kullanıyordu; gamma ∝ 1/√T olduğu için
+        #  0DTE/0DTE+1'de vade birkaç saate inince gamma ATM'de patlıyor →
+        #  hem destek hem direnç spot'a en yakın strike'a çöküyordu. OI duvarı
+        #  bu bozulmadan etkilenmez, yakın vadeler de doğru çıkar.)
         agg={}
         for o in eopts:
-            x=agg.setdefault(o["strike"],{"callGex":0.0,"putGex":0.0})
-            if o["type"]=="call": x["callGex"]+=o["gex"]
-            else: x["putGex"]+=o["gex"]
-        destek=direnc=None; maxP=maxC=0.0
+            x=agg.setdefault(o["strike"],{"callOI":0.0,"putOI":0.0})
+            if o["type"]=="call": x["callOI"]+=o["oi"]
+            else: x["putOI"]+=o["oi"]
+        direnc=destek=None; maxC=maxP=-1.0
         for k,x in agg.items():
-            if abs(x["putGex"])>maxP: maxP=abs(x["putGex"]); destek=k
-            if x["callGex"]>maxC: maxC=x["callGex"]; direnc=k
+            if k>=spot and x["callOI"]>maxC: maxC=x["callOI"]; direnc=k   # spot üstü call duvarı
+            if k<=spot and x["putOI"]>maxP: maxP=x["putOI"]; destek=k     # spot altı put duvarı
+        # Uç durum: spot'un bir tarafında hiç strike yoksa kısıtı kaldır
+        if direnc is None:
+            maxC=-1.0
+            for k,x in agg.items():
+                if x["callOI"]>maxC: maxC=x["callOI"]; direnc=k
+        if destek is None:
+            maxP=-1.0
+            for k,x in agg.items():
+                if x["putOI"]>maxP: maxP=x["putOI"]; destek=k
         netgex=round(sum(o["gex"] for o in eopts))
         gex_tablo.append({"vade":ad,"expiry":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%Y-%m-%d"),
                           "destek":destek,"direnc":direnc,"net_gex":netgex})
