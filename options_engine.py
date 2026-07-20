@@ -321,31 +321,32 @@ async def vade_masasi(currency="BTC"):
     gex_tablo=[]
     for ad,ts in hedefler:
         eopts=by_exp[ts]
-        # ── Destek/Direnç = Açık Pozisyon (OI) duvarları ──────────────
-        # Direnç = spot ÜSTÜ en yüksek call OI strike; Destek = spot ALTI
-        # en yüksek put OI strike. Vade süresinden BAĞIMSIZ.
-        # (Eski yöntem GEX=gamma·OI kullanıyordu; gamma ∝ 1/√T olduğu için
-        #  0DTE/0DTE+1'de vade birkaç saate inince gamma ATM'de patlıyor →
-        #  hem destek hem direnç spot'a en yakın strike'a çöküyordu. OI duvarı
-        #  bu bozulmadan etkilenmez, yakın vadeler de doğru çıkar.)
+        # ── Destek/Direnç = GEX (gamma·OI) duvarları, spot'a göre kısıtlı ──
+        # Direnç = spot ÜSTÜ en yüksek call GEX; Destek = spot ALTI en yüksek
+        # |put GEX|. GEX = gamma·OI·spot²·%1. Gamma yakın vadede ATM'de
+        # yoğunlaşır → 0DTE/0DTE+1 duvarları spot'a yakın çıkar (referansta
+        # 0DTE=0DTE+1 aynı çıkması bu gamma yoğunlaşmasının imzası); uzak
+        # vadede gamma düzleşir → OI baskın → 60k/70k gibi yuvarlak duvarlar.
+        # Spot-taraf kısıtı destek<spot<direnç garantisi verir (asıl eksik
+        # buydu; kısıt yokken duvarlar yanlış tarafa düşebiliyordu).
         agg={}
         for o in eopts:
-            x=agg.setdefault(o["strike"],{"callOI":0.0,"putOI":0.0})
-            if o["type"]=="call": x["callOI"]+=o["oi"]
-            else: x["putOI"]+=o["oi"]
+            x=agg.setdefault(o["strike"],{"callGex":0.0,"putGex":0.0})
+            if o["type"]=="call": x["callGex"]+=o["gex"]
+            else: x["putGex"]+=o["gex"]
         direnc=destek=None; maxC=maxP=-1.0
         for k,x in agg.items():
-            if k>=spot and x["callOI"]>maxC: maxC=x["callOI"]; direnc=k   # spot üstü call duvarı
-            if k<=spot and x["putOI"]>maxP: maxP=x["putOI"]; destek=k     # spot altı put duvarı
+            if k>=spot and x["callGex"]>maxC: maxC=x["callGex"]; direnc=k          # spot üstü call gamma duvarı
+            if k<=spot and abs(x["putGex"])>maxP: maxP=abs(x["putGex"]); destek=k   # spot altı put gamma duvarı
         # Uç durum: spot'un bir tarafında hiç strike yoksa kısıtı kaldır
         if direnc is None:
             maxC=-1.0
             for k,x in agg.items():
-                if x["callOI"]>maxC: maxC=x["callOI"]; direnc=k
+                if x["callGex"]>maxC: maxC=x["callGex"]; direnc=k
         if destek is None:
             maxP=-1.0
             for k,x in agg.items():
-                if x["putOI"]>maxP: maxP=x["putOI"]; destek=k
+                if abs(x["putGex"])>maxP: maxP=abs(x["putGex"]); destek=k
         netgex=round(sum(o["gex"] for o in eopts))
         gex_tablo.append({"vade":ad,"expiry":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%Y-%m-%d"),
                           "destek":destek,"direnc":direnc,"net_gex":netgex})
