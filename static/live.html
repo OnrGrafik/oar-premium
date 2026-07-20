@@ -342,12 +342,16 @@ function scrLeader(){
   // trade kutuları (paper BTC+ETH + altcoin) + $1000 5x paneli. Detaylar Telegram'da.
   const os=ST.oarSistem||null;
   const eq5=os&&os.equity?os.equity.kaldirac['5x']:null;
-  const kapiChip=os&&os.canli_kapi?`<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${os.canli_kapi.acik===true?'#0e2018':os.canli_kapi.acik===false?'#201410':'#151515'};border:1px solid ${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ff8a3c':'#333'};color:${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ffb13c':'#8a9c99'}">${os.canli_kapi.acik===true?'🟢 TRADE AÇIK':os.canli_kapi.acik===false?'🔴 TRADE KAPALI':'⏳'}</span>`:'';
+  // PER-SEMBOL kapı chip'i: her coin KENDİ Asia≥%1 durumu ayrı gösterilir (BTC/ETH bağımsız).
+  const _cc=(ad,ac,pct)=>`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${ac===true?'#0e2018':ac===false?'#201410':'#151515'};border:1px solid ${ac===true?'#1ff0ad':ac===false?'#ff8a3c':'#333'};color:${ac===true?'#1ff0ad':ac===false?'#ffb13c':'#8a9c99'}">${ad}${pct!=null?' %'+pct:''} ${ac===true?'🟢':ac===false?'🔴':'⏳'}</span>`;
+  const _ck=(os&&os.canli_kapi)||null;
+  const kapiChip=_ck&&(_ck.btc_asia_pct!=null||_ck.eth_asia_pct!=null)?`${_cc('BTC',_ck.btc_acik,_ck.btc_asia_pct)} ${_cc('ETH',_ck.eth_acik,_ck.eth_asia_pct)}`:(_ck?`<span style="font-size:9px;color:#8a9c99">⏳ kapı</span>`:'');
   const oarSistemHtml=os?`
   <div class="card" style="padding:15px 17px;margin-bottom:13px;border-left:2px solid #1ff0ad">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
       <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#1ff0ad">⭐ OAR SİSTEMİ</span>
-      ${os.canli_kapi?`<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:5px;background:${os.canli_kapi.acik===true?'#0e2018':os.canli_kapi.acik===false?'#201410':'#151515'};border:1px solid ${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ff8a3c':'#333'};color:${os.canli_kapi.acik===true?'#1ff0ad':os.canli_kapi.acik===false?'#ffb13c':'#8a9c99'}">${os.canli_kapi.acik===true?'🟢 TRADE AÇIK':os.canli_kapi.acik===false?'🔴 TRADE KAPALI':'⏳'}</span>`:''}
+      ${kapiChip?`<span style="display:flex;gap:5px;align-items:center">${kapiChip}</span>`:''}
+      <span style="font-size:8.5px;color:#5e716f">per-sembol kapı (her coin kendi Asia≥%1)</span>
       ${eq5?`<span style="font-size:10px;color:#8a9c99;margin-left:auto">$1000 · 5x → <b style="color:#1ff0ad">$${(eq5.son>=1e6?(eq5.son/1e6).toFixed(1)+'M':eq5.son.toLocaleString())}</b> <span style="color:#5e716f">(maxDD%${eq5.maxdd_pct}${os.equity.likidasyon?' · 💀':' · likide yok'})</span></span>`:''}
     </div>
     <div style="background:#0a0f0f;border:1px solid #15301f;border-radius:7px;padding:11px 13px;margin-bottom:10px">

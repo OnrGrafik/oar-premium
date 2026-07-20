@@ -5,7 +5,7 @@ Backtest'le doğrulanan 2. şampiyonun (kirilim_devam_trend) canlı forward-test
 Sistem 1 (fade paper) ile AYNI çerçeve: $1000 başlangıç, 5x, compound, fee dahil.
 
 CANLI KURALLAR (backtest trend adayı üreticisiyle hizalı — tp_sl_breakout birebir):
-  • Market kapısı: BTC VE ETH Asia ≥ %1 (Sistem 1 ile aynı kapı).
+  • Market kapısı: PER-SEMBOL — her coin KENDİ Asia ≥ %1 (Sistem 1 ile aynı per-sembol kapı).
   • Tetik: post-Asia fiyat Asia-HIGH üstünde → LONG devam · Asia-LOW altında → SHORT devam.
   • TP/SL = tp_sl_breakout birebir: LONG TP=1.377 fib, SL=0.5 (range ortası, geçersizlik);
     SHORT TP=-0.377 fib, SL=0.5.
@@ -90,6 +90,13 @@ def _ac_karar_trend(analiz, bias):
     # 1467 (~9x), 5x-likidasyon %0, her dönem +, DSR 1.0. Time-stop seans sonu kapatır.
     fibs = _fib_seviyeleri(lo, hi)
     mid = fibs[0.5]
+    # KANIT BAĞI (5e): bu işlem serap-geçer TREND şampiyonuna ait — DSR/kanıt iliştir
+    # (fail-open: serap dosyası yoksa şampiyonu durdurmaz).
+    try:
+        from oar_kanit_kapisi import kanit_iliştir
+        kanit = kanit_iliştir("kirilim_devam_trend")
+    except Exception:
+        kanit = {}
     if fiyat > hi:                       # üst kırılım → LONG devam
         if bias != "LONG":
             return None
@@ -98,7 +105,7 @@ def _ac_karar_trend(analiz, bias):
         tp = fiyat + 3.0 * R
         if not (sl < fiyat < tp):
             return None
-        return {"yon": "LONG", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}
+        return {"yon": "LONG", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2), **kanit}
     if fiyat < lo:                       # alt kırılım → SHORT devam
         if bias != "SHORT":
             return None
@@ -107,7 +114,7 @@ def _ac_karar_trend(analiz, bias):
         tp = fiyat - 3.0 * R
         if not (tp < fiyat < sl):
             return None
-        return {"yon": "SHORT", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}
+        return {"yon": "SHORT", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2), **kanit}
     return None
 
 
@@ -133,11 +140,11 @@ async def _kapat(d, sembol, cikis, sonuc):
 
 async def tik(d=None):
     """5 dk'lık adım: açıkları yönet; kapı+pencere uygunsa kırılım-devam aç."""
-    from oar_session_agent import oar_analiz, _market_fade_gunu
+    from oar_session_agent import oar_analiz, _sembol_fade_gunu
     d = d if d is not None else _yukle()
 
-    fade_gunu, _, _ = await _market_fade_gunu()   # aynı kapı: BTC&ETH Asia ≥%1
-
+    # PER-SEMBOL kapı (kullanıcı onaylı, ANAYASA #8): her coin kendi Asia≥%1'inde
+    # açar (döngü içinde). Eski iki-kapı ETH getirisini ~yarıya indiriyordu.
     for sembol in SEMBOLLER:
         if sembol in d["acik"]:
             poz = d["acik"][sembol]
@@ -148,7 +155,8 @@ async def tik(d=None):
             elif _sure_saat(poz["acilis"]) >= MAX_SAAT:
                 await _kapat(d, sembol, (high + low) / 2, "TIME_STOP")
             continue
-        if d["bakiye"] <= 0 or fade_gunu is not True or not trade_penceresi_uygun():
+        sfade, _spct = await _sembol_fade_gunu(sembol)   # per-sembol kapı
+        if d["bakiye"] <= 0 or sfade is not True or not trade_penceresi_uygun():
             continue
         try:
             analiz = await oar_analiz(sembol)

@@ -171,33 +171,39 @@ def _opsiyon_bias():
         return {}
 
 
-_MARKET_GUNU_CACHE = {"gun": None, "val": None}
+# ⛔ ESKİ SİSTEM KALDIRILDI (kullanıcı onaylı): `_market_fade_gunu` (iki-kapı: BTC VE
+# ETH ≥%1) devre dışı bırakıldı. Backtest (oar_kapi_analiz) kanıtladı: iki-kapı ETH
+# getirisini ~yarıya indiriyordu, risk faydası yok. Yerine PER-SEMBOL kapı geçti
+# (_sembol_fade_gunu). Hiçbir canlı sistem artık iki-kapıyı çağırmıyor.
 
 
-async def _market_fade_gunu():
+_SEMBOL_GUNU_CACHE = {}   # {sembol: {"gun": ..., "val": (bool, pct)}}
+
+
+async def _sembol_fade_gunu(sembol: str):
     """
-    Market-rejim kapısı: BTC ve ETH Asia range ≥ %1 ise o gün FADE-tradeable.
-    İkisi de sağlıyorsa altcoinler dahil işlem açılabilir; biri bile <%1 ise
-    o gün komple trade yok. Döner: (uygun_bool, btc_pct, eth_pct).
-
-    Asia günde bir kez (00:00-04:00 UTC) oluşur → sonuç GÜN bazında cache'lenir.
-    Her paper/altcoin tik'inde BTC+ETH klines'ı yeniden çekmez (yüz istek/gün → 1).
-    Veri gelemezse cache YAZILMAZ (sonraki tik tekrar dener).
+    PER-SEMBOL market kapısı: yalnız BU sembolün Asia range ≥ %1 mi.
+    Backtest kanıtı (oar_kapi_analiz, kullanıcı onaylı ANAYASA #8 değişikliği):
+    şampiyonlar her sembolü KENDİ Asia≥%1'iyle değerlendirince en yüksek getiri +
+    likidasyon YOK (5x dahil). Eski iki-kapı (BTC VE ETH ≥%1) ETH'nin tek başına
+    %1 yaptığı ~363 pozitif-beklentili günü çöpe atıp ETH getirisini ~yarıya
+    indiriyordu, hiçbir risk faydası olmadan (maxDD birebir aynı). Döner:
+    (uygun_bool | None, pct | None). Gün bazında SEMBOL BAŞINA cache'lenir
+    (tik başına klines'ı yeniden çekmez). Veri gelemezse cache YAZILMAZ.
     """
     from datetime import datetime, timezone
     bugun = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    if _MARKET_GUNU_CACHE["gun"] == bugun and _MARKET_GUNU_CACHE["val"] is not None:
-        return _MARKET_GUNU_CACHE["val"]
+    c = _SEMBOL_GUNU_CACHE.get(sembol)
+    if c and c["gun"] == bugun and c["val"] is not None:
+        return c["val"]
     try:
-        b = await _asia_range_pct("BTCUSDT")
-        e = await _asia_range_pct("ETHUSDT")
+        p = await _asia_range_pct(sembol)
     except Exception:
-        return None, None, None
-    if b is None or e is None:
-        return None, None, None
-    val = (bool(b >= 1.0 and e >= 1.0), round(b, 2), round(e, 2))
-    _MARKET_GUNU_CACHE["gun"] = bugun
-    _MARKET_GUNU_CACHE["val"] = val
+        return None, None
+    if p is None:
+        return None, None
+    val = (bool(p >= 1.0), round(p, 2))
+    _SEMBOL_GUNU_CACHE[sembol] = {"gun": bugun, "val": val}
     return val
 
 
@@ -322,7 +328,17 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
         asia_low  = min(m[2] for m in asia_mumlar)
         asia_open = asia_mumlar[0][0]
         asia_close = asia_mumlar[-1][3]
-        asia_poc  = (asia_high + asia_low) / 2
+        # ── FAZ 2 (#8, onaylı): GERÇEK hacim-profili POC (ortanca DEĞİL). Şampiyonun
+        #    poc_taraf bloğu artık backtest'le aynı POC'u kullanır. Footprint gelmezse
+        #    OTOMATİK ortancaya düşer (fail-safe — canlıyı bozmaz).
+        asia_poc  = (asia_high + asia_low) / 2                      # fallback ortanca
+        try:
+            from oar_canli_footprint import asia_poc_gercek
+            _gpoc = await asia_poc_gercek(sembol)
+            if _gpoc and (0.5 * asia_low) <= _gpoc <= (2.0 * asia_high):
+                asia_poc = _gpoc                                   # gerçek hacim POC
+        except Exception:
+            pass
 
         asia_range = asia_high - asia_low
         asia_range_pct = (asia_range / asia_low * 100) if asia_low > 0 else 0
@@ -469,6 +485,21 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                             f"🩸 Opsiyon: DVOL↑+skew↑ düşüş baskısı (pct {ob.get('dvol_pct')}) "
                             f"→ {yon_t} fade {'zayıflatıldı' if yon_t=='LONG' else 'desteklendi'}")
                         setup_listesi.append("Opsiyon düşüş-bias overlay")
+
+                    # ── FAZ 2: GERÇEK footprint (backtest-metodolojisi, 1m taker-buy) ──
+                    # poc_taraf zaten gerçek POC kullanıyor (asia_poc yukarıda). CVD/delta
+                    # KARARA (skora) EKLENMEZ — henüz forward-test edilmedi; kanıtsız mantık
+                    # şampiyona sokulmaz (ANAYASA). Yalnız KAYDEDİLİR (nedenler) → forward-test.
+                    try:
+                        from oar_canli_footprint import footprint_al
+                        _fp = await footprint_al(sembol)
+                        if _fp and _fp.get("poc"):
+                            nedenler.append(
+                                f"📊 Gerçek footprint: POC {_fp['poc']} (poc_taraf'ta kullanıldı) · "
+                                f"gün CVD {_fp['cvd_son']:+.0f} · balina-eşik {_fp['delta_abs_esik']:.0f} "
+                                f"(order-flow kaydı — karara eklenmedi, forward-test için)")
+                    except Exception:
+                        pass
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0

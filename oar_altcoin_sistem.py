@@ -154,7 +154,7 @@ async def _kapat(d, sembol, cikis, sonuc):
 
 async def tik(d=None):
     """Bir tarama adımı: açıkları kontrol/kapat; market kapısı uygunsa OAR Asia Range sinyalinde aç."""
-    from oar_session_agent import oar_analiz, _market_fade_gunu
+    from oar_session_agent import oar_analiz, _sembol_fade_gunu
     d = d if d is not None else _yukle()
 
     # 1) Açık pozisyonları kontrol et (TP/SL/time-stop) — her koşulda yönetilir
@@ -170,10 +170,14 @@ async def tik(d=None):
         elif _sure_saat(poz["acilis"]) >= MAX_SAAT:
             await _kapat(d, sembol, (high + low) / 2, "TIME_STOP")
 
-    # MARKET KAPISI: BTC ve ETH Asia ≥%1 değilse o gün altcoinlerde YENİ işlem yok
-    fade_gunu, btc_pct, eth_pct = await _market_fade_gunu()
-    if fade_gunu is not True:
-        print(f"[OAR-Altcoin] Market kapısı kapalı (BTC %{btc_pct} / ETH %{eth_pct} <%1) — trade yok")
+    # MARKET-REJİM KAPISI (OR, kullanıcı onaylı): BTC VEYA ETH Asia ≥%1 → market
+    # yeterince aktif, altcoin günü açık. (Per-sembol felsefesiyle tutarlı; sakin
+    # major yüzünden bloklamayız. Altcoin'in KENDİ Asia≥%1 gerekliliği aşağıda
+    # oar_analiz içinde ayrıca zorlanır → çift kapı korunur.)
+    b_acik, btc_pct = await _sembol_fade_gunu("BTCUSDT")
+    e_acik, eth_pct = await _sembol_fade_gunu("ETHUSDT")
+    if not (b_acik is True or e_acik is True):
+        print(f"[OAR-Altcoin] Market-rejim kapalı (BTC %{btc_pct} / ETH %{eth_pct} ikisi de <%1) — trade yok")
         _kaydet(d)
         return d
 
