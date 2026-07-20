@@ -125,6 +125,40 @@ async def klines(
 
 
 # ─────────────────────────────────────────────────────────────────
+# KLINES + TAKER-BUY (canlı footprint için — Binance yalnız)
+# ─────────────────────────────────────────────────────────────────
+
+async def klines_taker(
+    symbol: str,
+    interval: str = "1m",
+    limit: int = 1000,
+    futures: bool = False,
+    start_ms: Optional[int] = None,
+) -> list:
+    """
+    1m klines + TAKER-BUY BASE hacmi (Binance yanıtının 10. alanı, index 9).
+    Döner: [[ts_ms, open, high, low, close, volume, taker_buy_base], ...] (float).
+
+    KRİTİK: per-dakika aggressor delta = 2·taker_buy − volume → backtest'in
+    aggTrades'ten (is_buyer_maker) hesapladığı per-dk delta ile BİREBİR AYNI
+    (Binance taker_buy_base = taker'ın ALICI olduğu hacim = agresif alış).
+    Tek istekle tüm gün (limit≤1000 → ~16.6 saat 1m). Yalnız Binance verir; Bybit
+    fallback YOK (taker-buy alanı farklı) → veri gelmezse çağıran proxy'ye düşer.
+    """
+    base = ("https://fapi.binance.com/fapi/v1/klines" if futures
+            else "https://api.binance.com/api/v3/klines")
+    params = {"symbol": symbol, "interval": interval, "limit": min(limit, 1000)}
+    if start_ms is not None:
+        params["startTime"] = start_ms
+    data = await _get(base, params)
+    if isinstance(data, list) and data:
+        # row: [openTime,o,h,l,c,vol,closeTime,quoteVol,trades,takerBuyBase,takerBuyQuote,ignore]
+        return [[float(r[0]), float(r[1]), float(r[2]), float(r[3]),
+                 float(r[4]), float(r[5]), float(r[9])] for r in data]
+    raise RuntimeError("klines_taker boş döndü")
+
+
+# ─────────────────────────────────────────────────────────────────
 # SPOT / FUTURES FİYAT
 # ─────────────────────────────────────────────────────────────────
 

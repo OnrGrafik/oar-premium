@@ -2783,6 +2783,31 @@ async def oar_paper_endpoint():
     return d
 
 
+@app.get("/api/oar-footprint")
+async def oar_footprint_endpoint():
+    """
+    FAZ 1 KIYAS: canlı GERÇEK footprint (1m taker-buy → hacim-profili POC/CVD) vs
+    eski proxy (POC=(H+L)/2 ortanca). POC sapması + gün CVD gösterir. Faz 2 gerçek
+    POC'u zaten poc_taraf'ta kullanıyor; bu endpoint sapmayı izlemek/doğrulamak için.
+    """
+    out = {}
+    try:
+        from oar_session_agent import oar_analiz
+        from oar_canli_footprint import karsilastir
+        for s in ("BTCUSDT", "ETHUSDT"):
+            try:
+                oa = await oar_analiz(s)
+                a = oa.get("asia") or {}
+                out[s] = await karsilastir(s, a.get("high"), a.get("low"))
+            except Exception as e:
+                out[s] = {"durum": "hata", "aciklama": str(e)[:80]}
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+    return {"aciklama": "GERÇEK footprint (backtest-metod) vs eski proxy ortanca POC. "
+                        "Faz 2 gerçek POC'u canlı poc_taraf'ta kullanıyor.",
+            "semboller": out}
+
+
 @app.get("/api/oar-trend")
 async def oar_trend_endpoint():
     """SİSTEM 2 — Trend (kırılım-devam) paper-trade: bakiye, açık pozisyonlar, son işlemler."""

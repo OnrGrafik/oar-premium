@@ -328,7 +328,17 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
         asia_low  = min(m[2] for m in asia_mumlar)
         asia_open = asia_mumlar[0][0]
         asia_close = asia_mumlar[-1][3]
-        asia_poc  = (asia_high + asia_low) / 2
+        # ── FAZ 2 (#8, onaylı): GERÇEK hacim-profili POC (ortanca DEĞİL). Şampiyonun
+        #    poc_taraf bloğu artık backtest'le aynı POC'u kullanır. Footprint gelmezse
+        #    OTOMATİK ortancaya düşer (fail-safe — canlıyı bozmaz).
+        asia_poc  = (asia_high + asia_low) / 2                      # fallback ortanca
+        try:
+            from oar_canli_footprint import asia_poc_gercek
+            _gpoc = await asia_poc_gercek(sembol)
+            if _gpoc and (0.5 * asia_low) <= _gpoc <= (2.0 * asia_high):
+                asia_poc = _gpoc                                   # gerçek hacim POC
+        except Exception:
+            pass
 
         asia_range = asia_high - asia_low
         asia_range_pct = (asia_range / asia_low * 100) if asia_low > 0 else 0
@@ -475,6 +485,21 @@ async def oar_analiz(sembol: str = "BTCUSDT") -> dict:
                             f"🩸 Opsiyon: DVOL↑+skew↑ düşüş baskısı (pct {ob.get('dvol_pct')}) "
                             f"→ {yon_t} fade {'zayıflatıldı' if yon_t=='LONG' else 'desteklendi'}")
                         setup_listesi.append("Opsiyon düşüş-bias overlay")
+
+                    # ── FAZ 2: GERÇEK footprint (backtest-metodolojisi, 1m taker-buy) ──
+                    # poc_taraf zaten gerçek POC kullanıyor (asia_poc yukarıda). CVD/delta
+                    # KARARA (skora) EKLENMEZ — henüz forward-test edilmedi; kanıtsız mantık
+                    # şampiyona sokulmaz (ANAYASA). Yalnız KAYDEDİLİR (nedenler) → forward-test.
+                    try:
+                        from oar_canli_footprint import footprint_al
+                        _fp = await footprint_al(sembol)
+                        if _fp and _fp.get("poc"):
+                            nedenler.append(
+                                f"📊 Gerçek footprint: POC {_fp['poc']} (poc_taraf'ta kullanıldı) · "
+                                f"gün CVD {_fp['cvd_son']:+.0f} · balina-eşik {_fp['delta_abs_esik']:.0f} "
+                                f"(order-flow kaydı — karara eklenmedi, forward-test için)")
+                    except Exception:
+                        pass
     else:
         asia_high = asia_low = asia_poc = 0
         asia_range_pct = 0
