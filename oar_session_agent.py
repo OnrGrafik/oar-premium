@@ -171,34 +171,10 @@ def _opsiyon_bias():
         return {}
 
 
-_MARKET_GUNU_CACHE = {"gun": None, "val": None}
-
-
-async def _market_fade_gunu():
-    """
-    Market-rejim kapısı: BTC ve ETH Asia range ≥ %1 ise o gün FADE-tradeable.
-    İkisi de sağlıyorsa altcoinler dahil işlem açılabilir; biri bile <%1 ise
-    o gün komple trade yok. Döner: (uygun_bool, btc_pct, eth_pct).
-
-    Asia günde bir kez (00:00-04:00 UTC) oluşur → sonuç GÜN bazında cache'lenir.
-    Her paper/altcoin tik'inde BTC+ETH klines'ı yeniden çekmez (yüz istek/gün → 1).
-    Veri gelemezse cache YAZILMAZ (sonraki tik tekrar dener).
-    """
-    from datetime import datetime, timezone
-    bugun = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    if _MARKET_GUNU_CACHE["gun"] == bugun and _MARKET_GUNU_CACHE["val"] is not None:
-        return _MARKET_GUNU_CACHE["val"]
-    try:
-        b = await _asia_range_pct("BTCUSDT")
-        e = await _asia_range_pct("ETHUSDT")
-    except Exception:
-        return None, None, None
-    if b is None or e is None:
-        return None, None, None
-    val = (bool(b >= 1.0 and e >= 1.0), round(b, 2), round(e, 2))
-    _MARKET_GUNU_CACHE["gun"] = bugun
-    _MARKET_GUNU_CACHE["val"] = val
-    return val
+# ⛔ ESKİ SİSTEM KALDIRILDI (kullanıcı onaylı): `_market_fade_gunu` (iki-kapı: BTC VE
+# ETH ≥%1) devre dışı bırakıldı. Backtest (oar_kapi_analiz) kanıtladı: iki-kapı ETH
+# getirisini ~yarıya indiriyordu, risk faydası yok. Yerine PER-SEMBOL kapı geçti
+# (_sembol_fade_gunu). Hiçbir canlı sistem artık iki-kapıyı çağırmıyor.
 
 
 _SEMBOL_GUNU_CACHE = {}   # {sembol: {"gun": ..., "val": (bool, pct)}}
