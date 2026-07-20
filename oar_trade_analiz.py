@@ -325,10 +325,14 @@ def calistir(semboller, bas, bit, taze=False, telegram=False):
             for ad, v in r["exits"].items():
                 exit_seri.setdefault(ad, []).append(v)
                 sd.setdefault(ad, []).append((c["ts"], v))
-            # R_realize (TP_3R net% / SL mesafe%) — sabit-risk boyutlandırma için
+            # R_realize (TP_3R net% / SL mesafe%) — sabit-risk boyutlandırma için.
+            # Komisyonun (%0.13 round-trip) yiyeceği kadar DAR stoplar (SL_mesafe<%0.15)
+            # gerçekte tradeable değil → atılır. R_realize gerçekçi aralığa clamp'lenir:
+            # stop-out en fazla ≈−1R (tek işlem hesabı sıfırlayamaz), üst uç +10R cap.
             sl_mesafe = abs(giris - sl) / giris * 100 if giris else 0
-            if sl_mesafe > 0:
-                sembol_R.setdefault(sym, []).append((c["ts"], r["exits"]["TP_3R"] / sl_mesafe))
+            if sl_mesafe >= 0.15:
+                Rr = max(-1.1, min(10.0, r["exits"]["TP_3R"] / sl_mesafe))
+                sembol_R.setdefault(sym, []).append((c["ts"], Rr))
             holds.append(r["hold_bar"]); maes.append(r["mae_R"]); mfes.append(r["mfe_R"])
             base_pcts.append(r["exits"]["base"])
             inval_kova.setdefault(_invalidasyon(c), []).append(r["exits"]["base"])
