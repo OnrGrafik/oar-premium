@@ -1049,7 +1049,19 @@ async def oar_sistem():
         "kanitli_bulgular": kanitli,
         "stil_portfoy": portfoy,
         "defter_ozeti": defter,
+        # KANIT KAPISI (5e bağı): canlıya YALNIZ serap-geçer (DSR≥0.95) sistem bağlanır;
+        # kanitli_bulgular LIFT/OOS kazananları ADAYDIR (çoğu serap). Her canlı işlem
+        # hangi kanıtlı sisteme ait olduğunu + DSR'sini taşır.
+        "kanit_kapisi": _kanit_kapisi_ozet(),
     }
+
+
+def _kanit_kapisi_ozet():
+    try:
+        from oar_kanit_kapisi import canli_kanit_ozeti
+        return canli_kanit_ozeti()
+    except Exception:
+        return {}
 
 @app.get("/api/deribit")
 async def deribit_data(currency: str = "BTC"):
@@ -1813,6 +1825,10 @@ async def _site_baglami() -> str:
     try:
         from leader_agent import _kanitli_bulgu_baglami
         par.append(_kanitli_bulgu_baglami()[:900])
+    except Exception: pass
+    try:
+        from oar_kanit_kapisi import baglam_metni as _kanit_baglam
+        par.append(_kanit_baglam())   # KANIT KAPISI: canlı sistemlerin serap-geçer durumu (5e bağı)
     except Exception: pass
     try:
         from macro_engine import makro_veri

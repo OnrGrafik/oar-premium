@@ -123,8 +123,15 @@ def _ac_karar(analiz: dict) -> dict | None:
     # Ateşlenen teyitleri sakla → aylık forward-test: hangi filtre hangi WR (bilimsel)
     teyitler = [s for s in setups if any(k in s for k in
                 ("OAR Asia Range", "HTF-VPFR", "Whale-Retail", "Opsiyon", "Trend-Devam"))]
+    # KANIT BAĞI (5e): bu işlem serap-geçer FADE şampiyonuna ait — DSR/kanıt iliştir
+    # (fail-open: serap dosyası yoksa şampiyonu durdurmaz, sadece 'okunamadı' işaretler).
+    try:
+        from oar_kanit_kapisi import kanit_iliştir
+        kanit = kanit_iliştir("ekstrem_donus_fade")
+    except Exception:
+        kanit = {}
     return {"yon": yon, "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2),
-            "teyitler": teyitler}
+            "teyitler": teyitler, **kanit}
 
 
 def _kapanis_kontrol(poz: dict, high: float, low: float):

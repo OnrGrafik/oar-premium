@@ -90,6 +90,13 @@ def _ac_karar_trend(analiz, bias):
     # 1467 (~9x), 5x-likidasyon %0, her dönem +, DSR 1.0. Time-stop seans sonu kapatır.
     fibs = _fib_seviyeleri(lo, hi)
     mid = fibs[0.5]
+    # KANIT BAĞI (5e): bu işlem serap-geçer TREND şampiyonuna ait — DSR/kanıt iliştir
+    # (fail-open: serap dosyası yoksa şampiyonu durdurmaz).
+    try:
+        from oar_kanit_kapisi import kanit_iliştir
+        kanit = kanit_iliştir("kirilim_devam_trend")
+    except Exception:
+        kanit = {}
     if fiyat > hi:                       # üst kırılım → LONG devam
         if bias != "LONG":
             return None
@@ -98,7 +105,7 @@ def _ac_karar_trend(analiz, bias):
         tp = fiyat + 3.0 * R
         if not (sl < fiyat < tp):
             return None
-        return {"yon": "LONG", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}
+        return {"yon": "LONG", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2), **kanit}
     if fiyat < lo:                       # alt kırılım → SHORT devam
         if bias != "SHORT":
             return None
@@ -107,7 +114,7 @@ def _ac_karar_trend(analiz, bias):
         tp = fiyat - 3.0 * R
         if not (tp < fiyat < sl):
             return None
-        return {"yon": "SHORT", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2)}
+        return {"yon": "SHORT", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2), **kanit}
     return None
 
 
