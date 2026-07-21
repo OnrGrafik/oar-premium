@@ -3,6 +3,13 @@
 > Bu dosya her yeni oturumda otomatik yüklenir. Bağlam sıfırlansa da burada yazanlar kaybolmaz.
 > Kullanıcının her seferinde hatırlatmak zorunda kalmaması için buradadır. Yeni kalıcı kural/olgu öğrenince BURAYA ekle.
 
+## 00. İLETİŞİM KURALI (kullanıcı isteği — kalıcı, her cevapta uygula)
+- Kısa, doğrudan, madde madde. **Güzelleme/övgü YOK.**
+- Tek seferde tek şey; net "sonraki adım".
+- **Bağımsız ol:** katılmıyorsam/yanlışsa açıkça söyle, onaylatma refleksi yok.
+- İdealist + çözüm odaklı: sorun değil çözüm sun.
+- Onay = uygula + commit + push (+ PR açıp merge). "Merge edeyim mi" diye SORMA.
+
 ## 0. ÖNCE ANAYASA
 `docs/ANAYASA.md` bağlayıcı kurallar bütünüdür (9 kural + token kuralı). Her işten önce ona uy. Özellikle:
 - **#3 Varsayım YOK** — JSON alanı/formül/endpoint/dönüş tipini KODDAN doğrula (ör. `_vpfr_deger_alani` **tuple** `(poc,vah,val)` döner, dict değil).
