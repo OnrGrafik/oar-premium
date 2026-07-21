@@ -2196,6 +2196,23 @@ async def grafik_yorum(symbol: str = "BTCUSDT"):
     return await _ttl_cached(f"grafik-yorum:{symbol}", 150,
                              lambda: _grafik_yorum_hesapla(symbol))
 
+_SON_AI_YORUM = {}   # {anahtar: metin} — AI 429/hata olunca SON İYİ yorumu göster (hata ekranı yerine)
+
+
+def _ai_yorum_fallback(anahtar: str) -> str:
+    """
+    AI yorumu alınamayınca (kota/limit/hata): son BAŞARILI yorumu (varsa) göster,
+    yoksa nazik mesaj. Siteye sağlayıcı/servis/altyapı adı SIZDIRMAZ (6c kuralı) —
+    gerçek HTTP durumu yalnız /api/ai-teshis + sunucu loglarında kalır.
+    """
+    onceki = _SON_AI_YORUM.get(anahtar)
+    if onceki:
+        return (f"{onceki}\n\n⏳ (Yorum servisi şu an yoğun — bu en son üretilen yorum; "
+                f"tablolardaki veriler günceldir, yorum birazdan otomatik yenilenecek.)")
+    return ("⚠ AI yorumu şu an yoğunluk nedeniyle alınamadı. Tablolardaki veriler "
+            "günceldir; yorum birazdan otomatik yenilenecek.")
+
+
 async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
     """ASIA RANGE grafiği altı LIVE açıklama — indikatör+opsiyon+kitap, Lider gözlemi."""
     import httpx
@@ -2310,10 +2327,11 @@ Kitap: {kitap_notu[:300]}{setup_metin}"""
                     "generationConfig":{"temperature":0.35,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
                 if rr.status_code == 200:
                     yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    _SON_AI_YORUM[f"grafik:{symbol}"] = yorum
                 else:
-                    yorum = f"⚠ AI yorumu alınamadı (Gemini HTTP {rr.status_code}). /api/ai-teshis ile kontrol et."
-        except Exception as e:
-            yorum = f"⚠ AI yorumu hatası: {str(e)[:100]}"
+                    yorum = _ai_yorum_fallback(f"grafik:{symbol}")
+        except Exception:
+            yorum = _ai_yorum_fallback(f"grafik:{symbol}")
     return {"veri": veri, "yorum": yorum, "kitap_kaynaklar": kitap_kaynaklar, "trade": trade}
 
 @app.get("/api/piyasa-durumu")
@@ -2447,14 +2465,15 @@ SADECE şu JSON'u döndür (başka metin yok):
                 if rr.status_code == 200:
                     txt = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
                     txt = txt.replace("```json","").replace("```","").strip()
+                    _SON_AI_YORUM["piyasa"] = txt
                     try:
                         bolumler = json.loads(txt)
                     except Exception:
                         yorum = txt  # JSON parse olmazsa düz metin
                 else:
-                    yorum = f"⚠ AI yorumu alınamadı (Gemini HTTP {rr.status_code}). /api/ai-teshis ile kontrol et."
-        except Exception as e:
-            yorum = f"⚠ AI yorumu hatası: {str(e)[:100]}"
+                    yorum = _ai_yorum_fallback("piyasa")
+        except Exception:
+            yorum = _ai_yorum_fallback("piyasa")
     return {"veri": veri, "bolumler": bolumler, "yorum": yorum,
             "kitap_kaynaklar": kitap_kaynaklar, "kitap_notu": kitap_notu[:300]}
 
@@ -2908,10 +2927,11 @@ async def makro_3ay(yorum: bool = True):
                     "generationConfig": {"temperature": 0.35, "maxOutputTokens": 1024}})
             if rr.status_code == 200:
                 out["ai_yorum"] = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
+                _SON_AI_YORUM["makro"] = out["ai_yorum"]
             else:
-                out["ai_yorum"] = f"⚠ AI yorumu alınamadı (Gemini HTTP {rr.status_code})."
-        except Exception as e:
-            out["ai_yorum"] = f"⚠ AI yorumu hatası: {str(e)[:80]}"
+                out["ai_yorum"] = _ai_yorum_fallback("makro")
+        except Exception:
+            out["ai_yorum"] = _ai_yorum_fallback("makro")
     elif yorum and not api_key:
         out["ai_yorum"] = "⚠ AI yorumu kapalı — GEMINI_API_KEY ekleyin (3-aylık veri yine hazır)."
     return out
