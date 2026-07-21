@@ -276,6 +276,137 @@ async def alarm_levels(currency="BTC"):
     out["genel"]=out.get("genel",{})
     return out
 
+# ─── ÇOK-BORSA OPSİYON TOPLAYICI (yalnız vade tablosu destek/direnç için) ──
+# Deribit omurga; OKX + Bybit + Binance European Options OI'si kontrat-
+# normalize edilip aynı strike havuzunda birleştirilir → destek/direnç tek
+# borsa yerine tüm likit opsiyon OI'sinden hesaplanır (referansla hizalı).
+# Her borsa izole try/except: erişilemezse SESSİZCE atlanır → Deribit-only'a
+# düşer (asla kırmaz). Deribit zincirine (rich opts) DOKUNULMAZ; bu katman
+# yalnız {strike,type,oi(coin),iv,expiryTs,borsa} normalize kaydı üretir.
+EK_BORSALAR = ("okx", "bybit", "binance")      # kapatmak için listeden çıkar
+_BYBIT_KONTRAT = {"BTC": 0.01, "ETH": 0.1}     # 1 kontrat = kaç coin
+_ek_cache = {}                                  # currency -> (ts, records)
+_EK_TTL = 60
+
+def _iv_norm(v):
+    """IV'yi ondalığa çevir (yüzde geldiyse /100). BS gamma ondalık bekler."""
+    try: v = float(v)
+    except Exception: return 0.0
+    if v <= 0: return 0.0
+    return v/100.0 if v > 5 else v
+
+def _opsiyon_gex(strike, typ, oi, iv, expiryTs, spot, now):
+    """Tek opsiyonun GEX'i — Deribit ile AYNI formül (gamma·OI·S²·%1·işaret)."""
+    if not (strike and oi and iv and spot): return 0.0
+    T = max((expiryTs-now)/(365.25*24*3600*1000), 0.0001)
+    g = _gamma(spot, strike, T, iv)
+    return g*oi*spot*spot*0.01*(1 if typ == "call" else -1)
+
+async def _get_json(cl, url, params=None):
+    try:
+        r = await cl.get(url, params=params, headers={"Accept":"application/json"}, timeout=15)
+        if r.status_code != 200: return None
+        return r.json()
+    except Exception:
+        return None
+
+async def _okx_opsiyonlar(cl, currency):
+    """OKX opsiyon zinciri → normalize. OI = oiCcy (zaten coin cinsinden)."""
+    uly = f"{currency}-USD"
+    inst = await _get_json(cl, "https://www.okx.com/api/v5/public/instruments",
+                           {"instType":"OPTION","uly":uly})
+    if not inst or not inst.get("data"): return []
+    summ = await _get_json(cl, "https://www.okx.com/api/v5/public/opt-summary", {"uly":uly})
+    oi_  = await _get_json(cl, "https://www.okx.com/api/v5/public/open-interest",
+                           {"instType":"OPTION","uly":uly})
+    iv_map = {s["instId"]: s.get("markVol") for s in (summ or {}).get("data", [])}
+    oi_map = {o["instId"]: o.get("oiCcy")   for o in (oi_  or {}).get("data", [])}
+    out = []
+    for m in inst["data"]:
+        try:
+            iid = m["instId"]
+            oi  = float(oi_map.get(iid) or 0)     # coin cinsinden (oiCcy)
+            iv  = _iv_norm(iv_map.get(iid))
+            if oi <= 0 or iv <= 0: continue
+            out.append({"strike":float(m["stk"]),
+                        "type":"call" if m["optType"] == "C" else "put",
+                        "oi":oi, "iv":iv, "expiryTs":int(m["expTime"]), "borsa":"okx"})
+        except Exception: continue
+    return out
+
+def _bybit_expiry_ms(s):
+    """'31JAN25' → 08:00 UTC ms."""
+    try:
+        dt = datetime.strptime(s.title(), "%d%b%y").replace(hour=8, tzinfo=timezone.utc)
+        return int(dt.timestamp()*1000)
+    except Exception: return None
+
+async def _bybit_opsiyonlar(cl, currency):
+    """Bybit USDC opsiyonları → normalize. OI(kontrat)·kontratBoyu = coin."""
+    d = await _get_json(cl, "https://api.bybit.com/v5/market/tickers",
+                        {"category":"option","baseCoin":currency})
+    lst = ((d or {}).get("result") or {}).get("list") or []
+    csize = _BYBIT_KONTRAT.get(currency, 0.01)
+    out = []
+    for t in lst:
+        try:
+            p = (t.get("symbol") or "").split("-")   # BTC-31JAN25-100000-C
+            if len(p) < 4: continue
+            oi = float(t.get("openInterest") or 0)*csize
+            iv = _iv_norm(t.get("markIv"))
+            ts = _bybit_expiry_ms(p[1])
+            if oi <= 0 or iv <= 0 or not ts: continue
+            out.append({"strike":float(p[2]),
+                        "type":"call" if p[3][:1] == "C" else "put",
+                        "oi":oi, "iv":iv, "expiryTs":ts, "borsa":"bybit"})
+        except Exception: continue
+    return out
+
+async def _binance_opsiyonlar(cl, currency):
+    """Binance European Options → normalize. OI = sumOpenInterest·unit (coin)."""
+    info = await _get_json(cl, "https://eapi.binance.com/eapi/v1/exchangeInfo")
+    if not info: return []
+    syms = [s for s in info.get("optionSymbols", []) if s.get("underlying") == f"{currency}USDT"]
+    if not syms: return []
+    mark = await _get_json(cl, "https://eapi.binance.com/eapi/v1/mark")
+    iv_map = {m.get("symbol"): m.get("markIV") for m in (mark or [])}
+    meta = {}   # symbol -> (strike, expiryTs, type, unit)
+    for s in syms:
+        try:
+            meta[s["symbol"]] = (float(s["strikePrice"]), int(s["expiryDate"]),
+                                 "call" if s["side"] == "CALL" else "put",
+                                 float(s.get("unit", 1) or 1))
+        except Exception: continue
+    out = []
+    now = int(time.time()*1000)
+    yakin = sorted(e for e in {v[1] for v in meta.values()} if (e-now) <= 12*86400*1000)
+    for ets in yakin:                                     # yalnız ≤12 gün (tablo yakın vade) — çağrı sınırı
+        ymd = datetime.fromtimestamp(ets/1000, tz=timezone.utc).strftime("%y%m%d")
+        oi_ = await _get_json(cl, "https://eapi.binance.com/eapi/v1/openInterest",
+                              {"underlyingAsset":currency, "expiration":ymd})
+        for o in (oi_ or []):
+            mt = meta.get(o.get("symbol"))
+            if not mt: continue
+            try:
+                oi = float(o.get("sumOpenInterest") or 0)*mt[3]
+                iv = _iv_norm(iv_map.get(o.get("symbol")))
+                if oi <= 0 or iv <= 0: continue
+                out.append({"strike":mt[0], "type":mt[2], "oi":oi, "iv":iv,
+                            "expiryTs":mt[1], "borsa":"binance"})
+            except Exception: continue
+    return out
+
+async def _ek_borsa_opsiyonlar(cl, currency):
+    """OKX+Bybit+Binance normalize kayıtları (60s cache). Her borsa izole."""
+    c = _ek_cache.get(currency)
+    if c and (time.time()-c[0]) < _EK_TTL: return c[1]
+    recs = []
+    if "okx"     in EK_BORSALAR: recs += await _okx_opsiyonlar(cl, currency) or []
+    if "bybit"   in EK_BORSALAR: recs += await _bybit_opsiyonlar(cl, currency) or []
+    if "binance" in EK_BORSALAR: recs += await _binance_opsiyonlar(cl, currency) or []
+    _ek_cache[currency] = (time.time(), recs)
+    return recs
+
 # ─── VADE MASASI: GEX vade tablosu + Max-Pain & Pin takvimi ───────
 # Hesap yöntemleri (genel geçer, Hull 11e):
 #  • Destek  = o vadenin en büyük |put GEX| strike'ı (put wall — dealer hedge alımı)
@@ -307,10 +438,17 @@ async def vade_masasi(currency="BTC"):
     """GEX vade tablosu (0DTE/0DTE+1/Haftalık) + 8 güne kadar Max-Pain & Pin takvimi."""
     async with httpx.AsyncClient(timeout=30) as cl:
         spot,opts=await _zincir(cl,currency)
+        # Çok-borsa OI (OKX+Bybit+Binance) — yalnız destek/direnç için, izole
+        ek=await _ek_borsa_opsiyonlar(cl,currency) if spot else []
     if not spot or not opts: return {"error":"opsiyon verisi yok"}
     now=int(time.time()*1000)
     exps=sorted({o["expiryTs"] for o in opts})
     by_exp={ts:[o for o in opts if o["expiryTs"]==ts] for ts in exps}
+    # Ek borsaları UTC-gün'e indeksle (Deribit expiry'siyle aynı güne eşle)
+    ek_gun={}
+    for o in ek:
+        g=datetime.fromtimestamp(o["expiryTs"]/1000,tz=timezone.utc).strftime("%Y-%m-%d")
+        ek_gun.setdefault(g,[]).append(o)
 
     # ── GEX vade tablosu satırları: 0DTE, 0DTE+1, Haftalık(ilk Cuma ≥ 0DTE+1 sonrası)
     hedefler=[]
@@ -329,11 +467,17 @@ async def vade_masasi(currency="BTC"):
         # vadede gamma düzleşir → OI baskın → 60k/70k gibi yuvarlak duvarlar.
         # Spot-taraf kısıtı destek<spot<direnç garantisi verir (asıl eksik
         # buydu; kısıt yokken duvarlar yanlış tarafa düşebiliyordu).
+        gun_str=datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%Y-%m-%d")
         agg={}
-        for o in eopts:
+        for o in eopts:                          # Deribit — GEX zaten hesaplı
             x=agg.setdefault(o["strike"],{"callGex":0.0,"putGex":0.0})
             if o["type"]=="call": x["callGex"]+=o["gex"]
             else: x["putGex"]+=o["gex"]
+        for o in ek_gun.get(gun_str,[]):         # OKX+Bybit+Binance — aynı UTC günü
+            g=_opsiyon_gex(o["strike"],o["type"],o["oi"],o["iv"],o["expiryTs"],spot,now)
+            x=agg.setdefault(o["strike"],{"callGex":0.0,"putGex":0.0})
+            if o["type"]=="call": x["callGex"]+=g
+            else: x["putGex"]+=g
         direnc=destek=None; maxC=maxP=-1.0
         for k,x in agg.items():
             if k>=spot and x["callGex"]>maxC: maxC=x["callGex"]; direnc=k          # spot üstü call gamma duvarı
@@ -365,7 +509,11 @@ async def vade_masasi(currency="BTC"):
                        "pin_strike":pin["strike"] if pin else None,
                        "pin_oi":pin["oi"] if pin else None,
                        "pin_pct":pct(pin["strike"]) if pin else None})
-    return {"spot":spot,"gex_tablo":gex_tablo,"takvim":takvim,
+    # Kaynak teşhisi: hangi borsa kaç opsiyon getirdi (canlı doğrulama için)
+    kaynaklar={"deribit":len(opts)}
+    for o in ek:
+        kaynaklar[o["borsa"]]=kaynaklar.get(o["borsa"],0)+1
+    return {"spot":spot,"gex_tablo":gex_tablo,"takvim":takvim,"kaynaklar":kaynaklar,
             "tarih":datetime.now(timezone.utc).isoformat()}
 
 # ─── Opsiyon CVD ──────────────────────────────────────────────────
