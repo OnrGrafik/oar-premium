@@ -159,7 +159,18 @@ async def _zincir(cl, currency="BTC"):
             return c[1], c[2]
         spot = await _spot(cl, currency)
         opts = await _tum_opsiyonlar(cl, spot, currency) if spot else []
+        for o in opts: o.setdefault("borsa", "deribit")
         if spot and opts:
+            # ── ÇOK-BORSA: OKX+Bybit+Binance OI'sini ana havuza kat ──────
+            # Böylece TÜM tüketiciler (max-pain, pin, CW/PW/ZG, net GEX,
+            # greekler, topografya, vade tablosu) otomatik çok-borsa olur.
+            # Deribit-only'a düşüş korunur (ek boşsa opts değişmez).
+            try:
+                now = int(time.time()*1000)
+                ek = await _ek_borsa_opsiyonlar(cl, currency)
+                if ek: opts = opts + _ek_zenginlestir(ek, spot, now)
+            except Exception:
+                pass
             _chain_cache[currency] = (time.time(), spot, opts)
         return spot, opts
 
@@ -396,6 +407,34 @@ async def _binance_opsiyonlar(cl, currency):
             except Exception: continue
     return out
 
+def _ek_zenginlestir(recs, spot, now):
+    """Ek borsa minimal kayıtlarını Deribit opts ile AYNI zengin yapıya çevir.
+    Greekler kendi BS'imizle (tutarlılık) hesaplanır; expiry o günün 08:00
+    UTC'sine sabitlenir → Deribit expiry'siyle AYNI anahtar (by_exp eşleşir)."""
+    out = []
+    for r in recs:
+        try:
+            K = r["strike"]; typ = r["type"]; oi = r["oi"]; iv = r["iv"]
+            if not (K and oi and iv): continue
+            d = datetime.fromtimestamp(r["expiryTs"]/1000, tz=timezone.utc)
+            ts = int(d.replace(hour=8, minute=0, second=0, microsecond=0).timestamp()*1000)
+            T = max((ts-now)/(365.25*24*3600*1000), 0.0001)
+            sgn = 1 if typ == "call" else -1
+            bs = _bs_greeks(spot, K, T, iv, typ)
+            gamma=bs["gamma"]; delta=bs["delta"]; vanna=bs["vanna"]; charm=bs["charm"]
+            theta=bs["theta"]; vega=bs["vega"]; rho=bs["rho"]
+            out.append({"strike":K, "type":typ, "oi":oi, "iv":iv,
+                        "gex":gamma*oi*spot*spot*0.01*sgn, "vex":vanna*oi*spot*0.01*sgn,
+                        "cex":charm*oi*spot*(1/365)*sgn, "dex":delta*oi*spot*sgn,
+                        "tex":theta*oi*(1/365)*sgn, "vgx":vega*oi*0.01*sgn, "rex":rho*oi*0.01*sgn,
+                        "gamma":gamma, "delta":delta, "vanna":vanna, "charm":charm,
+                        "theta":theta, "vega":vega, "rho":rho,
+                        "expiryTs":ts, "expiryLabel":_expiry_label(ts, now), "T":T,
+                        "borsa":r.get("borsa","?")})
+        except Exception:
+            continue
+    return out
+
 async def _ek_borsa_opsiyonlar(cl, currency):
     """OKX+Bybit+Binance normalize kayıtları (60s cache). Her borsa izole."""
     c = _ek_cache.get(currency)
@@ -437,18 +476,11 @@ def _expiry_max_pain(eopts):
 async def vade_masasi(currency="BTC"):
     """GEX vade tablosu (0DTE/0DTE+1/Haftalık) + 8 güne kadar Max-Pain & Pin takvimi."""
     async with httpx.AsyncClient(timeout=30) as cl:
-        spot,opts=await _zincir(cl,currency)
-        # Çok-borsa OI (OKX+Bybit+Binance) — yalnız destek/direnç için, izole
-        ek=await _ek_borsa_opsiyonlar(cl,currency) if spot else []
+        spot,opts=await _zincir(cl,currency)   # opts ARTIK çok-borsa (Deribit+OKX+Bybit+Binance)
     if not spot or not opts: return {"error":"opsiyon verisi yok"}
     now=int(time.time()*1000)
     exps=sorted({o["expiryTs"] for o in opts})
     by_exp={ts:[o for o in opts if o["expiryTs"]==ts] for ts in exps}
-    # Ek borsaları UTC-gün'e indeksle (Deribit expiry'siyle aynı güne eşle)
-    ek_gun={}
-    for o in ek:
-        g=datetime.fromtimestamp(o["expiryTs"]/1000,tz=timezone.utc).strftime("%Y-%m-%d")
-        ek_gun.setdefault(g,[]).append(o)
 
     # ── GEX vade tablosu satırları: 0DTE, 0DTE+1, Haftalık(ilk Cuma ≥ 0DTE+1 sonrası)
     hedefler=[]
@@ -467,17 +499,11 @@ async def vade_masasi(currency="BTC"):
         # vadede gamma düzleşir → OI baskın → 60k/70k gibi yuvarlak duvarlar.
         # Spot-taraf kısıtı destek<spot<direnç garantisi verir (asıl eksik
         # buydu; kısıt yokken duvarlar yanlış tarafa düşebiliyordu).
-        gun_str=datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%Y-%m-%d")
         agg={}
-        for o in eopts:                          # Deribit — GEX zaten hesaplı
+        for o in eopts:                          # eopts = çok-borsa (GEX zaten hesaplı)
             x=agg.setdefault(o["strike"],{"callGex":0.0,"putGex":0.0})
             if o["type"]=="call": x["callGex"]+=o["gex"]
             else: x["putGex"]+=o["gex"]
-        for o in ek_gun.get(gun_str,[]):         # OKX+Bybit+Binance — aynı UTC günü
-            g=_opsiyon_gex(o["strike"],o["type"],o["oi"],o["iv"],o["expiryTs"],spot,now)
-            x=agg.setdefault(o["strike"],{"callGex":0.0,"putGex":0.0})
-            if o["type"]=="call": x["callGex"]+=g
-            else: x["putGex"]+=g
         direnc=destek=None; maxC=maxP=-1.0
         for k,x in agg.items():
             if k>=spot and x["callGex"]>maxC: maxC=x["callGex"]; direnc=k          # spot üstü call gamma duvarı
@@ -510,9 +536,9 @@ async def vade_masasi(currency="BTC"):
                        "pin_oi":pin["oi"] if pin else None,
                        "pin_pct":pct(pin["strike"]) if pin else None})
     # Kaynak teşhisi: hangi borsa kaç opsiyon getirdi (canlı doğrulama için)
-    kaynaklar={"deribit":len(opts)}
-    for o in ek:
-        kaynaklar[o["borsa"]]=kaynaklar.get(o["borsa"],0)+1
+    kaynaklar={}
+    for o in opts:
+        b=o.get("borsa","deribit"); kaynaklar[b]=kaynaklar.get(b,0)+1
     return {"spot":spot,"gex_tablo":gex_tablo,"takvim":takvim,"kaynaklar":kaynaklar,
             "tarih":datetime.now(timezone.utc).isoformat()}
 
