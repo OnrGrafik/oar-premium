@@ -78,6 +78,13 @@ def main():
             _calistir("İŞLEM ANALİZİ (prop-metrik + exit optimizasyonu, günde 1)",
                       ["oar_trade_analiz.py", "--symbol", SEMBOL,
                        "--from", BAS, "--to", BIT, "--telegram"])
+            # 6) WALK-FORWARD (geçmişi gelecekmiş gibi: train→kör test, yuvarla) — 2 mod
+            _calistir("WALK-FORWARD rediscover (süreç doğrulama, günde 1)",
+                      ["oar_walkforward.py", "--symbol", SEMBOL, "--from", BAS, "--to", BIT,
+                       "--train-ay", "2", "--test-ay", "1", "--mod", "rediscover", "--telegram"])
+            _calistir("WALK-FORWARD sabit (şampiyon rejim-sağlamlığı, günde 1)",
+                      ["oar_walkforward.py", "--symbol", SEMBOL, "--from", BAS, "--to", BIT,
+                       "--train-ay", "2", "--test-ay", "1", "--mod", "sabit", "--telegram"])
             son_agir = time.time()
         print(f"\n[VARDİYA] Tur {tur} tamam. {ARALIK_SAAT} saat uyku… "
               f"(sonuçlar: Telegram 4129 + kanitli_bulgular.json + backtest_sonuclari.json)\n"
