@@ -256,6 +256,30 @@ def seans_absorp_fade_uyum(s):
     return s.get("seans_absorp_fade_uyum")
 
 
+def tpo_poc_taraf(s):
+    """Fiyat TPO-POC'un (ZAMAN-profili, hacim değil) doğru tarafında mı (SHORT üstü / LONG altı)."""
+    tp, f = s.get("tpo_poc"), s.get("fiyat")
+    if not tp or not f:
+        return None
+    return f >= tp if s.get("yon") == "SHORT" else f <= tp
+
+
+def tpo_va_disi(s):
+    """Giriş TPO value-area (%70 zaman) DIŞINDA mı → tek-baskı ekstrem, fade adayı."""
+    vah, val, f = s.get("tpo_vah"), s.get("tpo_val"), s.get("fiyat")
+    if not vah or not val or not f:
+        return None
+    return f > vah or f < val
+
+
+def tpo_hacim_ayrisma(s):
+    """TPO-POC (zaman) ile Volume-POC (hacim) ayrışıyor mu (≥%0.3) — zaman≠hacim sinyali."""
+    tp, vp = s.get("tpo_poc"), s.get("poc")
+    if not tp or not vp:
+        return None
+    return abs(tp - vp) / vp * 100 >= 0.3
+
+
 BLOKLAR = {
     "cvd_yon": cvd_yon,
     "cvd_guclu": cvd_guclu,
@@ -297,6 +321,9 @@ BLOKLAR = {
     "seans_absorp_up": seans_absorp_up,
     "seans_absorp_dn": seans_absorp_dn,
     "seans_absorp_fade_uyum": seans_absorp_fade_uyum,
+    "tpo_poc_taraf": tpo_poc_taraf,        # TPO (zaman-profili) — kullanıcı isteği
+    "tpo_va_disi": tpo_va_disi,
+    "tpo_hacim_ayrisma": tpo_hacim_ayrisma,
 }
 
 # Şu an VERİSİ olan, keşifte kullanılabilecek bloklar (öğrendikçe genişler).
@@ -315,6 +342,7 @@ AKTIF_BLOKLAR = [
     "frvp_vah", "frvp_val", "frvp_poc", "frvp_kenar_fade",  # gün-içi FRVP değer alanı konumu
     "delta_patlama", "delta_kuruma", "delta_divergence",   # delta-profil davranışı
     "seans_absorp_up", "seans_absorp_dn", "seans_absorp_fade_uyum",  # SEANS-ölçekli absorpsiyon (kullanıcı FP gözlemi)
+    "tpo_poc_taraf", "tpo_va_disi", "tpo_hacim_ayrisma",  # TPO / Market Profile (zaman-profili) — yeni boyut
     # "opsiyon_duvar_yakin" AKTIF DEĞİL: geçmiş opsiyon verisi yok → canlı confirm için KALAN
 ]
 

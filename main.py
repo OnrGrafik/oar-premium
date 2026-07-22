@@ -1324,6 +1324,11 @@ async def startup_event():
         from oar_autonomous_backtest import otonom_backtest_loop
         asyncio.create_task(otonom_backtest_loop())         # kendi içinde 600s sonra başlar
         print("[Startup] Otonom backtest motoru başlatıldı")
+        # ORDER-BOOK ileri-veri toplayıcı (bid/ask/imbalance/pressure — geçmiş veri yok,
+        # bugünden itibaren biriktir; yeterli örnek → DSR serap testi). BTC+ETH, 60s.
+        from oar_orderbook import topla_loop as _ob_topla
+        asyncio.create_task(_ob_topla(("BTCUSDT", "ETHUSDT"), 60, 20))
+        print("[Startup] Order-book toplayıcı başlatıldı")
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 
@@ -2800,6 +2805,19 @@ async def oar_paper_endpoint():
     d = durum_ozet()
     d["market_kapisi"] = await _market_kapisi_teshis()
     return d
+
+
+@app.get("/api/oar-orderbook")
+async def oar_orderbook_endpoint():
+    """
+    Canlı order-book metrikleri (bid/ask ratio, imbalance, true_pressure). İLERİ-VERİ
+    toplanıyor — geçmiş L2 yok, bugünden biriktirilir; yeterli örnek → DSR serap testi.
+    """
+    try:
+        from oar_orderbook import durum
+        return durum()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
 
 
 @app.get("/api/oar-footprint")

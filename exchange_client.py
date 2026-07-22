@@ -159,6 +159,24 @@ async def klines_taker(
 
 
 # ─────────────────────────────────────────────────────────────────
+# ORDER BOOK DERİNLİK (L2) — canlı order-book toplama için
+# ─────────────────────────────────────────────────────────────────
+
+async def depth(symbol: str, limit: int = 50, futures: bool = False) -> dict:
+    """
+    L2 order book anlık görüntüsü. Döner: {"bids": [[fiyat, miktar]...],
+    "asks": [[fiyat, miktar]...]} (float). Binance yalnız (Bybit fallback yok).
+    limit: 5/10/20/50/100/500/1000.
+    """
+    base = ("https://fapi.binance.com/fapi/v1/depth" if futures
+            else "https://api.binance.com/api/v3/depth")
+    data = await _get(base, {"symbol": symbol, "limit": limit})
+    bids = [[float(p), float(q)] for p, q in data.get("bids", [])]
+    asks = [[float(p), float(q)] for p, q in data.get("asks", [])]
+    return {"bids": bids, "asks": asks}
+
+
+# ─────────────────────────────────────────────────────────────────
 # SPOT / FUTURES FİYAT
 # ─────────────────────────────────────────────────────────────────
 
