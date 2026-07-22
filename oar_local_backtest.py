@@ -295,6 +295,7 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
         a_h, a_l = float(asia["high"].max()), float(asia["low"].min())
         gunler[int(gun)] = {
             "a_h": a_h, "a_l": a_l, "fibs": fib_seviyeleri(a_l, a_h),
+            "asia_h": asia["high"].tolist(), "asia_l": asia["low"].tolist(),  # TPO için per-bar aralık
             "post_ts": post["open_time"].tolist(),
             "post_close": post["close"].tolist(),
             "cvd_map": {}, "poc": None,
@@ -617,6 +618,39 @@ def _sinyaller_uret(gunler: dict, param: tuple) -> list:
     return sinyaller
 
 
+def _tpo_profil(lows, highs, bin_sayisi: int = 50):
+    """
+    TPO / Market Profile: her bar [low,high] aralığındaki fiyat bin'lerine 1 TPO ekler
+    (fiyatın o seviyede geçirdiği ZAMAN — hacim DEĞİL). Döner: (tpo_poc, tpo_vah, tpo_val)
+    fiyatları. VA = POC'tan iki yana %70 TPO. Veri yoksa (None, None, None).
+    Asya seansı girişten önce bittiği için NO-LOOKAHEAD (post-asia entry Asya'yı görür).
+    """
+    if not lows or not highs or len(lows) != len(highs):
+        return None, None, None
+    lo = min(lows); hi = max(highs)
+    if hi <= lo:
+        return None, None, None
+    gen = (hi - lo) / bin_sayisi
+    sayac = [0] * bin_sayisi
+    for l, h in zip(lows, highs):
+        i0 = max(0, int((l - lo) / gen))
+        i1 = min(bin_sayisi - 1, int((h - lo) / gen))
+        for i in range(i0, i1 + 1):
+            sayac[i] += 1
+    _fiyat = lambda i: lo + (i + 0.5) * gen
+    poc_i = max(range(bin_sayisi), key=lambda i: sayac[i])
+    toplam = sum(sayac); hedef = toplam * 0.70
+    alt = ust = poc_i; kapsam = sayac[poc_i]
+    while kapsam < hedef and (alt > 0 or ust < bin_sayisi - 1):
+        av = sayac[alt - 1] if alt > 0 else -1
+        uv = sayac[ust + 1] if ust < bin_sayisi - 1 else -1
+        if uv >= av:
+            ust += 1; kapsam += max(0, uv)
+        else:
+            alt -= 1; kapsam += max(0, av)
+    return _fiyat(poc_i), _fiyat(ust), _fiyat(alt)
+
+
 def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                         tol: float = 0.10, min_range: float = 1.0) -> list:
     """
@@ -633,6 +667,8 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
         delta_map = g.get("delta_map", {}); vol_map = g.get("vol_map", {})
         vol_ort = g.get("vol_ort", 0.0); vol_std = g.get("vol_std", 1.0) or 1.0
         balina_esik = g.get("delta_abs_esik", 0.0)
+        # TPO / Market Profile (Asya seansı zaman-profili, no-lookahead — gün başına 1 kez)
+        tpo_poc, tpo_vah, tpo_val = _tpo_profil(g.get("asia_l"), g.get("asia_h"))
         ts_list, close_list = g["post_ts"], g["post_close"]
         alinan = set()
         bd_run = 0.0; bd_lvl = None      # girişe kadarki en büyük |delta| barı (no-lookahead)
@@ -677,6 +713,7 @@ def aday_sinyaller_uret(gunler: dict, eval_saat: int = 4, cvd_pencere: int = 15,
                 "balina": bool(balina_esik > 0 and abs(bar_delta) >= balina_esik),
                 "absorp": bool(absorp), "reclaim": bool(reclaim),
                 "outcome": out, "pct": net,
+                "tpo_poc": tpo_poc, "tpo_vah": tpo_vah, "tpo_val": tpo_val,  # TPO (zaman-profili)
             }
             # footprint_kalicilik (no-lookahead): girişe kadarki büyük |delta| seviyesi
             # fade-uyumlu tarafta tutmuş mu (SHORT→fiyat seviyenin altında=direnç tuttu).
