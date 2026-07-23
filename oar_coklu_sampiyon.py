@@ -29,7 +29,8 @@ from oar_local_backtest import (_klines_oku, _aggt_ay_yollari, _metrics_oku,
                                 _gun_hazirla, aday_sinyaller_uret)
 from oar_kesif import kesfet
 
-PORTFOY = Path(__file__).resolve().parent / "oar_sampiyon_portfoy.json"
+PORTFOY = Path(__file__).resolve().parent / "oar_sampiyon_portfoy.json"          # KANITLI incumbent (DOKUNULMAZ)
+PORTFOY_ADAY = Path(__file__).resolve().parent / "oar_coklu_sampiyon_aday.json"   # keşif ÖNERİSİ (serap+onay gerekli)
 
 # Stil tanımları: (ad, aday-filtresi). Faz-1 = ekstrem fade + kırılım trend.
 STILLER = [
@@ -50,11 +51,17 @@ def _stil_sampiyonu(adaylar):
     return sampiyon, len(adaylar)
 
 
-def _portfoy_yaz(portfoy):
+def _aday_yaz(portfoy):
+    """
+    Keşif önerisini ADAY dosyasına yazar — KANITLI oar_sampiyon_portfoy.json'a DOKUNMAZ.
+    5p tuzağı: kesfet'in 'saglam' (OOS/holdout) dediği combo çoğu zaman SERAP (DSR<0.95).
+    Kanıtlı incumbent'i sessizce ezmek canlıya gürültü sokar (TREND n897→n200 vakası).
+    Aday ancak serap testinden (DSR≥0.95) geçer + kullanıcı onaylarsa portföye alınır.
+    """
     try:
-        PORTFOY.write_text(json.dumps(portfoy, ensure_ascii=False, indent=2), encoding="utf-8")
+        PORTFOY_ADAY.write_text(json.dumps(portfoy, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
-        print(f"[ÇokluŞampiyon] portföy yazılamadı: {str(e)[:60]}", flush=True)
+        print(f"[ÇokluŞampiyon] aday yazılamadı: {str(e)[:60]}", flush=True)
 
 
 def main():
@@ -120,10 +127,12 @@ def main():
     rapor.append("NOT: Faz-1 = ekstrem-fade + kırılım-trend. Faz-2 (0.377-0.618 dönüş, EQ kalıcılık) "
                  "kullanıcı kuralları netleşince eklenecek. Her stil bağımsız OOS+holdout doğrulamalı.")
 
-    _portfoy_yaz(portfoy)
+    _aday_yaz(portfoy)
+    rapor.append(f"\n⚠ KANITLI PORTFÖY ({PORTFOY.name}) DEĞİŞMEDİ — öneriler {PORTFOY_ADAY.name}'a yazıldı. "
+                 "Bir aday ancak SERAP testinden (DSR≥0.95) geçer + onaylarsan portföye alınır (5p kuralı).")
     metin = "\n".join(rapor)
     print("\n" + metin)
-    print(f"\n[ÇokluŞampiyon] portföy → {PORTFOY.name} (commit+push edersen site/lider okur)", flush=True)
+    print(f"\n[ÇokluŞampiyon] öneri → {PORTFOY_ADAY.name} · KANITLI portföy KORUNDU ({PORTFOY.name} ezilmedi)", flush=True)
 
     if args.telegram:
         try:
