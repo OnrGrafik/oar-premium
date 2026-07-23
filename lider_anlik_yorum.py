@@ -440,7 +440,16 @@ def _degisim_tespit(yeni: dict, onceki: dict, durum: dict, kok: str) -> list:
 # ─── AI Yorumu ────────────────────────────────────────────────────
 
 async def _ai_yorum(veri: dict, tetikler: list) -> str:
-    """Gemini'ye tüm verileri verip kısa bir yorum ürettir."""
+    """KURAL-TABANLI anlık yorum (LLM yok — dış API bağımlılığı kaldırıldı)."""
+    try:
+        import oar_yorum
+        return oar_yorum.anlik(veri, tetikler)
+    except Exception:
+        return ""
+
+
+async def _ai_yorum_eski(veri: dict, tetikler: list) -> str:
+    """(devre dışı) eski Gemini tabanlı yorum — referans için tutuldu, ÇAĞRILMAZ."""
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
         return ""

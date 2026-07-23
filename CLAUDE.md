@@ -3,6 +3,13 @@
 > Bu dosya her yeni oturumda otomatik yüklenir. Bağlam sıfırlansa da burada yazanlar kaybolmaz.
 > Kullanıcının her seferinde hatırlatmak zorunda kalmaması için buradadır. Yeni kalıcı kural/olgu öğrenince BURAYA ekle.
 
+## 0LLM. LLM KALDIRILDI — KURAL-TABANLI YORUM (kullanıcı kararı, kalıcı)
+- ⚠️ Gemini/Groq **tamamen kaldırıldı** (sunucu yoğunluğundan çoğu zaman yorum gelmiyordu). Site + Telegram lider yorumları artık **`oar_yorum.py`** (saf Python, dış API YOK, asla "servis yoğun" demez).
+- `oar_yorum` fonksiyonları: `grafik(veri,trade)` · `opsiyon(veri)` · `piyasa(veri)→{teknik,temel,psikoloji}` · `anlik(veri,tetikler)` · `lider_rapor(backtest,research,saglik)`. Veri dict'leri endpoint'lerde zaten toplanıyor; modül yalnız metne döker (6c: kaynak/altyapı adı SIZDIRMAZ, sayı+seviye+mekanizma).
+- Bağlanan noktalar: main.py `_grafik_yorum_hesapla`/`_opsiyon_yorum_hesapla`/`_piyasa_durumu_hesapla`/`makro_ozet`/`makro_3ay`/`theory_yorum`; lider_anlik_yorum `_ai_yorum`; leader_agent `ai_yorum_uret`/`lider_karar_uret`(gerekçe)/`_hizli_ai`(→"" ).
+- **Sohbet SİLİNDİ** (kullanıcı): `/api/chat` + `/api/leader/chat` erken `return` ile devre dışı (LLM çağırmaz). Karar (LONG/SHORT) zaten deterministik (`confidence_karar`); yalnız düz-metin gerekçe kural-tabanlı.
+- Eski Gemini/Groq yardımcıları (`call_gemini`/`stream_ai`/`_gemini_request`/`_groq_request`/`_hizli_ai` gövdesi) ARTIK ÇAĞRILMIYOR (ölü kod; geri bağlama). Tek KALAN manuel istisna: knowledge görsel-öğretme upload (`call_gemini` vision) — UI'da yok, site akışında çağrılmıyor. GEMINI_API_KEY/GROQ_API_KEY env'leri gereksiz.
+
 ## 00. İLETİŞİM KURALI (kullanıcı isteği — kalıcı, her cevapta uygula)
 - Kısa, doğrudan, madde madde. **Güzelleme/övgü YOK.**
 - Tek seferde tek şey; net "sonraki adım".

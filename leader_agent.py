@@ -662,7 +662,17 @@ def _son_24h_mi(tarih_str: str) -> bool:
 
 # ── AI Yorumu ──────────────────────────────────────────────────────────────────
 async def ai_yorum_uret(backtest: dict, research: dict, saglik: dict, api_key: str, soru: str = "") -> str:
-    """Tüm verileri Gemini ile yorumla. Opsiyonel: kullanıcı sorusu."""
+    """KURAL-TABANLI lider rapor özeti (LLM yok — dış API bağımlılığı kaldırıldı).
+       Sohbet kaldırıldığı için `soru` parametresi yok sayılır."""
+    try:
+        import oar_yorum
+        return oar_yorum.lider_rapor(backtest, research, saglik)
+    except Exception:
+        return ""
+
+
+async def _ai_yorum_uret_eski(backtest: dict, research: dict, saglik: dict, api_key: str, soru: str = "") -> str:
+    """(devre dışı) eski Gemini/Groq tabanlı yorum — ÇAĞRILMAZ."""
     if not api_key:
         return "AI yorum için GEMINI_API_KEY gerekli."
 
@@ -805,44 +815,20 @@ async def lider_karar_uret(sembol: str = "BTCUSDT", api_key: str = "") -> dict:
     karar_verisi = await confidence_karar(sembol)
     ozet = karar_ozet_metni(karar_verisi)
 
-    # AI ile karar gerekçelendirmesi (opsiyonel)
+    # KURAL-TABANLI karar gerekçesi (LLM yok) — agent skorlarından deterministik
     ai_aciklama = ""
-    if api_key:
-        try:
-            agent_ozet = "\n".join(
-                f"{ad.upper()}: skor={v['skor']:+.0f} yon={v['yon']} → {v['aciklama'][:100]}"
-                for ad, v in karar_verisi["agent_skorlar"].items()
-            )
-            zaman = karar_verisi["zaman_riski"]
-            prompt = f"""Sen OAR Premium'un CIO'sun (Chief Investment Officer).
-Görevin yalnızca LONG / SHORT / NO_TRADE kararı vermek ve gerekçeyi açıklamak.
-Özet yapma. Indikatör tanımı yapma. YALNIZCA karar ve kanıt.
-
-SEMBOL: {sembol}
-KARAR: {karar_verisi['karar']}  (Konfidans: {karar_verisi['konfidans']}/100)
-AĞIRLIKLI SKOR: {karar_verisi['ham_skor']:+.1f}
-
-AGENT VERİLERİ:
-{agent_ozet}
-
-ZAMAN RİSKİ: {zaman['seviye']} ({zaman['risk_skoru']}/100)
-{chr(10).join('• ' + e['aciklama'] for e in zaman.get('aktif_etkinlikler', [])[:3])}
-
-OAR SETUP'LAR: {', '.join(karar_verisi.get('agent_skorlar', {}).get('oar', {}).get('aciklama', '').split(' | ')[:3])}
-
-Maksimum 5 madde. Türkçe. Rakamları kullan. "sanırım" yazma."""
-
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            payload = {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600}
-            }
-            async with httpx.AsyncClient(timeout=25) as cl:
-                r = await cl.post(url, json=payload)
-                if r.status_code == 200:
-                    ai_aciklama = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:
-            ai_aciklama = f"AI açıklama alınamadı: {str(e)[:60]}"
+    try:
+        satir = []
+        for ad, v in karar_verisi.get("agent_skorlar", {}).items():
+            satir.append(f"• {ad.upper()}: skor {v.get('skor',0):+.0f} ({v.get('yon','')})")
+        z = karar_verisi.get("zaman_riski", {}) or {}
+        if z:
+            satir.append(f"• Zaman riski: {z.get('seviye','')} ({z.get('risk_skoru',0)}/100)")
+        ai_aciklama = (f"KARAR {karar_verisi.get('karar')} "
+                       f"(konfidans {karar_verisi.get('konfidans')}/100, "
+                       f"ağırlıklı skor {karar_verisi.get('ham_skor',0):+.1f}).\n" + "\n".join(satir[:6]))
+    except Exception:
+        ai_aciklama = ""
 
     sonuc = {**karar_verisi, "ozet_metin": ozet, "ai_aciklama": ai_aciklama}
 
@@ -1030,28 +1016,8 @@ RAPOR_GECMISI_FILE = DATA_DIR / "rapor_gecmisi.json"   # tüm saatlik raporlar
 KOMBO_SINYAL_FILE  = DATA_DIR / "kombo_sinyaller.json" # OAR'ın kendi ürettiği sinyaller
 
 async def _hizli_ai(prompt: str, max_tok: int = 600) -> str:
-    """Agent'ların saatlik düşünmesi için kompakt AI çağrısı."""
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if not api_key:
-        return ""
-    try:
-        url = f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
-        payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                   "generationConfig": {"temperature": 0.2, "maxOutputTokens": max_tok}}
-        async with httpx.AsyncClient(timeout=30) as cl:
-            r = await cl.post(url, json=payload)
-            if r.status_code == 200:
-                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-            gk = os.environ.get("GROQ_API_KEY", "")
-            if gk:
-                gr = await cl.post("https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {gk}"},
-                    json={"model": "llama-3.3-70b-versatile",
-                          "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tok})
-                if gr.status_code == 200:
-                    return gr.json()["choices"][0]["message"]["content"]
-    except Exception:
-        pass
+    """LLM kaldırıldı (kullanıcı kararı) — saatlik AI düşünme devre dışı.
+    Çağıranlar boş dönüşü zaten güvenli işler (6b: lider yalnız arıza olunca konuşur)."""
     return ""
 
 
