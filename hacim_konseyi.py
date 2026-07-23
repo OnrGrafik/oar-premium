@@ -525,6 +525,14 @@ async def gunluk_ozeti_yayinla():
     den = denetim(gun_ozeti)
     metin = _gun_ozet_metni(gun_ozeti, den)
     await _uzun_gonder(metin)
+    # Anlamlı+kalıcı gün konsensüsü → worker'a ADAY backtest görevi (PC'de test edilir).
+    try:
+        from hacim_gorev import konsey_gorev_uret
+        uretilen = konsey_gorev_uret(gun_ozeti)
+        if uretilen:
+            print(f"[hacim_konseyi] {uretilen} yeni görev üretildi", flush=True)
+    except Exception as e:
+        print(f"[hacim_konseyi] görev üretim hata: {e}", flush=True)
     rot = _haftalik_rotasyon(gun_ozeti)
     print(f"[hacim_konseyi] gün özeti yayınlandı · {rot}", flush=True)
     return rot

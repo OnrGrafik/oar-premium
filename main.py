@@ -1337,6 +1337,11 @@ async def startup_event():
         asyncio.create_task(_hk.konsey_loop())
         asyncio.create_task(_hk.gunluk_ozet_loop())
         print("[Startup] Hacim Konseyi başlatıldı")
+        # GÖREV WORKER: leader_agent'in write-only agent_tasks.json kuyruğunu tüketir +
+        # konsey görevlerini git-senkron yerel kuyruğa yönlendirir (PC vardiya backtest eder).
+        import hacim_gorev as _hg
+        asyncio.create_task(_hg.worker_dongu())
+        print("[Startup] Hacim görev worker başlatıldı")
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 
@@ -1846,6 +1851,10 @@ async def _site_baglami() -> str:
     try:
         from hacim_konseyi import konsey_baglami
         par.append(konsey_baglami())  # HACİM KONSEYİ: bağımsız hacim analizörlerinin son konsensüsü
+    except Exception: pass
+    try:
+        from hacim_gorev import baglam_metni as _gorev_baglam
+        par.append(_gorev_baglam())   # GÖREV WORKER: kuyruk durumu (bekleyen/PC'de/tamamlanan)
     except Exception: pass
     try:
         from macro_engine import makro_veri
@@ -2712,6 +2721,19 @@ async def hacim_konsey_endpoint():
     """
     try:
         from hacim_konseyi import durum
+        return durum()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/hacim-gorev")
+async def hacim_gorev_endpoint():
+    """
+    GÖREV WORKER durumu: leader_agent kuyruğundan drene edilen + konsey üretilen aday
+    backtest görevleri (bekleyen / PC-kuyruğunda / tamamlanan). Derin backtest PC'de koşar.
+    """
+    try:
+        from hacim_gorev import durum
         return durum()
     except Exception as e:
         return {"durum": "hata", "aciklama": str(e)[:100]}
