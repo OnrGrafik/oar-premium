@@ -2183,18 +2183,9 @@ async def _opsiyon_yorum_hesapla(currency: str = "BTC"):
         "zero_gamma": genel.get("zero_gamma"), "max_pain": genel.get("max_pain"),
         "opsiyon_cvd": cvd.get("guncel"), "cvd_yon": cvd.get("yon"),
     }
-    # Anahtar yoksa sonsuz "hesaplanıyor"da kalmasın — net mesaj dön
-    if not os.environ.get("GEMINI_API_KEY", ""):
-        return {"veri": veri,
-                "yorum": "⚠ AI opsiyon yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."}
-    # AI yorumu: taze cache varsa onu dön; yoksa arka planda üret, sayfayı bloklama
-    c = _OPSIYON_YORUM_CACHE.get(currency)
-    taze = c and (time.time() - c["ts"] < _OPSIYON_YORUM_TTL)
-    if not taze and currency not in _opsiyon_yorum_inflight:
-        _opsiyon_yorum_inflight.add(currency)
-        asyncio.create_task(_opsiyon_yorum_uret(currency, spot, genel, cvd, lv))
-    yorum = c["yorum"] if c else "Yorum hesaplanıyor… (birkaç saniye içinde güncellenecek)"
-    return {"veri": veri, "yorum": yorum}
+    # KURAL-TABANLI yorum (LLM yok — dış API bağımlılığı kaldırıldı)
+    import oar_yorum
+    return {"veri": veri, "yorum": oar_yorum.opsiyon(veri)}
 
 @app.get("/api/grafik-yorum")
 async def grafik_yorum(symbol: str = "BTCUSDT"):
@@ -2293,50 +2284,9 @@ async def _grafik_yorum_hesapla(symbol: str = "BTCUSDT"):
         trade = await trade_fikri(symbol)
     except Exception: pass
 
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    yorum = ""
-    if not api_key:
-        yorum = "⚠ AI grafik yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."
-    if api_key:
-        setup_metin = ""
-        if trade.get("setuplar"):
-            sc = trade["setuplar"].get("scalp", {})
-            sw = trade["setuplar"].get("swing", {})
-            setup_metin = (
-                f"\nÖNERİLEN İŞLEM (yön {trade.get('yon')}, işlem skoru {trade.get('islem_skoru')}/100):\n"
-                f"  SCALP: giriş {sc.get('giris')} ({sc.get('giris_etiket')}), "
-                f"TP {sc.get('tp')} ({sc.get('tp_etiket')}), SL {sc.get('sl')}, R:R {sc.get('rr')}\n"
-                f"  SWING: giriş {sw.get('giris')}, TP {sw.get('tp')}→{sw.get('tp2')} "
-                f"({sw.get('tp_etiket')}), SL {sw.get('sl')}, R:R {sw.get('rr')}"
-            )
-        prompt = f"""Sen OAR Premium'un LİDER analistisin. {cur} grafiğini OAR sistemi çerçevesinde canlı yorumla.
-DOĞRUDAN analizle başla — "Sen ... yorumluyorum" gibi rol/giriş cümlesi KURMA, kendinden bahsetme.
-Yorum 3 eksende olsun (kısa, akıcı tek paragraf, 4-6 cümle, Türkçe, **seviyeleri vurgula**):
-① OAR: Asia range (H/L/POC), range genliği ve market kapısı durumuna göre bugün fade mi trend-devam günü mü; fiyatın Asia ekstremlerine/fib'e göre konumu.
-② OPSİYON: CW/PW/ZG/Max-Pain seviyelerinin fiyata mesafesi ve dealer hedge etkisi (duvar=direnç/destek, ZG üstü sakin/altı hızlanma, expiry yaklaşırken max-pain mıknatısı).
-③ MAKRO: Fed faizi/CPI/işsizlik ortamının risk iştahına etkisi (tek cümle yeter).
-KURALLAR: Her iddiaya SAYI ve mekanizma ekle ("X çünkü Y"). Jenerik laf yasak. Sistemin iç kural/blok adlarını ASLA yazma (gizli); sadece seviye ve yön yorumu yap.
-
-OAR: Asia H {veri.get('asia_high')} / L {veri.get('asia_low')} / POC {veri.get('asia_poc')} · genlik %{veri.get('asia_range_pct')} · rejim {veri.get('oar_rejim')} · Market kapısı: {veri.get('market_kapisi')}
-Fiyat: {veri.get('fiyat')} · İndikatör: {veri.get('skor')} ({veri.get('yon')}) · Piyasa rejimi: {veri.get('rejim')} · Whale/Move: {veri.get('whale')}
-Opsiyon: CW {veri.get('cw')} / PW {veri.get('pw')} / ZG {veri.get('zg')} / MaxPain {veri.get('max_pain')}
-Grafikteki key-level'lar: {json.dumps(veri.get('key_levels') or {}, ensure_ascii=False)[:400]}
-VWAP(bugün): {veri.get('vwap_bugun')} · 24s hacim-POC: {veri.get('vp_poc_24s')} — fiyatın bunlara göre konumunu da yorumla
-Makro: {json.dumps(veri.get('makro') or {}, ensure_ascii=False)}
-En etkili indikatörler: {json.dumps(veri.get('detay', []), ensure_ascii=False)[:300]}
-Kitap: {kitap_notu[:300]}{setup_metin}"""
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            async with httpx.AsyncClient(timeout=30) as cl:
-                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
-                    "generationConfig":{"temperature":0.35,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
-                if rr.status_code == 200:
-                    yorum = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    _SON_AI_YORUM[f"grafik:{symbol}"] = yorum
-                else:
-                    yorum = _ai_yorum_fallback(f"grafik:{symbol}")
-        except Exception:
-            yorum = _ai_yorum_fallback(f"grafik:{symbol}")
+    # KURAL-TABANLI grafik yorumu (LLM yok — asla "servis yoğun" demez)
+    import oar_yorum
+    yorum = oar_yorum.grafik(veri, trade)
     return {"veri": veri, "yorum": yorum, "kitap_kaynaklar": kitap_kaynaklar, "trade": trade}
 
 @app.get("/api/piyasa-durumu")
@@ -2438,48 +2388,10 @@ async def _piyasa_durumu_hesapla():
             kitap_kaynaklar = list(dict.fromkeys(s['title'] for s in ks))  # tekrarsız başlıklar
     except Exception: pass
 
-    # AI yorumu — 3 BAŞLIK (Teknik / Temel / Psikoloji) yapılandırılmış
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    yorum = ""
-    bolumler = {"teknik": "", "temel": "", "psikoloji": ""}
-    if not api_key:
-        yorum = "⚠ AI piyasa yorumu kapalı — Railway → Variables → GEMINI_API_KEY ekleyin."
-    if api_key:
-        prompt = f"""Sen OAR Premium'un kantitatif piyasa analistisin. BTC için ÜÇ BAŞLIKTA derin analiz yap.
-KURALLAR: Bilimsel ve matematiksel yaz — her iddiaya SAYI ve MEKANİZMA bağla ("X çünkü Y" formunda:
-ör. "negatif gamma'da dealer hedge'i düşüşte satış getirir → hareket büyür"). Genel geçer laf YOK
-("piyasa belirsiz" gibi cümleler YASAK). Fear&Greed endeksi KULLANMA (sistemden kaldırıldı).
-Türkçe; önemli rakam/seviyeleri **çift yıldız** ile vurgula. Kitap bilgisini ilgili başlıkta kaynak olarak kullan.
-
-CANLI VERİLER:
-Fiyat: {veri.get('fiyat')} · İndikatör skoru: {veri.get('indikator_skor')} ({veri.get('indikator_yon')})
-Rejim: {veri.get('rejim')} · Move source: {veri.get('move_source')}
-OAR: Asia range %{veri.get('asia_range_pct')} (H {veri.get('asia_high')} / L {veri.get('asia_low')} / POC {veri.get('asia_poc')}) · OAR rejimi: {veri.get('oar_rejim')} (fade=range günü, trend_devam=Asia<%1)
-Opsiyon: gamma {veri.get('gamma_rejim')} · CW {veri.get('call_wall')} · PW {veri.get('put_wall')} · ZeroGamma {veri.get('zero_gamma')} · DVOL {veri.get('dvol')} (24s Δ{veri.get('dvol_24s_degisim')})
-Akış/pozisyonlanma: funding %{veri.get('funding_pct')} · OI 24s Δ%{veri.get('oi_24s_pct')} · CVD(3s) {veri.get('cvd_3s_musd')}M$
-Makro: {veri.get('makro')}
-Kitap bilgisi: {kitap_notu[:500]}
-
-SADECE şu JSON'u döndür (başka metin yok):
-{{"teknik":"PRICE ACTION + OAR: fiyatın Asia range/fib/POC'a göre konumu, rejim (fade mi trend-devam mı), indikatör skoru — seviyeler ve mekanizmayla, 3-4 cümle","temel":"OPSİYON + MAKRO yapı: dealer gamma konumunun fiyata mekanik etkisi (CW/PW/ZG mıknatıs-fren), DVOL rejimi, makro bağlam — 3-4 cümle","psikoloji":"POZİSYONLANMA: funding (long/short kalabalığı ve maliyeti), OI değişimi (yeni pozisyon mu kapanış mı), CVD akış yönü, kalabalığın yanlış tarafta olma ihtimali — kitaplardaki davranışsal ilkelerle, 3-4 cümle"}}"""
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            async with httpx.AsyncClient(timeout=30) as cl:
-                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
-                    "generationConfig":{"temperature":0.3,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
-                if rr.status_code == 200:
-                    txt = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    txt = txt.replace("```json","").replace("```","").strip()
-                    _SON_AI_YORUM["piyasa"] = txt
-                    try:
-                        bolumler = json.loads(txt)
-                    except Exception:
-                        yorum = txt  # JSON parse olmazsa düz metin
-                else:
-                    yorum = _ai_yorum_fallback("piyasa")
-        except Exception:
-            yorum = _ai_yorum_fallback("piyasa")
-    return {"veri": veri, "bolumler": bolumler, "yorum": yorum,
+    # KURAL-TABANLI 3-başlık yorum (Teknik/Temel/Psikoloji) — LLM yok
+    import oar_yorum
+    bolumler = oar_yorum.piyasa(veri)
+    return {"veri": veri, "bolumler": bolumler, "yorum": "",
             "kitap_kaynaklar": kitap_kaynaklar, "kitap_notu": kitap_notu[:300]}
 
 @app.get("/api/theory/hipotezler")
@@ -2549,38 +2461,14 @@ async def theory_yorum():
             kitap_kaynaklar = list(dict.fromkeys(s['title'] for s in ks))
     except Exception: pass
 
-    api_key = os.environ.get("GEMINI_API_KEY", "")
+    # KURAL-TABANLI teori özeti (LLM yok) — yalnız ölçülen hipotez verisinden
     yorum = {"gunluk": "", "haftalik": "", "oneri": "", "lider": ""}
-    if api_key:
-        prompt = f"""Sen OAR Research Agent'sın. SADECE backtest değil, TÜM sistem verilerinden teori üret.
-Trade edilen: BTC, ETH, Altın, Gümüş, SP500, Nasdaq.
-
-BACKTEST HİPOTEZLERİ: {json.dumps(en_iyi[:4], ensure_ascii=False)[:700]}
-İNDİKATÖR (hacim/PA/CVD/OI): {json.dumps(baglam.get('indikator',{}), ensure_ascii=False)[:300]}
-OPSİYON (GEX/gamma): {json.dumps(baglam.get('opsiyon',{}), ensure_ascii=False)[:200]}
-MAKRO: {json.dumps(baglam.get('makro',{}), ensure_ascii=False)[:200]}
-REJİM: {json.dumps(baglam.get('rejim',{}), ensure_ascii=False)[:150]}
-KİTAPLAR: {kitap_notu[:400]}
-
-Bu verilerin TAMAMINI sentezle. Örn: "Makro risk-off + negatif GEX + Asia sweep hipotezi → güçlü short edge".
-
-KURALLAR (ZORUNLU — bilimsel/matematiksel temel):
-- Her cümle YUKARIDAKİ somut sayısal verilere dayanmalı; ilgili rakamı/metriği (WR, Sharpe, GEX, skor, rejim) cümlede ANDIR.
-- Verinin DESTEKLEMEDİĞİ hiçbir öneri/tahmin yazma. Spekülasyon, genel tavsiye, "şu da test edilmeli" tipi mesnetsiz fikir YASAK.
-- 'oneri' alanı: yalnız ÖLÇÜLEN bir eksiklik/edge'e dayanan somut iyileştirme (örn. düşük WR'li fib, yetersiz örneklem). Veri yoksa "yetersiz veri" yaz.
-JSON döndür (başka şey yazma):
-{{"gunluk":"bugünkü tüm-sayfa sentezi, hangi koşulda trade 1-2 cümle","haftalik":"haftalık bias + hangi saatler/durumlar 1-2 cümle","oneri":"OAR'a eklenecek özellik veya canlı takip önerisi 1-2 cümle","lider":"Lider sistem geliştirme + tüm veri kaynaklarını birleştiren teori 2-3 cümle"}}"""
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            async with httpx.AsyncClient(timeout=30) as cl:
-                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
-                    "generationConfig":{"temperature":0.35,"maxOutputTokens":2048,"thinkingConfig":{"thinkingBudget":256}}})
-                if rr.status_code == 200:
-                    txt = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    txt = txt.replace("```json","").replace("```","").strip()
-                    try: yorum = json.loads(txt)
-                    except Exception: yorum["lider"] = txt[:400]
-        except Exception: pass
+    if en_iyi:
+        ilk = en_iyi[0]
+        ad = ilk.get("ad") or ilk.get("sym") or "hipotez"
+        yorum["gunluk"] = (f"{len(en_iyi)} aktif hipotez izleniyor; en güçlü: {ad}"
+                           + (f" (WR %{ilk.get('win_rate')})" if ilk.get('win_rate') is not None else "") + ".")
+        yorum["lider"] = "Hipotezler kanıt kapısından (LIFT/OOS/serap) geçmeden canlıya alınmaz; sayısal doğrulama esas."
     return {"yorum": yorum, "en_iyi": en_iyi[:6], "baglam": baglam,
             "kitap_kaynaklar": kitap_kaynaklar, "tarih": h.get("tarih")}
 
@@ -2614,25 +2502,8 @@ async def makro_ozet():
         if ks:
             kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
     except Exception: pass
-    api_key = os.environ.get("GEMINI_API_KEY", "")
+    # Deterministik makro sentezi (macro_engine btcYorum) — LLM yok
     ozet = yorum.get("sentez", "")
-    if api_key:
-        ozet_veri = {k: (v.get("guncel") if v else None) for k, v in g.items()}
-        prompt = f"""Sen makro ekonomi analistisin. Aşağıdaki ABD makro verilerini BTC açısından
-ÇOK KISA özetle: EN FAZLA 2 cümle. Gereksiz açıklama/dolgu YOK. Sadece net sonuç:
-genel BTC eğilimi + tek en önemli sürücü + izlenecek bir sonraki veri. Türkçe,
-**rakamları vurgula**. (Detay her göstergenin kartında zaten var — burada özet.)
-
-Güncel değerler: {json.dumps(ozet_veri, ensure_ascii=False)}
-Genel eğilim: {yorum.get('egilim')}"""
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            async with httpx.AsyncClient(timeout=30) as cl:
-                rr = await cl.post(url, json={"contents":[{"role":"user","parts":[{"text":prompt}]}],
-                    "generationConfig":{"temperature":0.3,"maxOutputTokens":320,"thinkingConfig":{"thinkingBudget":128}}})
-                if rr.status_code == 200:
-                    ozet = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception: pass
     return {"ozet": ozet, "egilim": yorum.get("egilim"), "guncellendi": data.get("guncellendi")}
 
 @app.get("/api/ticker")
@@ -2930,28 +2801,12 @@ async def makro_3ay(yorum: bool = True):
            "kaynak_ozet": veri.get("kaynak_ozet"),
            "canli_uyari": None if fb == 0 else
            f"⚠ {fb} gösterge fallback (FRED_API_KEY ekleyin → canlı NFP/CPI/faiz)."}
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if yorum and api_key:
-        try:
-            ozet_metin = "; ".join(
-                f"{k}: güncel {v['guncel']}, 3-ay değişim {v['degisim_3ay']} ({v['trend']})"
-                for k, v in ozet.items())
-            prompt = (f"Sen OAR Premium makro analistisin. ABD makro göstergelerinin SON 3 AYLIK "
-                      f"seyrini BTC açısından yorumla (4-5 cümle, Türkçe, **rakamları vurgula**). "
-                      f"Fed politikası, likidite ve risk iştahı bağlamında sentezle.\n\nVERİLER: {ozet_metin}")
-            url = f"{GEMINI_BASE}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
-            async with httpx.AsyncClient(timeout=30) as cl:
-                rr = await cl.post(url, json={"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.35, "maxOutputTokens": 1024}})
-            if rr.status_code == 200:
-                out["ai_yorum"] = rr.json()["candidates"][0]["content"]["parts"][0]["text"]
-                _SON_AI_YORUM["makro"] = out["ai_yorum"]
-            else:
-                out["ai_yorum"] = _ai_yorum_fallback("makro")
-        except Exception:
-            out["ai_yorum"] = _ai_yorum_fallback("makro")
-    elif yorum and not api_key:
-        out["ai_yorum"] = "⚠ AI yorumu kapalı — GEMINI_API_KEY ekleyin (3-aylık veri yine hazır)."
+    # KURAL-TABANLI 3-aylık makro özeti (LLM yok)
+    if yorum:
+        parca = []
+        for k, v in ozet.items():
+            parca.append(f"{k}: {v.get('guncel')} (3-ay {v.get('degisim_3ay')}, {v.get('trend')})")
+        out["ai_yorum"] = "Son 3 ay — " + " · ".join(parca) + "." if parca else ""
     return out
 
 
@@ -3112,6 +2967,8 @@ async def oar_session_endpoint(sembol: str = "BTCUSDT"):
 @app.post("/api/leader/chat")
 async def leader_chat(req: Request):
     """Lider Agent ile sohbet — canlı veri + tüm sistem bağlamıyla cevap verir."""
+    # Sohbet kaldırıldı (kullanıcı kararı) — lider YALNIZ otomatik yorum üretir.
+    return {"cevap": "Sohbet kaldırıldı. Lider yorumları grafik altında ve panellerde otomatik görünür."}
     data = await req.json()
     soru = data.get("soru", "").strip()
     if not soru:
@@ -3510,7 +3367,9 @@ async def chat(
     file: Optional[UploadFile] = File(default=None),
     stream: str = Form(default="0"),
 ):
-    api_key = get_gemini_key()
+    # Sohbet kaldırıldı (kullanıcı kararı) — dosya/sohbet asistanı devre dışı.
+    return {"reply": "Sohbet kaldırıldı.", "model": None}
+    api_key = ""  # (ulaşılmaz — aşağısı devre dışı)
 
     # ── Dosya işleme ──
     file_parts = []
