@@ -10,6 +10,10 @@
 - İdealist + çözüm odaklı: sorun değil çözüm sun.
 - Onay = uygula + commit + push (+ PR açıp merge). "Merge edeyim mi" diye SORMA.
 
+## 000. TÜM ŞAMPİYONLARI DAHİL ET (kullanıcı kuralı — kalıcı)
+- Her backtest/analiz/walk-forward/kenar-testi **İKİ şampiyonu da** (FADE `ekstrem_donus_fade` + TREND `kirilim_devam_trend`) dahil etmeli — tek şampiyonla ölçme. Portföy görünümü de ver.
+- (Bulundu+düzeltildi: ilk walk-forward sabit modu yalnız FADE'i test etmişti; `oar_walkforward._sampiyonlar()` artık portföy json'daki TÜM stilleri döndürür, her birini AYRI + PORTFÖY birleşik raporlar.)
+
 ## 0. ÖNCE ANAYASA
 `docs/ANAYASA.md` bağlayıcı kurallar bütünüdür (9 kural + token kuralı). Her işten önce ona uy. Özellikle:
 - **#3 Varsayım YOK** — JSON alanı/formül/endpoint/dönüş tipini KODDAN doğrula (ör. `_vpfr_deger_alani` **tuple** `(poc,vah,val)` döner, dict değil).
@@ -184,6 +188,7 @@
   ① **SABİT (şampiyon sabit bloklar, her ay KÖR test): POZİTİF %89 (68/76), toplu OOS PF 3.05, beklenti +0.20%, WR%37.6, maxDD %5.13, 5x likidasyon YOK ($1000→1x $15.6k/3x $3.16M/5x $502M).** → şampiyon edge'i ZAMANDA SAĞLAM; her rejimde (covid/bull/bear/ETF) ay-ay tutuyor. 8 negatif ay küçük+dağınık, felaket ay yok. Hem range hem trend aylarında kazanıyor (2020-07 trend PF 8.2) → saf rejim-bağımlı DEĞİL, yapısal.
   ② **REDISCOVER (her 2 ayda kesfet YENİDEN blok seçer): POZİTİF %59 (45/76), PF 1.31, beklenti +0.058%, maxDD %35.8** → 2 ay 3-blok seçmeye YETMEZ, gürültüye uyum = SERAP. Bloklar her ay deli gibi değişiyor.
   KESİN DERS: "geçmiş başarı ≠ gelecek" → YENİDEN-OPTİMİZE eden sistem için DOĞRU (rediscover çöküyor); SABİT şampiyon için edge KALICI (%89 pozitif ay). ŞAMPİYONA DOKUNMA + sık yeniden-optimize ETME kesin kanıtlandı. (Kullanıcı walkforward_sonuc.json'u commit+push edince lider+site okur.)
+  - ⚠ DÜZELTME (kullanıcı yakaladı): o %89 sonucu YALNIZ FADE şampiyonunu test etmişti (sabit mod tek stil dönüyordu). `_sampiyonlar()` düzeltildi → artık FADE + TREND AYRI + PORTFÖY birleşik. Kullanıcı sabit modu TEKRAR koşmalı (iki şampiyon da görünsün): `python oar_walkforward.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --mod sabit --telegram`.
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
