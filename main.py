@@ -1329,6 +1329,14 @@ async def startup_event():
         from oar_orderbook import topla_loop as _ob_topla
         asyncio.create_task(_ob_topla(("BTCUSDT", "ETHUSDT"), 60, 20))
         print("[Startup] Order-book toplayıcı başlatıldı")
+        # HACİM KONSEYİ: birbirinden habersiz hacim analizörleri (footprint/order-flow/
+        # order-book/likidite/VP-POC/opsiyon/makro) → konsensüs snapshot (5dk) + gün sonu
+        # 03:00 UTC TAM özet (sayfalı, kesilmez) + haftalık git-senkron veri seti. Analiz
+        # katmanı — canlı karara serap testinden (DSR≥0.95) geçmeden bağlanmaz.
+        import hacim_konseyi as _hk
+        asyncio.create_task(_hk.konsey_loop())
+        asyncio.create_task(_hk.gunluk_ozet_loop())
+        print("[Startup] Hacim Konseyi başlatıldı")
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 
@@ -1834,6 +1842,10 @@ async def _site_baglami() -> str:
     try:
         from oar_kanit_kapisi import baglam_metni as _kanit_baglam
         par.append(_kanit_baglam())   # KANIT KAPISI: canlı sistemlerin serap-geçer durumu (5e bağı)
+    except Exception: pass
+    try:
+        from hacim_konseyi import konsey_baglami
+        par.append(konsey_baglami())  # HACİM KONSEYİ: bağımsız hacim analizörlerinin son konsensüsü
     except Exception: pass
     try:
         from macro_engine import makro_veri
@@ -2686,6 +2698,20 @@ async def oar_orderbook_endpoint():
     """
     try:
         from oar_orderbook import durum
+        return durum()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/hacim-konsey")
+async def hacim_konsey_endpoint():
+    """
+    HACİM KONSEYİ durumu: bağımsız hacim analizörlerinin son konsensüsü + toplanan
+    snapshot/haftalık veri seti sayısı + gün sonu özet günü. Analiz katmanı (serap
+    testinden geçmeden canlıya bağlanmaz).
+    """
+    try:
+        from hacim_konseyi import durum
         return durum()
     except Exception as e:
         return {"durum": "hata", "aciklama": str(e)[:100]}
