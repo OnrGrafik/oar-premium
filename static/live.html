@@ -445,21 +445,24 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={seans:true,fib:true,key:true,vwap:true,opt:true,vp:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 function kAyarSet(k,v){
   _kAyar[k]=v;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));
+  // aynı ayarın tüm kopyalarını (BTC/ETH + tam-ekran panelleri) senkronla
+  document.querySelectorAll('[data-kayar="'+k+'"]').forEach(cb=>{if(cb.checked!==v)cb.checked=v;});
   for(const sym of ['BTCUSDT','ETHUSDT']){
     const c=_kcharts[sym];if(!c)continue;
-    try{c.vw.applyOptions({visible:_kAyar.vwap});}catch(e){}
+    try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
     kOverlayCiz(sym);
   }
 }
 function kAyarFsToggle(sym){
   const el=document.getElementById('kayarfs-'+sym);if(!el)return;
   if(el.style.display==='block'){el.style.display='none';return;}
-  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
+  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" data-kayar="${k}" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
   el.innerHTML='<div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>'
+    +cb('oar','◆ OAR indikatörü')+'<div style="height:1px;background:#1a2422;margin:5px 0"></div>'
     +cb('seans','Seans kutuları')+cb('fib','Asia Fibonacci')+cb('key','Key Levels (Two/DO/WO/MO…)')+cb('vwap','VWAP (D)')+cb('opt','Opsiyon seviyeleri')+cb('vp','Volume Profile (FRVP)');
   el.style.display='block';
 }
@@ -489,9 +492,16 @@ function kTFSet(tf){
     b.style.color=akt?'#04110d':'#8a9c99';
     b.style.borderColor=akt?'#1ff0ad':'#1a2422';
   });
+  // Geniş TF (1s ve üzeri) grafiği karmaşıklaştırır → OAR'ı otomatik KAPAT.
+  // İntraday'e (5dk/15dk) dönünce otomatik AÇ. Kullanıcı ayarlardan elle değiştirebilir.
+  const genis=['1h','4h','1d','1w'].includes(tf);
+  _kAyar.oar=!genis;
+  localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));
+  document.querySelectorAll('[data-kayar="oar"]').forEach(cb=>{cb.checked=_kAyar.oar;});
   for(const sym of ['BTCUSDT','ETHUSDT']){
     const c=_kcharts[sym];if(!c)continue;
     c._aralikKuruldu=false;   // yeni TF → görünür aralığı yeniden kur
+    try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
     kGrafikVeri(sym,true);
   }
 }
@@ -505,7 +515,7 @@ function kTFButonlar(){
 function komutaGrafikKart(sym,ad){
   const gy=(ST.grafikYorum||{})[sym]||{};
   const vurgu=(t)=>esc(t||'').replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>');
-  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
+  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" data-kayar="${k}" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
   return `<div class="card" style="padding:15px 17px;margin-bottom:13px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;position:relative">
       <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · OAR</span>
@@ -518,7 +528,7 @@ function komutaGrafikKart(sym,ad){
       </span>
       <div id="kayar-${sym}" style="display:none;position:absolute;right:0;top:30px;z-index:30;background:#0c1112;border:1px solid #1a2422;border-radius:8px;padding:11px 15px;box-shadow:0 8px 28px rgba(0,0,0,.5);min-width:190px">
         <div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>
-        ${cb('seans','Seans kutuları')}${cb('fib','Asia Fibonacci')}${cb('key','Key Levels (Two/DO/WO/MO…)')}${cb('vwap','VWAP (D)')}${cb('opt','Opsiyon seviyeleri')}${cb('vp','Volume Profile')}
+        ${cb('oar','◆ OAR indikatörü')}<div style="height:1px;background:#1a2422;margin:5px 0"></div>${cb('seans','Seans kutuları')}${cb('fib','Asia Fibonacci')}${cb('key','Key Levels (Two/DO/WO/MO…)')}${cb('vwap','VWAP (D)')}${cb('opt','Opsiyon seviyeleri')}${cb('vp','Volume Profile')}
       </div>
     </div>
     <div id="kwrap-${sym}" style="position:relative;background:#fff">
@@ -590,7 +600,7 @@ async function initKomutaGrafikler(){
       width:el.clientWidth,height:340});
     const ca=ch.addCandlestickSeries({upColor:'#ffffff',downColor:'#111111',
       borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
-    const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.vwap});
+    const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.oar&&_kAyar.vwap});
     _kcharts[sym]={ch,ca,vw,kutular:[]};
     const ciz=()=>kOverlayCiz(sym);
     ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
@@ -828,6 +838,7 @@ function kOverlayCiz(sym){
   const W=el.clientWidth,H=el.clientHeight,dpr=window.devicePixelRatio||1;
   cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  if(!_kAyar.oar)return;   // OAR indikatörü kapalı → temiz grafik (hiç overlay çizme)
   const ts=c.ch.timeScale();
   const xSon=ts.timeToCoordinate((c.sonTs||0)+K_TZ);
   const xBitis=(xSon!=null?xSon:W-70)+26;
