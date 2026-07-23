@@ -162,7 +162,9 @@ a{color:inherit;text-decoration:none}
 
 <script>
 // ════════════ STATE ════════════
-const ST = {tab:'leader', clock:'', chat:[], feed:[], signals:[], report:{}, ctx:{}, theories:[], selTheory:null, kbQuery:''};
+const _VALID_TABS=['leader','options','macro'];
+const _ilkTab=(()=>{try{const t=localStorage.getItem('oar_tab');return _VALID_TABS.includes(t)?t:'leader';}catch(e){return 'leader';}})();
+const ST = {tab:_ilkTab, clock:'', chat:[], feed:[], signals:[], report:{}, ctx:{}, theories:[], selTheory:null, kbQuery:''};
 const API = '';
 
 const NAV = [
@@ -218,7 +220,7 @@ function renderNav(){
       <span style="flex:1;text-align:left">${n.label}</span>
     </button>`).join('');
 }
-function go(tab){ST.tab=tab;renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();}
+function go(tab){ST.tab=tab;try{localStorage.setItem('oar_tab',tab);}catch(e){}renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -443,21 +445,24 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={seans:true,fib:true,key:true,vwap:true,opt:true,vp:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 function kAyarSet(k,v){
   _kAyar[k]=v;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));
+  // aynı ayarın tüm kopyalarını (BTC/ETH + tam-ekran panelleri) senkronla
+  document.querySelectorAll('[data-kayar="'+k+'"]').forEach(cb=>{if(cb.checked!==v)cb.checked=v;});
   for(const sym of ['BTCUSDT','ETHUSDT']){
     const c=_kcharts[sym];if(!c)continue;
-    try{c.vw.applyOptions({visible:_kAyar.vwap});}catch(e){}
+    try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
     kOverlayCiz(sym);
   }
 }
 function kAyarFsToggle(sym){
   const el=document.getElementById('kayarfs-'+sym);if(!el)return;
   if(el.style.display==='block'){el.style.display='none';return;}
-  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
+  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" data-kayar="${k}" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
   el.innerHTML='<div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>'
+    +cb('oar','◆ OAR indikatörü')+'<div style="height:1px;background:#1a2422;margin:5px 0"></div>'
     +cb('seans','Seans kutuları')+cb('fib','Asia Fibonacci')+cb('key','Key Levels (Two/DO/WO/MO…)')+cb('vwap','VWAP (D)')+cb('opt','Opsiyon seviyeleri')+cb('vp','Volume Profile (FRVP)');
   el.style.display='block';
 }
@@ -466,22 +471,64 @@ function kAyarPanelToggle(sym){
   if(el)el.style.display=el.style.display==='none'?'block':'none';
 }
 
+// ── Zaman dilimi (TF) — açılışta 5dk, seçilebilir 15dk/1s/4s/1g/1h. OAR şekli (fib,
+//    seans kutuları, key/opsiyon seviyeleri, VWAP, Volume Profile) her TF'te korunur.
+const _kTFMap={
+  '5m': {iv:'5m', limit:700, bak:36*3600},
+  '15m':{iv:'15m',limit:700, bak:4*86400},
+  '1h': {iv:'1h', limit:600, bak:16*86400},
+  '4h': {iv:'4h', limit:500, bak:70*86400},
+  '1d': {iv:'1d', limit:400, bak:320*86400},
+  '1w': {iv:'1w', limit:300, bak:730*86400},
+};
+const _kTFETIKET=[['5m','5dk'],['15m','15dk'],['1h','1s'],['4h','4s'],['1d','1g'],['1w','1h']];
+let _kTF='5m';   // site her açılışta 5dk ile gelir (kullanıcı isteği); oturum içinde değiştirilebilir
+function kTFSet(tf){
+  if(!_kTFMap[tf]||tf===_kTF)return;
+  _kTF=tf;
+  document.querySelectorAll('[data-ktf]').forEach(b=>{
+    const akt=b.dataset.ktf===tf;
+    b.style.background=akt?'#1ff0ad':'none';
+    b.style.color=akt?'#04110d':'#8a9c99';
+    b.style.borderColor=akt?'#1ff0ad':'#1a2422';
+  });
+  // Geniş TF (1s ve üzeri) grafiği karmaşıklaştırır → OAR'ı otomatik KAPAT.
+  // İntraday'e (5dk/15dk) dönünce otomatik AÇ. Kullanıcı ayarlardan elle değiştirebilir.
+  const genis=['1h','4h','1d','1w'].includes(tf);
+  _kAyar.oar=!genis;
+  localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));
+  document.querySelectorAll('[data-kayar="oar"]').forEach(cb=>{cb.checked=_kAyar.oar;});
+  for(const sym of ['BTCUSDT','ETHUSDT']){
+    const c=_kcharts[sym];if(!c)continue;
+    c._aralikKuruldu=false;   // yeni TF → görünür aralığı yeniden kur
+    try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
+    kGrafikVeri(sym,true);
+  }
+}
+function kTFButonlar(){
+  return `<span style="display:inline-flex;gap:3px;margin-right:2px">${_kTFETIKET.map(([v,l])=>{
+    const akt=_kTF===v;
+    return `<button data-ktf="${v}" onclick="kTFSet('${v}')" title="${l}" style="background:${akt?'#1ff0ad':'none'};color:${akt?'#04110d':'#8a9c99'};border:1px solid ${akt?'#1ff0ad':'#1a2422'};border-radius:5px;font-size:10px;font-weight:600;padding:3px 7px;cursor:pointer">${l}</button>`;
+  }).join('')}</span>`;
+}
+
 function komutaGrafikKart(sym,ad){
   const gy=(ST.grafikYorum||{})[sym]||{};
   const vurgu=(t)=>esc(t||'').replace(/\*\*(.+?)\*\*/g,'<b style="color:#7af0c4">$1</b>');
-  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
+  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" data-kayar="${k}" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
   return `<div class="card" style="padding:15px 17px;margin-bottom:13px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;position:relative">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · 5M · OAR</span>
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">📈 ${ad} — CANLI GRAFİK · OAR</span>
       <span style="font-size:9.5px;color:#5e716f">Seanslar · Asia fib · Key Levels · VWAP(D) · Volume Profile · opsiyon — otomatik</span>
-      <span style="margin-left:auto;display:flex;gap:7px">
+      <span style="margin-left:auto;display:flex;gap:7px;align-items:center">
+        ${kTFButonlar()}
         <button onclick="kAyarPanelToggle('${sym}')" style="background:none;border:1px solid #1a2422;border-radius:6px;color:#8a9c99;font-size:11px;padding:4px 10px;cursor:pointer">⚙ Ayarlar</button>
         <button onclick="kSS('${sym}')" style="background:none;border:1px solid #1a2422;border-radius:6px;color:#8a9c99;font-size:11px;padding:4px 10px;cursor:pointer">📷 İndir</button>
         <button onclick="kGrafikTamEkran('${sym}')" style="background:none;border:1px solid #1a2422;border-radius:6px;color:#8a9c99;font-size:11px;padding:4px 10px;cursor:pointer">⛶ Tam ekran</button>
       </span>
       <div id="kayar-${sym}" style="display:none;position:absolute;right:0;top:30px;z-index:30;background:#0c1112;border:1px solid #1a2422;border-radius:8px;padding:11px 15px;box-shadow:0 8px 28px rgba(0,0,0,.5);min-width:190px">
         <div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>
-        ${cb('seans','Seans kutuları')}${cb('fib','Asia Fibonacci')}${cb('key','Key Levels (Two/DO/WO/MO…)')}${cb('vwap','VWAP (D)')}${cb('opt','Opsiyon seviyeleri')}${cb('vp','Volume Profile')}
+        ${cb('oar','◆ OAR indikatörü')}<div style="height:1px;background:#1a2422;margin:5px 0"></div>${cb('seans','Seans kutuları')}${cb('fib','Asia Fibonacci')}${cb('key','Key Levels (Two/DO/WO/MO…)')}${cb('vwap','VWAP (D)')}${cb('opt','Opsiyon seviyeleri')}${cb('vp','Volume Profile')}
       </div>
     </div>
     <div id="kwrap-${sym}" style="position:relative;background:#fff">
@@ -553,7 +600,7 @@ async function initKomutaGrafikler(){
       width:el.clientWidth,height:340});
     const ca=ch.addCandlestickSeries({upColor:'#ffffff',downColor:'#111111',
       borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
-    const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.vwap});
+    const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.oar&&_kAyar.vwap});
     _kcharts[sym]={ch,ca,vw,kutular:[]};
     const ciz=()=>kOverlayCiz(sym);
     ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
@@ -574,8 +621,9 @@ async function kGrafikVeri(sym,zorla){
   let d=ST.kgraf[sym];
   if(zorla||!d||Date.now()-d.ts>20000){
     const cur=sym.startsWith('BTC')?'BTC':'ETH';
+    const tf=_kTFMap[_kTF]||_kTFMap['5m'];
     const[oh,oh1h,oh1d,lv,vm]=await Promise.all([
-      jget('/api/ohlcv?symbol='+sym+'&interval=5m&limit=700'),
+      jget('/api/ohlcv?symbol='+sym+'&interval='+tf.iv+'&limit='+tf.limit),
       jget('/api/ohlcv?symbol='+sym+'&interval=1h&limit=240'),
       jget('/api/ohlcv?symbol='+sym+'&interval=1d&limit=370'),
       jget('/api/options/levels?currency='+cur),
@@ -765,10 +813,18 @@ async function kGrafikVeri(sym,zorla){
     }
   }
 
+  // 1g/1h TF'te tek mum tüm günü kapsar → gün-içi overlay (seans/Asia fib/VWAP/VP)
+  // anlamsızlaşır; onları gizle. Key + opsiyon seviyeleri (çok-zamanlı) her TF'te kalır.
+  if(_kTF==='1d'||_kTF==='1w'){
+    c.kutular=[];c.fibler=[];c.fibT1=null;c.vp=null;
+    try{c.vw.setData([]);}catch(e){}
+  }
+
   // Görünür aralığı YALNIZ ilk yüklemede ayarla — sonraki tazelemelerde kullanıcının
   // zoom/pan'ini KORU (her 20-30sn veri gelince sıfırlanmasın).
   if(!c._aralikKuruldu){
-    try{c.ch.timeScale().setVisibleRange({from:sonTs-36*3600+K_TZ,to:sonTs+3*3600+K_TZ});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
+    const bak=(_kTFMap[_kTF]||{}).bak||36*3600;
+    try{c.ch.timeScale().setVisibleRange({from:sonTs-bak+K_TZ,to:sonTs+Math.round(bak*0.08)+K_TZ});}catch(e){try{c.ch.timeScale().fitContent();}catch(e2){}}
     c._aralikKuruldu=true;
   }
   setTimeout(()=>kOverlayCiz(sym),50);
@@ -782,6 +838,7 @@ function kOverlayCiz(sym){
   const W=el.clientWidth,H=el.clientHeight,dpr=window.devicePixelRatio||1;
   cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  if(!_kAyar.oar)return;   // OAR indikatörü kapalı → temiz grafik (hiç overlay çizme)
   const ts=c.ch.timeScale();
   const xSon=ts.timeToCoordinate((c.sonTs||0)+K_TZ);
   const xBitis=(xSon!=null?xSon:W-70)+26;
@@ -823,19 +880,19 @@ function kOverlayCiz(sym){
   }
   // lblX: etiketin yazılacağı x (varsayılan xBitis+4). Opsiyon seviyeleri kendi
   // ayrı sütununda (daha sağda) → OAR fib/key etiketleriyle iç içe girmez.
+  // Çizgiyi hemen çiz; ETİKETİ topla → üst üste gelenler sonra YAN YANA yazılır.
+  const mainLbl=[],optLbl=[];
   const seviye=(p,x1,etiket,col,dash,fs,lblX)=>{
     const y=c.ca.priceToCoordinate(p);if(y==null)return;
     g.save();
     g.strokeStyle=col;g.lineWidth=1;if(dash)g.setLineDash([4,4]);
     g.beginPath();g.moveTo(Math.max(x1,0),y);g.lineTo(xBitis,y);g.stroke();
-    const lx=lblX||(xBitis+4);
     if(lblX){ // ayrı sütun → ince noktalı bağlayıcı çiz
       g.setLineDash([1,3]);g.globalAlpha=0.5;
       g.beginPath();g.moveTo(xBitis,y);g.lineTo(lblX-3,y);g.stroke();g.globalAlpha=1;
     }
-    g.setLineDash([]);g.font=(fs||'9px')+' '+K_FONT;g.fillStyle=col;g.textAlign='left';
-    g.fillText(etiket,lx,y+3);
-    g.restore();
+    g.setLineDash([]);g.restore();
+    (lblX?optLbl:mainLbl).push({y,x0:(lblX||(xBitis+4)),text:etiket,col,font:(fs||'9px')+' '+K_FONT});
   };
   const xFib=c.fibT1!=null?(ts.timeToCoordinate(c.fibT1+K_TZ)??0):0;
   if(_kAyar.fib)for(const f of(c.fibler||[]))seviye(f.p,xFib,`${f.v} (${fmtP(f.p)})`,f.col,false,'700 9.5px');
@@ -844,6 +901,33 @@ function kOverlayCiz(sym){
   // Opsiyon seviyeleri: ayrı sütun (OAR etiketlerinden ~115px daha sağda)
   const xOpt=xBitis+118;
   if(_kAyar.opt)for(const o of(c.optLvl||[]))seviye(o.p,xGun,`${o.ad} (${fmtP(o.p)})`,o.col,true,'700 9.5px',xOpt);
+  // üst üste gelen etiketleri yan yana yerleştir
+  _yerlestirEtiketler(g,mainLbl);
+  _yerlestirEtiketler(g,optLbl);
+}
+
+// Aynı yüksekliğe düşen (üst üste binen) seviye etiketlerini tek satırda YAN YANA yaz.
+// y'ye göre sırala; birbirine <11px yakın olanlar bir "satır" olur, ortalama y'de
+// soldan sağa dizilir (her etiket öncekinin bittiği yerden + boşluk).
+function _yerlestirEtiketler(g,list){
+  if(!list||!list.length)return;
+  list.sort((a,b)=>a.y-b.y);
+  const TH=11,GAP=7;
+  g.save();g.textAlign='left';
+  let i=0;
+  while(i<list.length){
+    const satir=[list[i]];let j=i+1;
+    while(j<list.length&&list[j].y-satir[satir.length-1].y<TH){satir.push(list[j]);j++;}
+    const yA=(satir[0].y+satir[satir.length-1].y)/2;
+    let x=satir[0].x0;
+    for(const lb of satir){
+      g.font=lb.font;g.fillStyle=lb.col;
+      g.fillText(lb.text,x,yA+3);
+      x+=g.measureText(lb.text).width+GAP;
+    }
+    i=j;
+  }
+  g.restore();
 }
 
 // ─── Grafik tam ekran + yorum overlay ───
@@ -2163,6 +2247,8 @@ async function boot(){
   const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
+  // sayfa yenilendiğinde son sekmede kal → o sekmenin verisini de yükle
+  if(ST.tab==='macro')loadMakro();
   setInterval(()=>{if(ST.tab==='leader'){kGrafikVeri('BTCUSDT',true);kGrafikVeri('ETHUSDT',true);}},30000);
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
