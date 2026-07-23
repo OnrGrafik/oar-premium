@@ -62,15 +62,17 @@ def _ay(ts) -> str:
     return datetime.fromtimestamp(int(ts) / 1000, timezone.utc).strftime("%Y-%m")
 
 
-def _sampiyon_bloklar():
+def _sampiyonlar():
+    """TÜM şampiyonlar (FADE + TREND) — kullanıcı kuralı: her zaman hepsini dahil et."""
     try:
         st = json.loads(PORTFOY.read_text(encoding="utf-8")).get("stiller", [])
-        for s in st:
-            if s.get("stil") == "ekstrem_donus_fade":
-                return s.get("bloklar", [])
+        out = [{"stil": s.get("stil"), "bloklar": s.get("bloklar", [])} for s in st if s.get("bloklar")]
+        if out:
+            return out
     except Exception:
         pass
-    return ["poc_taraf", "footprint_absorpsiyon", "footprint_kalicilik"]
+    return [{"stil": "ekstrem_donus_fade", "bloklar": ["poc_taraf", "footprint_absorpsiyon", "footprint_kalicilik"]},
+            {"stil": "kirilim_devam_trend", "bloklar": ["poc_taraf", "footprint_trapped", "gun_bias_uyum"]}]
 
 
 def _rejim_etiket(kayitlar):
@@ -82,6 +84,27 @@ def _rejim_etiket(kayitlar):
     return ("range(fade-dostu)" if ort < 0.40 else "trend"), round(ort, 3)
 
 
+def _pencere_listesi(aylar, train_ay, test_ay):
+    out = []; i = train_ay
+    while i + test_ay <= len(aylar):
+        out.append((set(aylar[i - train_ay:i]), set(aylar[i:i + test_ay])))
+        i += test_ay
+    return out
+
+
+def _topla(tum, pencereler):
+    """(ts,pct) serisi + pencere listesi → toplu OOS metrik + equity + pozitif-pencere."""
+    m = _senaryo_metrik(tum) if tum else None
+    eq = {str(k): _equity_sim(tum, 1000.0, float(k)) for k in (1, 3, 5)} if tum else {}
+    poz = sum(1 for p in pencereler if (p.get("beklenti") or 0) > 0)
+    return {
+        "pencere_sayisi": len(pencereler), "pozitif_pencere": poz,
+        "toplu_oos": ({"n": m["n"], "pf": m["pf"], "beklenti": m["beklenti"],
+                       "wr": m["wr"], "maxdd": m["maxdd"]} if m else None),
+        "equity_oos": eq, "pencereler": pencereler,
+    }
+
+
 def analiz(semboller, bas, bit, train_ay=2, test_ay=1, mod="rediscover", taze=False):
     from oar_kesif import _filtre, kesfet
     havuz = _havuz_yukle(semboller, bas, bit, taze)
@@ -91,84 +114,94 @@ def analiz(semboller, bas, bit, train_ay=2, test_ay=1, mod="rediscover", taze=Fa
     for c in havuz:
         c["_ay"] = _ay(c["ts"])
     aylar = sorted({c["_ay"] for c in havuz})
-    sampiyon = _sampiyon_bloklar()
-    print(f"[WF] {len(aylar)} ay · mod={mod} · train={train_ay} test={test_ay}", flush=True)
+    sampiyonlar = _sampiyonlar()   # TÜM şampiyonlar (FADE + TREND)
+    pencereler = _pencere_listesi(aylar, train_ay, test_ay)
+    print(f"[WF] {len(aylar)} ay · mod={mod} · {len(pencereler)} pencere · "
+          f"{len(sampiyonlar)} şampiyon", flush=True)
+    sonuc = {"tarih": datetime.now(timezone.utc).isoformat(), "aralik": f"{bas}..{bit}",
+             "semboller": semboller, "mod": mod, "train_ay": train_ay, "test_ay": test_ay,
+             "pencere_sayisi": len(pencereler)}
 
-    pencereler = []
-    tum_test_kayit = []   # (ts, pct) kronolojik OOS eğrisi
-    i = train_ay
-    while i + test_ay <= len(aylar):
-        train_aylar = set(aylar[i - train_ay:i])
-        test_aylar = set(aylar[i:i + test_ay])
-        train = [c for c in havuz if c["_ay"] in train_aylar]
-        test = [c for c in havuz if c["_ay"] in test_aylar]
-        i += test_ay
-        if len(train) < 30 or not test:
-            continue
-
-        if mod == "rediscover":
+    if mod == "rediscover":
+        # SÜREÇ doğrulama (şampiyon-bağımsız): her train'de kesfet YENİDEN blok seçer
+        pen = []; tum = []
+        for tr_a, te_a in pencereler:
+            train = [c for c in havuz if c["_ay"] in tr_a]
+            test = [c for c in havuz if c["_ay"] in te_a]
+            if len(train) < 30 or not test:
+                continue
             try:
-                sonuc = kesfet(train, min_k=1, max_k=3, min_trade=15, ust_n=1)
-                en_iyiler = sonuc.get("en_iyiler") or []
-                bloklar = (en_iyiler[0]["bloklar"] if en_iyiler else sampiyon)
+                r = kesfet(train, min_k=1, max_k=3, min_trade=15, ust_n=1)
+                ei = r.get("en_iyiler") or []
+                bloklar = ei[0]["bloklar"] if ei else sampiyonlar[0]["bloklar"]
             except Exception as e:
-                print(f"[WF] {sorted(test_aylar)} kesfet hata: {str(e)[:50]}", flush=True)
-                bloklar = sampiyon
-        else:
-            bloklar = sampiyon
+                print(f"[WF] {sorted(te_a)} kesfet hata: {str(e)[:50]}", flush=True)
+                bloklar = sampiyonlar[0]["bloklar"]
+            tt = _filtre(test, bloklar)
+            kay = [(c["ts"], c["pct"]) for c in tt]
+            m = _senaryo_metrik(kay) if kay else None
+            rej, _ = _rejim_etiket(tt)
+            tum.extend(kay)
+            pen.append({"test_ay": sorted(te_a), "bloklar": bloklar, "rejim": rej,
+                        "n": m["n"] if m else 0, "pf": m["pf"] if m else None,
+                        "beklenti": m["beklenti"] if m else None})
+            print(f"[WF] {sorted(te_a)} → n{m['n'] if m else 0} PF {m['pf'] if m else '—'} "
+                  f"[{rej}] blok={'+'.join(bloklar)}", flush=True)
+        sonuc["rediscover"] = _topla(tum, pen)
+        return sonuc
 
-        test_trades = _filtre(test, bloklar)
-        kayitlar = [(c["ts"], c["pct"]) for c in test_trades]
-        m = _senaryo_metrik(kayitlar) if kayitlar else None
-        rej, er = _rejim_etiket(test_trades)
-        tum_test_kayit.extend(kayitlar)
-        pencereler.append({
-            "test_ay": sorted(test_aylar), "train_ay": sorted(train_aylar),
-            "bloklar": bloklar, "rejim": rej, "er": er,
-            "n": (m["n"] if m else 0), "pf": (m["pf"] if m else None),
-            "beklenti": (m["beklenti"] if m else None),
-            "wr": (m["wr"] if m else None),
-        })
-        print(f"[WF] test {sorted(test_aylar)} → n{m['n'] if m else 0} "
-              f"PF {m['pf'] if m else '—'} bek {m['beklenti'] if m else '—'} "
-              f"[{rej}] blok={'+'.join(bloklar)}", flush=True)
+    # SABİT: HER şampiyonu (FADE + TREND) AYRI test et + PORTFÖY (birleşik)
+    per = {}; portfoy_tum = []
+    for sp in sampiyonlar:
+        stil, bloklar = sp["stil"], sp["bloklar"]
+        pen = []; tum = []
+        for tr_a, te_a in pencereler:
+            test = [c for c in havuz if c["_ay"] in te_a]
+            if not test:
+                continue
+            tt = _filtre(test, bloklar)
+            kay = [(c["ts"], c["pct"]) for c in tt]
+            m = _senaryo_metrik(kay) if kay else None
+            rej, _ = _rejim_etiket(tt)
+            tum.extend(kay)
+            pen.append({"test_ay": sorted(te_a), "rejim": rej,
+                        "n": m["n"] if m else 0, "pf": m["pf"] if m else None,
+                        "beklenti": m["beklenti"] if m else None})
+            print(f"[WF][{stil}] {sorted(te_a)} → n{m['n'] if m else 0} "
+                  f"PF {m['pf'] if m else '—'} bek {m['beklenti'] if m else '—'} [{rej}]", flush=True)
+        per[stil] = {"bloklar": bloklar, **_topla(tum, pen)}
+        portfoy_tum.extend(tum)
+    sonuc["sampiyonlar"] = per
+    sonuc["portfoy"] = _topla(portfoy_tum, [])   # 2 şampiyon birleşik (kaba: aynı sermaye, sıralı)
+    return sonuc
 
-    # Toplu OOS (tüm test aylarını sıralı işlemiş gibi)
-    toplu = _senaryo_metrik(tum_test_kayit) if tum_test_kayit else None
-    eq = {str(k): _equity_sim(tum_test_kayit, 1000.0, float(k)) for k in (1, 3, 5)} if tum_test_kayit else {}
-    poz = sum(1 for p in pencereler if (p["beklenti"] or 0) > 0)
-    return {
-        "tarih": datetime.now(timezone.utc).isoformat(), "aralik": f"{bas}..{bit}",
-        "semboller": semboller, "mod": mod, "train_ay": train_ay, "test_ay": test_ay,
-        "pencere_sayisi": len(pencereler), "pozitif_pencere": poz,
-        "toplu_oos": ({"n": toplu["n"], "pf": toplu["pf"], "beklenti": toplu["beklenti"],
-                       "wr": toplu["wr"], "maxdd": toplu["maxdd"]} if toplu else None),
-        "equity_oos": eq, "pencereler": pencereler,
-    }
+
+def _blok_ozet(L, ad, d):
+    t = d.get("toplu_oos") or {}
+    L.append(f"\n▓ {ad}: POZİTİF {d['pozitif_pencere']}/{d['pencere_sayisi']}"
+             + (f" · toplu OOS PF {t.get('pf')} beklenti {t.get('beklenti')}% WR%{t.get('wr')} "
+                f"maxDD%{t.get('maxdd')} n{t.get('n')}" if t else " · yetersiz"))
+    for k in ("1", "3", "5"):
+        e = (d.get("equity_oos") or {}).get(k, {})
+        if e:
+            L.append(f"   {k}x: " + ("💀 SIFIRLANDI" if e.get("likide")
+                     else f"${e.get('son'):,.0f} (maxDD%{e.get('maxdd')})"))
 
 
 def rapor_metni(s):
     if not s:
         return "sonuç yok"
-    t = s.get("toplu_oos") or {}
     L = [f"═══ WALK-FORWARD (geçmişi gelecekmiş gibi) · mod={s['mod']} ═══",
-         f"train {s['train_ay']}ay → test {s['test_ay']}ay, yuvarla · {s['pencere_sayisi']} pencere",
-         f"POZİTİF pencere: {s['pozitif_pencere']}/{s['pencere_sayisi']} "
-         f"(edge kaç ayda tuttu — asıl kenar testi)",
-         (f"TOPLU OOS: n{t.get('n')} PF {t.get('pf')} beklenti {t.get('beklenti')}% "
-          f"WR%{t.get('wr')} maxDD%{t.get('maxdd')}" if t else "TOPLU OOS: yetersiz")]
-    eq = s.get("equity_oos") or {}
-    if eq:
-        for k in ("1", "3", "5"):
-            d = eq.get(k, {})
-            L.append(f"  {k}x: " + ("💀 SIFIRLANDI" if d.get("likide")
-                     else f"${d.get('son'):,.0f} (maxDD%{d.get('maxdd')})"))
-    L.append("\nPENCERE PENCERE (KÖR test):")
-    for p in s["pencereler"]:
-        L.append(f"  {','.join(p['test_ay'])}: n{p['n']} PF {p['pf']} bek {p['beklenti']} "
-                 f"[{p['rejim']}]" + (f" blok={'+'.join(p['bloklar'])}" if s['mod'] == 'rediscover' else ""))
-    L.append("\nYORUM: pozitif-pencere oranı yüksek + toplu OOS pozitif + likidasyon yok "
-             "→ edge zamanda KALICI (rejim değişse de). Düşükse edge rejime-bağımlı/seraptır.")
+         f"train {s['train_ay']}ay → test {s['test_ay']}ay, yuvarla · {s['pencere_sayisi']} pencere"]
+    if s["mod"] == "rediscover":
+        _blok_ozet(L, "REDISCOVER (süreç doğrulama)", s.get("rediscover") or {})
+    else:
+        for stil, d in (s.get("sampiyonlar") or {}).items():
+            _blok_ozet(L, f"ŞAMPİYON {stil} [{'+'.join(d.get('bloklar', []))}]", d)
+        if s.get("portfoy"):
+            _blok_ozet(L, "PORTFÖY (2 şampiyon birleşik, kaba)", s["portfoy"])
+    L.append("\nYORUM: pozitif-pencere yüksek + toplu OOS pozitif + likidasyon yok → edge zamanda KALICI. "
+             "Her iki şampiyon ayrı raporlanır (kullanıcı kuralı: tüm şampiyonları dahil et).")
     return "\n".join(L)
 
 
@@ -195,9 +228,14 @@ def main():
         try:
             import asyncio
             from ajan_merkez import bildir
+            if s["mod"] == "sabit":
+                ozet = " · ".join(f"{k}:{v['pozitif_pencere']}/{v['pencere_sayisi']}"
+                                  for k, v in (s.get("sampiyonlar") or {}).items())
+            else:
+                r = s.get("rediscover") or {}
+                ozet = f"{r.get('pozitif_pencere')}/{r.get('pencere_sayisi')}"
             asyncio.run(bildir("Walk-Forward", "backtest",
-                               f"WF {s['mod']}: {s['pozitif_pencere']}/{s['pencere_sayisi']} pozitif pencere",
-                               metin[:3500]))
+                               f"WF {s['mod']} pozitif pencere: {ozet}", metin[:3500]))
         except Exception as e:
             print(f"⚠ telegram: {e}", flush=True)
 
