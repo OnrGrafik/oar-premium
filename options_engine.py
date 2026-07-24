@@ -542,6 +542,60 @@ async def vade_masasi(currency="BTC"):
     return {"spot":spot,"gex_tablo":gex_tablo,"takvim":takvim,"kaynaklar":kaynaklar,
             "tarih":datetime.now(timezone.utc).isoformat()}
 
+# ─── GEX ISI HARİTASI: strike × vade dealer gamma stoku ───────────
+# Her hücre = o strike+vade'deki net dealer GEX (Σ gamma·OI·S²·%1, call+/put−),
+# çok-borsa havuzundan. Anlamı: spot %1 oynarsa dealer'ın o bölgedeki delta'sı
+# ~bu kadar USD kayar → delta-nötr kalmak için o kadar spot alıp satması gerekir.
+#  + = dealer long gamma (vol bastırır, pinler) · − = short gamma (hareketi hızlandırır)
+# Greek toggle: gamma(gex)/vega(vgx)/theta(tex)/vanna(vex) — hepsi zaten hesaplı.
+_GREEK_ALAN = {"gamma":"gex", "vega":"vgx", "theta":"tex", "vanna":"vex"}
+_GREEK_BIRIM = {"gamma":"γ USD/%1", "vega":"vega USD/1%IV", "theta":"θ USD/gün", "vanna":"vanna USD/%1"}
+
+async def gex_heatmap(currency="BTC", greek="gamma", bant=0.20, max_vade=10, max_strike=32):
+    """Strike × vade GEX ısı haritası (çok-borsa). satirlar[].hucreler = vadeler
+    sırasıyla hücre değeri (USD) veya None. maxabs = renk ölçeği."""
+    async with httpx.AsyncClient(timeout=30) as cl:
+        spot,opts=await _zincir(cl,currency)
+    if not spot or not opts: return {"error":"opsiyon verisi yok"}
+    now=int(time.time()*1000)
+    alan=_GREEK_ALAN.get(greek,"gex")
+    exps=sorted({o["expiryTs"] for o in opts if o["expiryTs"]>now})[:max_vade]
+    exps_set=set(exps)
+    lo,hi=spot*(1-bant), spot*(1+bant)
+    hucre={}; strike_top={}
+    for o in opts:
+        ts=o["expiryTs"]
+        if ts not in exps_set: continue
+        K=o["strike"]
+        if K<lo or K>hi: continue
+        v=o.get(alan,0) or 0
+        hucre[(K,ts)]=hucre.get((K,ts),0.0)+v
+        strike_top[K]=strike_top.get(K,0.0)+abs(v)
+    # Anlamlı strike'lar: spot bandında + |değer|>0; çok fazlaysa en güçlü max_strike
+    aday=[k for k,t in strike_top.items() if t>0]
+    if len(aday)>max_strike:
+        aday=sorted(aday,key=lambda k:strike_top[k],reverse=True)[:max_strike]
+    strikeler=sorted(aday,reverse=True)   # üstte yüksek strike (referans gibi)
+    vadeler=[{"ts":ts,"label":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%d%b%y").upper()}
+             for ts in exps]
+    maxabs=0.0; satirlar=[]
+    for K in strikeler:
+        row=[]
+        for ts in exps:
+            v=hucre.get((K,ts))
+            if v is not None:
+                v=round(v)
+                if abs(v)>maxabs: maxabs=abs(v)
+                if v==0: v=None
+            row.append(v)
+        satirlar.append({"strike":K,"hucreler":row})
+    kaynaklar={}
+    for o in opts:
+        b=o.get("borsa","deribit"); kaynaklar[b]=kaynaklar.get(b,0)+1
+    return {"spot":spot,"greek":greek,"birim":_GREEK_BIRIM.get(greek,"USD"),
+            "vadeler":vadeler,"satirlar":satirlar,"maxabs":maxabs,
+            "kaynaklar":kaynaklar,"tarih":datetime.now(timezone.utc).isoformat()}
+
 # ─── Opsiyon CVD ──────────────────────────────────────────────────
 async def opsiyon_cvd(currency="BTC"):
     async with httpx.AsyncClient(timeout=20) as cl:
