@@ -32,7 +32,7 @@ def _ncdf(x):
 def _bs_greeks(S, K, T, sig, typ, r=0, q=0):
     """Tam BS Greekleri — delta, gamma, vega, theta, rho, vanna, charm (Hull 11e)."""
     if T<=0 or sig<=0 or S<=0 or K<=0:
-        return {"delta":0,"gamma":0,"vega":0,"theta":0,"rho":0,"vanna":0,"charm":0,"d1":0,"d2":0}
+        return {"delta":0,"gamma":0,"vega":0,"theta":0,"rho":0,"vanna":0,"charm":0,"volga":0,"d1":0,"d2":0}
     sqrtT=math.sqrt(T)
     d1=(math.log(S/K)+(r-q+0.5*sig*sig)*T)/(sig*sqrtT)
     d2=d1-sig*sqrtT
@@ -48,8 +48,9 @@ def _bs_greeks(S, K, T, sig, typ, r=0, q=0):
              - r*K*math.exp(-r*T)*(_ncdf(d2) if typ=="call" else -_ncdf(-d2))
              + q*S*eqT*(_ncdf(d1) if typ=="call" else -_ncdf(-d1)))
     rho   = (K*T*math.exp(-r*T)*_ncdf(d2)) if typ=="call" else (-K*T*math.exp(-r*T)*_ncdf(-d2))
+    volga = vega*d1*d2/sig   # vomma = ∂vega/∂σ (Hull 11e)
     return {"delta":delta,"gamma":gamma,"vega":vega,"theta":theta,"rho":rho,
-            "vanna":vanna,"charm":charm,"d1":d1,"d2":d2}
+            "vanna":vanna,"charm":charm,"volga":volga,"d1":d1,"d2":d2}
 
 def _gamma(S,K,T,sig):
     if T<=0 or sig<=0 or S<=0 or K<=0: return 0
@@ -128,8 +129,9 @@ async def _tum_opsiyonlar(cl, spot, currency="BTC"):
         tex = theta*oi*(1/365)*sgn     # USD/gün (theta yıllık → /365)
         vgx = vega*oi*0.01*sgn         # USD / 1% IV
         rex = rho*oi*0.01*sgn          # USD / 1% faiz
+        volx = bs["volga"]*oi*0.0001*sgn   # USD / 1% IV² (vomma exposure)
         opts.append({"strike":K,"type":typ,"oi":oi,"iv":iv,
-                     "gex":gex,"vex":vex,"cex":cex,"dex":dex,"tex":tex,"vgx":vgx,"rex":rex,
+                     "gex":gex,"vex":vex,"cex":cex,"dex":dex,"tex":tex,"vgx":vgx,"rex":rex,"volx":volx,
                      "gamma":gamma,"delta":delta,"vanna":vanna,"charm":charm,"theta":theta,"vega":vega,"rho":rho,
                      "expiryTs":ts,"expiryLabel":_expiry_label(ts,now),"T":T})
     return opts
@@ -427,6 +429,7 @@ def _ek_zenginlestir(recs, spot, now):
                         "gex":gamma*oi*spot*spot*0.01*sgn, "vex":vanna*oi*spot*0.01*sgn,
                         "cex":charm*oi*spot*(1/365)*sgn, "dex":delta*oi*spot*sgn,
                         "tex":theta*oi*(1/365)*sgn, "vgx":vega*oi*0.01*sgn, "rex":rho*oi*0.01*sgn,
+                        "volx":bs["volga"]*oi*0.0001*sgn,
                         "gamma":gamma, "delta":delta, "vanna":vanna, "charm":charm,
                         "theta":theta, "vega":vega, "rho":rho,
                         "expiryTs":ts, "expiryLabel":_expiry_label(ts, now), "T":T,
@@ -541,6 +544,102 @@ async def vade_masasi(currency="BTC"):
         b=o.get("borsa","deribit"); kaynaklar[b]=kaynaklar.get(b,0)+1
     return {"spot":spot,"gex_tablo":gex_tablo,"takvim":takvim,"kaynaklar":kaynaklar,
             "tarih":datetime.now(timezone.utc).isoformat()}
+
+# ─── GEX ISI HARİTASI: strike × vade dealer gamma stoku ───────────
+# Her hücre = o strike+vade'deki net dealer GEX (Σ gamma·OI·S²·%1, call+/put−),
+# çok-borsa havuzundan. Anlamı: spot %1 oynarsa dealer'ın o bölgedeki delta'sı
+# ~bu kadar USD kayar → delta-nötr kalmak için o kadar spot alıp satması gerekir.
+#  + = dealer long gamma (vol bastırır, pinler) · − = short gamma (hareketi hızlandırır)
+# Greek toggle: gamma(gex)/vega(vgx)/theta(tex)/vanna(vex) — hepsi zaten hesaplı.
+_GREEK_ALAN = {"gamma":"gex", "vega":"vgx", "theta":"tex", "vanna":"vex", "volga":"volx"}
+_GREEK_BIRIM = {"gamma":"γ USD/%1", "vega":"vega USD/1%IV", "theta":"θ USD/gün",
+                "vanna":"vanna USD/%1", "volga":"volga USD/1%IV²"}
+
+async def gex_heatmap(currency="BTC", greek="gamma", bant=0.20, max_vade=10, max_strike=32, esik=2_000_000.0, mod="kapali"):
+    """Strike × vade GEX ısı haritası (çok-borsa). satirlar[].hucreler = vadeler
+    sırasıyla hücre değeri (USD) veya None. maxabs = renk ölçeği.
+    esik: |değer| bu USD altındaki hücreler GİZLENİR (kirlilik önlenir). gamma
+    için $2M; diğer greek'lerde ölçek farklı olduğundan tepe-değerin oranı."""
+    async with httpx.AsyncClient(timeout=30) as cl:
+        spot,opts=await _zincir(cl,currency)
+    if not spot or not opts: return {"error":"opsiyon verisi yok"}
+    now=int(time.time()*1000)
+    alan=_GREEK_ALAN.get(greek,"gex")
+    exps=sorted({o["expiryTs"] for o in opts if o["expiryTs"]>now})[:max_vade]
+    exps_set=set(exps)
+    lo,hi=spot*(1-bant), spot*(1+bant)
+    hucre={}
+    for o in opts:
+        ts=o["expiryTs"]
+        if ts not in exps_set: continue
+        K=o["strike"]
+        if K<lo or K>hi: continue
+        v=o.get(alan,0) or 0
+        hucre[(K,ts)]=hucre.get((K,ts),0.0)+v
+    # Eşik: gamma → USD mutlak ($2M); diğer greek → tepe değerin %2'si
+    tepe=max((abs(v) for v in hucre.values()), default=0.0)
+    esik_uygula = esik if greek=="gamma" else tepe*0.02
+    gecerli={key:v for key,v in hucre.items() if v and abs(v)>=esik_uygula}
+    # Eşik-üstü hücresi olan strike'lar (çok fazlaysa en güçlü max_strike)
+    strike_top={}
+    for (K,ts),v in gecerli.items():
+        strike_top[K]=strike_top.get(K,0.0)+abs(v)
+    aday=list(strike_top)
+    if len(aday)>max_strike:
+        aday=sorted(aday,key=lambda k:strike_top[k],reverse=True)[:max_strike]
+    strikeler=sorted(aday,reverse=True)   # üstte yüksek strike (referans gibi)
+    vadeler=[{"ts":ts,"label":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%d%b%y").upper()}
+             for ts in exps]
+
+    # ── Snapshot kaydı (yalnız gamma) → Δ anlık/gün-içi + drift için tarih birikir
+    net_gex_toplam=round(sum(o.get("gex",0) for o in opts))
+    zg=None
+    if greek=="gamma":
+        try:
+            import oar_gex_snapshot as _gs
+            zg=_zero_gamma(opts,spot)
+            _gs.kaydet(currency,{"ts":now,"cells":{f"{int(round(k))}|{t}":round(v) for (k,t),v in hucre.items()},
+                                 "net_gex":net_gex_toplam,"zero_gamma":zg,"spot":round(spot)})
+        except Exception:
+            pass
+
+    # ── Mod: kapalı(mutlak) / anlık(~22dk Δ) / gün-içi(açılış Δ) — yalnız gamma
+    delta_yok=False; ref=None
+    if mod in ("anlik","gun_ici") and greek=="gamma":
+        try:
+            import oar_gex_snapshot as _gs
+            ref=_gs.en_yakin(currency,22) if mod=="anlik" else _gs.gun_ilk(currency)
+        except Exception:
+            ref=None
+        if not ref: delta_yok=True
+    ref_cells=(ref or {}).get("cells",{})
+
+    maxabs=0.0; satirlar=[]
+    for K in strikeler:
+        row=[]
+        for ts in exps:
+            if ref and not delta_yok:                         # Δ modu
+                d=round(hucre.get((K,ts),0.0)-ref_cells.get(f"{int(round(K))}|{ts}",0.0))
+                if abs(d)<esik_uygula*0.1: d=None             # küçük Δ gürültüsü ele
+            else:                                             # mutlak (kapalı / Δ yok)
+                d=gecerli.get((K,ts))
+                if d is not None: d=round(d)
+            if d is not None and abs(d)>maxabs: maxabs=abs(d)
+            row.append(d)
+        satirlar.append({"strike":K,"hucreler":row})
+
+    kaynaklar={}
+    for o in opts:
+        b=o.get("borsa","deribit"); kaynaklar[b]=kaynaklar.get(b,0)+1
+    cikti={"spot":spot,"greek":greek,"mod":mod,"birim":_GREEK_BIRIM.get(greek,"USD"),"esik":round(esik_uygula),
+           "vadeler":vadeler,"satirlar":satirlar,"maxabs":maxabs,"net_gex":net_gex_toplam,"zero_gamma":zg,
+           "delta_yok":delta_yok,"kaynaklar":kaynaklar,"tarih":datetime.now(timezone.utc).isoformat()}
+    try:
+        import oar_gex_snapshot as _gs
+        cikti["drift"]=_gs.drift(currency)
+    except Exception:
+        cikti["drift"]=[]
+    return cikti
 
 # ─── Opsiyon CVD ──────────────────────────────────────────────────
 async def opsiyon_cvd(currency="BTC"):

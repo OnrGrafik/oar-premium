@@ -1329,6 +1329,24 @@ async def startup_event():
         from oar_orderbook import topla_loop as _ob_topla
         asyncio.create_task(_ob_topla(("BTCUSDT", "ETHUSDT"), 60, 20))
         print("[Startup] Order-book toplayıcı başlatıldı")
+        # HACİM KONSEYİ: birbirinden habersiz hacim analizörleri (footprint/order-flow/
+        # order-book/likidite/VP-POC/opsiyon/makro) → konsensüs snapshot (5dk) + gün sonu
+        # 03:00 UTC TAM özet (sayfalı, kesilmez) + haftalık git-senkron veri seti. Analiz
+        # katmanı — canlı karara serap testinden (DSR≥0.95) geçmeden bağlanmaz.
+        import hacim_konseyi as _hk
+        asyncio.create_task(_hk.konsey_loop())
+        asyncio.create_task(_hk.gunluk_ozet_loop())
+        print("[Startup] Hacim Konseyi başlatıldı")
+        # GÖREV WORKER: leader_agent'in write-only agent_tasks.json kuyruğunu tüketir +
+        # konsey görevlerini git-senkron yerel kuyruğa yönlendirir (PC vardiya backtest eder).
+        import hacim_gorev as _hg
+        asyncio.create_task(_hg.worker_dongu())
+        print("[Startup] Hacim görev worker başlatıldı")
+        # GEX ISI HARİTASI SNAPSHOT: gamma grid'ini 5dk'da kaydeder → ısı
+        # haritasında Δ anlık(~22dk)/gün-içi(açılış) + gün-içi gamma drift serisi.
+        import oar_gex_snapshot as _gsnap
+        asyncio.create_task(_gsnap.snapshot_loop(("BTC", "ETH"), 300))
+        print("[Startup] GEX snapshot toplayıcı başlatıldı")
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 
@@ -1545,6 +1563,12 @@ async def options_cvd_ep(currency: str = "BTC"):
 async def options_vade_masasi(currency: str = "BTC"):
     from options_engine import vade_masasi
     return await vade_masasi(currency)
+
+@app.get("/api/options/gex-heatmap")
+async def options_gex_heatmap(currency: str = "BTC", greek: str = "gamma",
+                              esik: float = 2_000_000.0, mod: str = "kapali"):
+    from options_engine import gex_heatmap
+    return await gex_heatmap(currency, greek, esik=esik, mod=mod)
 
 @app.get("/api/options/topografya")
 async def options_topografya(currency: str = "BTC", vade: str = "all"):
@@ -1834,6 +1858,14 @@ async def _site_baglami() -> str:
     try:
         from oar_kanit_kapisi import baglam_metni as _kanit_baglam
         par.append(_kanit_baglam())   # KANIT KAPISI: canlı sistemlerin serap-geçer durumu (5e bağı)
+    except Exception: pass
+    try:
+        from hacim_konseyi import konsey_baglami
+        par.append(konsey_baglami())  # HACİM KONSEYİ: bağımsız hacim analizörlerinin son konsensüsü
+    except Exception: pass
+    try:
+        from hacim_gorev import baglam_metni as _gorev_baglam
+        par.append(_gorev_baglam())   # GÖREV WORKER: kuyruk durumu (bekleyen/PC'de/tamamlanan)
     except Exception: pass
     try:
         from macro_engine import makro_veri
@@ -2686,6 +2718,47 @@ async def oar_orderbook_endpoint():
     """
     try:
         from oar_orderbook import durum
+        return durum()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/hacim-konsey")
+async def hacim_konsey_endpoint():
+    """
+    HACİM KONSEYİ durumu: bağımsız hacim analizörlerinin son konsensüsü + toplanan
+    snapshot/haftalık veri seti sayısı + gün sonu özet günü. Analiz katmanı (serap
+    testinden geçmeden canlıya bağlanmaz).
+    """
+    try:
+        from hacim_konseyi import durum
+        return durum()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/hacim-veriseti")
+async def hacim_veriseti_endpoint():
+    """
+    HAFTALIK OTOMATİK KAYIT — indirme ucu. PC'deki hacim_indir.py bunu çekip bilgisayara
+    yazar (git gerektirmez). Haftalık özet arşivi (son 12 hafta) + o anki ham snapshot'lar
+    (site hafızasından silinmeden PC'ye insin diye).
+    """
+    try:
+        from hacim_konseyi import veriset_indirme
+        return veriset_indirme()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/hacim-gorev")
+async def hacim_gorev_endpoint():
+    """
+    GÖREV WORKER durumu: leader_agent kuyruğundan drene edilen + konsey üretilen aday
+    backtest görevleri (bekleyen / PC-kuyruğunda / tamamlanan). Derin backtest PC'de koşar.
+    """
+    try:
+        from hacim_gorev import durum
         return durum()
     except Exception as e:
         return {"durum": "hata", "aciklama": str(e)[:100]}

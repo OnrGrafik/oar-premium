@@ -86,6 +86,9 @@ def main():
                       ["oar_walkforward.py", "--symbol", SEMBOL, "--from", BAS, "--to", BIT,
                        "--train-ay", "2", "--test-ay", "1", "--mod", "sabit", "--telegram"])
             son_agir = time.time()
+        # 7) HACİM KONSEYİ VERİSİNİ PC'YE İNDİR (her tur — hafiftir; günlük dosya, ham veri kaybolmaz)
+        _calistir("HACİM VERİSİ İNDİR (sunucu → PC, otomatik kayıt)",
+                  ["hacim_indir.py"])
         print(f"\n[VARDİYA] Tur {tur} tamam. {ARALIK_SAAT} saat uyku… "
               f"(sonuçlar: Telegram 4129 + kanitli_bulgular.json + backtest_sonuclari.json)\n"
               f"[VARDİYA] Yeni bulguların siteye/lidere yansıması için ara sıra:\n"
