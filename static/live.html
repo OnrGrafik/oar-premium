@@ -380,12 +380,20 @@ function scrLeader(){
         return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #141d1b;display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
           <span style="color:#8a9c99">CANLI: $1000 · 5x → bakiye <b style="color:${(tr.bakiye||0)>=(tr.baslangic||1000)?'#1ff0ad':'#ff5d6c'}">$${tr.bakiye!=null?tr.bakiye.toLocaleString():'—'}</b></span>
           <span style="color:#8a9c99">işlem: <b style="color:#cdd9d8">${tr.islem_sayisi||0}</b></span>
-          ${ac.length?ac.map(([s,p])=>`<span style="color:#56a8ff">📍 ${s} ${p.yon} @ ${p.giris} (TP ${p.tp} / SL ${p.sl})</span>`).join(''):'<span style="color:#5e716f">açık pozisyon yok — kırılım bekleniyor</span>'}
         </div>
+        ${ac.length?`<div style="margin-top:8px;border-top:1px solid #141d1b;padding-top:7px">
+            <div class="sg" style="font-size:8.5px;letter-spacing:.12em;color:#56a8ff;margin-bottom:5px">🔵 AÇIK İŞLEMLER (${ac.length})</div>
+            ${ac.map(([s,p])=>`<div style="display:grid;grid-template-columns:38px 42px 1fr auto;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid #101614;font-size:10px">
+                <span style="color:#9fb0ad;font-weight:600">${(s||'').replace('USDT','')}</span>
+                <span style="color:${p.yon==='LONG'?'#1ff0ad':'#ff5d6c'};font-weight:600">${p.yon}</span>
+                <span style="color:#7d908d">giriş ${p.giris} · <span style="color:#7af0c4">TP ${p.tp}</span> / <span style="color:#ff8c8c">SL ${p.sl}</span></span>
+                <span style="text-align:right;font-weight:700;color:#56a8ff">● AÇIK</span>
+              </div>`).join('')}
+          </div>`:'<div style="font-size:10px;color:#5e716f;margin-top:6px">açık işlem yok — kırılım bekleniyor</div>'}
         ${(()=>{const isl=tr.son_islemler||[];if(!isl.length)return '<div style="font-size:10px;color:#5e716f;margin-top:6px">henüz kapanmış işlem yok</div>';
           const zf=t=>{try{return new Date(t).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}};
           return `<div style="margin-top:8px;border-top:1px solid #141d1b;padding-top:7px">
-            <div class="sg" style="font-size:8.5px;letter-spacing:.12em;color:#5e716f;margin-bottom:5px">SON İŞLEMLER (${tr.islem_sayisi||isl.length})</div>
+            <div class="sg" style="font-size:8.5px;letter-spacing:.12em;color:#5e716f;margin-bottom:5px">✅ KAPANMIŞ İŞLEMLER (${tr.islem_sayisi||isl.length})</div>
             <div style="max-height:220px;overflow-y:auto">
             ${isl.map(t=>{const eq=(t.net_fiyat_pct||0)*(tr.kaldirac||5);const kaz=eq>=0;
               return `<div style="display:grid;grid-template-columns:38px 42px 1fr auto;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid #101614;font-size:10px">
