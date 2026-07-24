@@ -1560,9 +1560,9 @@ async def options_vade_masasi(currency: str = "BTC"):
     return await vade_masasi(currency)
 
 @app.get("/api/options/gex-heatmap")
-async def options_gex_heatmap(currency: str = "BTC", greek: str = "gamma"):
+async def options_gex_heatmap(currency: str = "BTC", greek: str = "gamma", esik: float = 2_000_000.0):
     from options_engine import gex_heatmap
-    return await gex_heatmap(currency, greek)
+    return await gex_heatmap(currency, greek, esik=esik)
 
 @app.get("/api/options/topografya")
 async def options_topografya(currency: str = "BTC", vade: str = "all"):

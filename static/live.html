@@ -1037,8 +1037,10 @@ function scrTheory(){
 // ─── OPSİYON MASASI (Options Desk teması — veri sözleşmesi değişmedi) ───
 let _optVade='all';
 let _optCur='BTC';
+let _optHeatGreek='gamma';
 function optVadeSec(v){_optVade=v;loadOptionsFull();render();}
 function optCurSec(c){_optCur=c;loadOptionsFull();render();}
+async function optHeatGreekSec(g){_optHeatGreek=g;const hm=await jget('/api/options/gex-heatmap?currency='+_optCur+'&greek='+g);if(hm&&!hm.error)ST.optHeatmap=hm;if(ST.tab==='options')render();}
 
 // OD palet (SVG + body'ye eklenen tooltip CSS değişkeni çözemez → hex)
 const OD={bg:'#07090a',surf:'#0c1112',line:'#18211f',lineS:'#131918',lineH:'#1a2422',text:'#cdd9d8',t2:'#b8c6c3',dim:'#8a9c99',mute:'#5e716f',acc:'#1ff0ad',pos:'#1ff0ad',neg:'#ff5d6c',neu:'#9fb0ad',buy:'#56a8ff',sell:'#ff8a3c'};
@@ -1378,7 +1380,8 @@ function scrOptions(){
     </section>
 
     <section class="od-sec">
-      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii-b.</span>GEX Isı Haritası · strike × vade</h2><span class="od-meta">DEALER GAMMA STOKU · ${(ST.optHeatmap&&ST.optHeatmap.birim)||'γ USD/%1'}</span></div>
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii-b.</span>GEX Isı Haritası · strike × vade</h2><span class="od-meta">DEALER STOKU · ${(ST.optHeatmap&&ST.optHeatmap.birim)||'γ USD/%1'}</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">${[['gamma','Γ'],['vega','VEGA'],['theta','Θ'],['vanna','VANNA'],['volga','VOLGA']].map(([g,l])=>`<button class="od-chip ${_optHeatGreek===g?'on':''}" onclick="optHeatGreekSec('${g}')">${l}</button>`).join('')}</div>
       ${odGexHeatmap(ST.optHeatmap)}
     </section>
 
@@ -2227,7 +2230,7 @@ async function loadOptionsFull(){
     jget('/api/options/islem-dagilimi?currency='+c),
     jget('/api/opsiyon-yorum?currency='+c),
     jget('/api/options/vade-masasi?currency='+c),
-    jget('/api/options/gex-heatmap?currency='+c)
+    jget('/api/options/gex-heatmap?currency='+c+'&greek='+_optHeatGreek)
   ]);
   if(vm&&!vm.error)ST.optVadeMasasi=vm;
   if(hm&&!hm.error)ST.optHeatmap=hm;
