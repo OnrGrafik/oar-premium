@@ -1119,9 +1119,9 @@ function odWalls(t,lv,spot,g){
   const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>a.strike-b.strike);
   if(!vis.length)return '<div class="od-empty">Bu aralıkta GEX yok.</div>';
   const netOf=s=>(s.netGamma!=null?s.netGamma:(s.callGex||0)+(s.putGex||0));
-  const tip=s=>{const ng=netOf(s);return `<b>$${fmtNum(s.strike)}</b><br>Net γ: <b style='color:${ng>=0?OD.pos:OD.neg}'>${ng>=0?'+':''}${odK(ng)}</b><br>Call γ +${odK(s.callGex||0)} · Put γ ${odK(s.putGex||0)}<br>OI ${fmtNum((s.callOI||0)+(s.putOI||0))}`;};
-  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> pozitif net γ (call duvar → direnç/mıknatıs) · <b style="color:${OD.neg}">kırmızı ↓</b> negatif net γ (put duvar → destek). <span style="color:#5cc8ff">kesikli mavi</span>=spot. Sol eksen = USD GEX/%1. Fare ile bara gel: net/call/put γ + OI. [Hull §19]</div>`;
-  return odDikeyBar(vis,spot,s=>Math.max(netOf(s),0),s=>Math.max(-netOf(s),0),tip,'USD GEX / %1 hareket',not);
+  const tip=s=>{const ng=netOf(s);return `<b>$${fmtNum(s.strike)}</b><br>Call γ: <b style='color:${OD.pos}'>+${odK(s.callGex||0)}</b><br>Put γ: <b style='color:${OD.neg}'>${odK(s.putGex||0)}</b><br>Net γ ${ng>=0?'+':''}${odK(ng)} · OI ${fmtNum((s.callOI||0)+(s.putOI||0))}`;};
+  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> Call γ (call duvar → direnç/mıknatıs) · <b style="color:${OD.neg}">kırmızı ↓</b> Put γ (put duvar → destek). <span style="color:#5cc8ff">kesikli mavi</span>=spot. Sol eksen = USD GEX/%1. Fare ile bara gel: call/put/net γ + OI. [Hull §19]</div>`;
+  return odDikeyBar(vis,spot,s=>s.callGex||0,s=>-(s.putGex||0),tip,'USD GEX / %1 hareket',not);
 }
 
 // ── ii-b. VADE MASASI: GEX vade tablosu + Max-Pain & Pin takvimi ──
