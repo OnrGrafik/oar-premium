@@ -2726,6 +2726,20 @@ async def hacim_konsey_endpoint():
         return {"durum": "hata", "aciklama": str(e)[:100]}
 
 
+@app.get("/api/hacim-veriseti")
+async def hacim_veriseti_endpoint():
+    """
+    HAFTALIK OTOMATİK KAYIT — indirme ucu. PC'deki hacim_indir.py bunu çekip bilgisayara
+    yazar (git gerektirmez). Haftalık özet arşivi (son 12 hafta) + o anki ham snapshot'lar
+    (site hafızasından silinmeden PC'ye insin diye).
+    """
+    try:
+        from hacim_konseyi import veriset_indirme
+        return veriset_indirme()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
 @app.get("/api/hacim-gorev")
 async def hacim_gorev_endpoint():
     """

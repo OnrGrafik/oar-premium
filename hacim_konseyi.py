@@ -600,6 +600,22 @@ def durum() -> dict:
             "baglam": konsey_baglami()}
 
 
+def veriset_indirme() -> dict:
+    """
+    PC'ye HAFTALIK OTOMATİK KAYIT için tam veri paketi (indirme endpoint'i döner):
+    haftalık özet arşivi (son 12 hafta) + O ANKİ ham snapshot'lar (site hafızası, haftalık
+    silinmeden önce PC'ye insin diye). İndirici (hacim_indir.py) bunu bilgisayara yazar.
+    """
+    vs = _load(VERISET_FILE, {"haftalar": []})
+    db = _load(SNAPSHOT_FILE, {"snapshots": []})
+    return {"indirme_zamani": _now().isoformat(),
+            "bu_hafta": _hafta_no(),
+            "veriseti": vs,                                  # haftalık özet (son 12 hafta)
+            "guncel_snapshotlar": db.get("snapshots", []),   # o anki ham veri (silinmeden)
+            "snapshot_sayi": len(db.get("snapshots", [])),
+            "hafta_sayi": len(vs.get("haftalar", []))}
+
+
 if __name__ == "__main__":
     async def _t():
         for s in SEMBOLLER:
