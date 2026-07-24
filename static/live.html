@@ -1063,35 +1063,40 @@ function optTipHide(){const t=document.getElementById('opt-tip');if(t)t.style.di
 function odK(n){if(n==null||!isFinite(n))return '—';const x=Number(n),a=Math.abs(x),s=x<0?'-':'';if(a>=1e9)return s+(a/1e9).toFixed(2)+'Mr';if(a>=1e6)return s+(a/1e6).toFixed(1)+'M';if(a>=1e3)return s+(a/1e3).toFixed(0)+'K';return s+a.toFixed(0);}
 
 // ── i. STRİKE TOPOGRAFYASI (merdiven) ──
+// Dikey çubuk grafik: x=strike (artan), üst yeşil / alt kırmızı bar, spot=beyaz çizgi.
+function odDikeyBar(vis,spot,fnUp,fnDn,fnTip,ymaxLab,notu){
+  const ups=vis.map(fnUp),dns=vis.map(fnDn);
+  const maxV=Math.max(...ups.map(Math.abs),...dns.map(Math.abs),1);
+  const W=1000,H=300,PT=16,PB=30,PL=8,PR=8,cH=H-PT-PB,mid=PT+cH/2,halfH=cH/2;
+  const n=vis.length,slot=(W-PL-PR)/n,bw=Math.max(slot*0.6,1.5),xC=i=>PL+slot*(i+0.5);
+  const bars=vis.map((s,i)=>{
+    const hu=Math.abs(ups[i])/maxV*halfH*0.94,hd=Math.abs(dns[i])/maxV*halfH*0.94,x=(xC(i)-bw/2).toFixed(1);
+    let r='';
+    if(hu>0.3)r+=`<rect x="${x}" y="${(mid-hu).toFixed(1)}" width="${bw.toFixed(1)}" height="${hu.toFixed(1)}" fill="${OD.pos}" opacity="0.9"/>`;
+    if(hd>0.3)r+=`<rect x="${x}" y="${mid.toFixed(1)}" width="${bw.toFixed(1)}" height="${hd.toFixed(1)}" fill="${OD.neg}" opacity="0.9"/>`;
+    return `<g onmousemove="optTip(event,&quot;${fnTip(s,i)}&quot;)" onmouseleave="optTipHide()"><rect x="${x}" y="${PT}" width="${bw.toFixed(1)}" height="${(H-PT-PB).toFixed(1)}" fill="transparent"/>${r}</g>`;
+  }).join('');
+  let spx=null;
+  for(let i=0;i<n-1;i++){if(spot>=vis[i].strike&&spot<=vis[i+1].strike){const f=(spot-vis[i].strike)/((vis[i+1].strike-vis[i].strike)||1);spx=xC(i)+f*(xC(i+1)-xC(i));break;}}
+  if(spx==null)spx=spot<=vis[0].strike?PL:W-PR;
+  const spotL=`<line x1="${spx.toFixed(1)}" x2="${spx.toFixed(1)}" y1="${(PT-2)}" y2="${(H-PB)}" stroke="#e8eef0" stroke-width="1.3" opacity="0.85"/><text x="${Math.max(24,Math.min(spx,W-24)).toFixed(1)}" y="${(PT+6)}" text-anchor="middle" font-size="9" font-weight="700" fill="#e8eef0" font-family="'JetBrains Mono',monospace">${fmtNum(Math.round(spot))}</text>`;
+  const zero=`<line x1="${PL}" x2="${W-PR}" y1="${mid.toFixed(1)}" y2="${mid.toFixed(1)}" stroke="${OD.line}" stroke-width="0.8"/>`;
+  const step=Math.max(1,Math.ceil(n/14));
+  const xlab=vis.map((s,i)=>i%step===0?`<text x="${xC(i).toFixed(1)}" y="${(H-8)}" text-anchor="middle" font-size="8.5" fill="${OD.mute}" font-family="'JetBrains Mono',monospace">${(s.strike/1000).toFixed(0)}K</text>`:'').join('');
+  const yl=`<text x="${(PL+2)}" y="${(PT+6)}" font-size="8.5" fill="${OD.dim}" font-family="'JetBrains Mono',monospace">${ymaxLab}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair">${zero}${bars}${spotL}${xlab}${yl}</svg>${notu||''}`;
+}
+
 function odLadder(t,lv,spot){
   const all=(t.strikes||[]);
   if(!all.length||!spot)return '<div class="od-empty">Opsiyon verisi yükleniyor…</div>';
-  const lo=spot*0.90,hi=spot*1.10;
-  const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>b.strike-a.strike);
+  const lo=spot*0.88,hi=spot*1.12;
+  const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>a.strike-b.strike);
   if(!vis.length)return '<div class="od-empty">Bu vade için strike yok.</div>';
   const maxOI=Math.max(...vis.map(s=>Math.max(s.callOI||0,s.putOI||0)),1);
-  const sumOI=vis.reduce((a,s)=>a+(s.callOI||0)+(s.putOI||0),0)||1;
-  const tagOf=s=>{if(lv.call_wall===s.strike)return['CW','cw'];if(lv.put_wall===s.strike)return['PW','pw'];if(lv.max_pain===s.strike)return['MP','mp'];if(lv.zero_gamma&&Math.abs(lv.zero_gamma-s.strike)<spot*0.004)return['ZΓ','zg'];return['',''];};
-  const spotRow=`<div class="od-lrow spot"><div class="od-tag" style="color:${OD.acc}">◆</div><div></div><div class="od-bar put"></div><div class="od-strike">${fmtNum(Math.round(spot))}</div><div class="od-bar call"></div><div class="od-net" style="color:${OD.acc}">—</div><div class="od-dist" style="color:${OD.acc}">0.00%</div></div>`;
-  let rows='',placed=false;
-  vis.forEach(s=>{
-    if(!placed&&s.strike<spot){rows+=spotRow;placed=true;}
-    const tg=tagOf(s),tag=tg[0],cls=tg[1];
-    const callW=(s.callOI||0)/maxOI*100,putW=(s.putOI||0)/maxOI*100;
-    const oiPct=(((s.callOI||0)+(s.putOI||0))/sumOI*100);
-    const dist=(s.strike-spot)/spot*100,ng=s.netGamma||0;
-    const tip=`<b style='color:${OD.text}'>$${fmtNum(s.strike)}</b>${cls==='cw'?' · CALL WALL':cls==='pw'?' · PUT WALL':cls==='zg'?' · ZERO GAMMA':cls==='mp'?' · MAX PAIN':''}<br>Call OI: <b style='color:${OD.pos}'>${fmtNum(s.callOI||0)}</b><br>Put OI: <b style='color:${OD.neg}'>${fmtNum(s.putOI||0)}</b><br>Net γ: <b style='color:${ng>=0?OD.pos:OD.neg}'>${ng>=0?'+':''}${odK(ng)}</b>`;
-    rows+=`<div class="od-lrow" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">`+
-      `<div class="od-tag ${cls}">${tag}</div>`+
-      `<div class="od-ap">${oiPct.toFixed(1)}%</div>`+
-      `<div class="od-bar put"><div class="od-fill put" style="width:${putW.toFixed(1)}%"></div></div>`+
-      `<div class="od-strike">${fmtNum(s.strike)}</div>`+
-      `<div class="od-bar call"><div class="od-fill call" style="width:${callW.toFixed(1)}%"></div></div>`+
-      `<div class="od-net" style="color:${ng>=0?OD.pos:OD.neg}">${ng>=0?'+':'−'}${odK(Math.abs(ng))}</div>`+
-      `<div class="od-dist ${dist>=0?'pos':'neg'}">${dist>=0?'+':''}${dist.toFixed(1)}%</div></div>`;
-  });
-  if(!placed)rows=spotRow+rows;
-  return `<div class="od-ladder"><div class="od-lhead"><div>Etiket</div><div>AP%</div><div>Put γ</div><div style="text-align:center">Kullanım</div><div>Call γ</div><div style="text-align:center">Net γ</div><div style="text-align:right">Δ%</div></div>${rows}</div>`;
+  const tip=s=>`<b>$${fmtNum(s.strike)}</b><br>Call OI: <b style='color:${OD.pos}'>${fmtNum(s.callOI||0)}</b><br>Put OI: <b style='color:${OD.neg}'>${fmtNum(s.putOI||0)}</b><br>Net γ ${(s.netGamma>=0?'+':'')+odK(s.netGamma||0)} · Δ ${((s.strike-spot)/spot*100).toFixed(1)}%`;
+  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> Call OI · <b style="color:${OD.neg}">kırmızı ↓</b> Put OI · beyaz çizgi = spot. Bar boyu = açık pozisyon. Fare ile bara gel: Call/Put OI + Net γ + Δ%.</div>`;
+  return odDikeyBar(vis,spot,s=>s.callOI||0,s=>s.putOI||0,tip,'maks OI '+fmtNum(maxOI),not);
 }
 
 // ── Kilit Seviyeler ──
@@ -1104,38 +1109,18 @@ function odLevels(lv,spot){
   }).join('')+`<div class="od-note" style="margin-top:14px;line-height:1.6;font-size:12px"><b style="color:${OD.mute}">Hull, <i>Options, Futures &amp; Other Derivatives</i> (Böl. 19 — Greekler &amp; dinamik hedge) çerçevesi:</b> Piyasa yapıcılar net opsiyon pozisyonunu delta-nötr tutmak için spot/futures alıp satar; bu hedge akışı seviyeleri "mıknatıs" haline getirir. <b style="color:${OD.pos}">Call Wall</b> en yoğun pozitif gamma strike'ı; spot yükseldikçe dealer delta-hedge için satar → güçlü direnç. <b style="color:${OD.neg}">Put Wall</b> yoğun put gamma/OI destek bölgesi. <b style="color:${OD.dim}">Zero Gamma</b> net dealer gamma'nın işaret değiştirdiği eşik — üstünde long-gamma rejimi volatiliteyi bastırır (mean-reversion), altında short-gamma rejimi hareketi hızlandırır (momentum/breakout). <b style="color:${OD.acc}">Max Pain</b> en çok opsiyonun değersiz bittiği denge fiyatı; vade (özellikle haftalık expiry) yaklaştıkça theta+charm akışı fiyatı buraya çeker (pin etkisi). <b style="color:${OD.neu}">Beklenen Hareket</b> = ATM IV'den türetilen ±1σ haftalık bant (Hull §15 — log-normal fiyat dağılımı).</div>`;
 }
 
-// ── ii. KUANTUM DUVARLAR (dikey GEX merdiveni — referans stili) ──
+// ── ii. KUANTUM DUVARLAR (dikey GEX barları) ──
 function odWalls(t,lv,spot,g){
   const all=(t.strikes||[]).filter(s=>(s.callGex||0)!==0||(s.putGex||0)!==0);
   if(!all.length||!spot)return '<div class="od-empty">GEX verisi yükleniyor…</div>';
   const lo=spot*0.85,hi=spot*1.15;
-  const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>b.strike-a.strike);
+  const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>a.strike-b.strike);
   if(!vis.length)return '<div class="od-empty">Bu aralıkta GEX yok.</div>';
-  const maxBar=Math.max(...vis.map(s=>Math.max(s.callGex||0,Math.abs(s.putGex||0))),1);
-  const sumG=vis.reduce((a,s)=>a+Math.abs(s.callGex||0)+Math.abs(s.putGex||0),0)||1;
-  const tagOf=s=>{if(lv.call_wall===s.strike)return['CW','cw'];if(lv.put_wall===s.strike)return['PW','pw'];if(lv.max_pain===s.strike)return['MP','mp'];if(lv.zero_gamma&&Math.abs(lv.zero_gamma-s.strike)<spot*0.004)return['ZΓ','zg'];return['',''];};
-  const spotRow=`<div class="od-lrow spot"><div class="od-tag" style="color:${OD.acc}">◆</div><div></div><div class="od-bar put"></div><div class="od-strike">${fmtNum(Math.round(spot))}</div><div class="od-bar call"></div><div class="od-net" style="color:${OD.acc}">—</div><div class="od-dist" style="color:${OD.acc}">0.00%</div></div>`;
-  let rows='',placed=false;
-  vis.forEach(s=>{
-    if(!placed&&s.strike<spot){rows+=spotRow;placed=true;}
-    const tg=tagOf(s),tag=tg[0],cls=tg[1];
-    const cg=s.callGex||0,pg=s.putGex||0,ng=(s.netGamma!=null?s.netGamma:cg+pg);
-    const callW=Math.abs(cg)/maxBar*100,putW=Math.abs(pg)/maxBar*100;
-    const gPct=((Math.abs(cg)+Math.abs(pg))/sumG*100),dist=(s.strike-spot)/spot*100;
-    const tip=`<b style='color:${OD.text}'>$${fmtNum(s.strike)}</b>${cls?' · '+(cls==='cw'?'CALL WALL':cls==='pw'?'PUT WALL':cls==='zg'?'ZERO GAMMA':'MAX PAIN'):''}<br>Net γ: <b style='color:${ng>=0?OD.pos:OD.neg}'>${ng>=0?'+':''}${odK(ng)}</b><br>Call γ: <b style='color:${OD.pos}'>+${odK(cg)}</b><br>Put γ: <b style='color:${OD.neg}'>${odK(pg)}</b><br>Call OI ${fmtNum(s.callOI||0)} · Put OI ${fmtNum(s.putOI||0)}`;
-    rows+=`<div class="od-lrow" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()">`+
-      `<div class="od-tag ${cls}">${tag}</div>`+
-      `<div class="od-ap">${gPct.toFixed(1)}%</div>`+
-      `<div class="od-bar put"><div class="od-fill put" style="width:${putW.toFixed(1)}%"></div></div>`+
-      `<div class="od-strike">${fmtNum(s.strike)}</div>`+
-      `<div class="od-bar call"><div class="od-fill call" style="width:${callW.toFixed(1)}%"></div></div>`+
-      `<div class="od-net" style="color:${ng>=0?OD.pos:OD.neg}">${ng>=0?'+':'−'}${odK(Math.abs(ng))}</div>`+
-      `<div class="od-dist ${dist>=0?'pos':'neg'}">${dist>=0?'+':''}${dist.toFixed(1)}%</div></div>`;
-  });
-  if(!placed)rows=spotRow+rows;
-  const head=`<div class="od-lhead"><div>Etiket</div><div>γ%</div><div>Put γ</div><div style="text-align:center">Kullanım</div><div>Call γ</div><div style="text-align:center">Net γ</div><div style="text-align:right">Δ%</div></div>`;
-  const not=`<div class="od-note" style="margin-top:12px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil</b> pozitif γ (call duvar → direnç/mıknatıs) · <b style="color:${OD.neg}">kırmızı</b> negatif γ (put duvar → destek). γ%=o strike'ın toplam GEX payı. Fare ile satıra gel: net/call/put γ + OI. Spot duvarın altında→direnç, üstünde→destek. [Hull §19]</div>`;
-  return `<div class="od-ladder">${head}${rows}</div>${not}`;
+  const netOf=s=>(s.netGamma!=null?s.netGamma:(s.callGex||0)+(s.putGex||0));
+  const maxV=Math.max(...vis.map(s=>Math.abs(netOf(s))),1);
+  const tip=s=>{const ng=netOf(s);return `<b>$${fmtNum(s.strike)}</b><br>Net γ: <b style='color:${ng>=0?OD.pos:OD.neg}'>${ng>=0?'+':''}${odK(ng)}</b><br>Call γ +${odK(s.callGex||0)} · Put γ ${odK(s.putGex||0)}<br>OI ${fmtNum((s.callOI||0)+(s.putOI||0))}`;};
+  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> pozitif net γ (call duvar → direnç/mıknatıs) · <b style="color:${OD.neg}">kırmızı ↓</b> negatif net γ (put duvar → destek). Beyaz çizgi = spot. Bar boyu = GEX büyüklüğü. Fare ile bara gel: net/call/put γ + OI. [Hull §19]</div>`;
+  return odDikeyBar(vis,spot,s=>Math.max(netOf(s),0),s=>Math.max(-netOf(s),0),tip,'±'+odK(maxV)+' γ',not);
 }
 
 // ── ii-b. VADE MASASI: GEX vade tablosu + Max-Pain & Pin takvimi ──
