@@ -1323,6 +1323,31 @@ function odPozisyon(lv,spot,g,oy){
   return `<div class="od-two"><div><p class="od-pull" style="margin-bottom:20px">${pull}</p><p style="font-size:12px;color:${OD.t2};line-height:1.7;margin:0">${esc((oy&&oy.yorum)||'')||'Opsiyon pozisyon analizi yükleniyor…'}</p></div><div><div class="od-sheet-label" style="margin-bottom:14px">Senaryolar</div>${scn.map(s=>`<div class="od-scn"><div><div style="font-size:13px;color:${OD.text};font-weight:600;margin-bottom:2px">${s[0]}</div><div style="font-size:10px;color:${OD.mute};font-weight:600">${s[2]}</div></div><div style="text-align:right;color:${OD.acc};font-size:14px;font-family:'Space Grotesk',sans-serif">${(s[1]==null||!isFinite(s[1]))?'—':'$'+fmtNum(s[1])}</div></div>`).join('')}</div></div>`;
 }
 
+function odGexHeatmap(d){
+  if(!d||!d.satirlar||!d.vadeler) return '<div class="od-note">Isı haritası yükleniyor…</div>';
+  if(!d.satirlar.length) return '<div class="od-note">Veri yok.</div>';
+  const V=d.vadeler, S=d.satirlar, spot=d.spot, maxa=d.maxabs||1;
+  const cell=(v)=>{
+    if(v==null) return `<td style="padding:5px 8px;border-bottom:1px solid ${OD.line}"></td>`;
+    const a=Math.min(1,Math.abs(v)/maxa), col=v>=0?'31,240,173':'255,93,108';
+    const alpha=(0.06+a*0.60).toFixed(2);
+    return `<td style="padding:5px 8px;text-align:right;border-bottom:1px solid ${OD.line};background:rgba(${col},${alpha});color:${v>=0?OD.pos:OD.neg};font-weight:600">${v>=0?'+':'−'}${odK(Math.abs(v))}</td>`;
+  };
+  const head=`<th style="text-align:left;padding:6px 8px;color:${OD.dim};font-size:10px;font-weight:600">STRİKE</th>`+
+    V.map(x=>`<th style="text-align:right;padding:6px 8px;color:${OD.dim};font-size:10px;font-weight:600">${x.label}</th>`).join('');
+  let spotDone=false, rows='';
+  for(const r of S){
+    if(spot!=null && !spotDone && r.strike<spot){
+      rows+=`<tr><td colspan="${V.length+1}" style="padding:1px 0;border-top:1px dashed ${OD.acc}"><span style="font-size:9px;color:${OD.acc};padding-left:6px">spot ${fmtNum(Math.round(spot))}</span></td></tr>`;
+      spotDone=true;
+    }
+    rows+=`<tr><td style="padding:5px 8px;color:${OD.t2};font-family:'JetBrains Mono',monospace;font-size:11px;border-bottom:1px solid ${OD.line}">${fmtNum(r.strike)}</td>${r.hucreler.map(cell).join('')}</tr>`;
+  }
+  const kaynak=d.kaynaklar?Object.entries(d.kaynaklar).map(([k,v])=>k+' '+v).join(' · '):'';
+  return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`+
+    `<div class="od-note" style="margin-top:12px;line-height:1.6;font-size:12px"><b style="color:${OD.mute}">Isı haritası — dealer gamma stoku (strike × vade):</b> her hücre o strike ve vadedeki net dealer GEX'idir (birim: ${esc(d.birim||'')}). Yani spot %1 oynarsa dealer'ın o bölgedeki delta'sı ~bu kadar USD kayar → delta-nötr kalmak için o kadar spot alıp satması gerekir. <b style="color:${OD.pos}">Yeşil (+)</b> dealer long-gamma → hareketi söndürür, o strike'a pinler (mıknatıs/duvar). <b style="color:${OD.neg}">Kırmızı (−)</b> short-gamma → hareketi hızlandırır (kırılım yakıtı). Renk yoğunluğu büyüklükle orantılı; boş hücre = anlamlı pozisyon yok. ${kaynak?`<span style="color:${OD.mute}">· ${kaynak}</span>`:''}</div>`;
+}
+
 function scrOptions(){
   const t=ST.optTopo||{},g=ST.optGreek||{},sk=ST.optSkew||{},cvd=ST.optCvd||{},dag=ST.optDagilim||{},oy=ST.opsiyonYorum||{};
   const lv=t.levels||{},spot=t.spot,dg=dag.dagilim||{};
@@ -1350,6 +1375,11 @@ function scrOptions(){
     <section class="od-sec">
       <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii.</span>GEX Vade Tablosu · Max-Pain &amp; Pin</h2><span class="od-meta">DESTEK · DİRENÇ · NET GEX</span></div>
       ${odVadeMasasi(ST.optVadeMasasi)}
+    </section>
+
+    <section class="od-sec">
+      <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iii-b.</span>GEX Isı Haritası · strike × vade</h2><span class="od-meta">DEALER GAMMA STOKU · ${(ST.optHeatmap&&ST.optHeatmap.birim)||'γ USD/%1'}</span></div>
+      ${odGexHeatmap(ST.optHeatmap)}
     </section>
 
     <section class="od-sec">
@@ -2189,16 +2219,18 @@ async function loadTheories(){return loadTheoryHipotez();}
 async function loadOptions(){ return loadOptionsFull(); }
 async function loadOptionsFull(){
   const v=_optVade, c=_optCur;
-  const[topo,greek,skew,cvd,dag,yorum,vm]=await Promise.all([
+  const[topo,greek,skew,cvd,dag,yorum,vm,hm]=await Promise.all([
     jget('/api/options/topografya?currency='+c+'&vade='+v),
     jget('/api/options/greekler?currency='+c),
     jget('/api/options/skew?currency='+c),
     jget('/api/options/cvd-uclu?currency='+c),
     jget('/api/options/islem-dagilimi?currency='+c),
     jget('/api/opsiyon-yorum?currency='+c),
-    jget('/api/options/vade-masasi?currency='+c)
+    jget('/api/options/vade-masasi?currency='+c),
+    jget('/api/options/gex-heatmap?currency='+c)
   ]);
   if(vm&&!vm.error)ST.optVadeMasasi=vm;
+  if(hm&&!hm.error)ST.optHeatmap=hm;
   if(topo&&!topo.error)ST.optTopo=topo;
   if(greek&&!greek.error)ST.optGreek=greek;
   if(skew&&!skew.error)ST.optSkew=skew;
