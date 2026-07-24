@@ -311,6 +311,52 @@ function komutaKutulariHtml(){
   </div>`;
 }
 
+// ─── OAR şampiyon sistem KOLONU (3'lü yan yana, eşit boy, kompakt tablo) ───
+function _oarLv(v){v=+v;if(!isFinite(v))return '—';return v>=1000?Math.round(v).toLocaleString('en-US'):v>=1?v.toFixed(2):v.toFixed(4);}
+function _oarKolon(cfg){
+  const col=v=>(+v)>=0?'#1ff0ad':'#ff5d6c';
+  const durumB=r=>r.acik
+    ? `<span style="color:#ffb13c;font-weight:700">Açık</span>`
+    : `<span style="color:${r.sonuc==='TP'?'#1ff0ad':r.sonuc==='SL'?'#ff5d6c':'#9fb0ad'};font-weight:700">Kapalı</span>`;
+  const rows=cfg.rows||[];
+  const govde=rows.length?rows.map(r=>`<tr style="border-top:1px solid #101614">
+      <td style="padding:2px 4px;color:#cdd9d8;font-weight:600">${esc(r.coin)}</td>
+      <td style="padding:2px 2px;text-align:center;color:${r.yon==='LONG'?'#1ff0ad':'#ff5d6c'}">${r.yon==='LONG'?'▲':r.yon==='SHORT'?'▼':''}</td>
+      <td style="padding:2px 4px;color:#9fb0ad">${r.g}</td>
+      <td style="padding:2px 4px;color:#9fb0ad">${r.c}</td>
+      <td style="padding:2px 4px;color:#8a9c99">${r.s}</td>
+      <td style="padding:2px 4px">${durumB(r)}</td>
+      <td style="padding:2px 4px;text-align:right;color:${r.kar==null?'#5e716f':col(r.kar)};font-weight:700">${r.kar==null?'açık':(r.kar>=0?'+':'')+(+r.kar).toFixed(2)+'%'}</td>
+    </tr>`).join('')
+  : `<tr><td colspan="7" style="padding:16px 4px;color:#5e716f;text-align:center">işlem yok — sinyal bekleniyor</td></tr>`;
+  return `<div style="background:#0a0f0f;border:1px solid #18211f;border-left:2px solid ${cfg.renk};border-radius:8px;padding:11px 12px;display:flex;flex-direction:column">
+    <div style="min-height:82px">
+      <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:7px">
+        <span class="sg" style="font-size:9px;letter-spacing:.06em;color:${cfg.renk};flex:1;line-height:1.35">${cfg.baslik}</span>
+        ${cfg.badge||''}
+        ${cfg.refresh?`<button onclick="${cfg.refresh}" style="font-size:10px;color:${cfg.renk};background:none;border:1px solid #1a2422;border-radius:5px;padding:2px 6px;cursor:pointer;flex-shrink:0">↻</button>`:''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;font-size:8.5px">
+        ${(cfg.chips||[]).map(([l,v,c])=>`<span style="background:#0b100f;border:1px solid #1a2422;border-radius:4px;padding:2px 6px;color:#9fb0ad">${l} <b style="color:${c||'#cdd9d8'}">${v}</b></span>`).join('')}
+      </div>
+      ${cfg.kapiChip?`<div style="display:flex;gap:4px;margin-top:5px">${cfg.kapiChip}</div>`:''}
+    </div>
+    <div style="height:360px;overflow-y:auto;border:1px solid #101614;border-radius:6px;margin-top:7px">
+      <table style="width:100%;border-collapse:collapse;font-size:9px">
+        <thead><tr style="color:#5e716f;text-align:left">
+          <th style="padding:4px;position:sticky;top:0;background:#0b100f">Coin</th><th style="position:sticky;top:0;background:#0b100f"></th>
+          <th style="padding:4px;position:sticky;top:0;background:#0b100f" title="Giriş">G</th>
+          <th style="padding:4px;position:sticky;top:0;background:#0b100f" title="Çıkış">Ç</th>
+          <th style="padding:4px;position:sticky;top:0;background:#0b100f" title="Stop">S</th>
+          <th style="padding:4px;position:sticky;top:0;background:#0b100f">Durum</th>
+          <th style="padding:4px;text-align:right;position:sticky;top:0;background:#0b100f">Kâr%</th>
+        </tr></thead>
+        <tbody>${govde}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 function scrLeader(){
   const pd=ST.piyasaDurumu||{}, pv=pd.veri||{};
   const oy=ST.opsiyonYorum||{}, ov=oy.veri||{};
@@ -348,61 +394,38 @@ function scrLeader(){
   const _cc=(ad,ac,pct)=>`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${ac===true?'#0e2018':ac===false?'#201410':'#151515'};border:1px solid ${ac===true?'#1ff0ad':ac===false?'#ff8a3c':'#333'};color:${ac===true?'#1ff0ad':ac===false?'#ffb13c':'#8a9c99'}">${ad}${pct!=null?' %'+pct:''} ${ac===true?'🟢':ac===false?'🔴':'⏳'}</span>`;
   const _ck=(os&&os.canli_kapi)||null;
   const kapiChip=_ck&&(_ck.btc_asia_pct!=null||_ck.eth_asia_pct!=null)?`${_cc('BTC',_ck.btc_acik,_ck.btc_asia_pct)} ${_cc('ETH',_ck.eth_acik,_ck.eth_asia_pct)}`:(_ck?`<span style="font-size:9px;color:#8a9c99">⏳ kapı</span>`:'');
+  // ── 3 ŞAMPİYONUN CANLI İŞLEMLERİNİ NORMALİZE ET (açık üstte, kapananlar yeni→eski) ──
+  const _colv=v=>(+v)>=0?'#1ff0ad':'#ff5d6c';
+  const fd=ST.oarPaper||{}, fdRows=[];
+  Object.entries(fd.acik_pozisyonlar||{}).forEach(([s,p])=>fdRows.push({coin:(s||'').replace('USDT',''),yon:p.yon,g:_oarLv(p.giris),c:'—',s:_oarLv(p.sl),acik:true,kar:null}));
+  (fd.islemler||[]).slice().reverse().forEach(t=>fdRows.push({coin:(t.sembol||'').replace('USDT',''),yon:t.yon,g:_oarLv(t.giris),c:_oarLv(t.cikis),s:'—',acik:false,sonuc:t.sonuc,kar:t.equity_pct==null?null:+t.equity_pct}));
+  const tr=ST.oarTrend||{}, trRows=[], trK=tr.kaldirac||5;
+  Object.entries(tr.acik||{}).forEach(([s,p])=>trRows.push({coin:(s||'').replace('USDT',''),yon:p.yon,g:_oarLv(p.giris),c:'—',s:_oarLv(p.sl),acik:true,kar:null}));
+  (tr.son_islemler||[]).slice().reverse().forEach(t=>trRows.push({coin:(t.sembol||'').replace('USDT',''),yon:t.yon,g:_oarLv(t.giris),c:_oarLv(t.cikis),s:'—',acik:false,sonuc:t.sonuc,kar:(+(t.net_fiyat_pct||0))*trK}));
+  const al=ST.oarAltcoin||{}, alRows=[];
+  (al.acik_pozisyonlar||[]).forEach(p=>alRows.push({coin:(p.sembol||'').replace('USDT',''),yon:p.yon,g:_oarLv(p.giris),c:'—',s:_oarLv(p.sl),acik:true,kar:null}));
+  (al.kapananlar||[]).slice().reverse().forEach(t=>alRows.push({coin:(t.sembol||'').replace('USDT',''),yon:t.yon,g:_oarLv(t.giris),c:_oarLv(t.cikis),s:'—',acik:false,sonuc:t.sonuc,kar:t.equity_pct==null?null:+t.equity_pct}));
+  const fdGet=fd.getiri_pct||0;
+  const trGet=(tr.bakiye!=null&&tr.baslangic)?((tr.bakiye-tr.baslangic)/tr.baslangic*100):null;
+  const tMeta=(os&&(os.stil_portfoy||[]).find(s=>s.stil==='kirilim_devam_trend'))||null;
+  const trBadge=tMeta?`<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:${tMeta.saglam?'#0e2018':'#201410'};border:1px solid ${tMeta.saglam?'#1ff0ad':'#ff8a3c'};color:${tMeta.saglam?'#1ff0ad':'#ffb13c'};flex-shrink:0">${tMeta.saglam?'✅ SAĞLAM':'⚠'}</span>`:'';
   const oarSistemHtml=os?`
   <div class="card" style="padding:15px 17px;margin-bottom:13px;border-left:2px solid #1ff0ad">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#1ff0ad">⭐ OAR SİSTEMİ</span>
-      ${kapiChip?`<span style="display:flex;gap:5px;align-items:center">${kapiChip}</span>`:''}
-      <span style="font-size:8.5px;color:#5e716f">per-sembol kapı (her coin kendi Asia≥%1)</span>
-      ${eq5?`<span style="font-size:10px;color:#8a9c99;margin-left:auto">$1000 · 5x → <b style="color:#1ff0ad">$${(eq5.son>=1e6?(eq5.son/1e6).toFixed(1)+'M':eq5.son.toLocaleString())}</b> <span style="color:#5e716f">(maxDD%${eq5.maxdd_pct}${os.equity.likidasyon?' · 💀':' · likide yok'})</span></span>`:''}
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#1ff0ad">⭐ OAR SİSTEMİ — 3 ŞAMPİYON</span>
+      <span style="font-size:8.5px;color:#5e716f">per-sembol kapı (her coin kendi Asia≥%1) · G giriş · Ç çıkış · S stop</span>
+      ${eq5?`<span style="font-size:10px;color:#8a9c99;margin-left:auto">portföy $1000·5x → <b style="color:#1ff0ad">$${(eq5.son>=1e6?(eq5.son/1e6).toFixed(1)+'M':eq5.son.toLocaleString())}</b></span>`:''}
     </div>
-    <div style="background:#0a0f0f;border:1px solid #15301f;border-radius:7px;padding:11px 13px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#7af0c4">📦 ŞAMPİYON 1 — FADE · BTC+ETH · $1000 · 5x</span> ${kapiChip}
-        <button onclick="loadOarPaper().then(()=>{render();})" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
-      </div>
-      <div id="oar-paper-panel">${oarPaperHtml()}</div>
-    </div>
-    ${(()=>{const t=(os.stil_portfoy||[]).find(s=>s.stil==='kirilim_devam_trend');if(!t)return '';
-      return `<div style="background:#0a0f0f;border:1px solid #1a2a3a;border-radius:7px;padding:11px 13px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#56a8ff">⚡ ŞAMPİYON 2 — TREND (KIRILIM-DEVAM) · BTC+ETH · $1000 · 5x</span> ${kapiChip}
-        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${t.saglam?'#0e2018':'#201410'};border:1px solid ${t.saglam?'#1ff0ad':'#ff8a3c'};color:${t.saglam?'#1ff0ad':'#ffb13c'}">${t.saglam?'✅ BACKTEST-DOĞRULANMIŞ (SAĞLAM)':'⚠ doğrulama sürüyor'}</span>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:#8a9c99">
-        <span>OOS <b style="color:#1ff0ad">${t.oos_puan}</b> (WR%${t.oos_wr})</span>
-        <span>HOLDOUT <b style="color:#ffb13c">${t.holdout_puan}</b> (WR%${t.holdout_wr}, n${t.holdout_trade})</span>
-        ${t.beklenti!=null?`<span>beklenti <b style="color:#1ff0ad">${t.beklenti>0?'+':''}${t.beklenti}%</b></span>`:''}
-        ${t.pf!=null?`<span>PF <b style="color:#1ff0ad">${t.pf}</b></span>`:''}
-      </div>
-      ${(()=>{const tr=ST.oarTrend;if(!tr)return '<div style="font-size:10px;color:#5e716f;margin-top:6px">canlı paper yükleniyor…</div>';
-        const ac=Object.entries(tr.acik||{});
-        return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #141d1b;display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
-          <span style="color:#8a9c99">CANLI: $1000 · 5x → bakiye <b style="color:${(tr.bakiye||0)>=(tr.baslangic||1000)?'#1ff0ad':'#ff5d6c'}">$${tr.bakiye!=null?tr.bakiye.toLocaleString():'—'}</b></span>
-          <span style="color:#8a9c99">işlem: <b style="color:#cdd9d8">${tr.islem_sayisi||0}</b></span>
-          ${ac.length?ac.map(([s,p])=>`<span style="color:#56a8ff">📍 ${s} ${p.yon} @ ${p.giris} (TP ${p.tp} / SL ${p.sl})</span>`).join(''):'<span style="color:#5e716f">açık pozisyon yok — kırılım bekleniyor</span>'}
-        </div>
-        ${(()=>{const isl=tr.son_islemler||[];if(!isl.length)return '<div style="font-size:10px;color:#5e716f;margin-top:6px">henüz kapanmış işlem yok</div>';
-          const zf=t=>{try{return new Date(t).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}};
-          return `<div style="margin-top:8px;border-top:1px solid #141d1b;padding-top:7px">
-            <div class="sg" style="font-size:8.5px;letter-spacing:.12em;color:#5e716f;margin-bottom:5px">SON İŞLEMLER (${tr.islem_sayisi||isl.length})</div>
-            <div style="max-height:220px;overflow-y:auto">
-            ${isl.map(t=>{const eq=(t.net_fiyat_pct||0)*(tr.kaldirac||5);const kaz=eq>=0;
-              return `<div style="display:grid;grid-template-columns:38px 42px 1fr auto;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid #101614;font-size:10px">
-                <span style="color:#9fb0ad;font-weight:600">${(t.sembol||'').replace('USDT','')}</span>
-                <span style="color:${t.yon==='LONG'?'#1ff0ad':'#ff5d6c'};font-weight:600">${t.yon}</span>
-                <span style="color:#7d908d">${t.giris}→${t.cikis} · <span style="color:${t.sonuc==='TP'?'#1ff0ad':t.sonuc==='SL'?'#ff5d6c':'#8a9c99'}">${t.sonuc}</span> · ${zf(t.kapanis)}</span>
-                <span style="text-align:right;font-weight:700;color:${kaz?'#1ff0ad':'#ff5d6c'}">${kaz?'+':''}${eq.toFixed(2)}%</span>
-              </div>`;}).join('')}
-            </div></div>`;})()}
-      </div>`;})()}
-    </div>`;})()}
-    <div style="background:#0a0f0f;border:1px solid #2a2410;border-radius:7px;padding:11px 13px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:9.5px;letter-spacing:.14em;color:#ffd479">🅰 ALTCOIN SİSTEM · $1000 · 5x · haftalık K/Z</span> ${kapiChip}
-        <button onclick="loadOarAltcoin().then(()=>{render();})" style="font-size:10px;color:#ffd479;background:none;border:1px solid #2a2410;border-radius:6px;padding:3px 8px;cursor:pointer">↻</button>
-      </div>
-      <div id="oar-altcoin-panel">${oarAltcoinHtml()}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+      ${_oarKolon({baslik:'📦 ŞAMPİYON 1 — FADE (ekstrem dönüş)<br>BTC + ETH',renk:'#7af0c4',refresh:"loadOarPaper().then(()=>render())",kapiChip:kapiChip,
+        chips:[['💰','$1000·'+(fd.kaldirac||5)+'x'],['Bakiye','$'+(fd.bakiye!=null?(+fd.bakiye).toLocaleString():'—'),_colv(fdGet)],['Getiri','%'+fdGet,_colv(fdGet)],['İşlem',fd.bu_ay_islem||0],['WR','%'+(fd.bu_ay_wr||0),'#7af0c4']],
+        rows:fdRows})}
+      ${_oarKolon({baslik:'⚡ ŞAMPİYON 2 — TREND (kırılım-devam)<br>BTC + ETH',renk:'#56a8ff',refresh:"loadOarSistem().then(()=>render())",kapiChip:kapiChip,badge:trBadge,
+        chips:[['💰','$1000·'+trK+'x'],['Bakiye','$'+(tr.bakiye!=null?(+tr.bakiye).toLocaleString():'—'),trGet==null?'#9fb0ad':_colv(trGet)],(trGet==null?['Getiri','—']:['Getiri','%'+trGet.toFixed(1),_colv(trGet)]),['İşlem',tr.islem_sayisi||0]],
+        rows:trRows})}
+      ${_oarKolon({baslik:'🅰 ŞAMPİYON 3 — ALTCOIN<br>Top-100 · haftalık',renk:'#ffd479',refresh:"loadOarAltcoin().then(()=>render())",
+        chips:[['💰','$1000·5x'],['Hafta',esc(al.hafta||'—'),'#7af0c4'],['Açık',al.acik_sayisi||0,'#ffb13c'],['İşlem',al.bu_hafta_islem||0],['WR','%'+(al.bu_hafta_wr||0),'#7af0c4'],['Net','%'+(al.bu_hafta_net_pct||0),_colv(al.bu_hafta_net_pct||0)]],
+        rows:alRows})}
     </div>
   </div>`:'';
 
