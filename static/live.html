@@ -409,35 +409,10 @@ function scrLeader(){
   return `
   <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:15px">
     <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Komuta Merkezi</h1>
-    <span style="font-size:12px;color:#5e716f">Lider Agent · OAR sistem + piyasa durumu</span>
+    <span style="font-size:12px;color:#5e716f">Lider Agent · OAR sistem</span>
     <button onclick="raporUret()" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1ff0ad;color:#7af0c4;border-radius:7px;padding:7px 14px;font-weight:600;font-size:12px;cursor:pointer">⚡ Rapor Üret</button>
   </div>
   ${oarSistemHtml}
-
-  <!-- PİYASA DURUMU — TAM GENİŞLİK -->
-  <div class="card" style="padding:16px 18px;margin-bottom:13px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:11px">
-      <span class="sg" style="font-size:10px;letter-spacing:.16em;color:#5e716f">PİYASA DURUMU</span>
-      <span class="sg" style="font-weight:700;font-size:16px;color:${regColor}">${rejim}</span>
-      ${pv.move_source?`<span style="font-size:10px;color:#8a9c99;border:1px solid #1a2422;padding:2px 8px;border-radius:5px">${pv.move_source}</span>`:''}
-    </div>
-    <div style="font-size:13px;color:#b8c6c3;line-height:1.6;white-space:pre-wrap">${has3?'':vurgu(pd.yorum||'Piyasa durumu analizi yükleniyor... (opsiyon + makro + indikatör + kitap harmanı)')}</div>
-    ${has3?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px">
-      ${baslikKutu('📊 TEKNİK','#1ff0ad',bol.teknik)}
-      ${baslikKutu('🏛 TEMEL','#56a8ff',bol.temel)}
-      ${baslikKutu('🧠 PSİKOLOJİ','#ffb13c',bol.psikoloji)}
-    </div>`:''}
-    ${pv.call_wall?`<div style="display:flex;gap:14px;margin-top:11px;padding-top:10px;border-top:1px solid #141d1b;font-size:10px;color:#8a9c99">
-      <span>CW <b style="color:#1ff0ad">$${fmtNum(pv.call_wall)}</b></span>
-      <span>PW <b style="color:#ff5d6c">$${fmtNum(pv.put_wall)}</b></span>
-      <span>ZG <b style="color:#ffb13c">$${fmtNum(pv.zero_gamma)}</b></span>
-      <span>İndikatör <b style="color:${skRenk}">${skor}/100 ${sk.yon||''}</b></span>
-    </div>`:''}
-    ${(pd.kitap_kaynaklar&&pd.kitap_kaynaklar.length)?`<div style="margin-top:10px;padding-top:9px;border-top:1px solid #141d1b">
-      <span style="font-size:8.5px;letter-spacing:.1em;color:#5e716f">📚 YARARLANILAN KİTAPLAR: </span>
-      ${pd.kitap_kaynaklar.map(k=>`<span style="font-size:9px;color:#56a8ff;border:1px solid #1a2a3a;padding:2px 7px;border-radius:4px;margin-right:5px">${esc(k)}</span>`).join('')}
-    </div>`:''}
-  </div>
 
   ${komutaGrafikKart('BTCUSDT','BTC')}
   ${komutaGrafikKart('ETHUSDT','ETH')}`;
@@ -2244,7 +2219,7 @@ async function boot(){
   tickClock();setInterval(tickClock,1000);
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadPiyasaDurumu,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
+  const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   // sayfa yenilendiğinde son sekmede kal → o sekmenin verisini de yükle
@@ -2253,7 +2228,7 @@ async function boot(){
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadPiyasaDurumu();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
+  setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
     if(ST.tab==='live'){updateFeedOnly();updateCioPaperOnly();}
     else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);
