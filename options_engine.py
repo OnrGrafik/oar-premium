@@ -555,7 +555,7 @@ _GREEK_ALAN = {"gamma":"gex", "vega":"vgx", "theta":"tex", "vanna":"vex", "volga
 _GREEK_BIRIM = {"gamma":"γ USD/%1", "vega":"vega USD/1%IV", "theta":"θ USD/gün",
                 "vanna":"vanna USD/%1", "volga":"volga USD/1%IV²"}
 
-async def gex_heatmap(currency="BTC", greek="gamma", bant=0.20, max_vade=10, max_strike=32, esik=2_000_000.0):
+async def gex_heatmap(currency="BTC", greek="gamma", bant=0.20, max_vade=10, max_strike=32, esik=2_000_000.0, mod="kapali"):
     """Strike × vade GEX ısı haritası (çok-borsa). satirlar[].hucreler = vadeler
     sırasıyla hücre değeri (USD) veya None. maxabs = renk ölçeği.
     esik: |değer| bu USD altındaki hücreler GİZLENİR (kirlilik önlenir). gamma
@@ -590,22 +590,56 @@ async def gex_heatmap(currency="BTC", greek="gamma", bant=0.20, max_vade=10, max
     strikeler=sorted(aday,reverse=True)   # üstte yüksek strike (referans gibi)
     vadeler=[{"ts":ts,"label":datetime.fromtimestamp(ts/1000,tz=timezone.utc).strftime("%d%b%y").upper()}
              for ts in exps]
+
+    # ── Snapshot kaydı (yalnız gamma) → Δ anlık/gün-içi + drift için tarih birikir
+    net_gex_toplam=round(sum(o.get("gex",0) for o in opts))
+    zg=None
+    if greek=="gamma":
+        try:
+            import oar_gex_snapshot as _gs
+            zg=_zero_gamma(opts,spot)
+            _gs.kaydet(currency,{"ts":now,"cells":{f"{int(round(k))}|{t}":round(v) for (k,t),v in hucre.items()},
+                                 "net_gex":net_gex_toplam,"zero_gamma":zg,"spot":round(spot)})
+        except Exception:
+            pass
+
+    # ── Mod: kapalı(mutlak) / anlık(~22dk Δ) / gün-içi(açılış Δ) — yalnız gamma
+    delta_yok=False; ref=None
+    if mod in ("anlik","gun_ici") and greek=="gamma":
+        try:
+            import oar_gex_snapshot as _gs
+            ref=_gs.en_yakin(currency,22) if mod=="anlik" else _gs.gun_ilk(currency)
+        except Exception:
+            ref=None
+        if not ref: delta_yok=True
+    ref_cells=(ref or {}).get("cells",{})
+
     maxabs=0.0; satirlar=[]
     for K in strikeler:
         row=[]
         for ts in exps:
-            v=gecerli.get((K,ts))
-            if v is not None:
-                v=round(v)
-                if abs(v)>maxabs: maxabs=abs(v)
-            row.append(v)
+            if ref and not delta_yok:                         # Δ modu
+                d=round(hucre.get((K,ts),0.0)-ref_cells.get(f"{int(round(K))}|{ts}",0.0))
+                if abs(d)<esik_uygula*0.1: d=None             # küçük Δ gürültüsü ele
+            else:                                             # mutlak (kapalı / Δ yok)
+                d=gecerli.get((K,ts))
+                if d is not None: d=round(d)
+            if d is not None and abs(d)>maxabs: maxabs=abs(d)
+            row.append(d)
         satirlar.append({"strike":K,"hucreler":row})
+
     kaynaklar={}
     for o in opts:
         b=o.get("borsa","deribit"); kaynaklar[b]=kaynaklar.get(b,0)+1
-    return {"spot":spot,"greek":greek,"birim":_GREEK_BIRIM.get(greek,"USD"),"esik":round(esik_uygula),
-            "vadeler":vadeler,"satirlar":satirlar,"maxabs":maxabs,
-            "kaynaklar":kaynaklar,"tarih":datetime.now(timezone.utc).isoformat()}
+    cikti={"spot":spot,"greek":greek,"mod":mod,"birim":_GREEK_BIRIM.get(greek,"USD"),"esik":round(esik_uygula),
+           "vadeler":vadeler,"satirlar":satirlar,"maxabs":maxabs,"net_gex":net_gex_toplam,"zero_gamma":zg,
+           "delta_yok":delta_yok,"kaynaklar":kaynaklar,"tarih":datetime.now(timezone.utc).isoformat()}
+    try:
+        import oar_gex_snapshot as _gs
+        cikti["drift"]=_gs.drift(currency)
+    except Exception:
+        cikti["drift"]=[]
+    return cikti
 
 # ─── Opsiyon CVD ──────────────────────────────────────────────────
 async def opsiyon_cvd(currency="BTC"):

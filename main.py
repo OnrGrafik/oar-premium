@@ -1342,6 +1342,11 @@ async def startup_event():
         import hacim_gorev as _hg
         asyncio.create_task(_hg.worker_dongu())
         print("[Startup] Hacim görev worker başlatıldı")
+        # GEX ISI HARİTASI SNAPSHOT: gamma grid'ini 5dk'da kaydeder → ısı
+        # haritasında Δ anlık(~22dk)/gün-içi(açılış) + gün-içi gamma drift serisi.
+        import oar_gex_snapshot as _gsnap
+        asyncio.create_task(_gsnap.snapshot_loop(("BTC", "ETH"), 300))
+        print("[Startup] GEX snapshot toplayıcı başlatıldı")
     except Exception as e:
         print(f"[Startup] leader_agent loopları: {str(e)[:80]}")
 
@@ -1560,9 +1565,10 @@ async def options_vade_masasi(currency: str = "BTC"):
     return await vade_masasi(currency)
 
 @app.get("/api/options/gex-heatmap")
-async def options_gex_heatmap(currency: str = "BTC", greek: str = "gamma", esik: float = 2_000_000.0):
+async def options_gex_heatmap(currency: str = "BTC", greek: str = "gamma",
+                              esik: float = 2_000_000.0, mod: str = "kapali"):
     from options_engine import gex_heatmap
-    return await gex_heatmap(currency, greek, esik=esik)
+    return await gex_heatmap(currency, greek, esik=esik, mod=mod)
 
 @app.get("/api/options/topografya")
 async def options_topografya(currency: str = "BTC", vade: str = "all"):
