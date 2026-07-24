@@ -1063,40 +1063,42 @@ function optTipHide(){const t=document.getElementById('opt-tip');if(t)t.style.di
 function odK(n){if(n==null||!isFinite(n))return '—';const x=Number(n),a=Math.abs(x),s=x<0?'-':'';if(a>=1e9)return s+(a/1e9).toFixed(2)+'Mr';if(a>=1e6)return s+(a/1e6).toFixed(1)+'M';if(a>=1e3)return s+(a/1e3).toFixed(0)+'K';return s+a.toFixed(0);}
 
 // ── i. STRİKE TOPOGRAFYASI (merdiven) ──
-// Dikey çubuk grafik: x=strike (artan), üst yeşil / alt kırmızı bar, spot=beyaz çizgi.
-function odDikeyBar(vis,spot,fnUp,fnDn,fnTip,ymaxLab,notu){
+// Dikey çubuk grafik: x=strike (index eşit aralık, boşluk yok), üst yeşil / alt
+// kırmızı ince bar, spot=kesikli mavi çizgi, Y-ekseni $ belirteçli gridline.
+function odDikeyBar(vis,spot,fnUp,fnDn,fnTip,birim,notu){
   const ups=vis.map(fnUp),dns=vis.map(fnDn);
   const maxV=Math.max(...ups.map(Math.abs),...dns.map(Math.abs),1);
-  const W=1000,H=300,PT=16,PB=30,PL=8,PR=8,cH=H-PT-PB,mid=PT+cH/2,halfH=cH/2;
-  const n=vis.length,slot=(W-PL-PR)/n,bw=Math.max(slot*0.6,1.5),xC=i=>PL+slot*(i+0.5);
+  const W=1000,H=310,PT=20,PB=30,PL=54,PR=14,cH=H-PT-PB,mid=PT+cH/2,halfH=cH/2;
+  const n=vis.length,slot=(W-PL-PR)/n,bw=Math.max(Math.min(slot*0.4,4),1),xC=i=>PL+slot*(i+0.5);
+  // Y gridline + $ değer belirteçleri (sol) — "bu yükseklik kaç dolar/kontrat?"
+  const grid=[1,0.5,0,-0.5,-1].map(f=>{const y=mid-f*halfH*0.94;return `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.line}" stroke-width="${f===0?0.9:0.4}" opacity="${f===0?0.9:0.5}"/><text x="${(PL-6)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="${f>0?OD.pos:f<0?OD.neg:OD.dim}" font-family="'JetBrains Mono',monospace">${f>0?'+':''}${odK(f*maxV)}</text>`;}).join('');
   const bars=vis.map((s,i)=>{
     const hu=Math.abs(ups[i])/maxV*halfH*0.94,hd=Math.abs(dns[i])/maxV*halfH*0.94,x=(xC(i)-bw/2).toFixed(1);
     let r='';
-    if(hu>0.3)r+=`<rect x="${x}" y="${(mid-hu).toFixed(1)}" width="${bw.toFixed(1)}" height="${hu.toFixed(1)}" fill="${OD.pos}" opacity="0.9"/>`;
-    if(hd>0.3)r+=`<rect x="${x}" y="${mid.toFixed(1)}" width="${bw.toFixed(1)}" height="${hd.toFixed(1)}" fill="${OD.neg}" opacity="0.9"/>`;
-    return `<g onmousemove="optTip(event,&quot;${fnTip(s,i)}&quot;)" onmouseleave="optTipHide()"><rect x="${x}" y="${PT}" width="${bw.toFixed(1)}" height="${(H-PT-PB).toFixed(1)}" fill="transparent"/>${r}</g>`;
+    if(hu>0.4)r+=`<rect x="${x}" y="${(mid-hu).toFixed(1)}" width="${bw.toFixed(1)}" height="${hu.toFixed(1)}" fill="${OD.pos}"/>`;
+    if(hd>0.4)r+=`<rect x="${x}" y="${mid.toFixed(1)}" width="${bw.toFixed(1)}" height="${hd.toFixed(1)}" fill="${OD.neg}"/>`;
+    return `<g onmousemove="optTip(event,&quot;${fnTip(s,i)}&quot;)" onmouseleave="optTipHide()"><rect x="${(xC(i)-slot/2).toFixed(1)}" y="${PT}" width="${slot.toFixed(1)}" height="${(H-PT-PB).toFixed(1)}" fill="transparent"/>${r}</g>`;
   }).join('');
   let spx=null;
   for(let i=0;i<n-1;i++){if(spot>=vis[i].strike&&spot<=vis[i+1].strike){const f=(spot-vis[i].strike)/((vis[i+1].strike-vis[i].strike)||1);spx=xC(i)+f*(xC(i+1)-xC(i));break;}}
   if(spx==null)spx=spot<=vis[0].strike?PL:W-PR;
-  const spotL=`<line x1="${spx.toFixed(1)}" x2="${spx.toFixed(1)}" y1="${(PT-2)}" y2="${(H-PB)}" stroke="#e8eef0" stroke-width="1.3" opacity="0.85"/><text x="${Math.max(24,Math.min(spx,W-24)).toFixed(1)}" y="${(PT+6)}" text-anchor="middle" font-size="9" font-weight="700" fill="#e8eef0" font-family="'JetBrains Mono',monospace">${fmtNum(Math.round(spot))}</text>`;
-  const zero=`<line x1="${PL}" x2="${W-PR}" y1="${mid.toFixed(1)}" y2="${mid.toFixed(1)}" stroke="${OD.line}" stroke-width="0.8"/>`;
-  const step=Math.max(1,Math.ceil(n/14));
-  const xlab=vis.map((s,i)=>i%step===0?`<text x="${xC(i).toFixed(1)}" y="${(H-8)}" text-anchor="middle" font-size="8.5" fill="${OD.mute}" font-family="'JetBrains Mono',monospace">${(s.strike/1000).toFixed(0)}K</text>`:'').join('');
-  const yl=`<text x="${(PL+2)}" y="${(PT+6)}" font-size="8.5" fill="${OD.dim}" font-family="'JetBrains Mono',monospace">${ymaxLab}</text>`;
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair">${zero}${bars}${spotL}${xlab}${yl}</svg>${notu||''}`;
+  const lblLeft=spx>W*0.7;
+  const spotL=`<line x1="${spx.toFixed(1)}" x2="${spx.toFixed(1)}" y1="${(PT-6)}" y2="${(H-PB)}" stroke="#5cc8ff" stroke-width="1.1" stroke-dasharray="4 3" opacity="0.9"/><text x="${(spx+(lblLeft?-5:5)).toFixed(1)}" y="${(PT-1)}" text-anchor="${lblLeft?'end':'start'}" font-size="9" font-weight="700" fill="#5cc8ff" font-family="'JetBrains Mono',monospace">Spot ${(spot/1000).toFixed(2)}K</text>`;
+  const step=Math.max(1,Math.round(n/16));
+  const xlab=vis.map((s,i)=>i%step===0?`<text x="${xC(i).toFixed(1)}" y="${(H-8)}" text-anchor="middle" font-size="8" fill="${OD.mute}" font-family="'JetBrains Mono',monospace">${(s.strike/1000).toFixed(0)}K</text>`:'').join('');
+  const bl=`<text x="${(W-PR)}" y="${(PT-8)}" text-anchor="end" font-size="8.5" fill="${OD.dim}" font-family="'JetBrains Mono',monospace">${birim||''}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair">${grid}${bars}${spotL}${xlab}${bl}</svg>${notu||''}`;
 }
 
 function odLadder(t,lv,spot){
   const all=(t.strikes||[]);
   if(!all.length||!spot)return '<div class="od-empty">Opsiyon verisi yükleniyor…</div>';
-  const lo=spot*0.88,hi=spot*1.12;
+  const lo=spot*0.65,hi=spot*1.6;
   const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>a.strike-b.strike);
   if(!vis.length)return '<div class="od-empty">Bu vade için strike yok.</div>';
-  const maxOI=Math.max(...vis.map(s=>Math.max(s.callOI||0,s.putOI||0)),1);
   const tip=s=>`<b>$${fmtNum(s.strike)}</b><br>Call OI: <b style='color:${OD.pos}'>${fmtNum(s.callOI||0)}</b><br>Put OI: <b style='color:${OD.neg}'>${fmtNum(s.putOI||0)}</b><br>Net γ ${(s.netGamma>=0?'+':'')+odK(s.netGamma||0)} · Δ ${((s.strike-spot)/spot*100).toFixed(1)}%`;
-  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> Call OI · <b style="color:${OD.neg}">kırmızı ↓</b> Put OI · beyaz çizgi = spot. Bar boyu = açık pozisyon. Fare ile bara gel: Call/Put OI + Net γ + Δ%.</div>`;
-  return odDikeyBar(vis,spot,s=>s.callOI||0,s=>s.putOI||0,tip,'maks OI '+fmtNum(maxOI),not);
+  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> Call OI · <b style="color:${OD.neg}">kırmızı ↓</b> Put OI · <span style="color:#5cc8ff">kesikli mavi</span>=spot. Sol eksen = OI büyüklüğü. Fare ile bara gel: Call/Put OI + Net γ + Δ%.</div>`;
+  return odDikeyBar(vis,spot,s=>s.callOI||0,s=>s.putOI||0,tip,'açık pozisyon (kontrat)',not);
 }
 
 // ── Kilit Seviyeler ──
@@ -1113,14 +1115,13 @@ function odLevels(lv,spot){
 function odWalls(t,lv,spot,g){
   const all=(t.strikes||[]).filter(s=>(s.callGex||0)!==0||(s.putGex||0)!==0);
   if(!all.length||!spot)return '<div class="od-empty">GEX verisi yükleniyor…</div>';
-  const lo=spot*0.85,hi=spot*1.15;
+  const lo=spot*0.6,hi=spot*1.7;
   const vis=all.filter(s=>s.strike>=lo&&s.strike<=hi).slice().sort((a,b)=>a.strike-b.strike);
   if(!vis.length)return '<div class="od-empty">Bu aralıkta GEX yok.</div>';
   const netOf=s=>(s.netGamma!=null?s.netGamma:(s.callGex||0)+(s.putGex||0));
-  const maxV=Math.max(...vis.map(s=>Math.abs(netOf(s))),1);
   const tip=s=>{const ng=netOf(s);return `<b>$${fmtNum(s.strike)}</b><br>Net γ: <b style='color:${ng>=0?OD.pos:OD.neg}'>${ng>=0?'+':''}${odK(ng)}</b><br>Call γ +${odK(s.callGex||0)} · Put γ ${odK(s.putGex||0)}<br>OI ${fmtNum((s.callOI||0)+(s.putOI||0))}`;};
-  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> pozitif net γ (call duvar → direnç/mıknatıs) · <b style="color:${OD.neg}">kırmızı ↓</b> negatif net γ (put duvar → destek). Beyaz çizgi = spot. Bar boyu = GEX büyüklüğü. Fare ile bara gel: net/call/put γ + OI. [Hull §19]</div>`;
-  return odDikeyBar(vis,spot,s=>Math.max(netOf(s),0),s=>Math.max(-netOf(s),0),tip,'±'+odK(maxV)+' γ',not);
+  const not=`<div class="od-note" style="margin-top:8px;line-height:1.5;font-size:11.5px"><b style="color:${OD.pos}">Yeşil ↑</b> pozitif net γ (call duvar → direnç/mıknatıs) · <b style="color:${OD.neg}">kırmızı ↓</b> negatif net γ (put duvar → destek). <span style="color:#5cc8ff">kesikli mavi</span>=spot. Sol eksen = USD GEX/%1. Fare ile bara gel: net/call/put γ + OI. [Hull §19]</div>`;
+  return odDikeyBar(vis,spot,s=>Math.max(netOf(s),0),s=>Math.max(-netOf(s),0),tip,'USD GEX / %1 hareket',not);
 }
 
 // ── ii-b. VADE MASASI: GEX vade tablosu + Max-Pain & Pin takvimi ──
