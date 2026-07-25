@@ -1235,8 +1235,10 @@ function odGammaStrike(arr,spot){
     const tip=`$${fmtNum(d.strike)}<br>Net Γ: <b style='color:${pos?OD.pos:OD.neg}'>${d.net>=0?'+':''}${d.net}M</b>`;
     return `<rect x="${(x-bw/2).toFixed(1)}" y="${(pos?zY-h:zY).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${pos?OD.pos:OD.neg}" opacity="0.88" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;}).join('');
   let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
-  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="${OD.acc}">SPOT</text>`;}
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}</svg>`;
+  const ymax=yMax/1.1;
+  const yl=[[PT,'+'+odK(ymax*1e6)],[zY,'0'],[H-PB,'−'+odK(ymax*1e6)]].map(([y,t])=>`<text x="${PL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="${OD.mute}">${t}</text>`).join('');
+  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="${OD.acc}">SPOT ${(spot/1000).toFixed(1)}K</text>`;}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}${yl}</svg><div class="od-note" style="line-height:1.5">Y ekseni = seviye başına net dealer Γ ($ / %1 hareket); ↑ pozitif (fiyat sabitleyici) · ↓ negatif (ivme). Fare ile çubuğa gel: strike·net Γ.</div>`;
 }
 function odBuySell(arr,spot){
   if(!arr||!arr.length)return '<div class="od-empty">Veri yükleniyor…</div>';
@@ -1249,8 +1251,10 @@ function odBuySell(arr,spot){
     const tip=`$${fmtNum(d.strike)}<br>Buy: <b style='color:${OD.buy}'>${fmtNum(d.buy||0)}</b><br>Sell: <b style='color:${OD.sell}'>${fmtNum(d.sell||0)}</b>`;
     return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"><rect x="${(x-bw/2).toFixed(1)}" y="${(zY-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${OD.buy}" opacity="0.9"/><rect x="${(x-bw/2).toFixed(1)}" y="${zY.toFixed(1)}" width="${bw.toFixed(1)}" height="${sh.toFixed(1)}" fill="${OD.sell}" opacity="0.9"/></g>`;}).join('');
   let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
-  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>`;}
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}</svg><div style="display:flex;gap:16px;margin-top:6px;font-size:9px;color:${OD.dim}"><span style="color:${OD.buy}">▲ Buy (üst)</span><span style="color:${OD.sell}">▼ Sell (alt)</span></div>`;
+  const ymax=yMax/1.1;
+  const yl=[[PT,'▲ '+fmtNum(Math.round(ymax))],[zY,'0'],[H-PB,'▼ '+fmtNum(Math.round(ymax))]].map(([y,t])=>`<text x="${PL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="${OD.mute}">${t}</text>`).join('');
+  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="${OD.acc}">SPOT ${(spot/1000).toFixed(1)}K</text>`;}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}${yl}</svg><div style="display:flex;gap:16px;margin-top:6px;font-size:9px;color:${OD.dim}"><span style="color:${OD.buy}">▲ Buy (üst · kontrat)</span><span style="color:${OD.sell}">▼ Sell (alt · kontrat)</span></div>`;
 }
 
 // ── iv. Toplu Greek'ler ──
@@ -1273,27 +1277,33 @@ function odGreeks(g){
 
 // ── v. Volatilite Yüzeyi ──
 function odTerm(arr){
-  const pts=(arr||[]).map(x=>Number(x.iv)).filter(v=>isFinite(v)&&v>1&&v<300);
-  if(pts.length<2)return '<div class="od-empty">Hesaplanıyor…</div>';
-  const W=620,H=220,PL=46,PR=24,PT=24,PB=30,iw=W-PL-PR,ih=H-PT-PB;
+  const src=(arr||[]).filter(x=>{const v=Number(x.iv);return isFinite(v)&&v>1&&v<300;});
+  if(src.length<2)return '<div class="od-empty">Hesaplanıyor…</div>';
+  const pts=src.map(x=>Number(x.iv));
+  const W=620,H=220,PL=46,PR=24,PT=24,PB=34,iw=W-PL-PR,ih=H-PT-PB;
   let mn=Math.min(...pts),mx=Math.max(...pts);const r=(mx-mn)||5;mn-=r*0.15;mx+=r*0.15;
   const X=i=>PL+(i/(pts.length-1))*iw,Y=v=>PT+(1-(v-mn)/(mx-mn))*ih;
   const path=pts.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
   const fill=path+` L ${X(pts.length-1).toFixed(1)} ${H-PB} L ${X(0).toFixed(1)} ${H-PB} Z`;
   const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.lineS}" stroke-width="0.6"/><text x="${PL-5}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.mute}">${v.toFixed(0)}%</text>`).join('');
-  const dots=pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.5" fill="${OD.bg}" stroke="${OD.acc}" stroke-width="1.5"/><text x="${X(i).toFixed(1)}" y="${(Y(v)-9).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.t2}">${v.toFixed(0)}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="odiv" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="${OD.acc}" stop-opacity="0.18"/><stop offset="100%" stop-color="${OD.acc}" stop-opacity="0.01"/></linearGradient></defs>${grid}<path d="${fill}" fill="url(#odiv)"/><path d="${path}" fill="none" stroke="${OD.acc}" stroke-width="2"/>${dots}</svg>`;
+  const dots=src.map((o,i)=>{const v=Number(o.iv);const tip=`Vade: <b>${o.gun??'—'}g</b> · ATM IV <b style='color:${OD.acc}'>${v.toFixed(1)}%</b>`;
+    return `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4" fill="${OD.bg}" stroke="${OD.acc}" stroke-width="1.5" style="cursor:crosshair" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/><text x="${X(i).toFixed(1)}" y="${(Y(v)-9).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.t2}">${v.toFixed(0)}</text>`;}).join('');
+  const xl=src.map((o,i)=>`<text x="${X(i).toFixed(1)}" y="${H-PB+16}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="${OD.mute}">${o.gun!=null?o.gun+'g':''}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><defs><linearGradient id="odiv" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="${OD.acc}" stop-opacity="0.18"/><stop offset="100%" stop-color="${OD.acc}" stop-opacity="0.01"/></linearGradient></defs>${grid}<path d="${fill}" fill="url(#odiv)"/><path d="${path}" fill="none" stroke="${OD.acc}" stroke-width="2"/>${dots}${xl}</svg>`;
 }
 function odRR(arr){
-  const rows=(arr||[]).map(x=>Number(x.rr)).filter(v=>isFinite(v)).slice(0,14);
-  if(!rows.length)return '<div class="od-empty">Hesaplanıyor…</div>';
-  const W=620,H=220,PL=52,PR=24,PT=24,PB=30,cW=W-PL-PR,cH=H-PT-PB;
+  const src=(arr||[]).filter(x=>isFinite(Number(x.rr))).slice(0,14);
+  if(!src.length)return '<div class="od-empty">Hesaplanıyor…</div>';
+  const rows=src.map(x=>Number(x.rr));
+  const W=620,H=220,PL=52,PR=24,PT=24,PB=34,cW=W-PL-PR,cH=H-PT-PB;
   const mx=Math.max(...rows,1)+1,mn=Math.min(...rows,-1)-1,rng=mx-mn;
   const X=i=>PL+(i+0.5)*(cW/rows.length),Y=v=>PT+((mx-v)/rng)*cH,y0=Y(0);
   const bw=Math.max(8,Math.min(36,cW/rows.length*0.6));
-  const bars=rows.map((v,i)=>{const x=X(i),top=v>=0?Y(v):y0,h=Math.max(Math.abs(Y(v)-y0),2),renk=v>=0?OD.neg:OD.pos;
-    return `<rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${renk}" opacity="0.62" rx="1"/><line x1="${(x-bw/2).toFixed(1)}" x2="${(x+bw/2).toFixed(1)}" y1="${top.toFixed(1)}" y2="${top.toFixed(1)}" stroke="${renk}" stroke-width="1.5"/><text x="${x.toFixed(1)}" y="${(v>=0?top-5:top+h+12).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.t2}">${v>=0?'+':''}${v.toFixed(1)}</text>`;}).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><line x1="${PL}" x2="${W-PR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="${OD.lineH}" stroke-width="1.2"/><text x="${PL-5}" y="${(y0+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.dim}">0</text>${bars}</svg>`;
+  const bars=src.map((o,i)=>{const v=Number(o.rr),x=X(i),top=v>=0?Y(v):y0,h=Math.max(Math.abs(Y(v)-y0),2),renk=v>=0?OD.neg:OD.pos;
+    const tip=`Vade: <b>${o.gun??'—'}g</b> · RR <b style='color:${renk}'>${v>=0?'+':''}${v.toFixed(2)}</b>`+(o.put_iv!=null?`<br>Put IV ${o.put_iv}% · Call IV ${o.call_iv}%`:'');
+    return `<g style="cursor:crosshair" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"><rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${renk}" opacity="0.62" rx="1"/><line x1="${(x-bw/2).toFixed(1)}" x2="${(x+bw/2).toFixed(1)}" y1="${top.toFixed(1)}" y2="${top.toFixed(1)}" stroke="${renk}" stroke-width="1.5"/><text x="${x.toFixed(1)}" y="${(v>=0?top-5:top+h+12).toFixed(1)}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.t2}">${v>=0?'+':''}${v.toFixed(1)}</text></g>`;}).join('');
+  const xl=src.map((o,i)=>`<text x="${X(i).toFixed(1)}" y="${H-PB+16}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="${OD.mute}">${o.gun!=null?o.gun+'g':''}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="${OD.lineH}" stroke-width="1.2"/><text x="${PL-5}" y="${(y0+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="${OD.dim}">0</text>${bars}${xl}</svg>`;
 }
 
 // ── vi. Pozisyon · Analiz ──
