@@ -51,7 +51,8 @@ from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+import auth
 from fastapi.middleware.cors import CORSMiddleware
 from brain import (
     scan_market, quick_backtest, get_accuracy_stats,
@@ -89,6 +90,165 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── ÜYELİK ERİŞİM KAPISI ─────────────────────────────────────────
+# Tüm /api/* uçları oturum ister (site içeriği yalnız onaylı üyelere).
+# İstisna: kimlik uçları (giriş/kayıt/durum/çıkış) + Telegram webhook health.
+_ACIK_API = {"/api/auth/login", "/api/auth/register", "/api/auth/me", "/api/auth/logout"}
+
+@app.middleware("http")
+async def _uyelik_kapisi(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and path not in _ACIK_API:
+        # Makine/PC anahtarı (X-API-Key) ile gelenler oturumdan MUAF (yerel senkron scriptleri,
+        # ör. backtest/kitap push). Anahtar sahibi zaten güvenilir (admin).
+        if _OAR_API_KEY and request.headers.get("X-API-Key") == _OAR_API_KEY:
+            return await call_next(request)
+        u = auth.oturum_kullanici(request.cookies.get(auth.COOKIE_NAME))
+        if not u or u.get("durum") != "aktif":
+            return JSONResponse({"detail": "Giriş gerekli"}, status_code=401)
+        if path.startswith("/api/admin/") and u.get("rol") != "admin":
+            return JSONResponse({"detail": "Yetki yok (yalnız yönetici)"}, status_code=403)
+        request.state.user = u
+    return await call_next(request)
+
+def _oturum_kullanici(request: Request):
+    u = getattr(request.state, "user", None)
+    return u or auth.oturum_kullanici(request.cookies.get(auth.COOKIE_NAME))
+
+def _cerez_ayarla(resp, token: str):
+    resp.set_cookie(auth.COOKIE_NAME, token, max_age=auth.SESSION_TTL, httponly=True,
+                    secure=True, samesite="strict", path="/")
+
+# ─── KİMLİK UÇLARI (herkese açık) ─────────────────────────────────
+@app.post("/api/auth/register")
+async def auth_register(request: Request):
+    d = await request.json()
+    try:
+        u = auth.kayit(d.get("email", ""), d.get("sifre", ""), d.get("ad_soyad", ""))
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    try:
+        await _telegram_gonder(
+            f"🆕 Yeni üyelik başvurusu\nE-posta: {u['email']}\nAd: {u.get('ad_soyad') or '—'}\n"
+            f"→ Admin panelinden Onayla/Reddet.")
+    except Exception:
+        pass
+    return {"ok": True, "mesaj": "Başvurunuz alındı. Yönetici onayından sonra giriş yapabilirsiniz."}
+
+@app.post("/api/auth/login")
+async def auth_login(request: Request):
+    d = await request.json()
+    ip = request.client.host if request.client else ""
+    try:
+        r = auth.giris(d.get("email", ""), d.get("sifre", ""), ip)
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=401)
+    resp = JSONResponse({"ok": True, "user": r["user"]})
+    _cerez_ayarla(resp, r["token"])
+    return resp
+
+@app.post("/api/auth/logout")
+async def auth_logout(request: Request):
+    tok = request.cookies.get(auth.COOKIE_NAME)
+    if tok:
+        auth.oturum_sil(tok)
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.COOKIE_NAME, path="/")
+    return resp
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    u = auth.oturum_kullanici(request.cookies.get(auth.COOKIE_NAME))
+    if not u or u.get("durum") != "aktif":
+        return {"authed": False}
+    return {"authed": True, "user": u}
+
+# ─── ÜYE PANELİ (kendi hesabı) ────────────────────────────────────
+@app.post("/api/auth/profil")
+async def auth_profil(request: Request):
+    u = _oturum_kullanici(request)
+    if not u:
+        return JSONResponse({"detail": "Giriş gerekli"}, status_code=401)
+    d = await request.json()
+    try:
+        yeni = auth.profil_guncelle(u["id"], ad_soyad=d.get("ad_soyad"),
+                                    kullanici_adi=d.get("kullanici_adi"), email=d.get("email"))
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    return {"ok": True, "user": yeni}
+
+@app.post("/api/auth/sifre")
+async def auth_sifre(request: Request):
+    u = _oturum_kullanici(request)
+    if not u:
+        return JSONResponse({"detail": "Giriş gerekli"}, status_code=401)
+    d = await request.json()
+    try:
+        auth.sifre_degistir(u["id"], d.get("eski", ""), d.get("yeni", ""))
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    resp = JSONResponse({"ok": True, "mesaj": "Şifre değişti. Lütfen tekrar giriş yapın."})
+    resp.delete_cookie(auth.COOKIE_NAME, path="/")   # tüm oturumlar düştü
+    return resp
+
+# ─── ADMIN PANELİ (yalnız rol=admin — middleware korur) ───────────
+@app.get("/api/admin/uyeler")
+async def admin_uyeler(request: Request, durum: str = "", q: str = ""):
+    return {"uyeler": auth.liste(durum=durum, q=q), "istatistik": auth.istatistik()}
+
+@app.post("/api/admin/onayla")
+async def admin_onayla(request: Request):
+    d = await request.json()
+    aktor = (_oturum_kullanici(request) or {}).get("email", "")
+    return {"ok": True, "user": auth.durum_ata(int(d["id"]), "aktif", aktor)}
+
+@app.post("/api/admin/durum")
+async def admin_durum(request: Request):
+    d = await request.json()
+    aktor = (_oturum_kullanici(request) or {}).get("email", "")
+    try:
+        return {"ok": True, "user": auth.durum_ata(int(d["id"]), d.get("durum", ""), aktor)}
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+
+@app.post("/api/admin/rol")
+async def admin_rol(request: Request):
+    d = await request.json()
+    aktor = (_oturum_kullanici(request) or {}).get("email", "")
+    try:
+        return {"ok": True, "user": auth.rol_ata(int(d["id"]), d.get("rol", ""), aktor)}
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+
+@app.post("/api/admin/sil")
+async def admin_sil(request: Request):
+    d = await request.json()
+    aktor = (_oturum_kullanici(request) or {}).get("email", "")
+    if int(d["id"]) == (_oturum_kullanici(request) or {}).get("id"):
+        return JSONResponse({"detail": "Kendi hesabınızı silemezsiniz."}, status_code=400)
+    auth.sil(int(d["id"]), aktor)
+    return {"ok": True}
+
+@app.post("/api/admin/sifre-sifirla")
+async def admin_sifre_sifirla(request: Request):
+    d = await request.json()
+    aktor = (_oturum_kullanici(request) or {}).get("email", "")
+    return {"ok": True, "gecici_sifre": auth.sifre_sifirla(int(d["id"]), aktor)}
+
+@app.post("/api/admin/olustur")
+async def admin_olustur(request: Request):
+    d = await request.json()
+    aktor = (_oturum_kullanici(request) or {}).get("email", "")
+    try:
+        return {"ok": True, "user": auth.admin_olustur_uye(
+            d.get("email", ""), d.get("sifre", ""), d.get("ad_soyad", ""), d.get("rol", "uye"), aktor)}
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+
+@app.get("/api/admin/audit")
+async def admin_audit(request: Request):
+    return {"audit": auth.audit_liste(120)}
 
 # ─── API Key Güvenliği ────────────────────────────────────────────
 # OAR_API_KEY env değişkeni ayarlıysa yazma endpoint'leri korunur.
@@ -1219,6 +1379,13 @@ async def startup_event():
     global _leader_task
     import gc
     api_key = os.environ.get("GEMINI_API_KEY", "")
+
+    # ── Üyelik sistemi: şema + ilk admin (ADMIN_EMAIL/ADMIN_PASS env) ──
+    try:
+        auth.init_db()
+        print("[Auth] users.db hazır" + (" (bcrypt)" if auth._HAS_BCRYPT else " (pbkdf2)"))
+    except Exception as e:
+        print(f"[Auth] init hatası: {e}")
 
     # ── BİR-KERELİK: yeni sisteme (fade+htf_vpfr) geçişte eski backtest + paper sil ──
     # Bayrak dosyası ile korunur → sadece ilk deploy'da çalışır, tekrar etmez.

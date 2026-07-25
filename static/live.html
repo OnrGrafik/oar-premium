@@ -162,7 +162,7 @@ a{color:inherit;text-decoration:none}
 
 <script>
 // ════════════ STATE ════════════
-const _VALID_TABS=['leader','options','macro'];
+const _VALID_TABS=['leader','options','macro','uye','admin'];
 const _ilkTab=(()=>{try{const t=localStorage.getItem('oar_tab');return _VALID_TABS.includes(t)?t:'leader';}catch(e){return 'leader';}})();
 const ST = {tab:_ilkTab, clock:'', chat:[], feed:[], signals:[], report:{}, ctx:{}, theories:[], selTheory:null, kbQuery:''};
 const API = '';
@@ -214,13 +214,20 @@ function spark(vals,color,w,hh){
 
 // ════════════ NAV + RAIL ════════════
 function renderNav(){
-  $('nav').innerHTML = NAV.map(n=>`
+  const items=NAV.slice();
+  items.push({id:'uye',icon:'👤',label:'Üye Paneli'});
+  if(ST.user&&ST.user.rol==='admin')items.push({id:'admin',icon:'🛡',label:'Yönetim'});
+  $('nav').innerHTML = items.map(n=>`
     <button class="navbtn ${ST.tab===n.id?'active':''}" onclick="go('${n.id}')">
       <span style="width:17px;display:flex;justify-content:center;flex-shrink:0">${n.icon}</span>
       <span style="flex:1;text-align:left">${n.label}</span>
-    </button>`).join('');
+    </button>`).join('')
+    + `<button class="navbtn" onclick="authCikis()" style="margin-top:6px;color:#ff8a8a">
+        <span style="width:17px;display:flex;justify-content:center;flex-shrink:0">⎋</span>
+        <span style="flex:1;text-align:left">Çıkış${ST.user?' ('+esc((ST.user.ad_soyad||ST.user.email||'').split('@')[0])+')':''}</span>
+      </button>`;
 }
-function go(tab){ST.tab=tab;try{localStorage.setItem('oar_tab',tab);}catch(e){}renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();}
+function go(tab){ST.tab=tab;try{localStorage.setItem('oar_tab',tab);}catch(e){}renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='admin')loadAdmin();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -249,11 +256,14 @@ function tickClock(){
 function render(){
   if(document.fullscreenElement){return;}  // tam ekrandayken DOM'u yeniden kurma (grafiği söker)
   const m=$('screen');
+  if(ST.tab==='admin'&&(!ST.user||ST.user.rol!=='admin'))ST.tab='leader';  // yetkisiz admin→leader
   if(ST.tab==='leader'){m.innerHTML=scrLeader();setTimeout(initKomutaGrafikler,0);}
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
   else if(ST.tab==='macro')m.innerHTML=scrMacro();
+  else if(ST.tab==='uye')m.innerHTML=scrUye();
+  else if(ST.tab==='admin')m.innerHTML=scrAdmin();
 }
 
 // ─── KOMUTA MERKEZİ: GRAFİK + SKOR PANELİ ───
@@ -2291,10 +2301,179 @@ async function loadFng(){
   // F&G ayrı endpoint yok, market-context'te korku endeksi olabilir; fallback
 }
 
+// ════════════ ÜYELİK / KİMLİK ════════════
+const _AI='width:100%;box-sizing:border-box;background:#070b0a;border:1px solid #1a2422;border-radius:9px;color:#e6efed;font-size:13px;padding:11px 12px;margin-bottom:10px;outline:none';
+let _authMod='giris';
+async function authKontrol(){const d=await jget('/api/auth/me');if(d&&d.authed){ST.user=d.user;return true;}return false;}
+function authCikis(){jpost('/api/auth/logout',{}).finally(()=>location.reload());}
+function authEkraniGoster(){
+  let ov=document.getElementById('authgate');
+  if(!ov){ov=document.createElement('div');ov.id='authgate';
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:radial-gradient(1200px 600px at 50% -10%,#0b1a16,#07090a);display:flex;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(ov);}
+  const giris=_authMod==='giris';
+  ov.innerHTML=`<div style="width:100%;max-width:380px;background:#0a0f0f;border:1px solid #18211f;border-radius:16px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:11px;margin-bottom:6px">
+      <div class="sg" style="width:34px;height:34px;border-radius:9px;background:linear-gradient(140deg,#1ff0ad,#0a8f66);display:flex;align-items:center;justify-content:center;font-weight:700;color:#04130d">◆</div>
+      <div class="sg" style="font-weight:700;font-size:17px;color:#eaf4f2">OAR<span style="color:#1ff0ad"> PREMIUM</span></div>
+    </div>
+    <div style="font-size:12px;color:#5e716f;margin-bottom:18px">${giris?'Üye girişi — içerik yalnız onaylı üyelere açıktır.':'Üyelik başvurusu — yönetici onayından sonra giriş yapabilirsiniz.'}</div>
+    <div id="authmsg" style="display:none;font-size:12px;border-radius:8px;padding:9px 11px;margin-bottom:12px"></div>
+    ${giris?'':`<input id="au_ad" placeholder="Ad Soyad" style="${_AI}">`}
+    <input id="au_email" type="email" placeholder="E-posta" style="${_AI}">
+    <input id="au_sifre" type="password" placeholder="Şifre" style="${_AI}" onkeydown="if(event.key==='Enter')authGonder()">
+    <button onclick="authGonder()" style="width:100%;margin-top:6px;background:linear-gradient(135deg,#1ff0ad,#0a8f66);border:none;border-radius:9px;color:#04130d;font-weight:700;font-size:14px;padding:11px;cursor:pointer">${giris?'Giriş Yap':'Başvuru Gönder'}</button>
+    <div style="text-align:center;margin-top:15px;font-size:12px;color:#5e716f">
+      ${giris?'Hesabın yok mu? ':'Zaten üye misin? '}
+      <a onclick="_authMod='${giris?'kayit':'giris'}';authEkraniGoster()" style="color:#1ff0ad;cursor:pointer;font-weight:600">${giris?'Üyelik başvurusu':'Giriş yap'}</a>
+    </div>
+  </div>`;
+}
+function _authMsg(t,ok){const e=document.getElementById('authmsg');if(!e)return;e.style.display='block';e.textContent=t;e.style.background=ok?'rgba(31,240,173,.1)':'rgba(255,93,108,.1)';e.style.color=ok?'#7af0c4':'#ff8a8a';}
+async function authGonder(){
+  const email=val('au_email'),sifre=val('au_sifre');
+  if(_authMod==='giris'){
+    const r=await jpost('/api/auth/login',{email,sifre});
+    if(r&&r.ok){location.reload();return;}
+    _authMsg((r&&r.detail)||'Giriş başarısız.',false);
+  }else{
+    const r=await jpost('/api/auth/register',{email,sifre,ad_soyad:val('au_ad')});
+    if(r&&r.ok){_authMod='giris';authEkraniGoster();_authMsg(r.mesaj||'Başvurunuz alındı.',true);return;}
+    _authMsg((r&&r.detail)||'Başvuru başarısız.',false);
+  }
+}
+function val(id){return (document.getElementById(id)||{}).value||'';}
+function _msg(id,t,ok){const e=document.getElementById(id);if(!e)return;e.style.display='block';e.textContent=t;e.style.background=ok?'rgba(31,240,173,.1)':'rgba(255,93,108,.1)';e.style.color=ok?'#7af0c4':'#ff8a8a';}
+function _BTN(c){return `background:${c};border:none;border-radius:8px;color:#04130d;font-weight:700;font-size:13px;padding:10px 18px;cursor:pointer`;}
+
+// ─── ÜYE PANELİ ───
+function _uyeAlan(lab,id,val,pw){return `<label style="display:block;font-size:11px;color:#8a9c99;margin-bottom:5px">${lab}</label><input id="${id}" ${pw?'type="password"':''} value="${esc(val||'')}" style="${_AI}">`;}
+function scrUye(){
+  const u=ST.user||{};
+  return `<div style="max-width:640px">
+    <h1 class="sg" style="margin:0 0 4px;font-weight:600;font-size:19px;color:#eaf4f2">Üye Paneli</h1>
+    <div style="font-size:12px;color:#5e716f;margin-bottom:18px">Hesap bilgilerini görüntüle ve düzenle.</div>
+    <div class="card" style="padding:18px 20px;margin-bottom:14px">
+      <div class="sg" style="font-size:10px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">PROFİL</div>
+      <div id="uye_msg" style="display:none;font-size:12px;border-radius:8px;padding:9px 11px;margin-bottom:12px"></div>
+      ${_uyeAlan('Ad Soyad','p_ad',u.ad_soyad)}
+      ${_uyeAlan('Kullanıcı Adı','p_kadi',u.kullanici_adi)}
+      ${_uyeAlan('E-posta','p_email',u.email)}
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#5e716f;margin:6px 0 14px">
+        <span>Rol: <b style="color:${u.rol==='admin'?'#1ff0ad':'#9fb0ad'}">${u.rol==='admin'?'Yönetici':'Üye'}</b></span>
+        <span>Durum: <b style="color:#1ff0ad">${esc(u.durum||'')}</b></span>
+        ${u.son_giris_t?`<span>Son giriş: ${new Date(u.son_giris_t).toLocaleString('tr-TR')}</span>`:''}
+      </div>
+      <button onclick="uyeProfilKaydet()" style="${_BTN('#1ff0ad')}">Profili Kaydet</button>
+    </div>
+    <div class="card" style="padding:18px 20px">
+      <div class="sg" style="font-size:10px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">ŞİFRE DEĞİŞTİR</div>
+      <div id="sifre_msg" style="display:none;font-size:12px;border-radius:8px;padding:9px 11px;margin-bottom:12px"></div>
+      ${_uyeAlan('Mevcut Şifre','s_eski','',true)}
+      ${_uyeAlan('Yeni Şifre (min 6)','s_yeni','',true)}
+      <button onclick="uyeSifreKaydet()" style="${_BTN('#56a8ff')}">Şifreyi Değiştir</button>
+    </div>
+  </div>`;
+}
+async function uyeProfilKaydet(){
+  const r=await jpost('/api/auth/profil',{ad_soyad:val('p_ad'),kullanici_adi:val('p_kadi'),email:val('p_email')});
+  if(r&&r.ok){ST.user=r.user;renderNav();_msg('uye_msg','Profil güncellendi.',true);}
+  else _msg('uye_msg',(r&&r.detail)||'Kaydedilemedi.',false);
+}
+async function uyeSifreKaydet(){
+  const r=await jpost('/api/auth/sifre',{eski:val('s_eski'),yeni:val('s_yeni')});
+  if(r&&r.ok){_msg('sifre_msg','Şifre değişti — yeniden giriş yapın…',true);setTimeout(()=>location.reload(),1400);}
+  else _msg('sifre_msg',(r&&r.detail)||'Değiştirilemedi.',false);
+}
+
+// ─── ADMIN PANELİ ───
+async function loadAdmin(){
+  const d=await jget('/api/admin/uyeler'+(ST.adminQ?('?q='+encodeURIComponent(ST.adminQ)):''));if(d)ST.admin=d;
+  const a=await jget('/api/admin/audit');if(a)ST.adminAudit=a.audit||[];
+  if(ST.tab==='admin')render();
+}
+function _admKutu(lab,val,c){return `<div style="background:#0a0f0f;border:1px solid #18211f;border-radius:8px;padding:10px 14px;min-width:96px"><div style="font-size:20px;font-weight:700;color:${c||'#eaf4f2'}">${val||0}</div><div style="font-size:9px;letter-spacing:.1em;color:#5e716f;text-transform:uppercase">${lab}</div></div>`;}
+function _admUyeSatir(u){
+  const dR={aktif:'#1ff0ad',beklemede:'#ffb13c',askida:'#ff8a3c',reddedildi:'#ff5d6c'};
+  const me=(ST.user||{}).id===u.id;
+  const eyl=[];
+  if(u.durum==='beklemede'){eyl.push(`<button onclick="admDurum(${u.id},'aktif')" style="${_ab('#1ff0ad')}">Onayla</button>`);eyl.push(`<button onclick="admDurum(${u.id},'reddedildi')" style="${_ab('#ff5d6c')}">Reddet</button>`);}
+  else if(u.durum==='aktif'){eyl.push(`<button onclick="admDurum(${u.id},'askida')" style="${_ab('#ff8a3c')}">Askıya al</button>`);}
+  else{eyl.push(`<button onclick="admDurum(${u.id},'aktif')" style="${_ab('#1ff0ad')}">Aktifleştir</button>`);}
+  eyl.push(`<button onclick="admRol(${u.id},'${u.rol==='admin'?'uye':'admin'}')" style="${_ab('#56a8ff')}">${u.rol==='admin'?'Üye yap':'Admin yap'}</button>`);
+  eyl.push(`<button onclick="admSifre(${u.id})" style="${_ab('#9fb0ad')}">Şifre sıfırla</button>`);
+  if(!me)eyl.push(`<button onclick="admSil(${u.id})" style="${_ab('#ff5d6c')}">Sil</button>`);
+  return `<tr style="border-top:1px solid #121a18;font-size:11.5px">
+    <td style="padding:8px 8px;color:#cdd9d8">${esc(u.email)}${me?' <span style="color:#5e716f">(siz)</span>':''}</td>
+    <td style="padding:8px 8px;color:#9fb0ad">${esc(u.ad_soyad||'—')}</td>
+    <td style="padding:8px 8px"><span style="color:${u.rol==='admin'?'#1ff0ad':'#9fb0ad'};font-weight:600">${u.rol==='admin'?'Yönetici':'Üye'}</span></td>
+    <td style="padding:8px 8px"><span style="color:${dR[u.durum]||'#9fb0ad'};font-weight:700">${esc(u.durum)}</span></td>
+    <td style="padding:8px 8px;color:#5e716f;font-size:10px">${u.son_giris_t?new Date(u.son_giris_t).toLocaleString('tr-TR'):'—'}</td>
+    <td style="padding:8px 8px"><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">${eyl.join('')}</div></td>
+  </tr>`;
+}
+function _ab(c){return `background:none;border:1px solid ${c}55;border-radius:5px;color:${c};font-size:10px;font-weight:600;padding:3px 8px;cursor:pointer`;}
+function scrAdmin(){
+  const d=ST.admin||{},uyeler=d.uyeler||[],ist=d.istatistik||{};
+  const bekle=uyeler.filter(u=>u.durum==='beklemede');
+  const aud=ST.adminAudit||[];
+  return `<div>
+    <h1 class="sg" style="margin:0 0 4px;font-weight:600;font-size:19px;color:#eaf4f2">🛡 Yönetim Paneli</h1>
+    <div style="font-size:12px;color:#5e716f;margin-bottom:16px">Üyelik başvuruları, üye yönetimi ve denetim kaydı.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      ${_admKutu('Toplam',uyeler.length,'#eaf4f2')}${_admKutu('Aktif',ist.aktif,'#1ff0ad')}${_admKutu('Bekleyen',ist.beklemede,'#ffb13c')}${_admKutu('Askıda',ist.askida,'#ff8a3c')}${_admKutu('Reddedilen',ist.reddedildi,'#ff5d6c')}
+    </div>
+    ${bekle.length?`<div class="card" style="padding:16px 18px;margin-bottom:14px;border-left:2px solid #ffb13c">
+      <div class="sg" style="font-size:10px;letter-spacing:.14em;color:#ffb13c;margin-bottom:10px">⏳ BEKLEYEN BAŞVURULAR (${bekle.length})</div>
+      <table style="width:100%;border-collapse:collapse"><thead><tr style="color:#5e716f;text-align:left;font-size:10px"><th style="padding:5px 8px">E-posta</th><th style="padding:5px 8px">Ad</th><th></th><th></th><th></th><th style="text-align:right;padding:5px 8px">İşlem</th></tr></thead>
+      <tbody>${bekle.map(_admUyeSatir).join('')}</tbody></table>
+    </div>`:''}
+    <div class="card" style="padding:16px 18px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span class="sg" style="font-size:10px;letter-spacing:.14em;color:#5e716f">TÜM ÜYELER</span>
+        <input id="adm_q" value="${esc(ST.adminQ||'')}" placeholder="ara (e-posta/ad)" onkeydown="if(event.key==='Enter')admAra()" style="margin-left:auto;background:#070b0a;border:1px solid #1a2422;border-radius:7px;color:#e6efed;font-size:11px;padding:6px 10px;width:200px;outline:none">
+        <button onclick="admAra()" style="${_ab('#7af0c4')}">Ara</button>
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="color:#5e716f;text-align:left;font-size:10px"><th style="padding:5px 8px">E-posta</th><th style="padding:5px 8px">Ad Soyad</th><th style="padding:5px 8px">Rol</th><th style="padding:5px 8px">Durum</th><th style="padding:5px 8px">Son giriş</th><th style="text-align:right;padding:5px 8px">İşlem</th></tr></thead>
+      <tbody>${uyeler.length?uyeler.map(_admUyeSatir).join(''):'<tr><td colspan="6" style="padding:14px;color:#5e716f;text-align:center">üye yok</td></tr>'}</tbody></table></div>
+    </div>
+    <div class="card" style="padding:16px 18px;margin-bottom:14px">
+      <div class="sg" style="font-size:10px;letter-spacing:.14em;color:#5e716f;margin-bottom:12px">➕ YENİ ÜYE OLUŞTUR (doğrudan aktif)</div>
+      <div id="adm_msg" style="display:none;font-size:12px;border-radius:8px;padding:9px 11px;margin-bottom:12px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:8px;align-items:center">
+        <input id="ao_email" placeholder="e-posta" style="${_AI};margin:0">
+        <input id="ao_ad" placeholder="ad soyad" style="${_AI};margin:0">
+        <input id="ao_sifre" type="password" placeholder="şifre" style="${_AI};margin:0">
+        <select id="ao_rol" style="${_AI};margin:0;width:auto"><option value="uye">Üye</option><option value="admin">Admin</option></select>
+        <button onclick="admOlustur()" style="${_BTN('#1ff0ad')}">Oluştur</button>
+      </div>
+    </div>
+    <div class="card" style="padding:16px 18px">
+      <div class="sg" style="font-size:10px;letter-spacing:.14em;color:#5e716f;margin-bottom:10px">🗒 DENETİM KAYDI (son ${aud.length})</div>
+      <div style="max-height:240px;overflow-y:auto;font-size:11px">
+        ${aud.length?aud.map(a=>`<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #101614;color:#8a9c99">
+          <span style="color:#5e716f;flex-shrink:0">${new Date(a.t).toLocaleString('tr-TR')}</span>
+          <span style="color:#7af0c4">${esc(a.aktor||'')}</span>
+          <span>${esc(a.eylem||'')}</span>
+          <span style="color:#5e716f">#${esc(a.hedef||'')} ${esc(a.detay||'')}</span>
+        </div>`).join(''):'<div style="color:#5e716f">kayıt yok</div>'}
+      </div>
+    </div>
+  </div>`;
+}
+function admAra(){ST.adminQ=val('adm_q');loadAdmin();}
+async function admDurum(id,durum){await jpost('/api/admin/durum',{id,durum});loadAdmin();}
+async function admRol(id,rol){await jpost('/api/admin/rol',{id,rol});loadAdmin();}
+async function admSifre(id){const r=await jpost('/api/admin/sifre-sifirla',{id});if(r&&r.gecici_sifre)alert('Geçici şifre (üyeye iletin):\n\n'+r.gecici_sifre);loadAdmin();}
+async function admSil(id){if(!confirm('Bu üyeyi kalıcı olarak silmek istediğinize emin misiniz?'))return;const r=await jpost('/api/admin/sil',{id});if(r&&r.detail)alert(r.detail);loadAdmin();}
+async function admOlustur(){const r=await jpost('/api/admin/olustur',{email:val('ao_email'),sifre:val('ao_sifre'),ad_soyad:val('ao_ad'),rol:val('ao_rol')});if(r&&r.ok){_msg('adm_msg','Üye oluşturuldu.',true);loadAdmin();}else _msg('adm_msg',(r&&r.detail)||'Oluşturulamadı.',false);}
+
 // ════════════ INIT ════════════
 async function boot(){
-  renderNav();render();
   tickClock();setInterval(tickClock,1000);
+  const authed=await authKontrol();
+  if(!authed){authEkraniGoster();return;}   // girişsiz → yalnız login ekranı, içerik yüklenmez
+  renderNav();render();
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
   const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
