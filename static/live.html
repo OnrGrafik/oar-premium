@@ -107,8 +107,11 @@ a{color:inherit;text-decoration:none}
 .od-ldelta.pos{color:var(--od-pos)}.od-ldelta.neg{color:var(--od-neg)}
 
 .od-greeks{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:20px 0}
-.od-greek{padding:22px 30px 22px 0;border-right:1px solid var(--od-line)}
+.od-greeks-2{grid-template-columns:1fr 1fr}
+.od-greeks-3{grid-template-columns:1fr 1fr 1fr}
+.od-greek{padding:22px 24px 22px 0;border-right:1px solid var(--od-line)}
 .od-greek:last-child{border-right:none;padding-right:0}
+.od-gfoot{font-size:11.5px !important}
 .od-greek-agg{margin-top:16px;padding:14px 18px;border-left:3px solid var(--od-acc,#6af);background:rgba(100,160,255,.06);border-radius:6px;font-size:12px;line-height:1.6;color:var(--od-text,#cfd6e4)}
 .od-glyph{font-family:var(--od-serif);font-style:italic;font-size:24px;color:var(--od-accent);margin-bottom:6px;line-height:1}
 .od-glabel{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--od-mute);margin-bottom:12px}
@@ -1079,7 +1082,7 @@ function odDikeyBar(vis,spot,fnUp,fnDn,fnTip,birim,notu){
   const n=vis.length,loK=vis[0].strike,hiK=vis[n-1].strike,rng=(hiK-loK)||1,plotW=W-PL-PR;
   const xC=K=>PL+(K-loK)/rng*plotW, xs=vis.map(s=>xC(s.strike));
   const gap=vis.map((s,i)=>{let g=plotW;if(i>0)g=Math.min(g,xs[i]-xs[i-1]);if(i<n-1)g=Math.min(g,xs[i+1]-xs[i]);return Math.max(g,2);});
-  const grid=[1,0.5,0,-0.5,-1].map(f=>{const y=mid-f*halfH*0.94;return `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.line}" stroke-width="${f===0?0.9:0.4}" opacity="${f===0?0.9:0.5}"/><text x="${(PL-6)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="${f>0?OD.pos:f<0?OD.neg:OD.dim}" font-family="'JetBrains Mono',monospace">${f>0?'+':''}${odK(f*maxV)}</text>`;}).join('');
+  const grid=[1,0.5,0,-0.5,-1].map(f=>{const y=mid-f*halfH*0.94;return `<line x1="${PL}" x2="${W-PR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${OD.line}" stroke-width="${f===0?0.9:0.4}" opacity="${f===0?0.9:0.5}"/><text x="${(PL-6)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="11" fill="${f>0?OD.pos:f<0?OD.neg:OD.dim}" font-family="'JetBrains Mono',monospace">${f>0?'+':''}${odK(f*maxV)}</text>`;}).join('');
   const bars=vis.map((s,i)=>{
     const bw=Math.max(Math.min(gap[i]*0.62,5),1),x=(xs[i]-bw/2).toFixed(1);
     const hu=Math.abs(ups[i])/maxV*halfH*0.94,hd=Math.abs(dns[i])/maxV*halfH*0.94;
@@ -1090,13 +1093,13 @@ function odDikeyBar(vis,spot,fnUp,fnDn,fnTip,birim,notu){
     return `<g class="od-hg" onmousemove="optTip(event,&quot;${fnTip(s,i)}&quot;)" onmouseleave="optTipHide()"><rect class="od-hbg" x="${(xs[i]-hw/2).toFixed(1)}" y="${PT}" width="${hw.toFixed(1)}" height="${(H-PT-PB).toFixed(1)}"/>${r}</g>`;
   }).join('');
   const spx=xC(Math.max(loK,Math.min(hiK,spot))),lblLeft=spx>W*0.72;
-  const spotL=`<line x1="${spx.toFixed(1)}" x2="${spx.toFixed(1)}" y1="${(PT-6)}" y2="${(H-PB)}" stroke="#5cc8ff" stroke-width="1.1" stroke-dasharray="4 3" opacity="0.9"/><text x="${(spx+(lblLeft?-5:5)).toFixed(1)}" y="${(PT-1)}" text-anchor="${lblLeft?'end':'start'}" font-size="9" font-weight="700" fill="#5cc8ff" font-family="'JetBrains Mono',monospace">Spot ${(spot/1000).toFixed(2)}K</text>`;
+  const spotL=`<line x1="${spx.toFixed(1)}" x2="${spx.toFixed(1)}" y1="${(PT-6)}" y2="${(H-PB)}" stroke="#5cc8ff" stroke-width="1.1" stroke-dasharray="4 3" opacity="0.9"/><text x="${(spx+(lblLeft?-5:5)).toFixed(1)}" y="${(PT-1)}" text-anchor="${lblLeft?'end':'start'}" font-size="11" font-weight="700" fill="#5cc8ff" font-family="'JetBrains Mono',monospace">Spot ${(spot/1000).toFixed(2)}K</text>`;
   // X ekseni: yuvarlak K seviyeleri GERÇEK fiyat konumunda (etiket=bar)
   const cand=[500,1000,2000,2500,5000,10000,20000,25000,50000,100000];
   const step=cand.find(c=>rng/c<=11)||Math.max(1000,Math.ceil(rng/10/1000)*1000);
   let xlab='';
-  for(let k=Math.ceil(loK/step)*step;k<=hiK;k+=step){const x=xC(k);xlab+=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${(H-PB)}" y2="${(H-PB+3)}" stroke="${OD.mute}" stroke-width="0.6"/><text x="${x.toFixed(1)}" y="${(H-8)}" text-anchor="middle" font-size="8" fill="${OD.mute}" font-family="'JetBrains Mono',monospace">${(k/1000).toFixed(k%1000?1:0)}K</text>`;}
-  const bl=`<text x="${(W-PR)}" y="${(PT-8)}" text-anchor="end" font-size="8.5" fill="${OD.dim}" font-family="'JetBrains Mono',monospace">${birim||''}</text>`;
+  for(let k=Math.ceil(loK/step)*step;k<=hiK;k+=step){const x=xC(k);xlab+=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${(H-PB)}" y2="${(H-PB+3)}" stroke="${OD.mute}" stroke-width="0.6"/><text x="${x.toFixed(1)}" y="${(H-6)}" text-anchor="middle" font-size="10.5" fill="${OD.mute}" font-family="'JetBrains Mono',monospace">${(k/1000).toFixed(k%1000?1:0)}K</text>`;}
+  const bl=`<text x="${(W-PR)}" y="${(PT-8)}" text-anchor="end" font-size="10.5" fill="${OD.dim}" font-family="'JetBrains Mono',monospace">${birim||''}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair">${grid}${bars}${spotL}${xlab}${bl}</svg>${notu||''}`;
 }
 
@@ -1140,8 +1143,8 @@ function odWalls(t,lv,spot,g){
 function odVadeMasasi(vm){
   if(!vm||!vm.gex_tablo)return '<div class="od-empty">Vade verisi yükleniyor…</div>';
   const spot=vm.spot;
-  const th='font-size:9px;letter-spacing:.12em;color:'+OD.mute+';font-weight:700;text-align:right;padding:7px 10px';
-  const td='font-family:var(--od-mono,ui-monospace),monospace;font-size:12px;text-align:right;padding:8px 10px;border-top:1px solid '+OD.lineS;
+  const th='font-size:10.5px;letter-spacing:.10em;color:'+OD.mute+';font-weight:700;text-align:right;padding:7px 10px';
+  const td='font-family:var(--od-mono,ui-monospace),monospace;font-size:12.5px;text-align:right;padding:8px 10px;border-top:1px solid '+OD.lineS;
   const gexRows=vm.gex_tablo.map(r=>`<tr>
       <td style="${td};text-align:left;color:${OD.t2};font-weight:700">${esc(r.vade)}<span style="color:${OD.mute};font-weight:400;font-size:9px"> ${esc(r.expiry||'')}</span></td>
       <td style="${td};color:${OD.neg}">${r.destek?fmtNum(r.destek):'—'}</td>
@@ -1186,7 +1189,7 @@ function odLine(d,renk,birim,opt){
   const medY=Y(med).toFixed(1);
   const fY=v=>birim==='$'?('$'+odK(v)):odK(v);
   const last=vals[vals.length-1];
-  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.line}" stroke-width="1"/><text x="${PL-8}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" fill="${OD.mute}">${fY(v)}</text>`).join('');
+  const grid=[mx,(mx+mn)/2,mn].map(v=>`<line x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${OD.line}" stroke-width="1"/><text x="${PL-8}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="11" fill="${OD.mute}">${fY(v)}</text>`).join('');
   // spot overlay (sağ eksen, turuncu) — Image 2 gibi
   let spotSvg='';
   if(opt.spot){
@@ -1197,7 +1200,7 @@ function odLine(d,renk,birim,opt){
       const SY=v=>PT+(1-(v-smn)/(smx-smn))*ih;
       let sd='',started=false;
       sp.forEach((v,i)=>{if(v==null)return;sd+=(started?'L':'M')+X(i).toFixed(1)+','+SY(v).toFixed(1)+' ';started=true;});
-      const rg=[smx,(smx+smn)/2,smn].map(v=>`<text x="${W-PR+6}" y="${(SY(v)+3).toFixed(1)}" text-anchor="start" font-family="'JetBrains Mono',monospace" font-size="9" fill="${OD.sell}" opacity="0.85">${odK(v)}</text>`).join('');
+      const rg=[smx,(smx+smn)/2,smn].map(v=>`<text x="${W-PR+6}" y="${(SY(v)+3).toFixed(1)}" text-anchor="start" font-family="'JetBrains Mono',monospace" font-size="11" fill="${OD.sell}" opacity="0.85">${odK(v)}</text>`).join('');
       spotSvg=`<path d="${sd.trim()}" fill="none" stroke="${OD.sell}" stroke-width="1.6" stroke-linejoin="round" opacity="0.9"/>${rg}`;
     }
   }
@@ -1207,7 +1210,7 @@ function odLine(d,renk,birim,opt){
     const hb=d.hacim,vb=PT+LH+G+VOLH;
     const maxV=Math.max(...hb.map(h=>(h.buy||0)+(h.sell||0)),1);
     const bwv=Math.max(iw/hb.length*0.5,0.8);
-    vol=`<text x="${PL-8}" y="${(PT+LH+G+9).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8" fill="${OD.mute}">HACİM</text>`+
+    vol=`<text x="${PL-8}" y="${(PT+LH+G+9).toFixed(1)}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="10" fill="${OD.mute}">HACİM</text>`+
       hb.map((h,i)=>{const x=PL+(n<=1?iw/2:(i/(n-1))*iw),tot=(h.buy||0)+(h.sell||0),hh=Math.max(tot/maxV*VOLH,0.6),net=(h.buy||0)-(h.sell||0),col=net>=0?OD.pos:OD.neg;
         return `<rect x="${(x-bwv/2).toFixed(1)}" y="${(vb-hh).toFixed(1)}" width="${bwv.toFixed(1)}" height="${hh.toFixed(1)}" fill="${col}" opacity="0.5"/>`;}).join('');
   }
@@ -1240,10 +1243,10 @@ function odGammaStrike(arr,spot){
   const bars=arr.map(d=>{const x=X(d.strike),h=Math.abs(d.net)/yMax*(cH/2);if(h<0.4)return '';const pos=d.net>=0;
     const tip=`$${fmtNum(d.strike)}<br>Net Γ: <b style='color:${pos?OD.pos:OD.neg}'>${d.net>=0?'+':''}${d.net}M</b>`;
     return `<rect x="${(x-bw/2).toFixed(1)}" y="${(pos?zY-h:zY).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${pos?OD.pos:OD.neg}" opacity="0.88" onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"/>`;}).join('');
-  let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
+  let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
   const ymax=yMax/1.1;
-  const yl=[[PT,'+'+odK(ymax*1e6)],[zY,'0'],[H-PB,'−'+odK(ymax*1e6)]].map(([y,t])=>`<text x="${PL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="${OD.mute}">${t}</text>`).join('');
-  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="${OD.acc}">SPOT ${(spot/1000).toFixed(1)}K</text>`;}
+  const yl=[[PT,'+'+odK(ymax*1e6)],[zY,'0'],[H-PB,'−'+odK(ymax*1e6)]].map(([y,t])=>`<text x="${PL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="${OD.mute}">${t}</text>`).join('');
+  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" font-weight="600" fill="${OD.acc}">SPOT ${(spot/1000).toFixed(1)}K</text>`;}
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}${yl}</svg><div class="od-note" style="line-height:1.5">Y ekseni = seviye başına net dealer Γ ($ / %1 hareket); ↑ pozitif (fiyat sabitleyici) · ↓ negatif (ivme). Fare ile çubuğa gel: strike·net Γ.</div>`;
 }
 function odBuySell(arr,spot){
@@ -1256,26 +1259,30 @@ function odBuySell(arr,spot){
   const bars=arr.map(d=>{const x=X(d.strike),bh=(d.buy||0)/yMax*(cH/2),sh=(d.sell||0)/yMax*(cH/2);
     const tip=`$${fmtNum(d.strike)}<br>Buy: <b style='color:${OD.buy}'>${fmtNum(d.buy||0)}</b><br>Sell: <b style='color:${OD.sell}'>${fmtNum(d.sell||0)}</b>`;
     return `<g onmousemove="optTip(event,&quot;${tip}&quot;)" onmouseleave="optTipHide()"><rect x="${(x-bw/2).toFixed(1)}" y="${(zY-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${OD.buy}" opacity="0.9"/><rect x="${(x-bw/2).toFixed(1)}" y="${zY.toFixed(1)}" width="${bw.toFixed(1)}" height="${sh.toFixed(1)}" fill="${OD.sell}" opacity="0.9"/></g>`;}).join('');
-  let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
+  let xt='';for(let p=Math.ceil(lo/8000)*8000;p<=hi;p+=8000){const x=X(p);xt+=`<text x="${x.toFixed(1)}" y="${H-PB+18}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="${OD.mute}">${(p/1000).toFixed(0)}K</text>`;}
   const ymax=yMax/1.1;
-  const yl=[[PT,'▲ '+fmtNum(Math.round(ymax))],[zY,'0'],[H-PB,'▼ '+fmtNum(Math.round(ymax))]].map(([y,t])=>`<text x="${PL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="${OD.mute}">${t}</text>`).join('');
-  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="${OD.acc}">SPOT ${(spot/1000).toFixed(1)}K</text>`;}
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}${yl}</svg><div style="display:flex;gap:16px;margin-top:6px;font-size:9px;color:${OD.dim}"><span style="color:${OD.buy}">▲ Buy (üst · kontrat)</span><span style="color:${OD.sell}">▼ Sell (alt · kontrat)</span></div>`;
+  const yl=[[PT,'▲ '+fmtNum(Math.round(ymax))],[zY,'0'],[H-PB,'▼ '+fmtNum(Math.round(ymax))]].map(([y,t])=>`<text x="${PL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="${OD.mute}">${t}</text>`).join('');
+  let sp='';if(spot){const x=X(spot);sp=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${PT}" y2="${H-PB}" stroke="${OD.acc}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/><text x="${x.toFixed(1)}" y="${PT-4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" font-weight="600" fill="${OD.acc}">SPOT ${(spot/1000).toFixed(1)}K</text>`;}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;cursor:crosshair"><line x1="${PL}" x2="${W-PR}" y1="${zY}" y2="${zY}" stroke="${OD.lineH}" stroke-width="1"/>${bars}${sp}${xt}${yl}</svg><div style="display:flex;gap:16px;margin-top:6px;font-size:10px;color:${OD.dim}"><span style="color:${OD.buy}">▲ Buy (üst · kontrat)</span><span style="color:${OD.sell}">▼ Sell (alt · kontrat)</span></div>`;
 }
 
 // ── iv. Toplu Greek'ler ──
 function odGreeks(g){
-  const cells=[
-    ['Δ','Net Delta',g.net_delta,g.delta_yorum,'M$'],
+  // Önem sırası: Gamma (rejim) + Delta (yön) EN ÖNEMLİ → üst satır; Vega/Theta/Rho → alt satır
+  const ust=[
     ['Γ','Net Gamma',g.net_gamma,g.gamma_yorum,'M$/1%'],
-    ['Θ','Net Theta',g.net_theta,g.theta_yorum,'M$/gün'],
+    ['Δ','Net Delta',g.net_delta,g.delta_yorum,'M$'],
+  ];
+  const alt=[
     ['𝒱','Net Vega',g.net_vega,g.vega_yorum,'M$/1%IV'],
+    ['Θ','Net Theta',g.net_theta,g.theta_yorum,'M$/gün'],
     ['ρ','Net Rho',g.net_rho,g.rho_yorum,'M$/1%'],
   ];
-  const grid='<div class="od-greeks">'+cells.map(c=>{const sym=c[0],lab=c[1],v=c[2],foot=c[3],unit=c[4];
+  const cell=c=>{const sym=c[0],lab=c[1],v=c[2],foot=c[3],unit=c[4];
     const val=v==null?'—':((v>=0?'+':'')+v);const col=v==null?OD.text:v<0?OD.neg:v>0?OD.pos:OD.text;
-    return `<div class="od-greek"><div class="od-glyph">${sym}</div><div class="od-glabel">${lab}</div><div class="od-gnum" style="color:${col}">${val}${v!=null?'<span style="color:'+OD.dim+';font-size:14px"> '+unit+'</span>':''}</div><div class="od-gfoot">${esc(foot||'')}</div></div>`;
-  }).join('')+'</div>';
+    return `<div class="od-greek"><div class="od-glyph">${sym}</div><div class="od-glabel">${lab}</div><div class="od-gnum" style="color:${col}">${val}${v!=null?'<span style="color:'+OD.dim+';font-size:14px"> '+unit+'</span>':''}</div><div class="od-gfoot">${esc(foot||'')}</div></div>`;};
+  const grid='<div class="od-greeks od-greeks-2">'+ust.map(cell).join('')+'</div>'+
+             '<div class="od-greeks od-greeks-3" style="margin-top:14px">'+alt.map(cell).join('')+'</div>';
   // Tüm Yunan harfleri birleşince → toplu (aggregated) yorum
   const birlesik=g.birlesik_yorum?`<div class="od-greek-agg">⚹ Birleşik Greek Okuması: ${esc(g.birlesik_yorum)}</div>`:'';
   return grid+birlesik;
@@ -1325,27 +1332,27 @@ function odGexHeatmap(d){
   if(!d.satirlar.length) return '<div class="od-note">Veri yok.</div>';
   const V=d.vadeler, S=d.satirlar, spot=d.spot, maxa=d.maxabs||1;
   const cell=(v)=>{
-    if(v==null) return `<td style="padding:3px 6px;border-bottom:1px solid ${OD.line}"></td>`;
+    if(v==null) return `<td style="padding:4px 8px;border-bottom:1px solid ${OD.line}"></td>`;
     const a=Math.min(1,Math.abs(v)/maxa), col=v>=0?'31,240,173':'255,93,108';
     const alpha=(0.06+a*0.60).toFixed(2);
-    return `<td style="padding:3px 6px;text-align:right;border-bottom:1px solid ${OD.line};background:rgba(${col},${alpha});color:${v>=0?OD.pos:OD.neg};font-weight:600">${v>=0?'+':'−'}${odK(Math.abs(v))}</td>`;
+    return `<td style="padding:4px 8px;text-align:right;border-bottom:1px solid ${OD.line};background:rgba(${col},${alpha});color:${v>=0?OD.pos:OD.neg};font-weight:600">${v>=0?'+':'−'}${odK(Math.abs(v))}</td>`;
   };
-  const head=`<th style="text-align:left;padding:4px 6px;color:${OD.dim};font-size:9px;font-weight:600">STRİKE</th>`+
-    V.map(x=>`<th style="text-align:right;padding:4px 6px;color:${OD.dim};font-size:9px;font-weight:600">${x.label}</th>`).join('');
+  const head=`<th style="text-align:left;padding:5px 8px;color:${OD.dim};font-size:11px;font-weight:600">STRİKE</th>`+
+    V.map(x=>`<th style="text-align:right;padding:5px 8px;color:${OD.dim};font-size:11px;font-weight:600">${x.label}</th>`).join('');
   let spotDone=false, rows='';
   for(const r of S){
     if(spot!=null && !spotDone && r.strike<spot){
-      rows+=`<tr><td colspan="${V.length+1}" style="padding:1px 0;border-top:1px dashed ${OD.acc}"><span style="font-size:9px;color:${OD.acc};padding-left:6px">spot ${fmtNum(Math.round(spot))}</span></td></tr>`;
+      rows+=`<tr><td colspan="${V.length+1}" style="padding:1px 0;border-top:1px dashed ${OD.acc}"><span style="font-size:11px;color:${OD.acc};padding-left:6px">spot ${fmtNum(Math.round(spot))}</span></td></tr>`;
       spotDone=true;
     }
-    rows+=`<tr><td style="padding:3px 6px;color:${OD.t2};font-family:'JetBrains Mono',monospace;font-size:10px;border-bottom:1px solid ${OD.line}">${fmtNum(r.strike)}</td>${r.hucreler.map(cell).join('')}</tr>`;
+    rows+=`<tr><td style="padding:4px 8px;color:${OD.t2};font-family:'JetBrains Mono',monospace;font-size:11.5px;border-bottom:1px solid ${OD.line}">${fmtNum(r.strike)}</td>${r.hucreler.map(cell).join('')}</tr>`;
   }
   const kaynak=d.kaynaklar?Object.entries(d.kaynaklar).map(([k,v])=>k+' '+v).join(' · '):'';
   // Δ modu notu
   const modNot=(d.mod&&d.mod!=='kapali')?(d.delta_yok
     ?`<div class="od-note" style="margin-bottom:8px;color:${OD.neu}">Δ ${d.mod==='anlik'?'ANLIK':'GÜN-İÇİ'}: yeterli geçmiş yok — birkaç dakika içinde birikecek; şimdilik mutlak değerler.</div>`
     :`<div class="od-note" style="margin-bottom:8px;color:${OD.dim}">Δ ${d.mod==='anlik'?'ANLIK (~22dk önceye göre)':'GÜN-İÇİ (açılışa göre)'} pozisyon değişimi — yeşil birikiyor, kırmızı çözülüyor.</div>`):'';
-  return modNot+`<div style="overflow-x:auto;max-height:520px"><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`+
+  return modNot+`<div style="overflow-x:auto;max-height:560px"><table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`+
     `<div class="od-note" style="margin-top:10px;line-height:1.5;font-size:11.5px">Hücre = o strike+vadedeki net dealer GEX (${esc(d.birim||'')}); spot %1 oynarsa dealer'ın delta'sı ~bu kadar USD kayar. <b style="color:${OD.pos}">Yeşil</b> long-gamma (pinler) · <b style="color:${OD.neg}">Kırmızı</b> short-gamma (hızlandırır). ${kaynak?`<span style="color:${OD.mute}">${kaynak}</span>`:''}</div>`;
 }
 
@@ -1425,10 +1432,9 @@ function scrOptions(){
 
     <section class="od-sec">
       <div class="od-head"><h2 class="od-h2"><span class="od-nbr">vi.</span>Opsiyon CVD</h2><span class="od-meta">SON 3 GÜN · call+ / put−</span></div>
-      <div class="od-three">
+      <div class="od-two" style="gap:28px">
         <div>${odCvd(cvd.opsiyon_cvd,'1 · Opsiyon CVD (kontrat) + spot','','Renkli çizgi kontrat bazlı CVD (Call buy +, Put sell + / Call sell −, Put buy −), turuncu çizgi spot. Aynı yön=teyit, zıt=divergence. Alttaki barlar saatlik hacim.',{spot:true,detay:true})}</div>
         <div>${odCvd(cvd.premium_cvd,'2 · Premium CVD (USD) — para nereye akıyor','$','Dolar premium akışı — büyük para yönü. Yükseliyorsa call/upside talebi.')}</div>
-        <div>${odCvd(cvd.whale_cvd,'3 · Whale CVD — büyük işlemler','','Balina akışı (≥5 BTC). Genel CVD ile aynı yön=teyit, ters=divergence.')}</div>
       </div>
       <div class="od-two" style="gap:34px;margin-top:14px">
         <div><div class="od-sheet-label">Gamma Exposure · per strike · spot ${dag.spot?fmtNum(Math.round(dag.spot)):'—'}</div>${odGammaStrike(dag.gamma_per_strike,dag.spot)}</div>
