@@ -1497,6 +1497,16 @@ async def startup_event():
         from oar_orderbook import topla_loop as _ob_topla
         asyncio.create_task(_ob_topla(("BTCUSDT", "ETHUSDT"), 60, 20))
         print("[Startup] Order-book toplayıcı başlatıldı")
+        # WS CANLI AKIŞ (footprint aggregated + heatmap + liq map): çoklu-borsa
+        # (Binance/Bybit/OKX/Coinbase) trade/depth/forceOrder → site "📊 Akış" paneli.
+        # Non-Binance borsalar + heatmap + liq ŞU ANDAN İTİBAREN birikir (tarihsel yok).
+        # websockets yoksa (sandbox) sessizce pasif. Görselleştirme — şampiyona dokunmaz.
+        try:
+            import oar_ws_akis as _wsa
+            asyncio.create_task(_wsa.akis_loop(("BTCUSDT", "ETHUSDT")))
+            print("[Startup] WS canlı akış başlatıldı")
+        except Exception as _e:
+            print(f"[Startup] WS akış atlandı: {str(_e)[:60]}")
         # HACİM KONSEYİ: birbirinden habersiz hacim analizörleri (footprint/order-flow/
         # order-book/likidite/VP-POC/opsiyon/makro) → konsensüs snapshot (5dk) + gün sonu
         # 03:00 UTC TAM özet (sayfalı, kesilmez) + haftalık git-senkron veri seti. Analiz

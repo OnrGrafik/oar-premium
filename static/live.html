@@ -2738,11 +2738,46 @@ function akisMetrikKutu(l,v,c){return `<div style="background:#0a0f0e;border:1px
   <div style="font-size:10px;color:#6f8180;margin-bottom:3px">${l}</div><div style="font-size:17px;font-weight:600;color:${c}">${v}</div></div>`;}
 function akisLiqHtml(l){
   const rows=(l.olaylar||[]).slice(0,60).map(o=>`<div style="display:flex;justify-content:space-between;padding:4px 9px;font-size:12px;border-bottom:1px solid #101615">
-    <span style="color:${o.taraf==='long'?'#ff5d6c':'#1ff0ad'}">${o.taraf==='long'?'LONG likit':'SHORT likit'}</span>
+    <span style="color:${o.taraf==='long'?'#ff5d6c':'#1ff0ad'}">${o.taraf==='long'?'LONG likit':'SHORT likit'}<span style="color:#5e716f;font-size:9px;margin-left:5px">${esc(o.borsa||'')}</span></span>
     <span style="color:#cdd9d8">${Number(o.fiyat).toLocaleString('en-US')}</span>
     <span style="color:#9fb0ad">${akisK(o.miktar)}</span></div>`).join('');
-  return `<div style="background:#0a0f0e;border:1px solid #131918;border-radius:10px;overflow:hidden;max-width:520px">${rows||akisBos('likidasyon olayı bekleniyor…')}</div>`;}
-function hmCiz(){ /* Faz 2: heatmap canvas — WS ladder zaman serisinden */ }
+  const kume=(l.kumeler||[]).slice(0,14);
+  const maxK=Math.max(...kume.map(k=>k.long+k.short),1);
+  const kumeHtml=kume.map(k=>{const tot=k.long+k.short;const w=(tot/maxK*100).toFixed(0);const lw=tot>0?(k.long/tot*100).toFixed(0):0;
+    return `<div style="position:relative;display:flex;justify-content:space-between;padding:4px 9px;font-size:11px;border-bottom:1px solid #101615">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:${w}%;background:linear-gradient(90deg,rgba(255,93,108,.18) ${lw}%,rgba(31,240,173,.16) ${lw}%)"></div>
+      <span style="position:relative;color:#cdd9d8">${Number(k.fiyat).toLocaleString('en-US')}</span>
+      <span style="position:relative;color:#9fb0ad">${akisK(tot)}</span></div>`;}).join('');
+  return `<div style="display:flex;gap:14px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px;max-width:440px">
+      <div style="font-size:11px;color:#6f8180;margin-bottom:5px">Likidasyon olayları (canlı)</div>
+      <div style="background:#0a0f0e;border:1px solid #131918;border-radius:10px;overflow:hidden;max-height:520px;overflow-y:auto">${rows||akisBos('likidasyon olayı bekleniyor…')}</div>
+    </div>
+    <div style="width:250px;flex-shrink:0">
+      <div style="font-size:11px;color:#6f8180;margin-bottom:5px">Fiyat kümeleri (yığılma)</div>
+      <div style="background:#0a0f0e;border:1px solid #131918;border-radius:10px;overflow:hidden">${kumeHtml||'<div style=\"padding:14px;color:#5e716f;font-size:12px\">yığılma yok</div>'}</div>
+    </div></div>`;}
+
+// ─── HEATMAP CANVAS (zaman × fiyat × L2 likidite) ───
+function hmCiz(){
+  const h=ST.akis.hm;const cv=$('hmCanvas');if(!h||!cv||!h.kareler)return;
+  const nb=h.nb,nt=h.nt;
+  const cw=Math.max(3,Math.floor(1160/nt)),rh=Math.max(3,Math.floor(520/nb)),eksenW=58;
+  const W=eksenW+nt*cw,H=nb*rh+4;
+  const dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const x=cv.getContext('2d');x.scale(dpr,dpr);x.fillStyle='#05080a';x.fillRect(0,0,W,H);
+  // renk: düşük=koyu mavi → orta=mor → yüksek=sarı/turuncu (likidite yoğunluğu)
+  const renk=v=>{if(v<=0)return null;const t=Math.min(1,Math.pow(v,0.55));
+    const r=Math.round(20+t*235),g=Math.round(10+t*180),b=Math.round(90+ (1-t)*120 - t*90);
+    return `rgb(${r},${Math.max(0,g)},${Math.max(0,b)})`;};
+  for(const[ti,pi,v]of h.kareler){const c=renk(v);if(!c)continue;
+    x.fillStyle=c;x.fillRect(eksenW+ti*cw,(nb-1-pi)*rh,cw,rh);}
+  // fiyat ekseni
+  x.fillStyle='#7a8a88';x.font='9px '+K_FONT;x.textAlign='right';x.textBaseline='middle';
+  for(let i=0;i<=6;i++){const p=h.min_fiyat+(h.max_fiyat-h.min_fiyat)*i/6;const yy=(nb-1-(i/6*(nb-1)))*rh;
+    x.fillText(Number(p).toLocaleString('en-US'),eksenW-4,yy);}
+  x.textAlign='left';x.fillStyle='#5e716f';x.fillText('← eski      zaman      yeni →',eksenW+4,H-8);
+}
 
 async function boot(){
   tickClock();setInterval(tickClock,1000);
