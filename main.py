@@ -94,7 +94,8 @@ app.add_middleware(
 # ─── ÜYELİK ERİŞİM KAPISI ─────────────────────────────────────────
 # Tüm /api/* uçları oturum ister (site içeriği yalnız onaylı üyelere).
 # İstisna: kimlik uçları (giriş/kayıt/durum/çıkış) + Telegram webhook health.
-_ACIK_API = {"/api/auth/login", "/api/auth/register", "/api/auth/me", "/api/auth/logout"}
+_ACIK_API = {"/api/auth/login", "/api/auth/register", "/api/auth/me", "/api/auth/logout",
+             "/api/health"}   # Railway healthcheck — oturumsuz erişilebilir olmalı
 
 @app.middleware("http")
 async def _uyelik_kapisi(request: Request, call_next):
