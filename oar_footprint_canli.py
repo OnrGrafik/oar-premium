@@ -38,6 +38,7 @@ _CACHE_TTL_S = 2     # kısa (arka plan doldukça yeni seviyeler görünsün)
 _FP_CACHE = {}
 _FP_ISLENIYOR = set()   # {(sembol,interval,tick)} — aynı anda tek arka-plan doldurucu
 _FP_TANI = {}           # {(sembol,interval): {"son_trade","son_hata","denendi","kaynak"}}
+_FP_SON = {}            # {(sembol,interval): epoch} — son doldurma tetiği (backoff için)
 
 
 async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
@@ -275,13 +276,21 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             "poc": poc, "seviyeler": seviyeler,
         })
 
-    # eksik mumları arka planda doldur (yeniden→eskiye; endpoint BEKLEMEZ)
-    if eksik and futures is not None:
-        try:
-            asyncio.create_task(_fp_doldur(sembol, interval, tick,
-                                           sorted(set(eksik), reverse=True), futures))
-        except RuntimeError:
-            pass
+    # eksik mumları arka planda doldur (yeniden→eskiye; endpoint BEKLEMEZ).
+    # BACKOFF: aggTrades veri gelmiyorsa (son_trade=0) 30s'de bir dene (sunucuyu boğma);
+    # veri geliyorsa 3s'de bir hızlı doldur.
+    if eksik:
+        tk = (sembol, interval)
+        tani = _FP_TANI.get(tk, {})
+        basarisiz = tani.get("denendi", 0) > 0 and tani.get("son_trade", 0) == 0
+        aralik = 30 if basarisiz else 3
+        if (time.time() - _FP_SON.get(tk, 0)) >= aralik:
+            _FP_SON[tk] = time.time()
+            try:
+                asyncio.create_task(_fp_doldur(sembol, interval, tick,
+                                               sorted(set(eksik), reverse=True), futures))
+            except RuntimeError:
+                pass
 
     b_alis = sum(a for a, _ in birlesik_hucre.values())
     b_satis = sum(s for _, s in birlesik_hucre.values())
