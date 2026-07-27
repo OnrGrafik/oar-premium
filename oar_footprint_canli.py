@@ -151,22 +151,34 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── Footprint tick verisi (Binance perp = tam tarihsel) ──
+    # ── Footprint tick verisi: WS CANLI TAMPON önce (hızlı; REST ağır) ──
     trades = []
-    if "binance_perp" in borsalar or "binance_spot" in borsalar or not borsalar:
-        try:
-            trades = await agg_trades(sembol, bas_ms, son_ms,
-                                      futures=("binance_spot" not in borsalar))
-        except Exception:
-            trades = []
-    # ── Diğer borsalar (WS canlı buffer — Faz 2, varsa) ──
+    ws_var = False
     try:
         import oar_ws_akis
-        ekstra = oar_ws_akis.footprint_trades(sembol, borsalar, bas_ms, son_ms)
-        if ekstra:
-            trades = trades + ekstra
+        trades = oar_ws_akis.trades_window(sembol, borsalar, bas_ms, son_ms)
+        ws_var = True
     except Exception:
-        pass
+        trades = []
+    # WS yetersizse (sunucu yeni başladı / websockets yok) → SINIRLI REST warmup:
+    # yalnız son ~12 mum + düşük tavan (hız için; hanging YOK). Çift-sayım olmasın diye
+    # WS non-Binance ayrı eklenir, Binance REST'ten.
+    if len(trades) < 50 and ("binance_perp" in borsalar or "binance_spot" in borsalar
+                             or not borsalar):
+        try:
+            warm_bas = max(bas_ms, son_ms - 12 * ms)
+            rest = await agg_trades(sembol, warm_bas, son_ms,
+                                    futures=("binance_spot" not in borsalar),
+                                    max_trade=30000)
+        except Exception:
+            rest = []
+        ws_non_bnc = []
+        if ws_var:
+            try:
+                ws_non_bnc = oar_ws_akis.footprint_trades(sembol, borsalar, bas_ms, son_ms)
+            except Exception:
+                ws_non_bnc = []
+        trades = rest + ws_non_bnc
 
     tablo = _footprint_derle(mum_ts_list, trades, tick)
 

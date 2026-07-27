@@ -178,7 +178,7 @@ def _depth_yaz(borsa, sembol, bids, asks, now):
 def footprint_trades(sembol, borsalar, bas_ms, son_ms):
     """
     [bas_ms, son_ms) penceresindeki WS trade'leri (yalnız NON-Binance borsalar —
-    Binance zaten REST'ten geliyor, çift-sayım olmasın). Aggregated için birleştirir.
+    Binance REST'ten geliyorsa çift-sayım olmasın). Aggregated için birleştirir.
     """
     out = []
     for borsa in borsalar:
@@ -191,6 +191,30 @@ def footprint_trades(sembol, borsalar, bas_ms, son_ms):
             if bas_ms <= tr["t"] < son_ms:
                 out.append(tr)
     return out
+
+
+def trades_window(sembol, borsalar, bas_ms, son_ms):
+    """
+    [bas_ms, son_ms) penceresindeki TÜM WS trade'leri (Binance DAHİL) — grafik canlı
+    footprint için (REST ağır olmasın diye WS tamponundan hızlı okuma).
+    """
+    out = []
+    for borsa in borsalar:
+        d = _TRADES.get((borsa, sembol))
+        if not d:
+            continue
+        for tr in d:
+            if bas_ms <= tr["t"] < son_ms:
+                out.append(tr)
+    return out
+
+
+def trade_kapsam(sembol, borsa="binance_perp"):
+    """WS trade tamponunun en eski/yeni ms'i (footprint hangi mumları kapsıyor)."""
+    d = _TRADES.get((borsa, sembol))
+    if not d:
+        return None
+    return {"bas": d[0]["t"], "son": d[-1]["t"], "adet": len(d)}
 
 
 def heatmap(sembol, borsalar):
