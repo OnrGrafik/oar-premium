@@ -1052,8 +1052,14 @@ function fpModCiz(sym){
     for(const a of d.asks){const yy=pY(a[0]);if(yy<y0||yy>y0+plotH)continue;const w=(a[1]/mq)*maxBar;x.fillStyle='rgba(226,74,90,.5)';x.fillRect(sagX-w,yy-1,w,2);}}
   // başlık + durum
   x.textAlign='left';x.font='bold 11px '+K_FONT;x.fillStyle='#cdd9d8';x.fillText(sym.replace('USDT','')+' · Footprint '+_kTF,6,9);
-  let rz='yükleniyor…';if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0;rz=(tp&&sv>=tp)?('tam · '+tp+' mum'):(sv+'/'+tp+' dolduruyor…');}
-  x.textAlign='right';x.fillStyle='#7af0c4';x.font='9px '+K_FONT;x.fillText(rz,W-axisW-4,9);
+  let rz='yükleniyor…',rzc='#7af0c4';
+  if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
+    if(tp&&sv>=tp)rz='tam · '+tp+' mum';
+    else if(sv>0)rz=sv+'/'+tp+' dolduruyor…';
+    else if(t.son_hata){rz='veri hata: '+t.son_hata;rzc='#ff8a8a';}
+    else if(t.denendi)rz='kaynak boş ('+(t.kaynak||'?')+') · deneme '+t.denendi;
+    else rz='dolduruyor…';}
+  x.textAlign='right';x.fillStyle=rzc;x.font='9px '+K_FONT;x.fillText(rz,W-axisW-4,9);
   if(scroll>0){x.fillStyle='#e8a30c';x.textAlign='center';x.fillText('← '+scroll+' geri',W/2,9);}
 }
 function fpModWire(sym){
