@@ -37,33 +37,51 @@ _CACHE_TTL_S = 2     # kısa (arka plan doldukça yeni seviyeler görünsün)
 # {(sembol,interval,tick,mum_ts): {"seviyeler":[...], "alis","satis","delta","poc"}}
 _FP_CACHE = {}
 _FP_ISLENIYOR = set()   # {(sembol,interval,tick)} — aynı anda tek arka-plan doldurucu
+_FP_TANI = {}           # {(sembol,interval): {"son_trade","son_hata","denendi","kaynak"}}
 
 
 async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
     """
-    Eksik mumların per-seviye footprint'ini aggTrades'ten mum-mum çeker → _FP_CACHE
-    (kalıcı). Yeniden→eskiye doldurur, rate-limit için mumlar arası kısa bekleme.
-    GEÇMİŞ mum bir kez çekilir; GÜNCEL (oluşmakta olan) mum her turda tazelenir.
+    Eksik mumların per-seviye footprint'ini aggTrades'ten mum-mum çeker → _FP_CACHE.
+    Yeniden→eskiye; tur başına en fazla 8 mum (nazik, rate-limit dostu). GEÇMİŞ mum
+    bir kez çekilir (dolu cache); GÜNCEL mum her turda tazelenir.
+    ⚠ BOŞ sonuç KALICI cache'lenmez → tekrar denenir (0/40'ta takılma çözümü).
+    ⚠ Futures aggTrades boş dönerse SPOT aggTrades fallback (weight 1, daha güvenli).
+    Teşhis (_FP_TANI): kaç trade geldi / hata ne (frontend rozetinde görünür).
     """
     key0 = (sembol, interval, tick)
     if key0 in _FP_ISLENIYOR:
         return
     _FP_ISLENIYOR.add(key0)
+    tani = {"son_trade": 0, "son_hata": "", "denendi": 0, "kaynak": ""}
     try:
         from exchange_client import agg_trades
         ms = _INTERVAL_MS.get(interval, 300_000)
         now = time.time() * 1000
+        islenen = 0
         for cts in mum_ts_list:
+            if islenen >= 8:
+                break
             ck = (sembol, interval, tick, cts)
             guncel = cts <= now < cts + ms
-            if ck in _FP_CACHE and not guncel:
+            if ck in _FP_CACHE and _FP_CACHE[ck]["seviyeler"] and not guncel:
                 continue
+            son = min(cts + ms, int(now) + 1000)
+            trades = []
+            kaynak = ""
             try:
-                son = min(cts + ms, int(now) + 1000)
                 trades = await agg_trades(sembol, cts, son, futures=futures,
-                                          max_trade=50000)
-            except Exception:
-                continue
+                                          max_trade=40000)
+                kaynak = "futures" if futures else "spot"
+                if not trades and futures:      # futures boş → spot fallback
+                    trades = await agg_trades(sembol, cts, son, futures=False,
+                                              max_trade=40000)
+                    kaynak = "spot"
+            except Exception as e:
+                tani["son_hata"] = str(e)[:90]
+            tani["denendi"] += 1
+            if not trades:
+                continue                        # BOŞ → cache'leme, sonra tekrar dene
             hucreler = {}
             for tr in trades:
                 fb = _bin(tr["p"], tick)
@@ -82,13 +100,15 @@ async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
                 "delta": round(alis - satis, 4),
                 "poc": round(poc, 4) if poc is not None else None,
             }
+            tani["son_trade"] = len(trades); tani["kaynak"] = kaynak
+            islenen += 1
             now = time.time() * 1000
-            await asyncio.sleep(0.12)      # rate-limit dostu
-        # önbellek şişmesini engelle (çok eski anahtarları at)
+            await asyncio.sleep(0.2)
         if len(_FP_CACHE) > 4000:
             for k in list(_FP_CACHE)[:1500]:
                 _FP_CACHE.pop(k, None)
     finally:
+        _FP_TANI[(sembol, interval)] = tani
         _FP_ISLENIYOR.discard(key0)
 
 
@@ -276,6 +296,7 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "sembol": sembol, "interval": interval, "tick": tick,
         "borsalar": list(borsalar), "spot": spot,
         "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar), "eksik": len(eksik),
+        "tani": _FP_TANI.get((sembol, interval), {}),
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}
