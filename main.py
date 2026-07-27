@@ -1497,6 +1497,16 @@ async def startup_event():
         from oar_orderbook import topla_loop as _ob_topla
         asyncio.create_task(_ob_topla(("BTCUSDT", "ETHUSDT"), 60, 20))
         print("[Startup] Order-book toplayıcı başlatıldı")
+        # WS CANLI AKIŞ (footprint aggregated + heatmap + liq map): çoklu-borsa
+        # (Binance/Bybit/OKX/Coinbase) trade/depth/forceOrder → site "📊 Akış" paneli.
+        # Non-Binance borsalar + heatmap + liq ŞU ANDAN İTİBAREN birikir (tarihsel yok).
+        # websockets yoksa (sandbox) sessizce pasif. Görselleştirme — şampiyona dokunmaz.
+        try:
+            import oar_ws_akis as _wsa
+            asyncio.create_task(_wsa.akis_loop(("BTCUSDT", "ETHUSDT")))
+            print("[Startup] WS canlı akış başlatıldı")
+        except Exception as _e:
+            print(f"[Startup] WS akış atlandı: {str(_e)[:60]}")
         # HACİM KONSEYİ: birbirinden habersiz hacim analizörleri (footprint/order-flow/
         # order-book/likidite/VP-POC/opsiyon/makro) → konsensüs snapshot (5dk) + gün sonu
         # 03:00 UTC TAM özet (sayfalı, kesilmez) + haftalık git-senkron veri seti. Analiz
@@ -3333,6 +3343,59 @@ async def live_page():
 async def api_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200):
     candles = await get_ohlcv(symbol, interval, min(limit, 1000))
     return {"symbol": symbol, "candles": candles}
+
+
+# ─────────────────────────────────────────────────────────────────
+# AKIŞ: Footprint / Heatmap / Liq / Orderbook (Komuta Merkezi paneli)
+# ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/akis/borsalar")
+async def api_akis_borsalar():
+    """Seçilebilir borsalar + aggregated durumu (frontend borsa seçici)."""
+    import oar_footprint_canli as _fp
+    return _fp.borsa_listesi()
+
+
+@app.get("/api/akis/footprint")
+async def api_akis_footprint(symbol: str = "BTCUSDT", interval: str = "5m",
+                             tick: float = 0.0, limit: int = 40,
+                             borsalar: str = "binance_perp"):
+    """Mum-başına fiyat-seviyesi footprint (sağ alış/sol satış/delta) + birleşik profil."""
+    import oar_footprint_canli as _fp
+    bl = tuple(b.strip() for b in borsalar.split(",") if b.strip()) or ("binance_perp",)
+    return await _fp.footprint(symbol, interval, tick, min(limit, 120), bl)
+
+
+@app.get("/api/akis/orderbook")
+async def api_akis_orderbook(symbol: str = "BTCUSDT", seviye: int = 25,
+                             futures: bool = True):
+    """Canlı DOM ladder + imbalance/true_pressure."""
+    import oar_footprint_canli as _fp
+    return await _fp.orderbook_dom(symbol, min(seviye, 50), futures)
+
+
+@app.get("/api/akis/heatmap")
+async def api_akis_heatmap(symbol: str = "BTCUSDT", borsalar: str = "binance_perp"):
+    """Likidite ısı haritası (zaman×fiyat×L2 likidite). Faz 2 (WS birikimi)."""
+    try:
+        import oar_ws_akis
+        bl = tuple(b.strip() for b in borsalar.split(",") if b.strip())
+        return oar_ws_akis.heatmap(symbol, bl)
+    except Exception:
+        return {"symbol": symbol, "durum": "birikiyor",
+                "not": "ısı haritası şu andan itibaren canlı birikir (WS)"}
+
+
+@app.get("/api/akis/liq")
+async def api_akis_liq(symbol: str = "BTCUSDT", borsalar: str = "binance_perp"):
+    """Likidasyon olayları akışı + tahmini kümeler. Faz 3 (forceOrder WS)."""
+    try:
+        import oar_ws_akis
+        bl = tuple(b.strip() for b in borsalar.split(",") if b.strip())
+        return oar_ws_akis.liq_map(symbol, bl)
+    except Exception:
+        return {"symbol": symbol, "durum": "birikiyor",
+                "not": "likidasyon olayları şu andan itibaren canlı birikir (WS)"}
 
 @app.get("/api/walls")
 async def api_walls(currency: str = "BTC"):
