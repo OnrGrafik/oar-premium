@@ -997,16 +997,31 @@ function kFpCiz(g,c,ts,W,H,sym){
     if(yH!=null&&tot>0){g.textAlign='center';
       g.font='bold 9px '+K_FONT;g.fillStyle='#111111';g.fillText(_akK(tot),cx,Math.max(yH-16,6));
       g.fillStyle=delta>=0?'#0a8f5c':'#d1344b';g.fillText((delta>=0?'+':'')+_akK(delta),cx,Math.max(yH-6,15));}
-    // ── seviye hücreleri: SAĞ=alım / SOL=satım (mum ortada ince kalır) ──
+    // ── seviye hücreleri: SAĞ=alım / SOL=satım + DIAGONAL IMBALANCE (pro footprint) ──
     if(sev&&sev.length&&bw>=14){
       let maxH=1;for(const s of sev)maxH=Math.max(maxH,s.alis,s.satis);
+      // sev yüksekten alçağa sıralı (i arttıkça fiyat düşer). Diagonal imbalance:
+      //  ALIM imbalance: alis[i] ≥ 3× satis[i+1] (bir ALT seviyenin satışı) → agresif alıcı
+      //  SATIM imbalance: satis[i] ≥ 3× alis[i-1] (bir ÜST seviyenin alışı) → agresif satıcı
+      const RAT=3,MINV=Math.max(maxH*0.08,1),bImb=[],sImb=[];
+      for(let i=0;i<sev.length;i++){const alt=sev[i+1],ust=sev[i-1];
+        bImb[i]=(sev[i].alis>MINV&&sev[i].alis>=RAT*Math.max(alt?alt.satis:0,1));
+        sImb[i]=(sev[i].satis>MINV&&sev[i].satis>=RAT*Math.max(ust?ust.alis:0,1));}
       g.font='8px '+K_FONT;
-      for(const s of sev){const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
-        let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;const yy=y-rh/2;
-        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle='rgba(209,52,75,'+(0.12+it*0.55)+')';g.fillRect(cx-yariW,yy,yariW-2,Math.max(rh-0.5,1));}
-        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle='rgba(10,143,92,'+(0.12+it*0.55)+')';g.fillRect(cx+2,yy,yariW-2,Math.max(rh-0.5,1));}
-        if(sayi&&rh>=8){g.fillStyle='#7a2230';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-3,y);
-          g.fillStyle='#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+3,y);}}
+      for(let i=0;i<sev.length;i++){const s=sev[i];const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
+        let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;const yy=y-rh/2,rhh=Math.max(rh-0.5,1);
+        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=sImb[i]?'rgba(255,70,90,0.92)':'rgba(209,52,75,'+(0.12+it*0.5)+')';g.fillRect(cx-yariW,yy,yariW-2,rhh);
+          if(sImb[i]){g.fillStyle='#ff2d4a';g.fillRect(cx-yariW-2,yy,2,rhh);}}   // sol kenar parlak işaret
+        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=bImb[i]?'rgba(30,240,150,0.92)':'rgba(10,143,92,'+(0.12+it*0.5)+')';g.fillRect(cx+2,yy,yariW-2,rhh);
+          if(bImb[i]){g.fillStyle='#12f090';g.fillRect(cx+yariW,yy,2,rhh);}}     // sağ kenar parlak işaret
+        if(sayi&&rh>=8){g.fillStyle=sImb[i]?'#3a0008':'#7a2230';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-3,y);
+          g.fillStyle=bImb[i]?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+3,y);}}
+      // STACKED imbalance: ≥3 ardışık aynı yön → yan kenarda kalın çizgi (güçlü sinyal)
+      const stak=(flag,taraf)=>{let i=0;while(i<sev.length){if(!flag[i]){i++;continue;}let j=i;while(j<sev.length&&flag[j])j++;
+        if(j-i>=3){const y1=c.ca.priceToCoordinate(sev[i].p),y2=c.ca.priceToCoordinate(sev[j-1].p);
+          if(y1!=null&&y2!=null){g.strokeStyle=taraf>0?'#12f090':'#ff2d4a';g.lineWidth=2.5;const xx=taraf>0?cx+yariW+3:cx-yariW-3;
+            g.beginPath();g.moveTo(xx,Math.min(y1,y2)-rh/2);g.lineTo(xx,Math.max(y1,y2)+rh/2);g.stroke();}}i=j;}};
+      stak(bImb,1);stak(sImb,-1);
       if(poc!=null){const yp=c.ca.priceToCoordinate(poc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(poc-tick)||(yp+9))-yp);if(!(rh>=3))rh=3;g.strokeStyle='#e8a30c';g.lineWidth=1;g.strokeRect(cx-yariW,yp-rh/2,yariW*2,rh);}}
     }
   }
