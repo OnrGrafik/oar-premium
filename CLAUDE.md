@@ -10,6 +10,17 @@
 - **Sohbet SİLİNDİ** (kullanıcı): `/api/chat` + `/api/leader/chat` erken `return` ile devre dışı (LLM çağırmaz). Karar (LONG/SHORT) zaten deterministik (`confidence_karar`); yalnız düz-metin gerekçe kural-tabanlı.
 - Eski Gemini/Groq yardımcıları (`call_gemini`/`stream_ai`/`_gemini_request`/`_groq_request`/`_hizli_ai` gövdesi) ARTIK ÇAĞRILMIYOR (ölü kod; geri bağlama). Tek KALAN manuel istisna: knowledge görsel-öğretme upload (`call_gemini` vision) — UI'da yok, site akışında çağrılmıyor. GEMINI_API_KEY/GROQ_API_KEY env'leri gereksiz.
 
+## 0UYE. ÜYELİK / ERİŞİM SİSTEMİ (kullanıcı onaylı — kalıcı)
+- Site artık **üyelik kapılı**: içerik yalnız **onaylı üyelere** açık. `auth.py` (SQLite `DATA_DIR/users.db`, bcrypt→pbkdf2 fallback, server-side oturum → HttpOnly+Secure+SameSite=Strict çerez `oar_session`).
+- Akış: **başvuru+admin onayı** · **e-posta+şifre** · **admin-manuel + Telegram bildirim** (yeni başvuru `_telegram_gonder` ile bildirilir). Kullanıcı seçimi.
+- **İlk admin**: `ADMIN_EMAIL`+`ADMIN_PASS` env'den startup'ta kurulur (`auth._bootstrap_admin`). Bunlar Railway Variables'a EKLENMELİ yoksa admin yok.
+- Kapı: `main.py` `_uyelik_kapisi` middleware → tüm `/api/*` oturum ister (istisna `/api/auth/login|register|me|logout`). `/api/admin/*` rol=admin ister. **X-API-Key==OAR_API_KEY olan istekler oturumdan MUAF** (PC senkron scriptleri: yerel-ekle/kitap push bozulmasın).
+- Uçlar: `/api/auth/*` (register/login/logout/me/profil/sifre) + `/api/admin/*` (uyeler/onayla/durum/rol/sil/sifre-sifirla/olustur/audit).
+- Frontend (live.html): girişsiz → tam ekran login/kayıt overlay (`authEkraniGoster`); authed → `boot()` içerik yükler. NAV'a **👤 Üye Paneli** + (admin ise) **🛡 Yönetim** + Çıkış eklenir. `scrUye` (profil+şifre), `scrAdmin` (bekleyenler/üye tablosu/rol/askı/sil/şifre-sıfırla/yeni üye/denetim).
+- ⚠️ `users.db` gitignore'da (`data/`+`*.db`) → şifre hash'i repo'ya GİRMEZ. Railway kalıcı volume (`/var/data`) şart yoksa restart'ta üyeler silinir.
+- ⚠️ `secure=True` çerez → yalnız HTTPS. Localhost http'de giriş çalışmaz (Railway https'te sorun yok).
+- Yeni bağımlılık: `bcrypt` (requirements). Yoksa auth pbkdf2'ye düşer (sandbox).
+
 ## 00. İLETİŞİM KURALI (kullanıcı isteği — kalıcı, her cevapta uygula)
 - Kısa, doğrudan, madde madde. **Güzelleme/övgü YOK.**
 - Tek seferde tek şey; net "sonraki adım".
