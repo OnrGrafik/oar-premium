@@ -182,13 +182,35 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
 
     tablo = _footprint_derle(mum_ts_list, trades, tick)
 
+    # ── HER ZAMAN çalışan per-mum toplam alış/satış (1m klines takerBuyBase) ──
+    # aggTrades/WS gelmese bile mum başı Δ + toplam alış/satış GÖRÜNÜR (seviye detayı
+    # ancak trade verisiyle çıkar). Tek hızlı REST isteği (≤1000 1m bar).
+    taker_map = {}   # {mum_ts: [alis, satis]}
+    try:
+        from exchange_client import klines_taker
+        tk = await klines_taker(sembol, "1m", 1000,
+                                futures=("binance_spot" not in borsalar),
+                                start_ms=bas_ms)
+        for row in tk:
+            t = int(row[0]); vol = float(row[5]); tb = float(row[6])
+            mts = (t // ms) * ms
+            slot = taker_map.setdefault(mts, [0.0, 0.0])
+            slot[0] += tb                 # agresif alış (taker buy base)
+            slot[1] += (vol - tb)         # agresif satış (kalan)
+    except Exception:
+        taker_map = {}
+
     mumlar = []
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
         hucreler = tablo.get(ts, {})
-        alis = sum(a for a, _ in hucreler.values())
-        satis = sum(s for _, s in hucreler.values())
+        if hucreler:
+            alis = sum(a for a, _ in hucreler.values())
+            satis = sum(s for _, s in hucreler.values())
+        else:                              # seviye verisi yok → per-mum takerBuy toplamı
+            tm = taker_map.get(ts, [0.0, 0.0])
+            alis, satis = tm[0], tm[1]
         hacim = {p: (a + s) for p, (a, s) in hucreler.items()}
         poc = max(hacim, key=hacim.get) if hacim else None
         for p, (a, s) in hucreler.items():
@@ -211,10 +233,12 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "seviyeler": _seviye_listesi(birlesik_hucre),
         **_poc_va(birlesik_hucre),
     }
+    seviyeli = sum(1 for m in mumlar if m["seviyeler"])
     veri = {
         "sembol": sembol, "interval": interval, "tick": tick,
         "borsalar": list(borsalar), "spot": spot,
-        "trade_sayisi": len(trades), "mumlar": mumlar, "birlesik": birlesik,
+        "trade_sayisi": len(trades), "seviyeli_mum": seviyeli,
+        "taker_mum": len(taker_map), "mumlar": mumlar, "birlesik": birlesik,
         "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}

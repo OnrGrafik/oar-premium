@@ -962,37 +962,45 @@ function _akK(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3
 
 // ── FOOTPRINT: her mumun sağında alım / solunda satım (yalnız yakınlaşınca okunur) ──
 function kFpCiz(g,c,ts,W,H){
-  const fp=c.fpData;if(!fp||!fp.mumlar||!fp.mumlar.length)return;
-  // mum genişliği (bar aralığı) — dar ise sayı yazma, yalnız delta rengi barı
+  const fp=c.fpData;
+  // durum rozeti (sol üst) — ne olduğunu ekrandan gör
+  g.save();g.textBaseline='top';g.font='9px '+K_FONT;g.textAlign='left';
+  let rozet;
+  if(!fp||fp.durum!=='ok')rozet='FP: veri bekleniyor…';
+  else if(!fp.mumlar||!fp.mumlar.length)rozet='FP: mum yok';
+  else rozet='FP · '+(fp.seviyeli_mum||0)+'/'+fp.mumlar.length+' seviye · '+(fp.trade_sayisi||0)+' tr';
+  g.fillStyle='rgba(0,0,0,.5)';g.fillRect(4,4,g.measureText(rozet).width+10,14);
+  g.fillStyle=(fp&&fp.seviyeli_mum)?'#1ff0ad':'#ffb13c';g.fillText(rozet,9,6);g.restore();
+  if(!fp||!fp.mumlar||!fp.mumlar.length)return;
   let bw=8;try{bw=ts.options?ts.options().barSpacing:8;}catch(e){}
-  const yariW=Math.min(46,Math.max(14,bw*0.46));
-  const sayiGoster=bw>=34;                 // yeterince yakınlaşınca hücre sayıları
+  const yariW=Math.min(46,Math.max(10,bw*0.46));
+  const cellGoster=bw>=9;                  // orta zoom → renkli hücreler
+  const sayiGoster=bw>=26;                 // fazla zoom → hücre sayıları
   g.textBaseline='middle';g.font='8px '+K_FONT;
   const tick=fp.tick;
   for(const m of fp.mumlar){
     const cx=ts.timeToCoordinate(Math.floor(m.t/1000)+K_TZ);
-    if(cx==null||cx<-yariW||cx>W+yariW)continue;
-    // üst etiket: toplam Δ
+    if(cx==null||cx<-yariW-4||cx>W+yariW+4)continue;
+    // üst etiket: toplam Δ (taker fallback ile her zaman dolu)
     const yTop=c.ca.priceToCoordinate(m.h);
-    if(yTop!=null){g.textAlign='center';g.fillStyle=m.delta>=0?'#0a8f5c':'#d1344b';g.font='bold 8px '+K_FONT;
-      g.fillText((m.delta>=0?'+':'')+_akK(m.delta),cx,Math.max(yTop-7,7));g.font='8px '+K_FONT;}
-    if(!sayiGoster){
-      // dar görünüm: sadece POC noktası + delta rengi ince bar
+    if(yTop!=null&&(m.alis||m.satis)){g.textAlign='center';g.fillStyle=m.delta>=0?'#0a8f5c':'#d1344b';g.font='bold 8px '+K_FONT;
+      g.fillText((m.delta>=0?'+':'')+_akK(m.delta),cx,Math.max(yTop-11,2));g.font='8px '+K_FONT;}
+    if(!m.seviyeler||!m.seviyeler.length||!cellGoster){
       if(m.poc!=null){const yp=c.ca.priceToCoordinate(m.poc);if(yp!=null){g.fillStyle='rgba(232,163,12,.9)';g.fillRect(cx-2,yp-1,4,2);}}
       continue;
     }
-    // seviye başına sağ=alış / sol=satış (renk yoğunluğu + sayı)
+    // seviye başına sağ=alış / sol=satış
     let maxH=1;for(const s of m.seviyeler)maxH=Math.max(maxH,s.alis,s.satis);
     for(const s of m.seviyeler){
       const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
-      const rh=Math.max(7,(c.ca.priceToCoordinate(s.p-tick)||y+9)-y);
+      let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;
       const yy=y-rh/2;
-      if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle='rgba(209,52,75,'+(0.1+it*0.6)+')';g.fillRect(cx-yariW,yy,yariW-0.5,rh-0.5);}
-      if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle='rgba(10,143,92,'+(0.1+it*0.62)+')';g.fillRect(cx+0.5,yy,yariW-0.5,rh-0.5);}
-      if(rh>=8){g.fillStyle='#7a2230';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-2,y);
+      if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle='rgba(209,52,75,'+(0.12+it*0.6)+')';g.fillRect(cx-yariW,yy,yariW-0.5,Math.max(rh-0.5,1));}
+      if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle='rgba(10,143,92,'+(0.12+it*0.62)+')';g.fillRect(cx+0.5,yy,yariW-0.5,Math.max(rh-0.5,1));}
+      if(sayiGoster&&rh>=8){g.fillStyle='#7a2230';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-2,y);
         g.fillStyle='#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+2,y);}
     }
-    if(m.poc!=null){const yp=c.ca.priceToCoordinate(m.poc);if(yp!=null){const rh=Math.max(7,(c.ca.priceToCoordinate(m.poc-tick)||yp+9)-yp);g.strokeStyle='#e8a30c';g.lineWidth=1;g.strokeRect(cx-yariW,yp-rh/2,yariW*2,rh);}}
+    if(m.poc!=null){const yp=c.ca.priceToCoordinate(m.poc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(m.poc-tick)||(yp+9))-yp);if(!(rh>=3))rh=3;g.strokeStyle='#e8a30c';g.lineWidth=1;g.strokeRect(cx-yariW,yp-rh/2,yariW*2,rh);}}
   }
 }
 
