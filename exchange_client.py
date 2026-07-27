@@ -159,6 +159,70 @@ async def klines_taker(
 
 
 # ─────────────────────────────────────────────────────────────────
+# AGG TRADES (tick verisi — GERÇEK footprint için, Binance sayfalı)
+# ─────────────────────────────────────────────────────────────────
+
+async def agg_trades(
+    symbol: str,
+    start_ms: int,
+    end_ms: int,
+    futures: bool = True,
+    max_trade: int = 120_000,
+) -> list:
+    """
+    [start_ms, end_ms) penceresindeki tüm agresif trade'ler (footprint için).
+    Döner: [{"t": ms, "p": fiyat, "q": miktar, "buy": bool}, ...]
+      buy=True  → taker ALICI agresör (agresif alış)
+      buy=False → taker SATICI agresör (agresif satış)
+
+    Binance aggTrades yanıtı `m` = isBuyerMaker → m=True ise alıcı maker, SATICI
+    agresör (footprint_engine ile birebir aynı mantık). buy = not m.
+
+    Sayfalama: her istek ≤1000 trade, fromId ile ileri. Yoğun sembollerde pencere
+    büyükse çok istek → max_trade güvenlik tavanı (aşınca kesip döner, kısmi footprint).
+    Yalnız Binance (tam tarihsel aggTrades ücretsiz veren tek borsa); diğer borsalar
+    yalnız RECENT trade verir → onlar WS ile canlı birikir (oar_ws_akis).
+    """
+    base = ("https://fapi.binance.com/fapi/v1/aggTrades" if futures
+            else "https://api.binance.com/api/v3/aggTrades")
+    out = []
+    from_id = None
+    # İlk istek zaman-penceresiyle (startTime/endTime ≤1h Binance kuralı → saat saat).
+    pencere_bas = start_ms
+    while pencere_bas < end_ms and len(out) < max_trade:
+        pencere_son = min(pencere_bas + 3_600_000, end_ms)   # 1 saatlik dilim
+        from_id = None
+        while len(out) < max_trade:
+            params = {"symbol": symbol, "limit": 1000}
+            if from_id is not None:
+                params["fromId"] = from_id
+            else:
+                params["startTime"] = pencere_bas
+                params["endTime"] = pencere_son
+            try:
+                data = await _get(base, params)
+            except Exception:
+                break
+            if not isinstance(data, list) or not data:
+                break
+            for r in data:
+                t = int(r["T"])
+                if t >= end_ms:
+                    break
+                out.append({"t": t, "p": float(r["p"]), "q": float(r["q"]),
+                            "buy": (not r["m"])})
+            if len(data) < 1000:
+                break                      # bu dilim bitti
+            son_id = int(data[-1]["a"])
+            son_t = int(data[-1]["T"])
+            from_id = son_id + 1
+            if son_t >= pencere_son:
+                break                      # dilim zaman sınırına ulaştı → sonraki saat
+        pencere_bas = pencere_son
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────
 # ORDER BOOK DERİNLİK (L2) — canlı order-book toplama için
 # ─────────────────────────────────────────────────────────────────
 

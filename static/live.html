@@ -171,13 +171,14 @@ a{color:inherit;text-decoration:none}
 
 <script>
 // ════════════ STATE ════════════
-const _VALID_TABS=['leader','options','macro','uye','admin'];
+const _VALID_TABS=['leader','akis','options','macro','uye','admin'];
 const _ilkTab=(()=>{try{const t=localStorage.getItem('oar_tab');return _VALID_TABS.includes(t)?t:'leader';}catch(e){return 'leader';}})();
 const ST = {tab:_ilkTab, clock:'', chat:[], feed:[], signals:[], report:{}, ctx:{}, theories:[], selTheory:null, kbQuery:''};
 const API = '';
 
 const NAV = [
   {id:'leader',  icon:'◆', label:'Komuta Merkezi'},
+  {id:'akis',    icon:'📊', label:'Footprint / Akış'},
   {id:'options', icon:'∑', label:'Opsiyon & GEX'},
   {id:'macro',   icon:'▦', label:'Makro Ekonomi'},
   // 'Canlı Panel' ve 'Bilgi / Hafıza' sekmeleri KALDIRILDI (kullanıcı isteği):
@@ -236,7 +237,7 @@ function renderNav(){
         <span style="flex:1;text-align:left">Çıkış${ST.user?' ('+esc((ST.user.ad_soyad||ST.user.email||'').split('@')[0])+')':''}</span>
       </button>`;
 }
-function go(tab){ST.tab=tab;try{localStorage.setItem('oar_tab',tab);}catch(e){}renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='admin')loadAdmin();}
+function go(tab){ST.tab=tab;try{localStorage.setItem('oar_tab',tab);}catch(e){}renderNav();render();if(tab==='knowledge')loadKnowledge();if(tab==='options')loadOptionsFull();if(tab==='macro')loadMakro();if(tab==='live'&&!ST.theoryHipotez)loadTheoryHipotez();if(tab==='admin')loadAdmin();if(tab==='akis')akisBaslat();}
 
 // ════════════ TICKER ════════════
 async function loadTicker(){
@@ -267,6 +268,7 @@ function render(){
   const m=$('screen');
   if(ST.tab==='admin'&&(!ST.user||ST.user.rol!=='admin'))ST.tab='leader';  // yetkisiz admin→leader
   if(ST.tab==='leader'){m.innerHTML=scrLeader();setTimeout(initKomutaGrafikler,0);}
+  else if(ST.tab==='akis'){m.innerHTML=scrAkis();setTimeout(akisBaslat,0);}
   else if(ST.tab==='options')m.innerHTML=scrOptions();
   else if(ST.tab==='knowledge')m.innerHTML=scrKnowledge();
   else if(ST.tab==='live')m.innerHTML=scrLive();
@@ -2492,6 +2494,256 @@ async function admSil(id){if(!confirm('Bu üyeyi kalıcı olarak silmek istediğ
 async function admOlustur(){const r=await jpost('/api/admin/olustur',{email:val('ao_email'),sifre:val('ao_sifre'),ad_soyad:val('ao_ad'),rol:val('ao_rol')});if(r&&r.ok){_msg('adm_msg','Üye oluşturuldu.',true);loadAdmin();}else _msg('adm_msg',(r&&r.detail)||'Oluşturulamadı.',false);}
 
 // ════════════ INIT ════════════
+// ════════════════════════════════════════════════════════════════
+// FOOTPRINT / AKIŞ EKRANI (Komuta Merkezi'nden ayrı sekme)
+// ════════════════════════════════════════════════════════════════
+const AKIS_TF=['1m','5m','15m','1h'];
+const AKIS_BORSA_ETIKET={binance_perp:'Binance Perp',binance_spot:'Binance Spot',bybit:'Bybit',okx:'OKX',coinbase:'Coinbase'};
+if(!ST.akis)ST.akis={sym:'BTCUSDT',interval:'5m',tick:0,limit:40,borsalar:['binance_perp'],view:'footprint',veri:null,dom:null,yukluyor:false};
+
+function scrAkis(){
+  const a=ST.akis;
+  return `<div style="max-width:1500px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">📊</span>
+        <h2 style="margin:0;font-size:17px;color:#cdd9d8">Footprint / Akış</h2>
+        <span style="font-size:11px;color:#6f8180;background:#0e1514;padding:3px 8px;border-radius:10px">sağ=alım · sol=satım · üstte Δ</span>
+      </div>
+      <div id="akisDurum" style="font-size:11px;color:#6f8180"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      ${['BTCUSDT','ETHUSDT'].map(s=>`<button class="akbtn ${a.sym===s?'on':''}" onclick="akisSet('sym','${s}')">${s.replace('USDT','')}</button>`).join('')}
+      <span style="width:1px;height:20px;background:#1c2726;margin:0 3px"></span>
+      ${AKIS_TF.map(t=>`<button class="akbtn ${a.interval===t?'on':''}" onclick="akisSet('interval','${t}')">${t}</button>`).join('')}
+      <span style="width:1px;height:20px;background:#1c2726;margin:0 3px"></span>
+      <span style="font-size:11px;color:#6f8180">Tick</span>
+      <button class="akbtn" onclick="akisTick(-1)">−</button>
+      <input id="akisTickInp" value="${a.tick||''}" placeholder="oto" onchange="akisSet('tick',this.value)" style="width:64px;background:#0e1514;border:1px solid #1c2726;color:#cdd9d8;border-radius:6px;padding:5px 7px;font-size:12px;text-align:center">
+      <button class="akbtn" onclick="akisTick(1)">+</button>
+      <span style="font-size:11px;color:#6f8180;margin-left:4px">Mum</span>
+      ${[20,40,60].map(n=>`<button class="akbtn ${a.limit===n?'on':''}" onclick="akisSet('limit',${n})">${n}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <span style="font-size:11px;color:#6f8180">Borsa:</span>
+      ${Object.keys(AKIS_BORSA_ETIKET).map(b=>{const on=a.borsalar.includes(b);const tam=(b.startsWith('binance'));return `<button class="akchip ${on?'on':''}" onclick="akisBorsa('${b}')" title="${tam?'geçmiş dahil':'şu andan itibaren canlı birikir'}">${on?'✓ ':''}${AKIS_BORSA_ETIKET[b]}${tam?'':' •'}</button>`;}).join('')}
+      <span style="font-size:10px;color:#5e716f;margin-left:4px">• = yalnız canlı akış (WS)</span>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid #131918;padding-bottom:8px">
+      ${[['footprint','Footprint'],['orderbook','Orderbook / DOM'],['heatmap','Heatmap'],['liq','Liq Map']].map(([v,l])=>`<button class="aktab ${a.view===v?'on':''}" onclick="akisSet('view','${v}')">${l}</button>`).join('')}
+    </div>
+    <div id="akisIcerik" style="min-height:420px"></div>
+  </div>
+  <style>
+    .akbtn{background:#0e1514;border:1px solid #1c2726;color:#9fb0ad;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;transition:.15s}
+    .akbtn:hover{border-color:#2a3a38;color:#cdd9d8}
+    .akbtn.on{background:#123;border-color:#1ff0ad;color:#1ff0ad}
+    .akchip{background:#0e1514;border:1px solid #1c2726;color:#8fa09d;border-radius:14px;padding:4px 11px;font-size:11px;cursor:pointer}
+    .akchip.on{background:#0c2019;border-color:#1ff0ad;color:#1ff0ad}
+    .aktab{background:transparent;border:none;border-bottom:2px solid transparent;color:#6f8180;padding:5px 10px;font-size:13px;cursor:pointer}
+    .aktab.on{color:#1ff0ad;border-bottom-color:#1ff0ad}
+  </style>`;
+}
+
+function akisSet(k,v){
+  if(k==='limit')v=Number(v);
+  if(k==='tick')v=parseFloat(v)||0;
+  ST.akis[k]=v;
+  render();
+  if(['sym','interval','tick','limit','view'].includes(k))akisYukle(true);
+}
+function akisTick(dir){
+  const a=ST.akis;let t=a.tick||(a.veri&&a.veri.tick)||1;
+  t=dir>0?t*2:t/2; if(t<=0)t=1;
+  a.tick=Number(t.toPrecision(3));render();akisYukle(true);
+}
+function akisBorsa(b){
+  const a=ST.akis;const i=a.borsalar.indexOf(b);
+  if(i>=0){if(a.borsalar.length>1)a.borsalar.splice(i,1);}
+  else a.borsalar.push(b);
+  render();akisYukle(true);
+}
+
+let _akisTimer=null;
+function akisBaslat(){
+  akisYukle(true);
+  if(_akisTimer)clearInterval(_akisTimer);
+  _akisTimer=setInterval(()=>{if(ST.tab==='akis')akisYukle(false);else{clearInterval(_akisTimer);_akisTimer=null;}},15000);
+}
+
+async function akisYukle(zorla){
+  const a=ST.akis;
+  if(a.yukluyor&&!zorla)return;
+  a.yukluyor=true;
+  const ds=$('akisDurum');if(ds)ds.textContent='yükleniyor…';
+  const bor=a.borsalar.join(',');
+  try{
+    if(a.view==='footprint'){
+      const q='/api/akis/footprint?symbol='+a.sym+'&interval='+a.interval+'&tick='+(a.tick||0)+'&limit='+a.limit+'&borsalar='+bor;
+      a.veri=await jget(q);
+    }else if(a.view==='orderbook'){
+      a.dom=await jget('/api/akis/orderbook?symbol='+a.sym+'&seviye=25');
+    }else if(a.view==='heatmap'){
+      a.hm=await jget('/api/akis/heatmap?symbol='+a.sym+'&borsalar='+bor);
+    }else if(a.view==='liq'){
+      a.lq=await jget('/api/akis/liq?symbol='+a.sym+'&borsalar='+bor);
+    }
+  }catch(e){}
+  a.yukluyor=false;
+  akisCizIcerik();
+}
+
+function akisCizIcerik(){
+  const el=$('akisIcerik');if(!el)return;
+  const a=ST.akis;const ds=$('akisDurum');
+  if(a.view==='footprint'){
+    const v=a.veri;
+    if(!v||v.durum!=='ok'){el.innerHTML=akisBos(v&&v.not||'footprint verisi bekleniyor…');if(ds)ds.textContent='';return;}
+    if(ds)ds.textContent=v.trade_sayisi.toLocaleString('en-US')+' trade · tick '+v.tick+' · '+v.mumlar.length+' mum';
+    el.innerHTML=`<div style="display:flex;gap:12px;align-items:stretch">
+      <div style="flex:1;min-width:0;overflow-x:auto;background:#fff;border-radius:10px;border:1px solid #e6e6e6">
+        <canvas id="fpCanvas" style="display:block"></canvas>
+      </div>
+      <div style="width:190px;flex-shrink:0;background:#fff;border-radius:10px;border:1px solid #e6e6e6;padding:8px">
+        <div style="font-size:11px;color:#555;font-weight:600;text-align:center;margin-bottom:6px">BİRLEŞİK MUM</div>
+        <canvas id="fpBirlesik" style="display:block;width:100%"></canvas>
+      </div>
+    </div>`;
+    setTimeout(()=>{fpCizCanvas();fpCizBirlesik();},0);
+  }else if(a.view==='orderbook'){
+    el.innerHTML=akisDomHtml(a.dom);if(ds)ds.textContent='';
+  }else if(a.view==='heatmap'){
+    const h=a.hm||{};
+    if(h.durum==='ok'&&h.kareler){el.innerHTML='<div style="background:#fff;border-radius:10px;border:1px solid #e6e6e6"><canvas id="hmCanvas" style="display:block"></canvas></div>';setTimeout(hmCiz,0);}
+    else el.innerHTML=akisBos((h.not)||'Isı haritası şu andan itibaren canlı birikiyor (WS katmanı — Faz 2).');
+    if(ds)ds.textContent='';
+  }else if(a.view==='liq'){
+    const l=a.lq||{};
+    if(l.durum==='ok'&&l.olaylar)el.innerHTML=akisLiqHtml(l);
+    else el.innerHTML=akisBos((l.not)||'Likidasyon olayları şu andan itibaren canlı birikiyor (WS katmanı — Faz 3).');
+    if(ds)ds.textContent='';
+  }
+}
+function akisBos(msg){return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;color:#6f8180;gap:10px;background:#0a0f0e;border-radius:10px;border:1px dashed #1c2726">
+  <div style="font-size:30px;opacity:.5">📊</div><div style="font-size:13px;max-width:440px;text-align:center;line-height:1.5">${esc(msg)}</div></div>`;}
+
+// ─── FOOTPRINT CANVAS (mum × fiyat-seviyesi) ───
+function fpCizCanvas(){
+  const v=ST.akis.veri;const cv=$('fpCanvas');if(!v||!cv)return;
+  const mumlar=v.mumlar;if(!mumlar.length)return;
+  const tick=v.tick;
+  // fiyat aralığı (tüm mumların low/high)
+  let minP=Infinity,maxP=-Infinity;
+  for(const m of mumlar){minP=Math.min(minP,m.l);maxP=Math.max(maxP,m.h);}
+  minP=Math.floor(minP/tick)*tick;maxP=Math.ceil(maxP/tick)*tick;
+  let satirSay=Math.round((maxP-minP)/tick)+1;
+  // satır çok fazlaysa görsel tick'i büyüt (perf + okunurluk)
+  let vtick=tick,birlestir=1;
+  while(satirSay>260){birlestir*=2;vtick=tick*birlestir;satirSay=Math.round((maxP-minP)/vtick)+1;}
+  const colW=94,rowH=Math.max(9,Math.min(20,Math.floor(560/satirSay))),head=34,eksenW=58;
+  const W=eksenW+mumlar.length*colW, H=head+satirSay*rowH+6;
+  const dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const x=cv.getContext('2d');x.scale(dpr,dpr);
+  x.clearRect(0,0,W,H);x.font='9px '+K_FONT;x.textBaseline='middle';
+  const yOf=p=>head+Math.round((maxP-p)/vtick)*rowH;
+  // en yüksek hücre hacmi (renk yoğunluğu için)
+  let maxHucre=1;
+  for(const m of mumlar)for(const s of m.seviyeler){maxHucre=Math.max(maxHucre,s.alis,s.satis);}
+  // fiyat ekseni (soldaki)
+  x.fillStyle='#888';x.textAlign='right';
+  for(let p=maxP;p>=minP-1e-9;p-=vtick){const yy=yOf(p);if(yy<head)continue;
+    if(satirSay<=90||Math.round((maxP-p)/vtick)%2===0)x.fillText(p.toFixed(tick<1?2:0),eksenW-5,yy+rowH/2);}
+  mumlar.forEach((m,ci)=>{
+    const cx=eksenW+ci*colW, mid=cx+colW/2;
+    // başlık: Δ + toplam
+    const dc=m.delta>=0?'#0a8f5c':'#d1344b';
+    x.textAlign='center';x.fillStyle=dc;x.font='bold 10px '+K_FONT;
+    x.fillText((m.delta>=0?'+':'')+akisK(m.delta),mid,10);
+    x.fillStyle='#999';x.font='8px '+K_FONT;
+    x.fillText(akisK(m.alis)+'/'+akisK(m.satis),mid,22);
+    // seviye hücreleri
+    const bins={};for(const s of m.seviyeler){const b=Math.round(s.p/vtick)*vtick;const h=bins[b]||(bins[b]=[0,0]);h[0]+=s.alis;h[1]+=s.satis;}
+    let pocB=null,pocV=-1;for(const b in bins){const t=bins[b][0]+bins[b][1];if(t>pocV){pocV=t;pocB=b;}}
+    for(const b in bins){const p=parseFloat(b);const yy=yOf(p);if(yy<head||yy>H)continue;
+      const[al,sa]=bins[b];
+      // sol=satış, sağ=alış
+      if(sa>0){const it=Math.min(1,sa/maxHucre);x.fillStyle='rgba(209,52,75,'+(0.12+it*0.75)+')';x.fillRect(cx+1,yy,colW/2-1,rowH-1);}
+      if(al>0){const it=Math.min(1,al/maxHucre);x.fillStyle='rgba(10,143,92,'+(0.12+it*0.78)+')';x.fillRect(mid,yy,colW/2-1,rowH-1);}
+      if(rowH>=11){x.font='8px '+K_FONT;
+        x.fillStyle='#7a2230';x.textAlign='right';if(sa>0)x.fillText(akisK(sa),mid-3,yy+rowH/2);
+        x.fillStyle='#0c5238';x.textAlign='left';if(al>0)x.fillText(akisK(al),mid+3,yy+rowH/2);}
+    }
+    // POC çerçevesi
+    if(pocB!=null){const yy=yOf(parseFloat(pocB));x.strokeStyle='#e8a30c';x.lineWidth=1.2;x.strokeRect(cx+0.5,yy+0.5,colW-1,rowH-1);}
+    // mum gövdesi (ince, ortada dikey çizgi + o/c işareti)
+    x.strokeStyle='#333';x.lineWidth=1;x.beginPath();x.moveTo(cx+colW-3,yOf(m.h));x.lineTo(cx+colW-3,yOf(m.l));x.stroke();
+    const yo=yOf(m.o),yc=yOf(m.c);x.strokeStyle=m.c>=m.o?'#0a8f5c':'#d1344b';x.lineWidth=2.5;
+    x.beginPath();x.moveTo(cx+colW-3,Math.min(yo,yc));x.lineTo(cx+colW-3,Math.max(yo,yc)+0.5);x.stroke();
+    // dikey ayraç
+    x.strokeStyle='#eee';x.lineWidth=1;x.beginPath();x.moveTo(cx,head);x.lineTo(cx,H);x.stroke();
+  });
+}
+function fpCizBirlesik(){
+  const v=ST.akis.veri;const cv=$('fpBirlesik');if(!v||!cv)return;
+  const b=v.birlesik;const seV=b.seviyeler;if(!seV||!seV.length)return;
+  const tick=v.tick;let vtick=tick,birlestir=1;
+  let minP=Infinity,maxP=-Infinity;for(const s of seV){minP=Math.min(minP,s.p);maxP=Math.max(maxP,s.p);}
+  let satirSay=Math.round((maxP-minP)/tick)+1;
+  while(satirSay>200){birlestir*=2;vtick=tick*birlestir;satirSay=Math.round((maxP-minP)/vtick)+1;}
+  const bins={};for(const s of seV){const bb=Math.round(s.p/vtick)*vtick;const h=bins[bb]||(bins[bb]=[0,0]);h[0]+=s.alis;h[1]+=s.satis;}
+  const w=174,rowH=Math.max(3,Math.min(16,Math.floor(520/satirSay))),H=satirSay*rowH+4;
+  const dpr=window.devicePixelRatio||1;cv.width=w*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+  const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,H);x.textBaseline='middle';x.font='8px '+K_FONT;
+  let maxT=1;for(const k in bins)maxT=Math.max(maxT,bins[k][0]+bins[k][1]);
+  const yOf=p=>Math.round((maxP-p)/vtick)*rowH;
+  for(const k in bins){const p=parseFloat(k);const[al,sa]=bins[k];const yy=yOf(p);const tot=al+sa;
+    const bw=(tot/maxT)*(w-4);const sw=tot>0?bw*(sa/tot):0;const aw=bw-sw;
+    x.fillStyle='rgba(209,52,75,.8)';x.fillRect(2,yy,sw,rowH-1);
+    x.fillStyle='rgba(10,143,92,.82)';x.fillRect(2+sw,yy,aw,rowH-1);}
+  // POC / VAH / VAL çizgileri
+  const cizgi=(p,col,lbl)=>{if(p==null)return;const yy=yOf(Math.round(p/vtick)*vtick)+rowH/2;x.strokeStyle=col;x.lineWidth=1;x.setLineDash([3,2]);x.beginPath();x.moveTo(0,yy);x.lineTo(w,yy);x.stroke();x.setLineDash([]);x.fillStyle=col;x.textAlign='left';x.fillText(lbl,3,yy-4);};
+  cizgi(b.poc,'#e8a30c','POC');cizgi(b.vah,'#2196f3','VAH');cizgi(b.val,'#2196f3','VAL');
+}
+function akisK(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3)return (n/1e3).toFixed(1)+'k';if(n>=100)return n.toFixed(0);if(n>=1)return n.toFixed(1);return n.toFixed(2);}
+
+// ─── ORDERBOOK / DOM ───
+function akisDomHtml(d){
+  if(!d||d.durum!=='ok')return akisBos('DOM verisi bekleniyor…');
+  const m=d.metrik||{};
+  const maxQ=Math.max(...d.bids.map(b=>b[1]),...d.asks.map(a=>a[1]),1);
+  const satir=(p,q,al)=>{const w=(q/maxQ*100).toFixed(0);const col=al?'#0a8f5c':'#d1344b';const bg=al?'rgba(10,143,92,.13)':'rgba(209,52,75,.13)';
+    return `<div style="position:relative;display:flex;justify-content:space-between;padding:3px 9px;font-size:12px;font-variant-numeric:tabular-nums">
+      <div style="position:absolute;${al?'left':'right'}:0;top:0;bottom:0;width:${w}%;background:${bg}"></div>
+      <span style="position:relative;color:${col};font-weight:600">${Number(p).toLocaleString('en-US')}</span>
+      <span style="position:relative;color:#9fb0ad">${akisK(q)}</span></div>`;};
+  const asksHtml=d.asks.slice().reverse().map(a=>satir(a[0],a[1],false)).join('');
+  const bidsHtml=d.bids.map(b=>satir(b[0],b[1],true)).join('');
+  const imb=m.imbalance!=null?m.imbalance:0;
+  return `<div style="display:flex;gap:14px;flex-wrap:wrap">
+    <div style="flex:1;min-width:280px;max-width:460px;background:#0a0f0e;border:1px solid #131918;border-radius:10px;overflow:hidden">
+      <div style="padding:6px 9px;background:#0e1514;font-size:11px;color:#6f8180;display:flex;justify-content:space-between"><span>Fiyat</span><span>Miktar</span></div>
+      ${asksHtml}
+      <div style="padding:7px 9px;background:#111a19;text-align:center;font-size:13px;color:#cdd9d8;font-weight:600">${d.metrik&&d.metrik.mid?Number(d.metrik.mid).toLocaleString('en-US'):'—'}</div>
+      ${bidsHtml}
+    </div>
+    <div style="width:230px;flex-shrink:0">
+      ${akisMetrikKutu('Imbalance',(imb>=0?'+':'')+(imb*100).toFixed(1)+'%',imb>=0?'#1ff0ad':'#ff5d6c')}
+      ${akisMetrikKutu('True Pressure',(m.true_pressure!=null?((m.true_pressure>=0?'+':'')+(m.true_pressure*100).toFixed(1)+'%'):'—'),m.true_pressure>=0?'#1ff0ad':'#ff5d6c')}
+      ${akisMetrikKutu('Bid/Ask',(m.bid_ask_ratio!=null?m.bid_ask_ratio.toFixed(2):'—'),'#cdd9d8')}
+      ${akisMetrikKutu('Spread',(m.spread_pct!=null?m.spread_pct.toFixed(3)+'%':'—'),'#9fb0ad')}
+    </div></div>`;
+}
+function akisMetrikKutu(l,v,c){return `<div style="background:#0a0f0e;border:1px solid #131918;border-radius:9px;padding:10px 12px;margin-bottom:8px">
+  <div style="font-size:10px;color:#6f8180;margin-bottom:3px">${l}</div><div style="font-size:17px;font-weight:600;color:${c}">${v}</div></div>`;}
+function akisLiqHtml(l){
+  const rows=(l.olaylar||[]).slice(0,60).map(o=>`<div style="display:flex;justify-content:space-between;padding:4px 9px;font-size:12px;border-bottom:1px solid #101615">
+    <span style="color:${o.taraf==='long'?'#ff5d6c':'#1ff0ad'}">${o.taraf==='long'?'LONG likit':'SHORT likit'}</span>
+    <span style="color:#cdd9d8">${Number(o.fiyat).toLocaleString('en-US')}</span>
+    <span style="color:#9fb0ad">${akisK(o.miktar)}</span></div>`).join('');
+  return `<div style="background:#0a0f0e;border:1px solid #131918;border-radius:10px;overflow:hidden;max-width:520px">${rows||akisBos('likidasyon olayı bekleniyor…')}</div>`;}
+function hmCiz(){ /* Faz 2: heatmap canvas — WS ladder zaman serisinden */ }
+
 async function boot(){
   tickClock();setInterval(tickClock,1000);
   const authed=await authKontrol();
