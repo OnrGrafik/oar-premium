@@ -646,7 +646,7 @@ async function akisVeriYukle(sym,zorla){
   const c=_kcharts[sym];if(!c)return;
   if(!(_kAyar.fp||_kAyar.hmap||_kAyar.liq))return;
   c._akisTs=c._akisTs||0;
-  if(!zorla&&Date.now()-c._akisTs<12000)return;
+  if(!zorla&&Date.now()-c._akisTs<4000)return;
   c._akisTs=Date.now();
   const bor='binance_perp';
   const intraday=['1m','5m','15m','1h'].includes(_kTF);
@@ -970,11 +970,13 @@ function kFpCiz(g,c,ts,W,H,sym){
   // durum rozeti (sol üst) — ne olduğunu ekrandan gör
   g.save();g.textBaseline='top';g.font='9px '+K_FONT;g.textAlign='left';
   let rozet,rc;
-  if(canliN){rozet='FP CANLI · '+canliN+' mum · '+(BFP.durum||'akış');rc='#1ff0ad';}
-  else if(BFP.durum==='bağlanıyor'){rozet='FP: canlı akışa bağlanıyor…';rc='#ffb13c';}
-  else if(!fp||fp.durum!=='ok'){rozet='FP: veri bekleniyor…';rc='#ffb13c';}
-  else rozet='FP · '+(fp.seviyeli_mum||0)+'/'+((fp.mumlar||[]).length)+' seviye · Δ hazır';
-  if(!rc)rc='#ffb13c';
+  if(canliN){rozet='FP CANLI · '+canliN+' mum';rc='#1ff0ad';}
+  else if(fp&&fp.durum==='ok'){
+    const sv=fp.seviyeli_mum||0, tp=fp.toplam_mum||((fp.mumlar||[]).length);
+    if(tp>0&&sv>=tp){rozet='FP · tam ('+tp+' mum)';rc='#1ff0ad';}
+    else{rozet='FP · '+sv+'/'+tp+' seviye · dolduruyor…';rc='#7af0c4';}
+  }
+  else{rozet='FP: veri bekleniyor…';rc='#ffb13c';}
   g.fillStyle='rgba(0,0,0,.5)';g.fillRect(4,4,g.measureText(rozet).width+10,14);
   g.fillStyle=rc;g.fillText(rozet,9,6);g.restore();
   // Mum listesi: sunucu verisi varsa onu (OHLC dahil), yoksa tarayıcı-canlı mumları
@@ -1062,20 +1064,21 @@ function kLiqCiz(g,c,ts,W,H){
 // (sunucu/REST beklemeden, açtığın andan itibaren dolar). 1dk×ince-fiyat haritası
 // bellekte tutulur; TF/tick değişince yeniden bin'lenir (ucuz). ~2 saat pencere.
 const BFP={ws:null,map:{BTCUSDT:new Map(),ETHUSDT:new Map()},built:{BTCUSDT:new Map(),ETHUSDT:new Map()},
-  fine:{BTCUSDT:1,ETHUSDT:0.1},durum:'',son:0,rebuildTimer:null};
+  fine:{BTCUSDT:1,ETHUSDT:0.1},durum:'',son:0,rebuildTimer:null,fail:0};
 function bfpBaslat(){
   if(BFP.ws&&(BFP.ws.readyState===0||BFP.ws.readyState===1))return;   // zaten bağlı/bağlanıyor
+  if(BFP.fail>=3)return;   // borsa WS erişilemez (ör. coğrafi engel) → sunucu yolu kullanılır
   BFP.durum='bağlanıyor';
   try{
     const ws=new WebSocket('wss://fstream.binance.com/stream?streams=btcusdt@aggTrade/ethusdt@aggTrade');
     BFP.ws=ws;
-    ws.onopen=()=>{BFP.durum='canlı';};
+    ws.onopen=()=>{BFP.durum='canlı';BFP.fail=0;};
     ws.onmessage=(ev)=>{try{const d=JSON.parse(ev.data);const s=d.data;if(!s||!s.p)return;
       const sym=(d.stream||'').indexOf('btc')===0?'BTCUSDT':'ETHUSDT';
       bfpTrade(sym,parseFloat(s.p),parseFloat(s.q),!s.m,s.T);}catch(e){}};
-    ws.onclose=()=>{BFP.ws=null;BFP.durum='kapandı';if(ST.tab==='leader'&&_kAyar.fp)setTimeout(bfpBaslat,3000);};
+    ws.onclose=()=>{BFP.ws=null;if(BFP.durum!=='canlı')BFP.fail++;BFP.durum='kapandı';if(BFP.fail<3&&ST.tab==='leader'&&_kAyar.fp)setTimeout(bfpBaslat,3000);};
     ws.onerror=()=>{BFP.durum='hata';try{ws.close();}catch(e){}};
-  }catch(e){BFP.durum='hata';}
+  }catch(e){BFP.durum='hata';BFP.fail++;}
   if(!BFP.rebuildTimer)BFP.rebuildTimer=setInterval(()=>{if(ST.tab==='leader'&&_kAyar.fp){bfpKur('BTCUSDT');bfpKur('ETHUSDT');}},1000);
 }
 function bfpTrade(sym,p,q,buy,T){
@@ -2689,7 +2692,7 @@ async function boot(){
   // sayfa yenilendiğinde son sekmede kal → o sekmenin verisini de yükle
   if(ST.tab==='macro')loadMakro();
   setInterval(()=>{if(ST.tab==='leader'){kGrafikVeri('BTCUSDT',true);kGrafikVeri('ETHUSDT',true);}},30000);
-  setInterval(()=>{if(ST.tab==='leader'&&(_kAyar.fp||_kAyar.hmap||_kAyar.liq)){akisVeriYukle('BTCUSDT',true);akisVeriYukle('ETHUSDT',true);}},12000);
+  setInterval(()=>{if(ST.tab==='leader'&&(_kAyar.fp||_kAyar.hmap||_kAyar.liq)){akisVeriYukle('BTCUSDT',true);akisVeriYukle('ETHUSDT',true);}},5000);
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);

@@ -19,6 +19,7 @@ VERİ KAYNAĞI (Faz 1 = Binance tam tarihsel):
 NO-LOOKAHEAD gerekmez (bu canlı görselleştirme; şampiyon karar akışına DOKUNMAZ — #8).
 """
 import asyncio
+import time
 
 _INTERVAL_MS = {
     "1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000,
@@ -30,7 +31,65 @@ _INTERVAL_MS = {
 _VARSAYILAN_TICK = {"BTCUSDT": 10.0, "ETHUSDT": 1.0}
 
 _CACHE = {}          # {(sembol,interval,tick,limit,borsalar): {"ts":epoch, "veri":...}}
-_CACHE_TTL_S = 15    # canlı ama REST'i yormayan tazelik
+_CACHE_TTL_S = 2     # kısa (arka plan doldukça yeni seviyeler görünsün)
+
+# Per-mum footprint önbelleği (GEÇMİŞ mum DEĞİŞMEZ → bir kez çekilir, kalıcı cache).
+# {(sembol,interval,tick,mum_ts): {"seviyeler":[...], "alis","satis","delta","poc"}}
+_FP_CACHE = {}
+_FP_ISLENIYOR = set()   # {(sembol,interval,tick)} — aynı anda tek arka-plan doldurucu
+
+
+async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
+    """
+    Eksik mumların per-seviye footprint'ini aggTrades'ten mum-mum çeker → _FP_CACHE
+    (kalıcı). Yeniden→eskiye doldurur, rate-limit için mumlar arası kısa bekleme.
+    GEÇMİŞ mum bir kez çekilir; GÜNCEL (oluşmakta olan) mum her turda tazelenir.
+    """
+    key0 = (sembol, interval, tick)
+    if key0 in _FP_ISLENIYOR:
+        return
+    _FP_ISLENIYOR.add(key0)
+    try:
+        from exchange_client import agg_trades
+        ms = _INTERVAL_MS.get(interval, 300_000)
+        now = time.time() * 1000
+        for cts in mum_ts_list:
+            ck = (sembol, interval, tick, cts)
+            guncel = cts <= now < cts + ms
+            if ck in _FP_CACHE and not guncel:
+                continue
+            try:
+                son = min(cts + ms, int(now) + 1000)
+                trades = await agg_trades(sembol, cts, son, futures=futures,
+                                          max_trade=50000)
+            except Exception:
+                continue
+            hucreler = {}
+            for tr in trades:
+                fb = _bin(tr["p"], tick)
+                h = hucreler.setdefault(fb, [0.0, 0.0])
+                if tr["buy"]:
+                    h[0] += tr["q"]
+                else:
+                    h[1] += tr["q"]
+            alis = sum(a for a, _ in hucreler.values())
+            satis = sum(s for _, s in hucreler.values())
+            hacim = {p: (a + s) for p, (a, s) in hucreler.items()}
+            poc = max(hacim, key=hacim.get) if hacim else None
+            _FP_CACHE[ck] = {
+                "seviyeler": _seviye_listesi(hucreler),
+                "alis": round(alis, 4), "satis": round(satis, 4),
+                "delta": round(alis - satis, 4),
+                "poc": round(poc, 4) if poc is not None else None,
+            }
+            now = time.time() * 1000
+            await asyncio.sleep(0.12)      # rate-limit dostu
+        # önbellek şişmesini engelle (çok eski anahtarları at)
+        if len(_FP_CACHE) > 4000:
+            for k in list(_FP_CACHE)[:1500]:
+                _FP_CACHE.pop(k, None)
+    finally:
+        _FP_ISLENIYOR.discard(key0)
 
 
 def varsayilan_tick(sembol: str, spot: float = 0.0) -> float:
@@ -133,10 +192,11 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if c and (simdi - c["ts"]) < _CACHE_TTL_S:
         return c["veri"]
 
-    from exchange_client import klines, agg_trades
+    from exchange_client import klines
     ms = _INTERVAL_MS[interval]
+    futures = ("binance_spot" not in borsalar)
     try:
-        kl = await klines(sembol, interval, limit + 1, futures=True)
+        kl = await klines(sembol, interval, limit + 1, futures=futures)
     except Exception:
         return {"sembol": sembol, "interval": interval, "durum": "veri_yok",
                 "not": "mum verisi gelmedi"}
@@ -144,86 +204,64 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         return {"sembol": sembol, "interval": interval, "durum": "veri_yok"}
 
     mumlar_ham = kl[-limit:]
-    mum_ts_list = [int(r[0]) for r in mumlar_ham]
-    bas_ms = mum_ts_list[0]
-    son_ms = mum_ts_list[-1] + ms
+    bas_ms = int(mumlar_ham[0][0])
     spot = float(mumlar_ham[-1][4])
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── Footprint tick verisi: WS CANLI TAMPON önce (hızlı; REST ağır) ──
-    trades = []
-    ws_var = False
-    try:
-        import oar_ws_akis
-        trades = oar_ws_akis.trades_window(sembol, borsalar, bas_ms, son_ms)
-        ws_var = True
-    except Exception:
-        trades = []
-    # WS yetersizse (sunucu yeni başladı / websockets yok) → SINIRLI REST warmup:
-    # yalnız son ~12 mum + düşük tavan (hız için; hanging YOK). Çift-sayım olmasın diye
-    # WS non-Binance ayrı eklenir, Binance REST'ten.
-    if len(trades) < 50 and ("binance_perp" in borsalar or "binance_spot" in borsalar
-                             or not borsalar):
-        try:
-            warm_bas = max(bas_ms, son_ms - 12 * ms)
-            rest = await agg_trades(sembol, warm_bas, son_ms,
-                                    futures=("binance_spot" not in borsalar),
-                                    max_trade=30000)
-        except Exception:
-            rest = []
-        ws_non_bnc = []
-        if ws_var:
-            try:
-                ws_non_bnc = oar_ws_akis.footprint_trades(sembol, borsalar, bas_ms, son_ms)
-            except Exception:
-                ws_non_bnc = []
-        trades = rest + ws_non_bnc
-
-    tablo = _footprint_derle(mum_ts_list, trades, tick)
-
-    # ── HER ZAMAN çalışan per-mum toplam alış/satış (1m klines takerBuyBase) ──
-    # aggTrades/WS gelmese bile mum başı Δ + toplam alış/satış GÖRÜNÜR (seviye detayı
-    # ancak trade verisiyle çıkar). Tek hızlı REST isteği (≤1000 1m bar).
-    taker_map = {}   # {mum_ts: [alis, satis]}
+    # ── Per-mum toplam Δ (1m klines takerBuyBase) — HER ZAMAN hızlı, HANGING YOK ──
+    # Bu tek hafif istek mum başı alış/satış/Δ garantiler; per-seviye detay cache'ten.
+    taker_map = {}
     try:
         from exchange_client import klines_taker
-        tk = await klines_taker(sembol, "1m", 1000,
-                                futures=("binance_spot" not in borsalar),
-                                start_ms=bas_ms)
+        tk = await klines_taker(sembol, "1m", 1000, futures=futures, start_ms=bas_ms)
         for row in tk:
             t = int(row[0]); vol = float(row[5]); tb = float(row[6])
             mts = (t // ms) * ms
             slot = taker_map.setdefault(mts, [0.0, 0.0])
-            slot[0] += tb                 # agresif alış (taker buy base)
-            slot[1] += (vol - tb)         # agresif satış (kalan)
+            slot[0] += tb; slot[1] += (vol - tb)
     except Exception:
         taker_map = {}
 
+    # ── Per-seviye footprint: KALICI önbellekten (geçmiş mum DEĞİŞMEZ); eksikler
+    #    arka planda mum-mum doldurulur → endpoint ASLA takılmaz, pencere dolar. ──
+    now = time.time() * 1000
+    eksik = []
     mumlar = []
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
-        hucreler = tablo.get(ts, {})
-        if hucreler:
-            alis = sum(a for a, _ in hucreler.values())
-            satis = sum(s for _, s in hucreler.values())
-        else:                              # seviye verisi yok → per-mum takerBuy toplamı
+        ck = (sembol, interval, tick, ts)
+        cached = _FP_CACHE.get(ck)
+        guncel = ts <= now < ts + ms
+        if cached:
+            seviyeler = cached["seviyeler"]
+            alis = cached["alis"]; satis = cached["satis"]; poc = cached["poc"]
+            if guncel:
+                eksik.append(ts)               # oluşmakta olan mumu tazele
+        else:
+            eksik.append(ts)
+            seviyeler = []
             tm = taker_map.get(ts, [0.0, 0.0])
-            alis, satis = tm[0], tm[1]
-        hacim = {p: (a + s) for p, (a, s) in hucreler.items()}
-        poc = max(hacim, key=hacim.get) if hacim else None
-        for p, (a, s) in hucreler.items():
-            bh = birlesik_hucre.setdefault(p, [0.0, 0.0])
-            bh[0] += a; bh[1] += s
+            alis, satis = tm[0], tm[1]; poc = None
+        for s in seviyeler:
+            bh = birlesik_hucre.setdefault(s["p"], [0.0, 0.0])
+            bh[0] += s["alis"]; bh[1] += s["satis"]
         mumlar.append({
             "t": ts, "o": float(r[1]), "h": float(r[2]), "l": float(r[3]),
             "c": float(r[4]), "v": float(r[5]),
             "alis": round(alis, 4), "satis": round(satis, 4),
             "delta": round(alis - satis, 4),
-            "poc": round(poc, 4) if poc is not None else None,
-            "seviyeler": _seviye_listesi(hucreler),
+            "poc": poc, "seviyeler": seviyeler,
         })
+
+    # eksik mumları arka planda doldur (yeniden→eskiye; endpoint BEKLEMEZ)
+    if eksik and futures is not None:
+        try:
+            asyncio.create_task(_fp_doldur(sembol, interval, tick,
+                                           sorted(set(eksik), reverse=True), futures))
+        except RuntimeError:
+            pass
 
     b_alis = sum(a for a, _ in birlesik_hucre.values())
     b_satis = sum(s for _, s in birlesik_hucre.values())
@@ -237,9 +275,8 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     veri = {
         "sembol": sembol, "interval": interval, "tick": tick,
         "borsalar": list(borsalar), "spot": spot,
-        "trade_sayisi": len(trades), "seviyeli_mum": seviyeli,
-        "taker_mum": len(taker_map), "mumlar": mumlar, "birlesik": birlesik,
-        "durum": "ok",
+        "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar), "eksik": len(eksik),
+        "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}
     return veri
