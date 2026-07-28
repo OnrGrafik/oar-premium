@@ -295,16 +295,17 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     kaynak_ad = "kiyotaka"
     mum_ts = [int(r[0]) for r in mumlar_ham]
     if not any((sembol, interval, ts) in _KFP_CACHE for ts in mum_ts):
+        # aggTrades GERÇEK tick'i ARKA PLANDA doldur — endpoint'i BLOKE ETME. (Inline await
+        # 8 mum×sayfalama ~10s bloke ediyordu → frontend fetch timeout → "yükleniyor"da
+        # takılıyordu.) _FP_ISLENIYOR kilidi çift doldurucuyu önler; her poll'de cache dolar.
         try:
-            await _fp_doldur(sembol, interval, tick, mum_ts, futures)   # aggTrades gerçek tick
+            asyncio.ensure_future(_fp_doldur(sembol, interval, tick, list(mum_ts), futures))
         except Exception as e:
             hata = (hata + " | agg:" + str(e)[:40]) if hata else str(e)[:70]
-        if any((sembol, interval, tick, ts) in _FP_CACHE for ts in mum_ts):
-            kaynak_ad = "binance_aggtrades"
-        else:                                        # son çare: 1dk taker (coarse)
-            yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham))
-            if yedek:
-                kaynak_ad = "binance_1m_taker_yedek"
+        agg_var = any((sembol, interval, tick, ts) in _FP_CACHE for ts in mum_ts)
+        # ANLIK boyama: 1dk taker (tek istek, hızlı) → aggTrades doldukça per-mum ÜSTÜNE geçer
+        yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham))
+        kaynak_ad = "binance_aggtrades" if agg_var else ("binance_1m_taker_yedek" if yedek else "yok")
 
     mumlar = []
     birlesik_hucre = {}
