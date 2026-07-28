@@ -315,23 +315,9 @@ async def _veri_topla(sembol: str, kok: str) -> dict:
         veri["takvim"] = {}
         hata_listesi.append(f"takvim: {str(e)[:60]}")
 
-    # 12. Bot sinyalleri (bots — dış kaynak sinyalleri)
-    try:
-        from bots import get_recent_signals
-        sigler = get_recent_signals(20)
-        kok_sigler = [s for s in sigler
-                      if kok in str(s.get("symbol", "")).upper()][:3]
-        veri["botlar"] = {
-            "son_sinyaller": [
-                {"bot": s.get("bot"), "yon": s.get("signal", s.get("direction")),
-                 "fiyat": s.get("price")}
-                for s in kok_sigler
-            ],
-            "toplam_son": len(sigler),
-        }
-    except Exception as e:
-        veri["botlar"] = {}
-        hata_listesi.append(f"botlar: {str(e)[:60]}")
+    # 12. Bot sinyalleri KALDIRILDI (kullanıcı: "bot OAR'a katkısızsa kaldır"): dış kaynak
+    # (BOT_URL) bot sinyalleri OAR şampiyon sistemiyle alakasızdı, anlık yorumu kirletiyordu.
+    veri["botlar"] = {}
 
     # 13. RESMİ TRADE KARARI (trading_supervisor — 3 zorunlu soru)
     #    Lider tüm veriyi harmanladıktan SONRA kararı buradan alır.
