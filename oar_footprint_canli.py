@@ -317,13 +317,15 @@ async def orderbook_dom(sembol: str = "BTCUSDT", seviye: int = 25,
     """Canlı DOM ladder + metrikler (imbalance/true_pressure). oar_orderbook kullanır."""
     from exchange_client import depth
     from oar_orderbook import metrikler
-    try:
-        ob = await depth(sembol, limit=max(seviye, 50), futures=futures)
+    try:                                   # liq map için geniş kapsama (limit 500)
+        ob = await depth(sembol, limit=500 if seviye > 30 else max(seviye, 50), futures=futures)
     except Exception:
         return {"sembol": sembol, "durum": "veri_yok"}
-    bids = ob.get("bids", [])[:seviye]
-    asks = ob.get("asks", [])[:seviye]
-    m = metrikler(ob.get("bids", []), ob.get("asks", []), seviye)
+    # liq map: yakın 50 yerine TÜM derinlikten EN BÜYÜK duvarlar (geniş bölge kapsaması)
+    tum_b = ob.get("bids", []); tum_a = ob.get("asks", [])
+    bids = sorted(tum_b, key=lambda x: -x[1])[:seviye] if seviye > 30 else tum_b[:seviye]
+    asks = sorted(tum_a, key=lambda x: -x[1])[:seviye] if seviye > 30 else tum_a[:seviye]
+    m = metrikler(tum_b, tum_a, min(seviye, 25))
     return {
         "sembol": sembol, "durum": "ok",
         "bids": [[round(p, 4), round(q, 4)] for p, q in bids],

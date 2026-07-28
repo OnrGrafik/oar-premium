@@ -658,7 +658,7 @@ async function akisVeriYukle(sym,zorla){
   if(_kAyar.fp&&intraday)jobs.push(jget('/api/akis/footprint?symbol='+sym+'&interval='+_kTF+'&limit=40&borsalar='+bor).then(d=>{if(d)c.fpData=d;}).catch(()=>{}));
   else c.fpData=null;
   if(_kAyar.hmap)jobs.push(jget('/api/akis/heatmap?symbol='+sym+'&borsalar='+bor).then(d=>{if(d)c.hmData=d;}).catch(()=>{}));
-  if(_kAyar.liq)jobs.push(jget('/api/akis/orderbook?symbol='+sym+'&seviye=30').then(d=>{if(d)c.domData=d;}).catch(()=>{}));
+  if(_kAyar.liq)jobs.push(jget('/api/akis/orderbook?symbol='+sym+'&seviye=50').then(d=>{if(d)c.domData=d;}).catch(()=>{}));
   await Promise.all(jobs);
   try{kOverlayCiz(sym);}catch(e){}
 }
@@ -1073,22 +1073,28 @@ function kHeatCiz(g,c,ts,W,H){
 }
 
 // ── LIQ / DEPTH: grafiğin sağ kenarından uzanan yatay likidite çubukları ──
+// LIQ MAP (CoinAnk tarzı): grafiğin SAĞINDAN uzanan yatay likidite/likidasyon çizgileri.
+// Büyük duvar → daha UZUN + PARLAK çizgi. Üst (ask) = kırmızı/turuncu likidasyon bölgesi,
+// alt (bid) = yeşil/teal. Order-book derinliğinden (canlı likidite yığılması).
 function kLiqCiz(g,c,ts,W,H){
   const d=c.domData;if(!d||d.durum!=='ok'||!d.bids||!d.asks)return;
-  const sagX=W-2;                          // sağ kenar (fiyat ekseni içi)
-  const maxBar=88;
+  const sagX=W-1, maxLen=Math.min(W*0.42,360);   // en büyük duvarın uzunluğu
   let maxQ=1;for(const b of d.bids)maxQ=Math.max(maxQ,b[1]);for(const a of d.asks)maxQ=Math.max(maxQ,a[1]);
-  g.save();g.textBaseline='middle';g.font='8px '+K_FONT;
-  const ciz=(px,qty,al)=>{const y=c.ca.priceToCoordinate(px);if(y==null)return;
-    const w=(qty/maxQ)*maxBar;
-    g.fillStyle=al?'rgba(10,143,92,.5)':'rgba(209,52,75,.5)';
-    g.fillRect(sagX-w,y-1.5,w,3);};
+  g.save();g.textBaseline='middle';g.font='8px '+K_FONT;g.lineCap='round';
+  const ciz=(px,qty,al)=>{const y=c.ca.priceToCoordinate(px);if(y==null||y<0||y>H)return;
+    const r=Math.min(1,qty/maxQ);const len=Math.max(6,r*maxLen);
+    // renk yoğunluğu duvar boyuyla; küçük duvarlar soluk
+    const a=0.18+r*0.62;
+    g.strokeStyle=al?'rgba(20,200,140,'+a+')':'rgba(255,140,40,'+a+')';
+    g.lineWidth=Math.max(1.2,r*3.2);
+    g.beginPath();g.moveTo(sagX,y);g.lineTo(sagX-len,y);g.stroke();};
   for(const b of d.bids)ciz(b[0],b[1],true);
   for(const a of d.asks)ciz(a[0],a[1],false);
-  // en büyük 3 bid + 3 ask'a etiket
-  const buyuk=[...d.bids.map(b=>({p:b[0],q:b[1],al:true})),...d.asks.map(a=>({p:a[0],q:a[1],al:false}))].sort((x,y)=>y.q-x.q).slice(0,6);
-  for(const b of buyuk){const y=c.ca.priceToCoordinate(b.p);if(y==null)continue;
-    g.fillStyle=b.al?'#0a8f5c':'#d1344b';g.textAlign='right';g.fillText(_akK(b.q),sagX-(b.q/maxQ)*maxBar-2,y);}
+  // en büyük 4 duvara miktar etiketi (sol ucunda)
+  const buyuk=[...d.bids.map(b=>({p:b[0],q:b[1],al:true})),...d.asks.map(a=>({p:a[0],q:a[1],al:false}))].sort((x,y)=>y.q-x.q).slice(0,4);
+  for(const b of buyuk){const y=c.ca.priceToCoordinate(b.p);if(y==null||y<0||y>H)continue;
+    const len=Math.max(6,Math.min(1,b.q/maxQ)*maxLen);
+    g.fillStyle=b.al?'#12c88c':'#ff8c28';g.textAlign='left';g.fillText(_akK(b.q),Math.max(sagX-len+2,2),y-5);}
   g.restore();
 }
 
