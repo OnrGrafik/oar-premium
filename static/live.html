@@ -462,7 +462,7 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:false,hmap:false,liq:false,likmap:false};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff'};
@@ -658,14 +658,16 @@ async function initKomutaGrafikler(){
     if(!el||el.dataset.init)continue;
     el.dataset.init='1';
     if(_kcharts[sym]&&_kcharts[sym].ch){try{_kcharts[sym].ch.remove();}catch(e){}}
+    const CM=(LightweightCharts.CrosshairMode&&LightweightCharts.CrosshairMode.Normal);
     const ch=LightweightCharts.createChart(el,{
       layout:{background:{color:'#ffffff'},textColor:'#555',fontFamily:K_FONT,fontSize:11},
       grid:{vertLines:{color:'#f0f0f0'},horzLines:{color:'#f0f0f0'}},
       timeScale:{borderColor:'#ddd',timeVisible:true,rightOffset:14},
       rightPriceScale:{borderColor:'#ddd'},
+      crosshair:{mode:(CM!=null?CM:0)},   // MIKNATIS KAPALI (Normal) — muma yapışmaz
       width:el.clientWidth,height:340});
-    const ca=ch.addCandlestickSeries({upColor:'#ffffff',downColor:'#111111',
-      borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
+    const ca=ch.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',
+      borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
     const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.oar&&_kAyar.vwap});
     _kcharts[sym]={ch,ca,vw,kutular:[]};
     kMumStili(ca,false);   // başlangıç normal; zoom'a göre kFpCiz ince moda geçirir
@@ -1010,12 +1012,10 @@ function _akK(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3
 
 // Footprint modunda mum gövdesini ŞEFFAF yap (ince kalsın, footprint sayıları örtülmesin);
 // ince gövdeyi kFpCiz kendi çizer. Kapalıyken normal mum.
-function kMumStili(ca,thin){
+function kMumStili(ca,thin){   // artık HER ZAMAN normal profesyonel mum (şeffaf hack kaldırıldı)
   if(!ca)return;
-  if(thin)ca.applyOptions({upColor:'rgba(0,0,0,0)',downColor:'rgba(0,0,0,0)',borderVisible:false,
-    wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});   // tamamen şeffaf; ince mumu kFpCiz çizer
-  else ca.applyOptions({upColor:'#ffffff',downColor:'#111111',borderVisible:true,
-    borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
+  ca.applyOptions({upColor:'#26a69a',downColor:'#ef5350',borderVisible:true,
+    borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
 }
 
 // ── FOOTPRINT (normal grafik ÜZERİNE overlay): mum ortada ince, SAĞ=alım / SOL=satım;
@@ -1024,33 +1024,21 @@ function kFpCiz(g,c,ts,W,H,sym){
   const fp=c.fpData;
   const canli=(sym&&BFP.built[sym])?BFP.built[sym]:null;
   let bw=8;try{bw=ts.options?ts.options().barSpacing:8;}catch(e){}
-  // ZOOM-UYARLI: uzakta (bw<18) NORMAL mum + footprint YOK; yakında ince mum + footprint
-  const thinIste=bw>=18;
-  if(c._fpThin!==thinIste){c._fpThin=thinIste;kMumStili(c.ca,thinIste);}
+  // rozet (alt-sol) — mumlara DOKUNMAZ; footprint yalnız overlay
   g.save();g.textBaseline='top';g.font='9px '+K_FONT;g.textAlign='left';
   let rozet,rc;
-  if(!thinIste){rozet='FP · yakınlaş →';rc='#6f8180';}
+  if(bw<14){rozet='FP · yakınlaş →';rc='#8a9c99';}
   else if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
     if(tp&&sv>=tp){rozet='FP tam · '+tp+' mum';rc='#0a8f5c';}
     else if(sv>0){rozet='FP '+sv+'/'+tp+' dolduruyor…';rc='#0a8f5c';}
     else if(t&&t.son_hata){rozet='FP veri hata: '+t.son_hata;rc='#d1344b';}
     else{rozet='FP '+sv+'/'+tp+' · Δ hazır';rc='#b0851f';}}
   else{rozet='FP yükleniyor…';rc='#b0851f';}
-  g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);   // alt-sol (legend ile çakışmasın)
+  g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
-  if(!thinIste)return;   // uzakta footprint çizme → normal mum görünür (grafik kaybolmaz)
-  // TÜM görünür mumların İNCE gövdesi + fitil (footprint verisi olmayanlar da KAYBOLMASIN)
-  const kg=ST.kgraf&&ST.kgraf[sym];const allc=(kg&&kg.oh&&kg.oh.candles)||[];
-  const bwv=Math.max(1.5,Math.min(3,bw*0.12));
-  for(const x of allc){const cx0=ts.timeToCoordinate(Math.floor(x.ts/1000)+K_TZ);
-    if(cx0==null||cx0<-4||cx0>W+4)continue;
-    const yh=c.ca.priceToCoordinate(x.high),yl=c.ca.priceToCoordinate(x.low),yo=c.ca.priceToCoordinate(x.open),yc2=c.ca.priceToCoordinate(x.close);
-    if(yo==null||yc2==null)continue;const col=x.close>=x.open?_kRenk.fpAl:_kRenk.fpSat;
-    if(yh!=null&&yl!=null){g.strokeStyle=col;g.globalAlpha=.4;g.lineWidth=1;g.beginPath();g.moveTo(cx0,yh);g.lineTo(cx0,yl);g.stroke();g.globalAlpha=1;}
-    g.fillStyle=col;g.fillRect(cx0-bwv/2,Math.min(yo,yc2),bwv,Math.max(Math.abs(yc2-yo),1));}
-  if(!fp||!fp.mumlar||!fp.mumlar.length)return;
-  const yariW=Math.min(46,Math.max(11,bw*0.42));
-  const sayi=bw>=40;                       // sayılar yalnız yeterince yakınlaşınca (çakışma yok)
+  if(bw<14||!fp||!fp.mumlar||!fp.mumlar.length)return;   // uzakta footprint yok (normal mum görünür)
+  const yariW=Math.min(44,Math.max(12,bw*0.40));
+  const sayi=bw>=42;                        // sayılar yalnız iyice yakınlaşınca (çakışma yok)
   const tick=fp.tick;
   g.textBaseline='middle';
   for(const m of fp.mumlar){
@@ -1060,11 +1048,11 @@ function kFpCiz(g,c,ts,W,H,sym){
     const sev=cl?cl.seviyeler:m.seviyeler;
     const alis=cl?cl.alis:m.alis, satis=cl?cl.satis:m.satis, delta=cl?cl.delta:m.delta, poc=cl?cl.poc:m.poc;
     const tot=(alis||0)+(satis||0);
-    // ── ÜST: toplam (SİYAH) + altına delta (yeşil/kırmızı) ──
+    // ── mumun ÜSTÜNDE (yapışmadan): toplam (siyah) + altına delta (yeşil/kırmızı) ──
     const yH=c.ca.priceToCoordinate(m.h);
-    if(yH!=null&&tot>0){g.textAlign='center';
-      g.font='bold 9px '+K_FONT;g.fillStyle='#111111';g.fillText(_akK(tot),cx,Math.max(yH-16,6));
-      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(delta),cx,Math.max(yH-6,15));}
+    if(yH!=null&&tot>0&&yH>24){g.textAlign='center';
+      g.font='bold 9px '+K_FONT;g.fillStyle='#111111';g.fillText(_akK(tot),cx,yH-20);
+      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(delta),cx,yH-9);}
     // ── seviye hücreleri: SAĞ=alım / SOL=satım + DIAGONAL IMBALANCE (pro footprint) ──
     if(sev&&sev.length&&bw>=14){
       let maxH=1;for(const s of sev)maxH=Math.max(maxH,s.alis,s.satis);
