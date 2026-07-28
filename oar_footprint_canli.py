@@ -39,6 +39,7 @@ _FP_CACHE = {}
 _FP_ISLENIYOR = set()   # {(sembol,interval,tick)} — aynı anda tek arka-plan doldurucu
 _FP_TANI = {}           # {(sembol,interval): {"son_trade","son_hata","denendi","kaynak"}}
 _FP_SON = {}            # {(sembol,interval): epoch} — son doldurma tetiği (backoff için)
+_KFP_CACHE = {}         # {(sembol,interval,bar_ts): kiyotaka bar footprint} — GERÇEK veri, kalıcı
 
 
 async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
@@ -230,41 +231,41 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── Per-mum toplam Δ (1m klines takerBuyBase) — HER ZAMAN hızlı, HANGING YOK ──
-    # Bu tek hafif istek mum başı alış/satış/Δ garantiler; per-seviye detay cache'ten.
-    taker_map = {}
-    try:
-        from exchange_client import klines_taker
-        tk = await klines_taker(sembol, "1m", 1000, futures=futures, start_ms=bas_ms)
-        for row in tk:
-            t = int(row[0]); vol = float(row[5]); tb = float(row[6])
-            mts = (t // ms) * ms
-            slot = taker_map.setdefault(mts, [0.0, 0.0])
-            slot[0] += tb; slot[1] += (vol - tb)
-    except Exception:
-        taker_map = {}
-
-    # ── Per-seviye footprint: KALICI önbellekten (geçmiş mum DEĞİŞMEZ); eksikler
-    #    arka planda mum-mum doldurulur → endpoint ASLA takılmaz, pencere dolar. ──
+    # ── GERÇEK footprint: KIYOTAKA VOLUME_PROFILE_AGG per-mum (aggTrades ÇÖP) ──
+    # Geçmiş mum DEĞİŞMEZ → kalıcı cache; eksik + oluşmakta olan mumu Kiyotaka'dan
+    # PARALEL çek. Kiyotaka hazır per-mum footprint verir → "1 mumda var" sorunu biter.
     now = time.time() * 1000
-    eksik = []
+    bar_sec = ms // 1000
+    eksik = [int(r[0]) for r in mumlar_ham
+             if (sembol, interval, int(r[0])) not in _KFP_CACHE
+             or (int(r[0]) <= now < int(r[0]) + ms)]     # güncel mumu tazele
+    hata = ""
+    if eksik:
+        try:
+            import kiyotaka_engine as _kiy
+            sem = asyncio.Semaphore(10)
+
+            async def _cek(bts):
+                async with sem:
+                    bf = await _kiy.bar_footprint(sembol, bts // 1000, bar_sec)
+                if bf:
+                    _KFP_CACHE[(sembol, interval, bts)] = bf
+            await asyncio.gather(*[_cek(t) for t in eksik])
+        except Exception as e:
+            hata = str(e)[:90]
+        if len(_KFP_CACHE) > 6000:
+            for k in list(_KFP_CACHE)[:2000]:
+                _KFP_CACHE.pop(k, None)
+
     mumlar = []
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
-        ck = (sembol, interval, tick, ts)
-        cached = _FP_CACHE.get(ck)
-        guncel = ts <= now < ts + ms
-        if cached:
-            seviyeler = cached["seviyeler"]
-            alis = cached["alis"]; satis = cached["satis"]; poc = cached["poc"]
-            if guncel:
-                eksik.append(ts)               # oluşmakta olan mumu tazele
+        bf = _KFP_CACHE.get((sembol, interval, ts))
+        if bf:
+            seviyeler = bf["seviyeler"]; alis = bf["alis"]; satis = bf["satis"]; poc = bf["poc"]
         else:
-            eksik.append(ts)
-            seviyeler = []
-            tm = taker_map.get(ts, [0.0, 0.0])
-            alis, satis = tm[0], tm[1]; poc = None
+            seviyeler = []; alis = 0.0; satis = 0.0; poc = None
         for s in seviyeler:
             bh = birlesik_hucre.setdefault(s["p"], [0.0, 0.0])
             bh[0] += s["alis"]; bh[1] += s["satis"]
@@ -276,22 +277,6 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             "poc": poc, "seviyeler": seviyeler,
         })
 
-    # eksik mumları arka planda doldur (yeniden→eskiye; endpoint BEKLEMEZ).
-    # BACKOFF: aggTrades veri gelmiyorsa (son_trade=0) 30s'de bir dene (sunucuyu boğma);
-    # veri geliyorsa 3s'de bir hızlı doldur.
-    if eksik:
-        tk = (sembol, interval)
-        tani = _FP_TANI.get(tk, {})
-        basarisiz = tani.get("denendi", 0) > 0 and tani.get("son_trade", 0) == 0
-        aralik = 30 if basarisiz else 3
-        if (time.time() - _FP_SON.get(tk, 0)) >= aralik:
-            _FP_SON[tk] = time.time()
-            try:
-                asyncio.create_task(_fp_doldur(sembol, interval, tick,
-                                               sorted(set(eksik), reverse=True), futures))
-            except RuntimeError:
-                pass
-
     b_alis = sum(a for a, _ in birlesik_hucre.values())
     b_satis = sum(s for _, s in birlesik_hucre.values())
     birlesik = {
@@ -300,12 +285,22 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "seviyeler": _seviye_listesi(birlesik_hucre),
         **_poc_va(birlesik_hucre),
     }
+    # gerçek tick = Kiyotaka bin aralığı (medyan komşu-fiyat farkı) → satır yüksekliği doğru
+    tpx = sorted({s["p"] for m in mumlar for s in m["seviyeler"]})
+    if len(tpx) >= 3:
+        gaps = sorted(tpx[i + 1] - tpx[i] for i in range(len(tpx) - 1) if tpx[i + 1] > tpx[i])
+        if gaps:
+            g = gaps[len(gaps) // 2]
+            if g > 0:
+                tick = round(g, 4)
+
     seviyeli = sum(1 for m in mumlar if m["seviyeler"])
     veri = {
         "sembol": sembol, "interval": interval, "tick": tick,
-        "borsalar": list(borsalar), "spot": spot,
-        "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar), "eksik": len(eksik),
-        "tani": _FP_TANI.get((sembol, interval), {}),
+        "borsalar": list(borsalar), "spot": spot, "kaynak": "kiyotaka",
+        "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar),
+        "eksik": len([1 for m in mumlar if not m["seviyeler"]]),
+        "tani": {"son_hata": hata} if hata else {},
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}
