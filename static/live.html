@@ -1044,9 +1044,13 @@ function kFpCiz(g,c,ts,W,H,sym){
   for(const m of fp.mumlar){
     const cx=ts.timeToCoordinate(Math.floor(m.t/1000)+K_TZ);
     if(cx==null||cx<-yariW-30||cx>W+yariW+30)continue;
-    const cl=canli?canli.get(m.t):null;
-    const sev=cl?cl.seviyeler:m.seviyeler;
-    const alis=cl?cl.alis:m.alis, satis=cl?cl.satis:m.satis, delta=cl?cl.delta:m.delta, poc=cl?cl.poc:m.poc;
+    // SUNUCU verisi (klines_taker, TÜM mumlar dolu) BİRİNCİL; tarayıcı-WS (BFP) yalnız
+    // sunucu mumu BOŞ + WS'de seviye VARSA kullanılır (geo-blok WS boş mumla üzerine yazmasın)
+    const srvOk=m.seviyeler&&m.seviyeler.length;
+    const cl=(!srvOk&&canli)?canli.get(m.t):null;
+    const useCl=cl&&cl.seviyeler&&cl.seviyeler.length;
+    const sev=useCl?cl.seviyeler:m.seviyeler;
+    const alis=useCl?cl.alis:m.alis, satis=useCl?cl.satis:m.satis, delta=useCl?cl.delta:m.delta, poc=useCl?cl.poc:m.poc;
     const tot=(alis||0)+(satis||0);
     // ── mumun ÜSTÜNDE (yapışmadan): toplam (siyah) + altına delta (yeşil/kırmızı) ──
     const yH=c.ca.priceToCoordinate(m.h);
