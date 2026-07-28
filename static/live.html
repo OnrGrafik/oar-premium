@@ -1072,8 +1072,8 @@ function kFpCiz(g,c,ts,W,H,sym){
   g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
   if(bw<14||!fp||!fp.mumlar||!fp.mumlar.length)return;   // uzakta footprint yok (normal mum görünür)
-  const yariW=Math.min(44,Math.max(12,bw*0.40));
-  const sayi=bw>=42;                        // sayılar yalnız iyice yakınlaşınca (çakışma yok)
+  const yariW=Math.min(60,Math.max(16,bw*0.46));         // daha geniş hücre = sayı sığar
+  const sayi=bw>=24;                        // CoinAnk gibi: makul zoom'da iki yana sayı yaz
   const tick=fp.tick;
   g.textBaseline='middle';
   for(const m of fp.mumlar){
@@ -1098,15 +1098,15 @@ function kFpCiz(g,c,ts,W,H,sym){
       for(let i=0;i<sev.length;i++){const alt=sev[i+1],ust=sev[i-1];
         bImb[i]=(sev[i].alis>MINV&&sev[i].alis>=RAT*Math.max(alt?alt.satis:0,1));
         sImb[i]=(sev[i].satis>MINV&&sev[i].satis>=RAT*Math.max(ust?ust.alis:0,1));}
-      g.font='8px '+K_FONT;
+      g.font='bold 10px '+K_FONT;
       for(let i=0;i<sev.length;i++){const s=sev[i];const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
         let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;const yy=y-rh/2,rhh=Math.max(rh-0.5,1);
-        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=sImb[i]?_hx2rgba(_kRenk.fpSat,0.92):_hx2rgba(_kRenk.fpSat,0.12+it*0.5);g.fillRect(cx-yariW,yy,yariW-2,rhh);
+        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=sImb[i]?_hx2rgba(_kRenk.fpSat,0.95):_hx2rgba(_kRenk.fpSat,0.14+it*0.55);g.fillRect(cx-yariW,yy,yariW-2,rhh);
           if(sImb[i]){g.fillStyle=_kRenk.fpSat;g.fillRect(cx-yariW-2,yy,2,rhh);}}   // sol kenar parlak işaret
-        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=bImb[i]?_hx2rgba(_kRenk.fpAl,0.92):_hx2rgba(_kRenk.fpAl,0.12+it*0.5);g.fillRect(cx+2,yy,yariW-2,rhh);
+        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=bImb[i]?_hx2rgba(_kRenk.fpAl,0.95):_hx2rgba(_kRenk.fpAl,0.14+it*0.55);g.fillRect(cx+2,yy,yariW-2,rhh);
           if(bImb[i]){g.fillStyle=_kRenk.fpAl;g.fillRect(cx+yariW,yy,2,rhh);}}     // sağ kenar parlak işaret
-        if(sayi&&rh>=8){g.fillStyle=sImb[i]?'#3a0008':'#7a2230';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-3,y);
-          g.fillStyle=bImb[i]?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+3,y);}}
+        if(sayi&&rh>=7){g.fillStyle=sImb[i]?'#ffffff':'#5a0010';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-4,y);
+          g.fillStyle=bImb[i]?'#ffffff':'#04371f';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+4,y);}}
       // STACKED imbalance: ≥3 ardışık aynı yön → yan kenarda kalın çizgi (güçlü sinyal)
       const stak=(flag,taraf)=>{let i=0;while(i<sev.length){if(!flag[i]){i++;continue;}let j=i;while(j<sev.length&&flag[j])j++;
         if(j-i>=3){const y1=c.ca.priceToCoordinate(sev[i].p),y2=c.ca.priceToCoordinate(sev[j-1].p);
