@@ -1465,18 +1465,15 @@ async def startup_event():
     # Grup 1 — hafif / bekleme ağırlıklı (hemen başlasın)
     try:
         from leader_agent import (
-            sinyal_toplayici_loop, sinyal_degerlendirici_loop,
-            saatlik_lider_raporu_loop, saatlik_backtest_loop, saatlik_research_loop,
-            kanitli_bulgu_bildir_loop
+            saatlik_lider_raporu_loop, kanitli_bulgu_bildir_loop
         )
         _leader_task = asyncio.create_task(sabah_raporu_loop(api_key))
-        asyncio.create_task(sinyal_toplayici_loop())       # kendi içinde 240s bekler
-        asyncio.create_task(sinyal_degerlendirici_loop())  # kendi içinde 60s bekler
-        asyncio.create_task(saatlik_lider_raporu_loop(api_key))  # kendi içinde 900s bekler
-        # saatlik_backtest_loop KALDIRILDI: "OAR Kombo" (CVD/OI pattern) eski sinyal
-        # üreticisiydi — OAR şampiyon sistemiyle alakasız, lider raporunu kirletiyordu
-        # (kullanıcı: "böyle bir kombo diye bir şeyimiz yok"). ANAYASA #9.
-        asyncio.create_task(saatlik_research_loop())       # kendi içinde 2100s bekler
+        # KALDIRILDI (kullanıcı: OAR-dışı bot sinyal hattı — ANAYASA #9): sinyal_toplayici_loop
+        # + sinyal_degerlendirici_loop (dış BOT_URL bot servisinden sinyal çekip SIGLOG'a yazan
+        # eski hat) + saatlik_research_loop (o SIGLOG bot-istatistiğinden hipotez üreten kol).
+        # Bunlar OAR şampiyon sistemine katkı vermiyordu; BOT_URL yoksa zaten boş çalışıyordu.
+        # (Gerekirse yeniden kurulur.) saatlik_backtest_loop ("OAR Kombo") da §6b'de kaldırılmıştı.
+        asyncio.create_task(saatlik_lider_raporu_loop(api_key))  # OAR servis arıza raporu (900s)
         asyncio.create_task(kanitli_bulgu_bildir_loop())   # kanıtlı bulgu → Telegram (300s sonra)
         # GERÇEK otonom backtest motoru (Binance+OI+GEX+VPFR) — eskiden hiç
         # başlatılmıyordu, bu yüzden "backtest agent ilerleme sıfır" idi.
@@ -1557,11 +1554,9 @@ async def startup_event():
         asyncio.create_task(baglam_loop())
     except Exception as e:
         print(f"[Startup] market_context: {str(e)[:80]}")
-    try:
-        from basari_skoru import skor_loop
-        asyncio.create_task(skor_loop())
-    except Exception as e:
-        print(f"[Startup] basari_skoru: {str(e)[:80]}")
+    # basari_skoru.skor_loop KALDIRILDI (kullanıcı: "skorla işimiz yok, OAR işimiz"): eski
+    # bot sinyallerinin (SIGLOG) haftalık WR/skor'unu hesaplıyordu — OAR şampiyon sistemine
+    # katkısı yok, ANAYASA #9. skor_tablosu endpoint'i dursun (boş döner) ama loop koşmaz.
     try:
         from theory_engine import hipotez_loop
         asyncio.create_task(hipotez_loop())
@@ -2125,18 +2120,9 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
-    # 8. CIO kararı — TEK KAYNAK (cache'li confidence_karar); panel/çakışan/chat aynı
-    try:
-        from confidence_engine import confidence_karar
-        kr = await confidence_karar("BTCUSDT")
-        parcalar.append(
-            f"CIO Karar [BTC]: {kr.get('karar')} "
-            f"(konfidans: {kr.get('konfidans','?')}/100) — ⚠️ DANIŞMAN sinyali "
-            f"(footprint/order-flow/hacim/opsiyon/makro birleşik skoru). Şampiyonların "
-            f"(FADE/TREND) canlı işlem kararını SÜRMEZ — onlar kendi OAR mantığıyla karar "
-            f"verir. CIO yalnız genel piyasa görüşüdür; bir OAR sinyaliyle çelişirse OAR esastır.")
-    except Exception:
-        pass
+    # 8. CIO/confidence skoru KALDIRILDI (kullanıcı: "bizim skorla işimiz yok, OAR işimiz"):
+    # confidence_karar OAR-dışı bir birleşik skordu, şampiyonları sürmüyordu → lider gözleminden
+    # çıkarıldı (ANAYASA #9). Lider yalnız OAR sistemini (şampiyonlar/kapı/konsey/kanıt) gözler.
 
     # 9. Zaman riski
     try:
