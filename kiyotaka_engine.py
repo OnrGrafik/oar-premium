@@ -112,6 +112,59 @@ async def get_liquidations(sym, from_ts, period_sec=3600, key=""):
            "total_liq_usd":round(total,2),"dominant":dom,"ratio":round(ratio,4)}
     _sc(cp, res); return res
 
+# ── TEŞHİS: footprint API type/param keşfi ───────────────
+async def tani_footprint(sym="BTCUSDT", key=""):
+    """
+    Kiyotaka'ya birkaç ADAY footprint isteği atar, HAM yapıyı döndürür.
+    Amaç: doğru 'type' + interval + response şeklini keşfetmek (docs 403).
+    """
+    import time as _t
+    now = int(_t.time())
+    ex = "BINANCE_FUTURES"
+    adaylar = [
+        ("FOOTPRINT_AGG·MINUTE·5m", {"type": "FOOTPRINT_AGG", "exchange": ex, "rawSymbol": sym, "interval": "MINUTE", "from": now-7200, "period": 300}),
+        ("FOOTPRINT·MINUTE·5m",     {"type": "FOOTPRINT", "exchange": ex, "rawSymbol": sym, "interval": "MINUTE", "from": now-7200, "period": 300}),
+        ("VOLUME_FOOTPRINT_AGG·MIN",{"type": "VOLUME_FOOTPRINT_AGG", "exchange": ex, "rawSymbol": sym, "interval": "MINUTE", "from": now-7200, "period": 300}),
+        ("VOLUME_PROFILE_AGG·MIN·5m",{"type": "VOLUME_PROFILE_AGG", "exchange": ex, "rawSymbol": sym, "interval": "MINUTE", "from": now-7200, "period": 300, "transform.normalize.quote": "USD"}),
+        ("VOLUME_PROFILE_AGG·HOUR(baz)",{"type": "VOLUME_PROFILE_AGG", "exchange": ex, "rawSymbol": sym, "interval": "HOUR", "from": now-7200, "period": 3600, "transform.normalize.quote": "USD"}),
+        ("LIQUIDATION_HEATMAP·HOUR", {"type": "LIQUIDATION_HEATMAP", "exchange": ex, "rawSymbol": sym, "interval": "HOUR", "from": now-7200, "period": 3600}),
+        ("HEATMAP·HOUR",            {"type": "HEATMAP", "exchange": ex, "rawSymbol": sym, "interval": "HOUR", "from": now-7200, "period": 3600}),
+    ]
+    k = key or _key()
+    out = []
+    for ad, params in adaylar:
+        d = {"ad": ad, "type": params.get("type")}
+        try:
+            async with httpx.AsyncClient(timeout=15) as cl:
+                r = await cl.get(KIYOTAKA_BASE, params=params, headers=_hdr(k))
+            d["http"] = r.status_code
+            if r.status_code == 200:
+                j = r.json()
+                d["ust_anahtarlar"] = list(j.keys())[:8]
+                series = j.get("series", [])
+                d["seri_sayisi"] = len(series)
+                if series:
+                    s0 = series[0]
+                    d["seri0_anahtar"] = list(s0.keys())[:8]
+                    d["seri0_id"] = str(s0.get("id"))[:120]
+                    pts = s0.get("points", [])
+                    d["nokta_sayisi"] = len(pts)
+                    if pts:
+                        pt = pts[0].get("Point", pts[0])
+                        d["point_anahtar"] = list(pt.keys())[:12] if isinstance(pt, dict) else str(pt)[:120]
+                        if isinstance(pt, dict):
+                            for kk in ("profile", "footprint", "bidAskProfile", "clusters", "levels", "rows"):
+                                if kk in pt:
+                                    v = pt[kk]
+                                    d["ornek_" + kk] = (v[:15] if isinstance(v, list) else str(v)[:250])
+            else:
+                d["govde"] = r.text[:250]
+        except Exception as e:
+            d["hata"] = str(e)[:150]
+        out.append(d)
+    return {"sembol": sym, "key_var": bool(k), "denemeler": out}
+
+
 # ── OAR BACKTEST FİLTRESİ ────────────────────────────────
 async def kiyotaka_filtre(sym, fib_price, direction, ts_ms, key=""):
     """

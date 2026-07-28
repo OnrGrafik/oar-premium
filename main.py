@@ -3374,6 +3374,16 @@ async def api_akis_orderbook(symbol: str = "BTCUSDT", seviye: int = 25,
     return await _fp.orderbook_dom(symbol, min(seviye, 50), futures)
 
 
+@app.get("/api/akis/kiyotaka-test")
+async def api_akis_kiyotaka_test(symbol: str = "BTCUSDT"):
+    """TEŞHİS: Kiyotaka footprint API type/param keşfi (ham yapı)."""
+    try:
+        import kiyotaka_engine as _k
+        return await _k.tani_footprint(symbol)
+    except Exception as e:
+        return {"durum": "hata", "mesaj": str(e)[:200]}
+
+
 @app.get("/api/akis/likidasyon")
 async def api_akis_likidasyon(symbol: str = "BTCUSDT"):
     """Tahmini likidasyon haritası (OI/kaldıraç modeli) — order-book'tan FARKLI."""
