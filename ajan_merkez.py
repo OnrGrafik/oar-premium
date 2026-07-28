@@ -116,20 +116,5 @@ def son_aktiviteler(n: int = 20, tur: str = None) -> list:
     return log[-n:]
 
 
-def bekleyen_ozet() -> str:
-    """
-    Son aktivitelerden lider-özeti metni: öneri/eksik/research vurgulanır
-    (boşa düşmesin diye). Kullanıcının canlı takip ettiği digest.
-    """
-    log = _log_yukle()
-    if not log:
-        return ""
-    son = log[-30:]
-    onemli = [x for x in son if x.get("tur") in ("öneri", "oneri", "eksik", "research", "backtest")]
-    if not onemli:
-        return ""
-    satirlar = ["🧭 *LİDER — Ajan Aktivite Özeti*"]
-    for x in onemli[-10:]:
-        e = TUR_EMOJI.get(x.get("tur", "").lower(), "ℹ️")
-        satirlar.append(f"{e} {x.get('ajan','?')}: {x.get('ozet','')[:120]}")
-    return "\n".join(satirlar)
+# bekleyen_ozet KALDIRILDI (denetim): "LİDER Ajan Aktivite Özeti" yankı-digest'i §6b'de
+# Telegram'dan çıkarılmıştı ve hiçbir canlı çağıranı kalmamıştı → ölü fonksiyon.
