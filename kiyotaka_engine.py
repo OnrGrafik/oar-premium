@@ -112,6 +112,49 @@ async def get_liquidations(sym, from_ts, period_sec=3600, key=""):
            "total_liq_usd":round(total,2),"dominant":dom,"ratio":round(ratio,4)}
     _sc(cp, res); return res
 
+# ── FOOTPRINT (GERÇEK — Kiyotaka VOLUME_PROFILE_AGG per-mum) ──
+async def bar_footprint(sym, bar_open_sec, bar_sec=300, key=""):
+    """
+    TEK mumun gerçek footprint'i (Kiyotaka VOLUME_PROFILE_AGG, keşfedilen type/param).
+    Yanıt: point.profile = [fiyat, alış, satış, fiyat, alış, satış, ...] düz dizi.
+    Döner: {seviyeler:[{p,alis,satis,delta}], alis, satis, delta, poc} veya None.
+    ⚠ alış/satış sırası prof[i+1]/prof[i+2] varsayıldı (renk ters çıkarsa swap).
+    """
+    interval = "MINUTE" if bar_sec < 3600 else "HOUR"
+    params = {"type": "VOLUME_PROFILE_AGG", "exchange": "BINANCE_FUTURES",
+              "rawSymbol": sym, "interval": interval, "from": int(bar_open_sec),
+              "period": int(bar_sec), "transform.normalize.quote": "USD"}
+    try:
+        async with httpx.AsyncClient(timeout=12) as cl:
+            r = await cl.get(KIYOTAKA_BASE, params=params, headers=_hdr(key or _key()))
+        if r.status_code != 200:
+            return None
+        series = r.json().get("series", [])
+        if not series:
+            return None
+        pts = series[0].get("points", [])
+        if not pts:
+            return None
+        P = pts[0].get("Point", pts[0])
+        prof = P.get("profile") or []
+        sev = []; alis = 0.0; satis = 0.0; poc = None; pv = -1.0
+        for i in range(0, len(prof) - 2, 3):
+            p = float(prof[i]); b = float(prof[i + 1]); s = float(prof[i + 2])
+            sev.append({"p": round(p, 2), "alis": round(b, 4), "satis": round(s, 4),
+                        "delta": round(b - s, 4)})
+            alis += b; satis += s
+            if b + s > pv:
+                pv = b + s; poc = p
+        if not sev:
+            return None
+        sev.sort(key=lambda x: -x["p"])
+        return {"seviyeler": sev, "alis": round(alis, 4), "satis": round(satis, 4),
+                "delta": round(alis - satis, 4),
+                "poc": round(poc, 2) if poc is not None else None}
+    except Exception:
+        return None
+
+
 # ── TEŞHİS: footprint API type/param keşfi ───────────────
 async def tani_footprint(sym="BTCUSDT", key=""):
     """

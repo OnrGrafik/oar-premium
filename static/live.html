@@ -462,7 +462,7 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:false,hmap:false,liq:false,likmap:false};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff'};
