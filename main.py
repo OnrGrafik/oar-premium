@@ -107,23 +107,14 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 Path("static").mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ─── Arka Plan Tarayıcı ──────────────────────────────────────────────────────
-scanner_task = None
+# ─── Arka Plan Görevleri ─────────────────────────────────────────────────────
 telegram_task = None
 telegram_komut_task = None
 _tg_update_offset = 0   # Telegram getUpdates offset
 
-async def background_scanner():
-    """Her 15 dakikada piyasayı otomatik tara"""
-    await asyncio.sleep(360)  # 6 dk bekle — diğer tasklar oturuncaya kadar
-    import gc
-    while True:
-        try:
-            await scan_market("1h")
-        except Exception as e:
-            print(f"[Scanner] Hata: {e}")
-        gc.collect()  # 512MB instance — tarama sonrası belleği temizle
-        await asyncio.sleep(900)  # 15 dakika
+# background_scanner KALDIRILDI (denetim): eski MA/CVD scan_market'i 15 dk'da bir koşup
+# çıktısını KULLANMIYORDU (yalnız legacy index.html /api/signals'ı ön-ısıtırdı) → ölü loop,
+# 512MB'da boşuna CPU/bellek. scan_market brain.py'de KALIR (legacy endpoint hâlâ çağırabilir).
 
 _IZIN_VERILEN_SEMBOLLER = {"BTCUSDT", "ETHUSDT", "BTC", "ETH"}
 _MIN_KONFIDANS = 70   # Bu altı gönderilmez
@@ -362,7 +353,7 @@ async def telegram_komut_loop():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    for task in (scanner_task, telegram_task, telegram_komut_task):
+    for task in (telegram_task, telegram_komut_task):
         if task:
             task.cancel()
 
@@ -1342,6 +1333,9 @@ async def startup_event():
         import hacim_gorev as _hg
         asyncio.create_task(_hg.worker_dongu())
         print("[Startup] Hacim görev worker başlatıldı")
+        # LİDER GÖZLEMİ → Telegram thread 4882 (ölü _lider_baglam_topla bağlamı canlandırıldı)
+        asyncio.create_task(lider_gozlem_loop())
+        print("[Startup] Lider gözlem yayıncısı başlatıldı (thread 4882)")
         # GEX ISI HARİTASI SNAPSHOT: gamma grid'ini 5dk'da kaydeder → ısı
         # haritasında Δ anlık(~22dk)/gün-içi(açılış) + gün-içi gamma drift serisi.
         import oar_gex_snapshot as _gsnap
@@ -1402,10 +1396,9 @@ async def startup_event():
     # üreticisiydi — OAR şampiyon sistemiyle alakasız (kullanıcı: "böyle bir pattern
     # diye bir şeyimiz yok"). ANAYASA #9: tüm enerji OAR Asia Range için.
 
-    # Grup 5 — background scanner (360s bekler) + telegram + lider yorum
+    # Grup 5 — telegram + lider yorum (background_scanner KALDIRILDI: ölü loop)
     await asyncio.sleep(2)
-    global scanner_task, telegram_task, telegram_komut_task
-    scanner_task = asyncio.create_task(background_scanner())
+    global telegram_task, telegram_komut_task
     telegram_task = asyncio.create_task(telegram_rapor_loop())
     telegram_komut_task = asyncio.create_task(telegram_komut_loop())
     try:
@@ -1960,8 +1953,10 @@ async def _lider_baglam_topla() -> str:
         kr = await confidence_karar("BTCUSDT")
         parcalar.append(
             f"CIO Karar [BTC]: {kr.get('karar')} "
-            f"(konfidans: {kr.get('konfidans','?')}/100) — TEK GEÇERLİ DEĞER, "
-            f"başka bir konfidans sayısı ÜRETME/TAHMİN ETME, bunu kullan.")
+            f"(konfidans: {kr.get('konfidans','?')}/100) — ⚠️ DANIŞMAN sinyali "
+            f"(footprint/order-flow/hacim/opsiyon/makro birleşik skoru). Şampiyonların "
+            f"(FADE/TREND) canlı işlem kararını SÜRMEZ — onlar kendi OAR mantığıyla karar "
+            f"verir. CIO yalnız genel piyasa görüşüdür; bir OAR sinyaliyle çelişirse OAR esastır.")
     except Exception:
         pass
 
@@ -1982,11 +1977,61 @@ async def _lider_baglam_topla() -> str:
     return "\n".join(parcalar)
 
 
-@app.get("/api/leader/kazanan-profil")
-async def kazanan_profil():
-    """Feature Engine'in öğrendiği WIN/LOSS ayırt edici profil."""
-    from feature_engine import kazanan_profil_al, profil_ogren
-    return profil_ogren()
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LİDER GÖZLEMİ → Telegram thread 4882 (kullanıcı isteği; ÖLÜ bağlam CANLANDIRILDI)
+#  Sohbet kaldırıldığı için _lider_baglam_topla/_site_baglami hiçbir canlı yere
+#  akmıyordu (denetim #1). Artık liderin TÜM sistem gözlemi (şampiyonlar, market
+#  kapısı, 3 canlı sistem, hacim konseyi, görev kuyruğu, kanıtlı bulgular, makro,
+#  CIO) günlük olarak buraya iletilir. Kural-tabanlı (LLM yok, §0LLM); sayfalı (kesilmez).
+# ═══════════════════════════════════════════════════════════════════════════════
+LIDER_GOZLEM_CHAT   = "-1002142274543"
+LIDER_GOZLEM_THREAD = "4882"
+
+async def _uzun_telegram(metin: str, thread_id: str, chat_id: str) -> bool:
+    """Telegram'a KESMEDEN gönder — satır sınırında ≤3800 kar sayfalara böl."""
+    satirlar = metin.split("\n")
+    sayfalar, cur = [], ""
+    for s in satirlar:
+        if len(cur) + len(s) + 1 > 3800:
+            if cur:
+                sayfalar.append(cur)
+            while len(s) > 3800:
+                sayfalar.append(s[:3800]); s = s[3800:]
+            cur = s
+        else:
+            cur = f"{cur}\n{s}" if cur else s
+    if cur:
+        sayfalar.append(cur)
+    n = len(sayfalar); ok = True
+    for i, p in enumerate(sayfalar, 1):
+        bas = f"({i}/{n})\n" if n > 1 else ""
+        r = await _telegram_gonder(bas + p, thread_id=thread_id, chat_id=chat_id)
+        ok = ok and bool(r)
+        await asyncio.sleep(0.6)
+    return ok
+
+async def lider_gozlem_yayinla() -> bool:
+    """Liderin tüm-sistem gözlemini derle → thread 4882'ye gönder."""
+    from datetime import datetime as _dt, timezone as _tz
+    try:
+        ctx = await _lider_baglam_topla()
+    except Exception as e:
+        ctx = f"[bağlam toplanamadı: {str(e)[:80]}]"
+    baslik = (f"🧭 *LİDER GÖZLEMİ* · {_dt.now(_tz.utc):%Y-%m-%d %H:%M} UTC\n"
+              "Liderin canlı tüm-sistem gözlemi (şampiyonlar · market kapısı · 3 canlı "
+              "sistem · hacim konseyi · görev kuyruğu · kanıtlı bulgular · makro · CIO):\n")
+    return await _uzun_telegram(baslik + ctx, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
+
+async def lider_gozlem_loop():
+    """Günlük lider gözlemi → 4882. İlk gözlem redeploy'dan ~10 dk sonra (doğrulama)."""
+    await asyncio.sleep(600)
+    while True:
+        try:
+            await lider_gozlem_yayinla()
+        except Exception as e:
+            print(f"[lider_gozlem] hata: {str(e)[:100]}", flush=True)
+        await asyncio.sleep(24 * 3600)
+
 
 @app.get("/api/teori")
 async def teori_liste():

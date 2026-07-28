@@ -123,8 +123,12 @@ async def a_orderbook(sembol):
     """3. Order-book baskı lensi — mesafe-ağırlıklı true_pressure (anlık L2)."""
     ad = "order_book"
     try:
-        from oar_orderbook import snapshot
-        m = await snapshot(sembol)
+        # PERF (denetim #6): order-book zaten topla_loop ile 60s'de toplanıyor → taze depth
+        # çağrısı yerine son toplanan snapshot'ı (_SON) kullan; yoksa taze çek (fallback).
+        from oar_orderbook import _SON, snapshot
+        m = _SON.get(sembol)
+        if not m:
+            m = await snapshot(sembol)
         if not m:
             return _bos(ad, "L2 gelmedi (httpx/ağ)")
         tp = m.get("true_pressure")
@@ -189,8 +193,8 @@ async def a_vp_poc(sembol):
         # Fiyat referansı: order-book mid (bağımsız), gelmezse POC (yön=NOTR).
         fiyat = None
         try:
-            from oar_orderbook import snapshot
-            m = await snapshot(sembol)
+            from oar_orderbook import _SON, snapshot
+            m = _SON.get(sembol) or await snapshot(sembol)   # PERF: toplanmış snapshot'ı yeniden kullan
             fiyat = (m or {}).get("mid")
         except Exception:
             fiyat = None
