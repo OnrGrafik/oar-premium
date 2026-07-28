@@ -2163,17 +2163,78 @@ async def _uzun_telegram(metin: str, thread_id: str, chat_id: str) -> bool:
         await asyncio.sleep(0.6)
     return ok
 
-async def lider_gozlem_yayinla() -> bool:
-    """Liderin tüm-sistem gözlemini derle → thread 4882'ye gönder."""
+def _gozlem_anahtar(satir: str) -> str:
+    """Bağlam satırından kimlik anahtarı çıkar (aynı alanın eski/yeni değerini eşlemek için)."""
+    s = satir.strip()
+    if s.startswith("["):
+        k = s.split("]", 1)[0] + "]"
+        return k
+    if ":" in s:
+        return s.split(":", 1)[0].strip()
+    return s[:28]
+
+
+def _gozlem_degisim(yeni_ctx: str) -> tuple:
+    """
+    Önceki gözlemle SATIR BAZINDA karşılaştır → (değişen_satırlar, degismeyen_sayisi).
+    Kullanıcı sitemi: "bu hep aynı şeyi mi atıyor?" — raporun yarısı sabit referans
+    (şampiyon blokları, backtest defteri, kanıtlı bulgular, kanıt kapısı) her seferinde
+    birebir tekrar ediyordu, gerçek değişimler içinde kayboluyordu.
+    """
+    onceki_yol = DATA_DIR / "lider_gozlem_onceki.json"
+    try:
+        onceki = json.loads(onceki_yol.read_text()).get("satirlar", {})
+    except Exception:
+        onceki = {}
+    yeni = {}
+    for ln in yeni_ctx.split("\n"):
+        if not ln.strip() or ln.startswith("═══"):
+            continue
+        yeni[_gozlem_anahtar(ln)] = ln.strip()
+    degisen, ayni = [], 0
+    for k, v in yeni.items():
+        if onceki.get(k) != v:
+            degisen.append(v)
+        else:
+            ayni += 1
+    try:
+        onceki_yol.write_text(json.dumps({"satirlar": yeni}, ensure_ascii=False))
+    except Exception:
+        pass
+    return degisen, ayni, bool(onceki)
+
+
+async def lider_gozlem_yayinla(tam: bool = False) -> bool:
+    """
+    Liderin tüm-sistem gözlemi → thread 4882. DEĞİŞİM ODAKLI: yalnız önceki gözleme göre
+    DEĞİŞEN satırlar gönderilir; değişmeyen sabit referans (şampiyon blokları, backtest
+    defteri, kanıtlı bulgular) tek satırda özetlenir. tam=True → tüm bağlamı gönderir.
+    """
     from datetime import datetime as _dt, timezone as _tz
     try:
         ctx = await _lider_baglam_topla()
     except Exception as e:
         ctx = f"[bağlam toplanamadı: {str(e)[:80]}]"
-    baslik = (f"🧭 *LİDER GÖZLEMİ* · {_dt.now(_tz.utc):%Y-%m-%d %H:%M} UTC\n"
-              "Liderin canlı tüm-sistem gözlemi (şampiyonlar · market kapısı · 3 canlı "
-              "sistem · hacim konseyi · görev kuyruğu · kanıtlı bulgular · makro):\n")
-    return await _uzun_telegram(baslik + ctx, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
+    zaman = f"{_dt.now(_tz.utc):%Y-%m-%d %H:%M} UTC"
+    degisen, ayni, onceki_vardi = _gozlem_degisim(ctx)
+
+    if tam or not onceki_vardi:
+        # İlk gözlem (veya elle tam istek): tam tablo — referans noktası oluşsun.
+        baslik = (f"🧭 *LİDER GÖZLEMİ (TAM)* · {zaman}\n"
+                  "Liderin canlı tüm-sistem gözlemi. Bundan sonraki gözlemler yalnız "
+                  "DEĞİŞENLERİ gönderir.\n")
+        return await _uzun_telegram(baslik + ctx, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
+
+    if not degisen:
+        # Hiçbir şey değişmediyse SESSİZ kal (§6b: "her şey aynı" = gürültü).
+        print("[lider_gozlem] değişiklik yok — gönderilmedi", flush=True)
+        return True
+
+    metin = (f"🧭 *LİDER GÖZLEMİ · DEĞİŞENLER* · {zaman}\n"
+             f"(önceki gözleme göre {len(degisen)} değişiklik · {ayni} alan aynı: "
+             f"şampiyonlar/backtest defteri/kanıtlı bulgular sabit)\n\n"
+             + "\n".join(degisen))
+    return await _uzun_telegram(metin, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
 
 async def lider_gozlem_loop():
     """Günlük lider gözlemi → 4882. İlk gözlem redeploy'dan ~10 dk sonra (doğrulama)."""
