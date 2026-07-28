@@ -1869,6 +1869,8 @@ async def tarihsel_backtest_gecmis():
 async def _grafik_ozeti(symbol: str = "BTCUSDT") -> dict:
     """Komuta Merkezi grafiğinin GÖSTERDİĞİ her şeyi sunucu tarafında hesapla —
     lider grafiği 'okur': Asia H/L+fib, TÜM key level'lar, bugünkü VWAP, VP POC."""
+    from datetime import datetime, timezone   # BUG: modül düzeyinde yoktu → "name 'datetime'
+    # is not defined" ile grafik özeti KOMPLE düşüyordu (lider grafiği hiç okuyamıyordu).
     from brain import get_ohlcv
     m5, h1, d1 = await asyncio.gather(
         get_ohlcv(symbol, "5m", 700), get_ohlcv(symbol, "1h", 240), get_ohlcv(symbol, "1d", 370))
@@ -2039,7 +2041,14 @@ async def _site_baglami() -> str:
         def _mv(k):
             v = (mk or {}).get(k) or {}
             return v.get("guncel", {}).get("deger") if isinstance(v.get("guncel"), dict) else v.get("deger")
-        par.append(f"[MAKRO] FedFaiz {_mv('fedFaiz')} · CPI {_mv('cpi')} · İşsizlik {_mv('isRate')} · NFP {_mv('nfp')}")
+        _deg = [_mv('fedFaiz'), _mv('cpi'), _mv('isRate'), _mv('nfp')]
+        if all(v is None for v in _deg):
+            # SESSİZ ARIZA GÖRÜNÜR OLSUN: hepsi None ise sebep yaz (çıplak "None" yanıltıyordu)
+            import os as _os
+            _sbp = "FRED_API_KEY tanımsız" if not _os.environ.get("FRED_API_KEY") else "veri kaynağı yanıt vermedi"
+            par.append(f"[MAKRO] ⚠️ veri YOK ({_sbp}) — makro göstergeleri okunamıyor")
+        else:
+            par.append(f"[MAKRO] FedFaiz {_deg[0]} · CPI {_deg[1]} · İşsizlik {_deg[2]} · NFP {_deg[3]}")
     except Exception: pass
     metin = "═══ SİTE BAĞLAMI (Komuta Merkezi + Opsiyon + Makro sayfalarının CANLI verisi) ═══\n" + "\n".join(par)
     _site_baglam_cache["ts"] = _t.time(); _site_baglam_cache["metin"] = metin
@@ -2053,7 +2062,7 @@ async def _lider_baglam_topla() -> str:
     try:
         async with httpx.AsyncClient(timeout=8) as cl:
             r = await cl.get("https://api.binance.com/api/v3/ticker/24hr",
-                             params={"symbols": '["BTCUSDT","ETHUSDT","SOLUSDT"]'})
+                             params={"symbols": '["BTCUSDT","ETHUSDT"]'})   # §6b: yalnız BTC+ETH
             for t in r.json():
                 parcalar.append(f"{t['symbol']}: ${float(t['lastPrice']):,.0f} ({float(t['priceChangePercent']):+.1f}% 24h)")
     except Exception:
@@ -2070,16 +2079,8 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
-    # 3. Son sinyaller + bilgi botu bildirimleri
-    try:
-        sig_file = DATA_DIR / "oar_signals_log.json"
-        if sig_file.exists():
-            sigs = json.loads(sig_file.read_text()).get("signals", [])[-15:]
-            if sigs:
-                ozet = "; ".join(f"{s.get('bot','?')}: {s.get('symbol','?')} {s.get('direction','?')} [{s.get('outcome') or 'bekliyor'}]" for s in sigs[-8:])
-                parcalar.append(f"Son sinyaller: {ozet}")
-    except Exception:
-        pass
+    # 3. KALDIRILDI: eski bot SIGLOG'u ("OAR Kombo"/"OAR Pattern" + SOL vb.) — o botlar
+    # §6b/#9 ile silindi ama BAYAT kayıtlar lider gözlemine sızıyordu (kullanıcı gördü).
 
     # 4. Kullanıcının öğrettiği bilgiler (knowledge bankası)
     try:
@@ -2095,13 +2096,8 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
-    # 5. Son saatlik raporlar
-    try:
-        from leader_agent import rapor_gecmisi_al
-        for r in rapor_gecmisi_al(limit=3):
-            parcalar.append(f"[{r['tip']} raporu] {r['icerik'].get('metin','')[:150]}")
-    except Exception:
-        pass
+    # 5. KALDIRILDI: saatlik lider/research rapor geçmişi — §6b'de YASAKLANAN gürültüyü
+    # (eski bot WR'si, "Trend: COTI/HYPE/PENGU", korku endeksi) lider gözlemine taşıyordu.
 
     # 6. Tarihsel backtest sonuçları
     try:
@@ -2111,14 +2107,7 @@ async def _lider_baglam_topla() -> str:
     except Exception:
         pass
 
-    # 7. Korku endeksi
-    try:
-        async with httpx.AsyncClient(timeout=6) as cl:
-            r = await cl.get("https://api.alternative.me/fng/")
-            d = r.json()["data"][0]
-            parcalar.append(f"Korku Endeksi: {d['value']} ({d['value_classification']})")
-    except Exception:
-        pass
+    # 7. KALDIRILDI: Korku Endeksi (F&G) — §6b: kullanıcı için ALAKASIZ, yalnız BTC+ETH.
 
     # 8. CIO/confidence skoru KALDIRILDI (kullanıcı: "bizim skorla işimiz yok, OAR işimiz"):
     # confidence_karar OAR-dışı bir birleşik skordu, şampiyonları sürmüyordu → lider gözleminden
@@ -2183,7 +2172,7 @@ async def lider_gozlem_yayinla() -> bool:
         ctx = f"[bağlam toplanamadı: {str(e)[:80]}]"
     baslik = (f"🧭 *LİDER GÖZLEMİ* · {_dt.now(_tz.utc):%Y-%m-%d %H:%M} UTC\n"
               "Liderin canlı tüm-sistem gözlemi (şampiyonlar · market kapısı · 3 canlı "
-              "sistem · hacim konseyi · görev kuyruğu · kanıtlı bulgular · makro · CIO):\n")
+              "sistem · hacim konseyi · görev kuyruğu · kanıtlı bulgular · makro):\n")
     return await _uzun_telegram(baslik + ctx, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
 
 async def lider_gozlem_loop():
