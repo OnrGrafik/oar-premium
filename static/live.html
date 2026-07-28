@@ -476,7 +476,7 @@ function kAyarSet(k,v){
   // footprint/heatmap/liq açıldıysa verisini hemen çek
   if(['fp','hmap','liq'].includes(k)&&v){for(const sym of ['BTCUSDT','ETHUSDT'])akisVeriYukle(sym,true);}
   if(k==='fp'&&v)bfpBaslat();   // tarayıcı-doğrudan canlı footprint akışı
-  if(k==='fp'){for(const sym of ['BTCUSDT','ETHUSDT']){const cc=_kcharts[sym];if(cc)kMumStili(cc.ca);}
+  if(k==='fp'){for(const sym of ['BTCUSDT','ETHUSDT']){const cc=_kcharts[sym];if(cc){cc._fpThin=undefined;if(!v)kMumStili(cc.ca,false);}}
     document.querySelectorAll('[data-fpbtn]').forEach(b=>{b.style.background=v?'#123':'none';b.style.borderColor=v?'#1ff0ad':'#1a2422';b.style.color=v?'#1ff0ad':'#8a9c99';});}
 }
 function kAyarFsToggle(sym){
@@ -629,7 +629,7 @@ async function initKomutaGrafikler(){
       borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
     const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.oar&&_kAyar.vwap});
     _kcharts[sym]={ch,ca,vw,kutular:[]};
-    kMumStili(ca);   // footprint modunda mum gövdesi ŞEFFAF (incelir) → footprint açığa çıkar
+    kMumStili(ca,false);   // başlangıç normal; zoom'a göre kFpCiz ince moda geçirir
     const ciz=()=>kOverlayCiz(sym);
     ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
     new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});ciz();}catch(e){}}).observe(el);
@@ -968,10 +968,10 @@ function _akK(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3
 
 // Footprint modunda mum gövdesini ŞEFFAF yap (ince kalsın, footprint sayıları örtülmesin);
 // ince gövdeyi kFpCiz kendi çizer. Kapalıyken normal mum.
-function kMumStili(ca){
+function kMumStili(ca,thin){
   if(!ca)return;
-  if(_kAyar.fp)ca.applyOptions({upColor:'rgba(0,0,0,0)',downColor:'rgba(0,0,0,0)',borderVisible:false,
-    wickUpColor:'rgba(120,130,140,.55)',wickDownColor:'rgba(120,130,140,.55)'});
+  if(thin)ca.applyOptions({upColor:'rgba(0,0,0,0)',downColor:'rgba(0,0,0,0)',borderVisible:false,
+    wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});   // tamamen şeffaf; ince mumu kFpCiz çizer
   else ca.applyOptions({upColor:'#ffffff',downColor:'#111111',borderVisible:true,
     borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
 }
@@ -981,18 +981,32 @@ function kMumStili(ca){
 function kFpCiz(g,c,ts,W,H,sym){
   const fp=c.fpData;
   const canli=(sym&&BFP.built[sym])?BFP.built[sym]:null;
-  // durum rozeti (sol üst, beyaz zemin okunur)
+  let bw=8;try{bw=ts.options?ts.options().barSpacing:8;}catch(e){}
+  // ZOOM-UYARLI: uzakta (bw<18) NORMAL mum + footprint YOK; yakında ince mum + footprint
+  const thinIste=bw>=18;
+  if(c._fpThin!==thinIste){c._fpThin=thinIste;kMumStili(c.ca,thinIste);}
   g.save();g.textBaseline='top';g.font='9px '+K_FONT;g.textAlign='left';
-  let rozet='FP yükleniyor…',rc='#8a7a2a';
-  if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
+  let rozet,rc;
+  if(!thinIste){rozet='FP · yakınlaş →';rc='#6f8180';}
+  else if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
     if(tp&&sv>=tp){rozet='FP tam · '+tp+' mum';rc='#0a8f5c';}
     else if(sv>0){rozet='FP '+sv+'/'+tp+' dolduruyor…';rc='#0a8f5c';}
     else if(t&&t.son_hata){rozet='FP veri hata: '+t.son_hata;rc='#d1344b';}
-    else{rozet='FP '+sv+'/'+tp+' · Δ hazır (seviye dolduruyor)';rc='#b0851f';}}
+    else{rozet='FP '+sv+'/'+tp+' · Δ hazır';rc='#b0851f';}}
+  else{rozet='FP yükleniyor…';rc='#b0851f';}
   g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,4,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,5);g.restore();
+  if(!thinIste)return;   // uzakta footprint çizme → normal mum görünür (grafik kaybolmaz)
+  // TÜM görünür mumların İNCE gövdesi + fitil (footprint verisi olmayanlar da KAYBOLMASIN)
+  const kg=ST.kgraf&&ST.kgraf[sym];const allc=(kg&&kg.oh&&kg.oh.candles)||[];
+  const bwv=Math.max(1.5,Math.min(3,bw*0.12));
+  for(const x of allc){const cx0=ts.timeToCoordinate(Math.floor(x.ts/1000)+K_TZ);
+    if(cx0==null||cx0<-4||cx0>W+4)continue;
+    const yh=c.ca.priceToCoordinate(x.high),yl=c.ca.priceToCoordinate(x.low),yo=c.ca.priceToCoordinate(x.open),yc2=c.ca.priceToCoordinate(x.close);
+    if(yo==null||yc2==null)continue;const col=x.close>=x.open?'#0a8f5c':'#d1344b';
+    if(yh!=null&&yl!=null){g.strokeStyle=col;g.globalAlpha=.4;g.lineWidth=1;g.beginPath();g.moveTo(cx0,yh);g.lineTo(cx0,yl);g.stroke();g.globalAlpha=1;}
+    g.fillStyle=col;g.fillRect(cx0-bwv/2,Math.min(yo,yc2),bwv,Math.max(Math.abs(yc2-yo),1));}
   if(!fp||!fp.mumlar||!fp.mumlar.length)return;
-  let bw=8;try{bw=ts.options?ts.options().barSpacing:8;}catch(e){}
   const yariW=Math.min(46,Math.max(11,bw*0.42));
   const sayi=bw>=40;                       // sayılar yalnız yeterince yakınlaşınca (çakışma yok)
   const tick=fp.tick;
@@ -1036,9 +1050,6 @@ function kFpCiz(g,c,ts,W,H,sym){
       stak(bImb,1);stak(sImb,-1);
       if(poc!=null){const yp=c.ca.priceToCoordinate(poc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(poc-tick)||(yp+9))-yp);if(!(rh>=3))rh=3;g.strokeStyle='#e8a30c';g.lineWidth=1;g.strokeRect(cx-yariW,yp-rh/2,yariW*2,rh);}}
     }
-    // İNCE mum gövdesi (ortada) — LightweightCharts gövdesi footprint modunda şeffaf
-    if(m.o!=null&&m.c!=null){const yo=c.ca.priceToCoordinate(m.o),yc=c.ca.priceToCoordinate(m.c);
-      if(yo!=null&&yc!=null){g.fillStyle=m.c>=m.o?'#0a8f5c':'#d1344b';g.fillRect(cx-1.5,Math.min(yo,yc),3,Math.max(Math.abs(yc-yo),1));}}
   }
 }
 
