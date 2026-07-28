@@ -1047,10 +1047,16 @@ function _akK(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3
 
 // Footprint modunda mum gövdesini ŞEFFAF yap (ince kalsın, footprint sayıları örtülmesin);
 // ince gövdeyi kFpCiz kendi çizer. Kapalıyken normal mum.
-function kMumStili(ca,thin){   // artık HER ZAMAN normal profesyonel mum (şeffaf hack kaldırıldı)
+function kMumStili(ca,thin){
   if(!ca)return;
-  ca.applyOptions({upColor:'#26a69a',downColor:'#ef5350',borderVisible:true,
-    borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
+  if(thin){   // FOOTPRINT MODU: LWC kalın mumu GÖRÜNMEZ → ince mumu kFpCiz kendi çizer.
+    const t='rgba(0,0,0,0)';   // yalnız RENK şeffaf; veri/fiyat-aralığı DEĞİŞMEZ (autoscale bozulmaz)
+    ca.applyOptions({upColor:t,downColor:t,borderVisible:false,
+      wickUpColor:t,wickDownColor:t});
+  }else{      // normal profesyonel mum
+    ca.applyOptions({upColor:'#26a69a',downColor:'#ef5350',borderVisible:true,
+      borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
+  }
 }
 
 // ── FOOTPRINT (normal grafik ÜZERİNE overlay): mum ortada ince, SAĞ=alım / SOL=satım;
@@ -1059,62 +1065,78 @@ function kFpCiz(g,c,ts,W,H,sym){
   const fp=c.fpData;
   const canli=(sym&&BFP.built[sym])?BFP.built[sym]:null;
   let bw=8;try{bw=ts.options?ts.options().barSpacing:8;}catch(e){}
-  // rozet (alt-sol) — mumlara DOKUNMAZ; footprint yalnız overlay
+  const veriVar=fp&&fp.durum==='ok'&&fp.mumlar&&fp.mumlar.length;
+  // ── rozet (alt-sol) ──
   g.save();g.textBaseline='top';g.font='9px '+K_FONT;g.textAlign='left';
-  let rozet,rc;
-  if(bw<14){rozet='FP · yakınlaş →';rc='#8a9c99';}
-  else if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
-    if(tp&&sv>=tp){rozet='FP tam · '+tp+' mum';rc='#0a8f5c';}
-    else if(sv>0){rozet='FP '+sv+'/'+tp+' dolduruyor…';rc='#0a8f5c';}
-    else if(t&&t.son_hata){rozet='FP veri hata: '+t.son_hata;rc='#d1344b';}
-    else{rozet='FP '+sv+'/'+tp+' · Δ hazır';rc='#b0851f';}}
-  else{rozet='FP yükleniyor…';rc='#b0851f';}
-  g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
+  let rozet,rc='#0a8f5c';
+  if(!fp){rozet='FP yükleniyor…';rc='#b0851f';}
+  else if(fp.durum!=='ok'){rozet='FP veri yok';rc='#d1344b';}
+  else{const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
+    if(tp&&sv>=tp)rozet='FP tam · '+tp+' mum';
+    else if(sv>0){rozet='FP '+sv+'/'+tp+' dolduruyor…';}
+    else if(t.son_hata){rozet='FP hata: '+t.son_hata;rc='#d1344b';}
+    else{rozet='FP hazırlanıyor…';rc='#b0851f';}}
+  if(bw<34)rozet=(rozet||'FP')+' · yakınlaş →';
+  g.fillStyle='rgba(255,255,255,.78)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
-  if(bw<14||!fp||!fp.mumlar||!fp.mumlar.length)return;   // uzakta footprint yok (normal mum görünür)
-  const yariW=Math.min(60,Math.max(16,bw*0.46));         // daha geniş hücre = sayı sığar
-  const sayi=bw>=24;                        // CoinAnk gibi: makul zoom'da iki yana sayı yaz
+
+  // ── FOOTPRINT MODU: yeterince yakın + veri var → LWC mumu ŞEFFAF, ince mumu + sayı gridini biz çiz.
+  const fpMode=veriVar&&bw>=34;
+  if(c._fpThin!==fpMode){kMumStili(c.ca,fpMode);c._fpThin=fpMode;}   // mumu şeffaf/normal geçir
+  if(!fpMode)return;
+
   const tick=fp.tick;
-  g.textBaseline='middle';
+  const hw=Math.min(60,bw*0.46);                 // yarım sütun genişliği
+  const cw=Math.max(2,Math.min(5,bw*0.045));     // ince mum gövde genişliği
+  const cyari=cw/2+1;
+  g.textBaseline='middle';g.font='bold 9px '+K_FONT;
   for(const m of fp.mumlar){
     const cx=ts.timeToCoordinate(Math.floor(m.t/1000)+K_TZ);
-    if(cx==null||cx<-yariW-30||cx>W+yariW+30)continue;
+    if(cx==null||cx<-hw-40||cx>W+hw+40)continue;
     const cl=canli?canli.get(m.t):null;
-    const sev=cl?cl.seviyeler:m.seviyeler;
+    const sev=(cl?cl.seviyeler:m.seviyeler)||[];
     const alis=cl?cl.alis:m.alis, satis=cl?cl.satis:m.satis, delta=cl?cl.delta:m.delta, poc=cl?cl.poc:m.poc;
-    const tot=(alis||0)+(satis||0);
-    // ── mumun ÜSTÜNDE (yapışmadan): toplam (siyah) + altına delta (yeşil/kırmızı) ──
-    const yH=c.ca.priceToCoordinate(m.h);
-    if(yH!=null&&tot>0&&yH>24){g.textAlign='center';
-      g.font='bold 9px '+K_FONT;g.fillStyle='#111111';g.fillText(_akK(tot),cx,yH-20);
-      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(delta),cx,yH-9);}
-    // ── seviye hücreleri: SAĞ=alım / SOL=satım + DIAGONAL IMBALANCE (pro footprint) ──
-    if(sev&&sev.length&&bw>=14){
+
+    // ── İNCE MUM (ortada): fitil H→L, gövde O→C ──
+    const yO=c.ca.priceToCoordinate(m.o),yC=c.ca.priceToCoordinate(m.c),
+          yHi=c.ca.priceToCoordinate(m.h),yLo=c.ca.priceToCoordinate(m.l);
+    const yesil=m.c>=m.o, mc=yesil?'#26a69a':'#ef5350';
+    if(yHi!=null&&yLo!=null){g.strokeStyle=mc;g.lineWidth=1;g.beginPath();g.moveTo(cx,yHi);g.lineTo(cx,yLo);g.stroke();}
+    if(yO!=null&&yC!=null){g.fillStyle=mc;g.fillRect(cx-cw/2,Math.min(yO,yC),cw,Math.max(Math.abs(yC-yO),1));}
+
+    // ── SEVİYE GRİDİ: SOL=satış / SAĞ=alış (referans düzeni) ──
+    if(sev.length){
       let maxH=1;for(const s of sev)maxH=Math.max(maxH,s.alis,s.satis);
-      // sev yüksekten alçağa sıralı (i arttıkça fiyat düşer). Diagonal imbalance:
-      //  ALIM imbalance: alis[i] ≥ 3× satis[i+1] (bir ALT seviyenin satışı) → agresif alıcı
-      //  SATIM imbalance: satis[i] ≥ 3× alis[i-1] (bir ÜST seviyenin alışı) → agresif satıcı
-      const RAT=3,MINV=Math.max(maxH*0.08,1),bImb=[],sImb=[];
-      for(let i=0;i<sev.length;i++){const alt=sev[i+1],ust=sev[i-1];
-        bImb[i]=(sev[i].alis>MINV&&sev[i].alis>=RAT*Math.max(alt?alt.satis:0,1));
-        sImb[i]=(sev[i].satis>MINV&&sev[i].satis>=RAT*Math.max(ust?ust.alis:0,1));}
-      g.font='bold 10px '+K_FONT;
+      const RAT=3,MINV=Math.max(maxH*0.08,1);
+      const cellW=hw-cyari-1;
       for(let i=0;i<sev.length;i++){const s=sev[i];const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
-        let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;const yy=y-rh/2,rhh=Math.max(rh-0.5,1);
-        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=sImb[i]?_hx2rgba(_kRenk.fpSat,0.95):_hx2rgba(_kRenk.fpSat,0.14+it*0.55);g.fillRect(cx-yariW,yy,yariW-2,rhh);
-          if(sImb[i]){g.fillStyle=_kRenk.fpSat;g.fillRect(cx-yariW-2,yy,2,rhh);}}   // sol kenar parlak işaret
-        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=bImb[i]?_hx2rgba(_kRenk.fpAl,0.95):_hx2rgba(_kRenk.fpAl,0.14+it*0.55);g.fillRect(cx+2,yy,yariW-2,rhh);
-          if(bImb[i]){g.fillStyle=_kRenk.fpAl;g.fillRect(cx+yariW,yy,2,rhh);}}     // sağ kenar parlak işaret
-        if(sayi&&rh>=7){g.fillStyle=sImb[i]?'#ffffff':'#5a0010';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-4,y);
-          g.fillStyle=bImb[i]?'#ffffff':'#04371f';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+4,y);}}
-      // STACKED imbalance: ≥3 ardışık aynı yön → yan kenarda kalın çizgi (güçlü sinyal)
-      const stak=(flag,taraf)=>{let i=0;while(i<sev.length){if(!flag[i]){i++;continue;}let j=i;while(j<sev.length&&flag[j])j++;
-        if(j-i>=3){const y1=c.ca.priceToCoordinate(sev[i].p),y2=c.ca.priceToCoordinate(sev[j-1].p);
-          if(y1!=null&&y2!=null){g.strokeStyle=taraf>0?'#12f090':'#ff2d4a';g.lineWidth=2.5;const xx=taraf>0?cx+yariW+3:cx-yariW-3;
-            g.beginPath();g.moveTo(xx,Math.min(y1,y2)-rh/2);g.lineTo(xx,Math.max(y1,y2)+rh/2);g.stroke();}}i=j;}};
-      stak(bImb,1);stak(sImb,-1);
-      if(poc!=null){const yp=c.ca.priceToCoordinate(poc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(poc-tick)||(yp+9))-yp);if(!(rh>=3))rh=3;g.strokeStyle='#e8a30c';g.lineWidth=1;g.strokeRect(cx-yariW,yp-rh/2,yariW*2,rh);}}
+        let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;
+        const yy=y-rh/2,rhh=Math.max(rh-0.6,1);
+        const alt=sev[i+1],ust=sev[i-1];
+        const bImb=(s.alis>MINV&&s.alis>=RAT*Math.max(alt?alt.satis:0,1));   // agresif alıcı
+        const sImb=(s.satis>MINV&&s.satis>=RAT*Math.max(ust?ust.alis:0,1));  // agresif satıcı
+        // heat hücre (sol satış / sağ alış) — yoğunluk kadar dolu
+        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpSat,0.10+it*0.55);g.fillRect(cx-hw,yy,cellW,rhh);}
+        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpAl,0.10+it*0.55);g.fillRect(cx+cyari,yy,cellW,rhh);}
+        // imbalance → beyaz kutu (referanstaki gibi)
+        if(sImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,cellW-1,rhh-1);}
+        if(bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
+        // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse
+        if(rh>=8){
+          g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-cyari-2,y);
+          g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+cyari+2,y);
+        }
+      }
+      // POC çerçevesi (turuncu)
+      if(poc!=null){const yp=c.ca.priceToCoordinate(poc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(poc-tick)||(yp+9))-yp);if(!(rh>=3))rh=3;
+        g.strokeStyle='#e8a30c';g.lineWidth=1.4;g.strokeRect(cx-hw,yp-rh/2,hw*2,rh);}}
     }
+
+    // ── ALT: toplam + delta (referanstaki gibi mumun altında) ──
+    const tot=(alis||0)+(satis||0);
+    if(yLo!=null&&tot>0&&yLo<H-28){g.textAlign='center';
+      g.fillStyle='#37474f';g.fillText(_akK(tot),cx,yLo+13);
+      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(delta),cx,yLo+24);}
   }
 }
 
