@@ -3374,6 +3374,13 @@ async def api_akis_orderbook(symbol: str = "BTCUSDT", seviye: int = 25,
     return await _fp.orderbook_dom(symbol, min(seviye, 50), futures)
 
 
+@app.get("/api/akis/likidasyon")
+async def api_akis_likidasyon(symbol: str = "BTCUSDT"):
+    """Tahmini likidasyon haritası (OI/kaldıraç modeli) — order-book'tan FARKLI."""
+    import oar_footprint_canli as _fp
+    return await _fp.likidasyon_haritasi(symbol)
+
+
 @app.get("/api/akis/heatmap")
 async def api_akis_heatmap(symbol: str = "BTCUSDT", borsalar: str = "binance_perp"):
     """Likidite ısı haritası (zaman×fiyat×L2 likidite). Faz 2 (WS birikimi)."""
