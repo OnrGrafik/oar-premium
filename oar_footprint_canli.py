@@ -334,6 +334,64 @@ async def orderbook_dom(sembol: str = "BTCUSDT", seviye: int = 25,
     }
 
 
+_LH_CACHE = {}   # {sembol: {"ts":epoch,"veri":...}}
+
+
+async def likidasyon_haritasi(sembol: str = "BTCUSDT", futures: bool = True) -> dict:
+    """
+    TAHMİNİ likidasyon haritası (Coinglass/CoinAnk yaklaşımı): kaldıraçlı pozisyonların
+    zorunlu kapanacağı fiyat seviyeleri. Gerçek pozisyon verisi kimsede yok → MODEL:
+    son ~10 gün fiyat/hacim = pozisyonların açıldığı yerler (proxy), yaygın kaldıraç
+    kademelerinde (10/25/50/100x) likidasyon fiyatları projelendirilir, hacimle
+    ağırlıklanıp fiyat bin'lerine toplanır → seviye başına 'likidasyon yoğunluğu'.
+      long liq = entry·(1−1/L)  (fiyat DÜŞERSE likide, spot ALTI)
+      short liq= entry·(1+1/L)  (fiyat ÇIKARSA likide, spot ÜSTÜ)
+    ⚠ TAHMİN (gerçek değil); order-book likiditesinden FARKLI (o duran emir).
+    """
+    import time as _t
+    c = _LH_CACHE.get(sembol)
+    if c and (_t.time() - c["ts"]) < 120:
+        return c["veri"]
+    from exchange_client import klines
+    try:
+        kl = await klines(sembol, "1h", 240, futures=futures)   # ~10 gün
+    except Exception:
+        return {"sembol": sembol, "durum": "veri_yok"}
+    if not kl:
+        return {"sembol": sembol, "durum": "veri_yok"}
+    spot = float(kl[-1][4])
+    if spot <= 0:
+        return {"sembol": sembol, "durum": "veri_yok"}
+    tiers = [(10, 0.12), (25, 0.28), (50, 0.32), (100, 0.28)]   # kaldıraç: ağırlık
+    bin_sz = max(spot * 0.0008, 0.01)
+    longs = {}; shorts = {}
+    for r in kl:
+        entry = float(r[4]); vol = float(r[5])
+        if vol <= 0:
+            continue
+        for L, w in tiers:
+            lb = round(entry * (1 - 1.0 / L) / bin_sz) * bin_sz
+            longs[lb] = longs.get(lb, 0.0) + vol * w
+            sb = round(entry * (1 + 1.0 / L) / bin_sz) * bin_sz
+            shorts[sb] = shorts.get(sb, 0.0) + vol * w
+    lo, hi = spot * 0.86, spot * 1.14
+    seviyeler = []; mx = 1.0
+    for p, v in longs.items():
+        if lo <= p <= hi:
+            seviyeler.append(["long", round(p, 2), v]); mx = max(mx, v)
+    for p, v in shorts.items():
+        if lo <= p <= hi:
+            seviyeler.append(["short", round(p, 2), v]); mx = max(mx, v)
+    out = [{"taraf": s[0], "fiyat": s[1], "yogunluk": round(s[2] / mx, 4)}
+           for s in seviyeler if s[2] / mx >= 0.04]
+    out.sort(key=lambda s: -s["yogunluk"])
+    veri = {"sembol": sembol, "durum": "ok", "spot": spot,
+            "seviyeler": out[:220],
+            "not": "tahmini likidasyon (OI/kaldıraç modeli) — gerçek pozisyon değil"}
+    _LH_CACHE[sembol] = {"ts": _t.time(), "veri": veri}
+    return veri
+
+
 def borsa_listesi() -> dict:
     """Seçilebilir borsalar + Faz durumu (frontend borsa seçici)."""
     return {

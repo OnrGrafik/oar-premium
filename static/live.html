@@ -462,10 +462,10 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:true};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
-const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28'};
+const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff'};
 let _kRenk=(()=>{try{return {..._kRenkVars,...JSON.parse(localStorage.getItem('oar_krenk')||'{}')};}catch(e){return {..._kRenkVars};}})();
 function kRenkSet(k,v){_kRenk[k]=v;try{localStorage.setItem('oar_krenk',JSON.stringify(_kRenk));}catch(e){}for(const s of['BTCUSDT','ETHUSDT'])try{kOverlayCiz(s);}catch(e){}}
 function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.split('').map(x=>x+x).join('');const n=parseInt(hx,16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
@@ -474,7 +474,8 @@ function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.s
 const _kIND=[
   {id:'oar', ad:'OAR Sistemi', ana:'oar', alt:[['seans','Seans kutuları'],['fib','Asia Fibonacci'],['key','Key Levels'],['vwap','VWAP (D)'],['vp','Volume Profile']]},
   {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['hmap','Heatmap']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif']]},
-  {id:'liq', ad:'Liq Map',     ana:'liq', alt:[], renk:[['liqBid','Alt (bid)'],['liqAsk','Üst (ask)']]},
+  {id:'likmap', ad:'Liq Map',  ana:'likmap', alt:[], renk:[['liqLong','Long likidasyon'],['liqShort','Short likidasyon']]},
+  {id:'liq', ad:'Likidite (emirler)', ana:'liq', alt:[], renk:[['liqBid','Alt (bid)'],['liqAsk','Üst (ask)']]},
   {id:'opt', ad:'Opsiyon',     ana:'opt', alt:[]},
 ];
 function renderKLeg(sym){
@@ -509,12 +510,12 @@ function kAyarSet(k,v){
     try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
     kOverlayCiz(sym);
   }
-  // footprint/heatmap/liq açıldıysa verisini hemen çek
-  if(['fp','hmap','liq'].includes(k)&&v){for(const sym of ['BTCUSDT','ETHUSDT'])akisVeriYukle(sym,true);}
+  // footprint/heatmap/liq/likmap açıldıysa verisini hemen çek
+  if(['fp','hmap','liq','likmap'].includes(k)&&v){for(const sym of ['BTCUSDT','ETHUSDT'])akisVeriYukle(sym,true);}
   if(k==='fp'&&v)bfpBaslat();   // tarayıcı-doğrudan canlı footprint akışı
   if(k==='fp'){for(const sym of ['BTCUSDT','ETHUSDT']){const cc=_kcharts[sym];if(cc){cc._fpThin=undefined;if(!v)kMumStili(cc.ca,false);}}
     document.querySelectorAll('[data-fpbtn]').forEach(b=>{b.style.background=v?'#123':'none';b.style.borderColor=v?'#1ff0ad':'#1a2422';b.style.color=v?'#1ff0ad':'#8a9c99';});}
-  if(['oar','fp','liq','opt'].includes(k))for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
+  if(['oar','fp','liq','likmap','opt'].includes(k))for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
 }
 function kAyarFsToggle(sym){
   const el=document.getElementById('kayarfs-'+sym);if(!el)return;
@@ -564,7 +565,7 @@ function kTFSet(tf){
     c._aralikKuruldu=false;   // yeni TF → görünür aralığı yeniden kur
     try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
     kGrafikVeri(sym,true);
-    if(_kAyar.fp||_kAyar.hmap||_kAyar.liq)akisVeriYukle(sym,true);
+    if(_kAyar.fp||_kAyar.hmap||_kAyar.liq||_kAyar.likmap)akisVeriYukle(sym,true);
   }
 }
 function kTFButonlar(){
@@ -678,7 +679,7 @@ async function initKomutaGrafikler(){
       requestAnimationFrame(dongu);
     })();
     kGrafikVeri(sym);
-    if(_kAyar.fp||_kAyar.hmap||_kAyar.liq)akisVeriYukle(sym,true);
+    if(_kAyar.fp||_kAyar.hmap||_kAyar.liq||_kAyar.likmap)akisVeriYukle(sym,true);
   }
   if(_kAyar.fp)bfpBaslat();   // tarayıcı-doğrudan canlı footprint akışı
   for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
@@ -687,7 +688,7 @@ async function initKomutaGrafikler(){
 // Footprint / heatmap / liq verisini çek (yalnız açık olan katmanlar) → mumlarla hizalı çiz.
 async function akisVeriYukle(sym,zorla){
   const c=_kcharts[sym];if(!c)return;
-  if(!(_kAyar.fp||_kAyar.hmap||_kAyar.liq))return;
+  if(!(_kAyar.fp||_kAyar.hmap||_kAyar.liq||_kAyar.likmap))return;
   c._akisTs=c._akisTs||0;
   if(!zorla&&Date.now()-c._akisTs<4000)return;
   c._akisTs=Date.now();
@@ -698,6 +699,8 @@ async function akisVeriYukle(sym,zorla){
   else c.fpData=null;
   if(_kAyar.hmap)jobs.push(jget('/api/akis/heatmap?symbol='+sym+'&borsalar='+bor).then(d=>{if(d)c.hmData=d;}).catch(()=>{}));
   if(_kAyar.liq)jobs.push(jget('/api/akis/orderbook?symbol='+sym+'&seviye=50').then(d=>{if(d)c.domData=d;}).catch(()=>{}));
+  if(_kAyar.likmap){jobs.push(jget('/api/akis/likidasyon?symbol='+sym).then(d=>{if(d)c.likData=d;}).catch(()=>{}));
+    jobs.push(jget('/api/akis/liq?symbol='+sym).then(d=>{if(d)c.lqData=d;}).catch(()=>{}));}
   await Promise.all(jobs);
   try{kOverlayCiz(sym);}catch(e){}
 }
@@ -929,7 +932,7 @@ function kOverlayCiz(sym){
   if(_kAyar.hmap)kHeatCiz(g,c,ts,W,H);        // likidite ısı haritası (en arka)
   if(!_kAyar.oar){                            // OAR overlay kapalı → yalnız akış katmanları
     if(_kAyar.fp)kFpCiz(g,c,ts,W,H,sym);
-    if(_kAyar.liq)kLiqCiz(g,c,ts,W,H);
+    if(_kAyar.likmap)kLikMapCiz(g,c,ts,W,H);if(_kAyar.liq)kLiqCiz(g,c,ts,W,H);
     return;
   }
   const xSon=ts.timeToCoordinate((c.sonTs||0)+K_TZ);
@@ -998,7 +1001,7 @@ function kOverlayCiz(sym){
   _yerlestirEtiketler(g,optLbl);
   // akış katmanları en önde (footprint sayıları + sağdan liq/depth çubukları)
   if(_kAyar.fp)kFpCiz(g,c,ts,W,H,sym);
-  if(_kAyar.liq)kLiqCiz(g,c,ts,W,H);
+  if(_kAyar.likmap)kLikMapCiz(g,c,ts,W,H);if(_kAyar.liq)kLiqCiz(g,c,ts,W,H);
 }
 
 // ═══════════ AKIŞ KATMANLARI (footprint + heatmap + liq/depth) ═══════════
@@ -1112,7 +1115,31 @@ function kHeatCiz(g,c,ts,W,H){
 }
 
 // ── LIQ / DEPTH: grafiğin sağ kenarından uzanan yatay likidite çubukları ──
-// LIQ MAP (CoinAnk tarzı): grafiğin SAĞINDAN uzanan yatay likidite/likidasyon çizgileri.
+// LIQ MAP (LIKIDASYON — CoinAnk tarzı): kaldıraçlı pozisyonların likide olacağı TAHMİNİ
+// fiyat seviyeleri (order-book'tan FARKLI). Sağdan uzanan çizgiler; yoğun bölge = mıknatıs.
+// long likidasyon (fiyat düşerse) + short likidasyon (fiyat çıkarsa) ayrı renk.
+// Üstüne GERÇEK likidasyon olayları (forceOrder, varsa) nokta olarak işaretlenir.
+function kLikMapCiz(g,c,ts,W,H){
+  const d=c.likData;if(!d||d.durum!=='ok'||!d.seviyeler)return;
+  const sagX=W-1, maxLen=Math.min(W*0.52,440);
+  g.save();g.lineCap='round';g.textBaseline='middle';g.font='8px '+K_FONT;
+  for(const s of d.seviyeler){const y=c.ca.priceToCoordinate(s.fiyat);if(y==null||y<0||y>H)continue;
+    const r=s.yogunluk,len=Math.max(7,r*maxLen);
+    g.strokeStyle=_hx2rgba(s.taraf==='long'?_kRenk.liqLong:_kRenk.liqShort,0.14+r*0.6);
+    g.lineWidth=Math.max(1,r*3);
+    g.beginPath();g.moveTo(sagX,y);g.lineTo(sagX-len,y);g.stroke();}
+  // en yoğun 4 seviyeye fiyat etiketi
+  for(const s of d.seviyeler.slice(0,4)){const y=c.ca.priceToCoordinate(s.fiyat);if(y==null||y<0||y>H)continue;
+    g.fillStyle=s.taraf==='long'?_kRenk.liqLong:_kRenk.liqShort;g.textAlign='right';
+    g.fillText(Math.round(s.fiyat).toLocaleString('en-US'),sagX-Math.max(7,s.yogunluk*maxLen)-2,y);}
+  // GERÇEK likidasyon olayları (forceOrder) — nokta işareti
+  const ev=c.lqData;if(ev&&ev.durum==='ok'&&ev.olaylar){
+    for(const o of ev.olaylar.slice(0,60)){const y=c.ca.priceToCoordinate(o.fiyat);if(y==null||y<0||y>H)continue;
+      g.fillStyle=o.taraf==='long'?_kRenk.liqLong:_kRenk.liqShort;g.beginPath();g.arc(sagX-5,y,2.6,0,6.283);g.fill();}}
+  g.restore();
+}
+
+// LIKIDITE (order-book): grafiğin SAĞINDAN uzanan yatay DURAN-EMİR çizgileri.
 // Büyük duvar → daha UZUN + PARLAK çizgi. Üst (ask) = kırmızı/turuncu likidasyon bölgesi,
 // alt (bid) = yeşil/teal. Order-book derinliğinden (canlı likidite yığılması).
 function kLiqCiz(g,c,ts,W,H){
@@ -2770,7 +2797,7 @@ async function boot(){
   // sayfa yenilendiğinde son sekmede kal → o sekmenin verisini de yükle
   if(ST.tab==='macro')loadMakro();
   setInterval(()=>{if(ST.tab==='leader'){kGrafikVeri('BTCUSDT',true);kGrafikVeri('ETHUSDT',true);}},30000);
-  setInterval(()=>{if(ST.tab==='leader'&&(_kAyar.fp||_kAyar.hmap||_kAyar.liq)){akisVeriYukle('BTCUSDT',true);akisVeriYukle('ETHUSDT',true);}},5000);
+  setInterval(()=>{if(ST.tab==='leader'&&(_kAyar.fp||_kAyar.hmap||_kAyar.liq||_kAyar.likmap)){akisVeriYukle('BTCUSDT',true);akisVeriYukle('ETHUSDT',true);}},5000);
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
