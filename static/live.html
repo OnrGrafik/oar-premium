@@ -453,8 +453,14 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
+// TEK KAYNAK: hem ⚙ ayar paneli hem alttaki TradingView-tarzı göz-ikonlu legend bunu kullanır.
+const _kLegend=[['oar','OAR indikatörü'],['seans','Seans kutuları'],['fib','Asia Fibonacci'],
+  ['key','Key Levels'],['vwap','VWAP (D)'],['opt','Opsiyon seviyeleri'],
+  ['vp','Volume Profile'],['fp','Footprint (delta/CVD)']];
+// Legend açık/kapalı (kullanıcı: "gizleme işareti olsun, çok yer kaplıyor")
+let _kLegAcik=(()=>{try{return JSON.parse(localStorage.getItem('oar_kleg')||'true');}catch(e){return true;}})();
 function kAyarSet(k,v){
   _kAyar[k]=v;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));
   // aynı ayarın tüm kopyalarını (BTC/ETH + tam-ekran panelleri) senkronla
@@ -462,7 +468,27 @@ function kAyarSet(k,v){
   for(const sym of ['BTCUSDT','ETHUSDT']){
     const c=_kcharts[sym];if(!c)continue;
     try{c.vw.applyOptions({visible:_kAyar.oar&&_kAyar.vwap});}catch(e){}
+    if(k==='fp'&&v)kFootprintYukle(sym);      // footprint ilk açılışta veriyi çek
     kOverlayCiz(sym);
+  }
+  kLegendTazele();
+}
+// ── TradingView tarzı legend: her katmanın yanında GÖZ ikonu (açık/kapalı net görünür)
+function kLegendHtml(sym){
+  const goz=(k,l)=>{const a=!!_kAyar[k];
+    return `<span onclick="kAyarSet('${k}',${!a})" title="${a?'gizle':'göster'}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border:1px solid ${a?'#1a2f2a':'#171d1c'};border-radius:5px;cursor:pointer;user-select:none;background:${a?'#0b1614':'transparent'}">
+      <span style="font-size:11px;opacity:${a?1:.35};filter:${a?'none':'grayscale(1)'}">${a?'👁':'🚫'}</span>
+      <span style="font-size:10px;color:${a?'#b8c6c3':'#4d5b59'};${a?'':'text-decoration:line-through'}">${l}</span></span>`;};
+  return `<div id="kleg-${sym}" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px;padding:5px 2px">
+    <span onclick="kLegendToggle()" title="${_kLegAcik?'katmanları gizle':'katmanları göster'}" style="cursor:pointer;font-size:10px;color:#5e716f;border:1px solid #1a2422;border-radius:5px;padding:2px 7px;user-select:none">${_kLegAcik?'▾ katmanlar':'▸ katmanlar'}</span>
+    ${_kLegAcik?_kLegend.map(([k,l])=>goz(k,l)).join(''):'<span style="font-size:9.5px;color:#3f4a49">'+_kLegend.filter(([k])=>_kAyar[k]).length+'/'+_kLegend.length+' katman açık</span>'}
+  </div>`;
+}
+function kLegendToggle(){_kLegAcik=!_kLegAcik;localStorage.setItem('oar_kleg',JSON.stringify(_kLegAcik));kLegendTazele();}
+function kLegendTazele(){
+  for(const sym of ['BTCUSDT','ETHUSDT']){
+    const el=document.getElementById('kleg-'+sym);
+    if(el)el.outerHTML=kLegendHtml(sym);
   }
 }
 function kAyarFsToggle(sym){
@@ -471,7 +497,7 @@ function kAyarFsToggle(sym){
   const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:11px;color:#b8c6c3"><input type="checkbox" data-kayar="${k}" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#1ff0ad">${l}</label>`;
   el.innerHTML='<div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>'
     +cb('oar','◆ OAR indikatörü')+'<div style="height:1px;background:#1a2422;margin:5px 0"></div>'
-    +cb('seans','Seans kutuları')+cb('fib','Asia Fibonacci')+cb('key','Key Levels (Two/DO/WO/MO…)')+cb('vwap','VWAP (D)')+cb('opt','Opsiyon seviyeleri')+cb('vp','Volume Profile (FRVP)');
+    +_kLegend.filter(([k])=>k!=='oar').map(([k,l])=>cb(k,l)).join('');
   el.style.display='block';
 }
 function kAyarPanelToggle(sym){
@@ -536,7 +562,7 @@ function komutaGrafikKart(sym,ad){
       </span>
       <div id="kayar-${sym}" style="display:none;position:absolute;right:0;top:30px;z-index:30;background:#0c1112;border:1px solid #1a2422;border-radius:8px;padding:11px 15px;box-shadow:0 8px 28px rgba(0,0,0,.5);min-width:190px">
         <div class="sg" style="font-size:8.5px;letter-spacing:.14em;color:#5e716f;margin-bottom:6px">GÖRÜNÜM AYARLARI</div>
-        ${cb('oar','◆ OAR indikatörü')}<div style="height:1px;background:#1a2422;margin:5px 0"></div>${cb('seans','Seans kutuları')}${cb('fib','Asia Fibonacci')}${cb('key','Key Levels (Two/DO/WO/MO…)')}${cb('vwap','VWAP (D)')}${cb('opt','Opsiyon seviyeleri')}${cb('vp','Volume Profile')}
+        ${cb('oar','◆ OAR indikatörü')}<div style="height:1px;background:#1a2422;margin:5px 0"></div>${_kLegend.filter(([k])=>k!=='oar').map(([k,l])=>cb(k,l)).join('')}
       </div>
     </div>
     <div id="kwrap-${sym}" style="position:relative;background:#fff">
@@ -551,6 +577,7 @@ function komutaGrafikKart(sym,ad){
       </div>
       <div id="kayarfs-${sym}" style="display:none;position:absolute;right:10px;top:46px;z-index:22;background:#0c1112;border:1px solid #1a2422;border-radius:8px;padding:11px 15px;box-shadow:0 8px 28px rgba(0,0,0,.5);min-width:200px"></div>
     </div>
+    ${kLegendHtml(sym)}
     <div style="margin-top:11px;background:#0a0f0f;border:1px solid #18211f;border-left:2px solid #1ff0ad;border-radius:7px;padding:11px 13px">
       <div class="sg" style="font-size:9px;letter-spacing:.12em;color:#7af0c4;margin-bottom:6px">◆ LİDER YORUMU — OAR · OPSİYON · MAKRO</div>
       <div style="font-size:13px;color:#b8c6c3;line-height:1.6">${gy.yorum?vurgu(gy.yorum):'<span style="color:#5e716f">Lider analiz ediyor…</span>'}</div>
@@ -610,7 +637,8 @@ async function initKomutaGrafikler(){
       borderUpColor:'#111111',borderDownColor:'#111111',wickUpColor:'#111111',wickDownColor:'#111111'});
     const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.oar&&_kAyar.vwap});
     _kcharts[sym]={ch,ca,vw,kutular:[]};
-    const ciz=()=>kOverlayCiz(sym);
+    // görünür aralık değişince: overlay yeniden çiz + sol kenara yaklaşıldıysa GEÇMİŞİ yükle
+    const ciz=()=>{kOverlayCiz(sym);kGecmisKontrol(sym);};
     ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
     new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});ciz();}catch(e){}}).observe(el);
     // dikey pan/zoom (fiyat ekseni) hiçbir event vermiyor → rAF döngüsüyle sürekli senkron çiz
@@ -642,7 +670,10 @@ async function kGrafikVeri(sym,zorla){
   const mumlar=(d.oh&&d.oh.candles)||[];
   if(!mumlar.length)return;
   const M=mumlar.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
+  // geçmişe kaydırma durumu: ham mumları sakla (sola kaydırınca öncesi eklenecek)
+  c._ham=mumlar.slice();c._M=M;c._gecmisBitti=false;
   c.ca.setData(M.map(x=>({time:x.t+K_TZ,open:x.o,high:x.h,low:x.l,close:x.c})));
+  if(_kAyar.fp)kFootprintYukle(sym,true);   // footprint verisini bu TF için tazele
   const spot=M[M.length-1].c, sonTs=M[M.length-1].t;
   c.sonTs=sonTs;
 
@@ -839,6 +870,130 @@ async function kGrafikVeri(sym,zorla){
 }
 
 // Seans kutuları + fib + key/opsiyon seviyeleri + volume profile — canvas overlay
+// ── FOOTPRINT verisi (agresif alış/satış · delta · CVD · fiyat merdiveni)
+//    Şampiyonun kullandığı AYNI matematik: delta = 2·taker_buy − hacim (1m granülasyon).
+async function kFootprintYukle(sym,zorla){
+  const c=_kcharts[sym];if(!c)return;
+  if(!_kAyar.fp)return;
+  if(c._fpYukleniyor)return;
+  if(!zorla&&c._fp&&c._fpTF===_kTF&&Date.now()-c._fpTs<45000)return;
+  c._fpYukleniyor=true;
+  try{
+    const d=await jget('/api/oar-footprint-grafik?symbol='+sym+'&tf='+_kTF+'&mum=120');
+    if(d&&d.durum==='ok'){c._fp=d;c._fpTF=_kTF;c._fpTs=Date.now();}
+    else{c._fp=null;c._fpHata=(d&&d.aciklama)||'footprint verisi yok';}
+  }catch(e){c._fp=null;c._fpHata=String(e).slice(0,60);}
+  c._fpYukleniyor=false;
+  kOverlayCiz(sym);
+}
+
+// ── GEÇMİŞE KAYDIRMA: sola kaydırınca daha eski mumlar sayfa sayfa yüklenir.
+//    (Eskiden /api/ohlcv yalnız SON N mumu veriyordu → grafik belli bir tarihten geriye
+//     gitmiyordu. Artık end_ms ile önceki sayfa istenir.)
+async function kGecmisYukle(sym){
+  const c=_kcharts[sym];if(!c||c._gecmisYukleniyor||c._gecmisBitti)return;
+  const ham=c._ham;if(!ham||!ham.length)return;
+  c._gecmisYukleniyor=true;
+  try{
+    const tf=_kTFMap[_kTF]||_kTFMap['5m'];
+    const enEski=ham[0].ts;
+    const d=await jget('/api/ohlcv?symbol='+sym+'&interval='+tf.iv+'&limit=500&end_ms='+(enEski-1));
+    const yeni=(d&&d.candles)||[];
+    const ekle=yeni.filter(x=>x.ts<enEski);
+    if(!ekle.length){c._gecmisBitti=true;}
+    else{
+      c._ham=ekle.concat(ham);
+      const M=c._ham.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
+      c._M=M;
+      const gr=c.ch.timeScale().getVisibleLogicalRange();
+      c.ca.setData(M.map(x=>({time:x.t+K_TZ,open:x.o,high:x.h,low:x.l,close:x.c})));
+      // kaydırma konumunu koru (yeni mumlar sola eklendi → indeksleri kaydır)
+      if(gr)try{c.ch.timeScale().setVisibleLogicalRange({from:gr.from+ekle.length,to:gr.to+ekle.length});}catch(e){}
+    }
+  }catch(e){}
+  c._gecmisYukleniyor=false;
+}
+function kGecmisKontrol(sym){
+  const c=_kcharts[sym];if(!c)return;
+  try{
+    const gr=c.ch.timeScale().getVisibleLogicalRange();
+    if(gr&&gr.from<12)kGecmisYukle(sym);      // sol kenara yaklaşıldı → önceki sayfayı getir
+  }catch(e){}
+}
+
+// ── FOOTPRINT çizimi: alt panelde delta çubukları + CVD çizgisi; yeterince yakınlaşınca
+//    (mum genişliği ≥ 26px) her mumun fiyat-merdiveni (alış/satış) mumun üstüne çizilir.
+function kFootprintCiz(sym,g,W,H){
+  const c=_kcharts[sym];const fp=c&&c._fp;if(!fp||!fp.mumlar||!fp.mumlar.length)return;
+  const ts=c.ch.timeScale();
+  const M=fp.mumlar;
+  // görünürdeki mumları + mum genişliğini bul
+  const gor=[];
+  for(const m of M){
+    const x=ts.timeToCoordinate(Math.floor(m.ts/1000)+K_TZ);
+    if(x==null||x<-40||x>W+40)continue;
+    gor.push({m,x});
+  }
+  if(gor.length<2)return;
+  const mumG=Math.abs(gor[1].x-gor[0].x)||6;
+  const panelH=Math.max(46,Math.min(74,H*0.20));
+  const panelY=H-panelH-2;
+  // panel arka planı
+  g.save();
+  g.fillStyle='rgba(248,249,250,.92)';g.fillRect(0,panelY,W,panelH);
+  g.strokeStyle='#e2e6e8';g.lineWidth=1;g.beginPath();g.moveTo(0,panelY);g.lineTo(W,panelY);g.stroke();
+  // delta çubukları (0 çizgisi ortada)
+  const maxD=Math.max(...gor.map(o=>Math.abs(o.m.delta)),1e-9);
+  const orta=panelY+panelH*0.55;
+  g.strokeStyle='#c9ced1';g.setLineDash([2,3]);g.beginPath();g.moveTo(0,orta);g.lineTo(W,orta);g.stroke();g.setLineDash([]);
+  const bw=Math.max(1,Math.min(mumG*0.6,14));
+  for(const{m,x}of gor){
+    const h=(Math.abs(m.delta)/maxD)*(panelH*0.42);
+    g.fillStyle=m.delta>=0?'rgba(16,163,110,.85)':'rgba(220,60,70,.85)';
+    if(m.delta>=0)g.fillRect(x-bw/2,orta-h,bw,h);
+    else g.fillRect(x-bw/2,orta,bw,h);
+  }
+  // CVD çizgisi (panel içine ölçekli)
+  const cv=gor.map(o=>o.m.cvd);
+  const cMin=Math.min(...cv),cMax=Math.max(...cv),cR=(cMax-cMin)||1;
+  g.strokeStyle='#2962FF';g.lineWidth=1.5;g.beginPath();
+  gor.forEach((o,i)=>{
+    const y=panelY+panelH-4-((o.m.cvd-cMin)/cR)*(panelH-10);
+    i?g.lineTo(o.x,y):g.moveTo(o.x,y);
+  });
+  g.stroke();
+  // etiketler
+  g.font='700 9px '+K_FONT;g.textAlign='left';g.fillStyle='#5e716f';
+  g.fillText('FOOTPRINT · delta',5,panelY+11);
+  g.fillStyle='#2962FF';g.fillText('CVD '+(fp.cvd_son>=0?'+':'')+Math.round(fp.cvd_son),5,panelY+22);
+  const son=M[M.length-1];
+  g.fillStyle=son.delta>=0?'#10a36e':'#dc3c46';
+  g.textAlign='right';g.fillText('son Δ '+(son.delta>=0?'+':'')+son.delta.toFixed(2),W-6,panelY+11);
+  g.restore();
+
+  // ── Fiyat merdiveni (yakınlaşınca): mum başına alış×satış kademeleri
+  if(mumG>=26){
+    g.save();g.font='600 8px '+K_FONT;g.textAlign='center';
+    for(const{m,x}of gor){
+      if(!m.ladder||!m.ladder.length)continue;
+      const mx=Math.max(...m.ladder.map(l=>l.buy+l.sell),1e-9);
+      for(const l of m.ladder){
+        const y=c.ca.priceToCoordinate(l.p);
+        if(y==null||y>panelY-4)continue;
+        const yog=(l.buy+l.sell)/mx;               // kademe yoğunluğu
+        const kw=Math.min(mumG*0.92,44);
+        g.fillStyle=l.delta>=0?'rgba(16,163,110,'+(0.13+yog*0.42)+')':'rgba(220,60,70,'+(0.13+yog*0.42)+')';
+        g.fillRect(x-kw/2,y-4.5,kw,9);
+        if(mumG>=44){
+          g.fillStyle=l.delta>=0?'#0b6b48':'#a02830';
+          g.fillText(Math.round(l.buy)+'×'+Math.round(l.sell),x,y+2.5);
+        }
+      }
+    }
+    g.restore();
+  }
+}
+
 function kOverlayCiz(sym){
   const c=_kcharts[sym];if(!c)return;
   const el=document.getElementById('kchart-'+sym),cv=document.getElementById('kover-'+sym);
@@ -846,6 +1001,8 @@ function kOverlayCiz(sym){
   const W=el.clientWidth,H=el.clientHeight,dpr=window.devicePixelRatio||1;
   cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  // FOOTPRINT: OAR indikatöründen BAĞIMSIZ katman (kendi göz ikonuyla açılır/kapanır)
+  if(_kAyar.fp){try{kFootprintCiz(sym,g,W,H);}catch(e){}}
   if(!_kAyar.oar)return;   // OAR indikatörü kapalı → temiz grafik (hiç overlay çizme)
   const ts=c.ch.timeScale();
   const xSon=ts.timeToCoordinate((c.sonTs||0)+K_TZ);

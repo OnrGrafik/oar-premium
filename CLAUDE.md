@@ -252,6 +252,18 @@
 - Deribit opsiyon paneli KALIR (OAR opsiyon overlay'i kullanıyor). KALAN: index.html'deki jenerik "Gemini kripto asistanı" welcome/chip'leri (Kazanan/Kaybeden, genel risk) hâlâ OAR-dışı → sadeleştirilecek.
 - KULLANICI GIT: local `MERGING` durumunda kaldı (MERGE_HEAD exists → pull bloke). Çözüm: `git merge --abort` (ya da `git commit` ile merge'i bitir) → sonra `git pull`.
 
+## 6d. FOOTPRINT GÖRSELİ — "komple gitmiş" TEŞHİSİ (kullanıcı sitemi, kalıcı ders)
+- KULLANICI: "Footprint komple gitmiş, hiçbir şekilde çalışmıyor. Nerede hata yaptık?"
+- 🔍 GERÇEK KÖK NEDEN (koddan+git geçmişinden doğrulandı): footprint **"gitmemiş", SİTEDE HİÇ YAPILMAMIŞ**. `git log -S` ile `static/` altında footprint UI'ı HİÇ commit edilmemiş. Footprint bugüne dek YALNIZ MOTOR tarafındaydı: `oar_canli_footprint` per-dk delta/CVD + gün POC'u hesaplayıp ŞAMPİYONUN `poc_taraf` bloğunu besliyordu (§3 Faz 1+2). `/api/oar-footprint` ise ÇİZİM verisi değil, TEŞHİS endpoint'i (gerçek POC vs eski proxy ortanca kıyası). `live.html` bu endpoint'i hiç çağırmıyordu (frontend endpoint listesinde yok).
+- ⚠️ ASIL HATA (ders): CLAUDE.md §3'e "CANLI FOOTPRINT ÇÖZÜLDÜ ✅" yazılmıştı — bu MOTOR için doğruydu ama kullanıcının zihnindeki "footprint" TradingView'deki GÖRSEL footprint'ti. Doküman dili boşluğu gizledi. KURAL: "X çözüldü" derken **motor mu, site mi** açıkça yaz; kullanıcının gördüğü şey site.
+- ✅ YAPILDI (`oar_footprint_grafik.py` + `/api/oar-footprint-grafik` + live.html katmanı): TF mumları + her mumun FİYAT MERDİVENİ (agresif alış×satış) + delta + CVD + gün POC. Şampiyonla **BİREBİR AYNI matematik**: `delta = 2·taker_buy − hacim` (Binance 1m klines alan[9]) ve aynı fiyat bini `_pbin` (4 anlamlı hane → BTC ~$10, ETH ~$1). Yeni/uydurma gösterge YOK. Tek REST isteği (1m klines_taker ≤1000), 45s cache.
+- ⚠️ DÜRÜST SINIR (UI'da da yazar): bu **1-DAKİKA granülasyonlu** footprint. Delta/CVD TAM DOĞRU (yaklaşım değil); ama fiyat kademeleri 1m çözünürlüğünde → mum başına en fazla (TF/1dk) kademe (5m→5, 15m→15). Gerçek TICK-seviyesi bid×ask merdiveni aggTrades ister; canlıda her mum için tick çekmek 512MB sunucuda ağır/rate-limitli. İstenirse dar pencere için ayrı iş.
+- Çizim: canvas overlay'de alt panelde delta çubukları + CVD çizgisi; mum genişliği ≥26px olunca fiyat merdiveni kademeleri, ≥44px olunca `alış×satış` sayıları. Footprint **OAR toggle'ından BAĞIMSIZ** (kendi göz ikonu).
+
+## 6e. GRAFİK UX (kullanıcı istekleri — kalıcı)
+- ✅ GÖZ İKONLU LEGEND (TradingView tarzı): katmanlar grafiğin ALTINDA, her birinin yanında 👁/🚫 → hangisi açık/kapalı NET görünür (eskiden yalnız ⚙ menüsündeki gizli checkbox'lardı → "belirsiz"). `▾ katmanlar` ile tümü katlanır (yer kaplamasın). Tek kaynak `_kLegend` dizisi — hem legend hem ⚙ paneli hem tam-ekran paneli ondan üretilir (yeni katman eklerken SADECE oraya ekle). Durum localStorage'da kalıcı.
+- ✅ GEÇMİŞE KAYDIRMA: `/api/ohlcv` artık `end_ms` alır (`brain.get_ohlcv` → Binance `endTime`). Eskiden yalnız SON N mum dönüyordu → grafik belli bir tarihten geriye GİTMİYORDU. Artık sola kaydırınca (`getVisibleLogicalRange().from < 12`) önceki 500 mum sayfası çekilip başa eklenir, kaydırma konumu korunur (`setVisibleLogicalRange` indeks kaydırmasıyla). Sayfa bitince `_gecmisBitti` ile durur.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
