@@ -198,6 +198,34 @@ def _poc_va(hucreler: dict) -> dict:
             "val": round(fiyatlar[alt], 4)}
 
 
+async def _yedek_doldur(sembol: str, interval: str, mum_sayisi: int) -> dict:
+    """
+    ANAHTARSIZ footprint yedeği: Binance 1m klines taker-buy → per-mum fiyat kademeleri.
+    Kiyotaka (dış API, anahtar ister) yoksa/boşsa devreye girer; footprint asla komple
+    ölmez. Döner: {mum_ts: {seviyeler, alis, satis, delta, poc}}.
+    """
+    try:
+        from oar_footprint_grafik import footprint_grafik
+        d = await footprint_grafik(sembol, interval, max(5, mum_sayisi))
+    except Exception:
+        return {}
+    if not d or d.get("durum") != "ok":
+        return {}
+    out = {}
+    for m in d.get("mumlar", []):
+        sev = [{"p": l["p"], "alis": l["buy"], "satis": l["sell"], "delta": l["delta"]}
+               for l in (m.get("ladder") or [])]
+        if not sev:
+            continue
+        hacim = {s["p"]: s["alis"] + s["satis"] for s in sev}
+        out[int(m["ts"])] = {
+            "seviyeler": sev, "alis": m["buy"], "satis": m["sell"],
+            "delta": m["delta"],
+            "poc": max(hacim, key=hacim.get) if hacim else None,
+        }
+    return out
+
+
 async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
                     tick: float = 0.0, limit: int = 40,
                     borsalar: tuple = ("binance_perp",)) -> dict:
@@ -257,11 +285,22 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             for k in list(_KFP_CACHE)[:2000]:
                 _KFP_CACHE.pop(k, None)
 
+    # ── ANAHTARSIZ YEDEK (kritik): Kiyotaka HİÇ seviye vermediyse (KIYOTAKA_API_KEY yok /
+    #    401 / kota / kesinti) footprint komple boş kalıyordu → kullanıcı "footprint hiç
+    #    çalışmıyor" diyordu. Yedek: Binance 1m klines taker-buy (ANAHTAR GEREKTİRMEZ).
+    #    Delta/CVD TAM DOĞRU; fiyat kademeleri 1 dakika çözünürlüğünde (mum başına ≤ TF/1dk).
+    yedek = {}
+    kaynak_ad = "kiyotaka"
+    if not any((sembol, interval, int(r[0])) in _KFP_CACHE for r in mumlar_ham):
+        yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham))
+        if yedek:
+            kaynak_ad = "binance_1m_taker_yedek"
+
     mumlar = []
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
-        bf = _KFP_CACHE.get((sembol, interval, ts))
+        bf = _KFP_CACHE.get((sembol, interval, ts)) or yedek.get(ts)
         if bf:
             seviyeler = bf["seviyeler"]; alis = bf["alis"]; satis = bf["satis"]; poc = bf["poc"]
         else:
@@ -297,10 +336,15 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     seviyeli = sum(1 for m in mumlar if m["seviyeler"])
     veri = {
         "sembol": sembol, "interval": interval, "tick": tick,
-        "borsalar": list(borsalar), "spot": spot, "kaynak": "kiyotaka",
+        "borsalar": list(borsalar), "spot": spot, "kaynak": kaynak_ad,
         "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar),
         "eksik": len([1 for m in mumlar if not m["seviyeler"]]),
-        "tani": {"son_hata": hata} if hata else {},
+        "tani": {k: v for k, v in {
+            "son_hata": hata,
+            "yedek": ("Kiyotaka seviye vermedi (anahtar/kota/kesinti) → ANAHTARSIZ "
+                      "Binance 1m taker yedeği kullanıldı; kademeler 1dk çözünürlüğünde")
+                     if kaynak_ad != "kiyotaka" else "",
+        }.items() if v},
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}

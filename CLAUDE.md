@@ -263,6 +263,18 @@
 - Deribit opsiyon paneli KALIR (OAR opsiyon overlay'i kullanıyor). KALAN: index.html'deki jenerik "Gemini kripto asistanı" welcome/chip'leri (Kazanan/Kaybeden, genel risk) hâlâ OAR-dışı → sadeleştirilecek.
 - KULLANICI GIT: local `MERGING` durumunda kaldı (MERGE_HEAD exists → pull bloke). Çözüm: `git merge --abort` (ya da `git commit` ile merge'i bitir) → sonra `git pull`.
 
+## 6d. FOOTPRINT "HİÇ ÇALIŞMIYOR" — GERÇEK KÖK NEDEN: KIYOTAKA BAĞIMLILIĞI (kalıcı)
+- KULLANICI: "Footprint komple gitmiş, hiçbir şekilde çalışmıyor."
+- ⚠️ ÖNCE YANLIŞ TEŞHİS KOYDUM (ders): "footprint sitede hiç yapılmamış" dedim — ÇÜNKÜ dalım main'in GERİSİNDEYDİ ve `git log -S` yalnız kendi dalımı taradı. GERÇEKTE main'de gelişmiş footprint VARDI (`oar_footprint_canli.py`, `/api/akis/footprint`, `kFpCiz` sağ-alış/sol-satış + diagonal imbalance, WS canlı akış). **KURAL: teşhis öncesi `git fetch origin main` + main'i tara; kendi dalın güncel sanma.**
+- 🔍 GERÇEK KÖK NEDEN: `oar_footprint_canli.footprint()` per-mum seviyeleri **tamamen KIYOTAKA'dan** alıyor (`kiyotaka_engine.bar_footprint`; kod yorumu "aggTrades ÇÖP" deyip Kiyotaka'ya geçmiş). Kiyotaka = DIŞ API + `KIYOTAKA_API_KEY`. Anahtar boş/expired/kota dolu → `bar_footprint` 401/hata → `None` → `_KFP_CACHE` boş → HER mumda `seviyeler=[]` → **footprint komple boş çizilir**. Tek nokta arızası; denetimde (§5u) uyardığım kiyotaka riski tam olarak buydu.
+- ✅ DÜZELTME — ANAHTARSIZ YEDEK (`_yedek_doldur` → `oar_footprint_grafik.py`): Kiyotaka HİÇ seviye vermezse footprint otomatik **Binance 1m klines taker-buy** yedeğine düşer (ANAHTAR GEREKTİRMEZ, tek REST isteği). Şampiyonla BİREBİR AYNI matematik: `delta = 2·taker_buy − hacim`, aynı fiyat bini `_pbin`. Yanıtta `kaynak="binance_1m_taker_yedek"` + `tani.yedek` açıklaması → arıza SESSİZ kalmaz. Test: Kiyotaka yok senaryosunda önce 0/12 seviyeli mum → yedekle **10/12**.
+- ⚠️ YEDEK SINIRI: delta/CVD TAM DOĞRU; fiyat kademeleri 1dk çözünürlüğünde (mum başına ≤ TF/1dk kademe; 5m→5, 15m→15). Kiyotaka çalışırsa o (tick-seviyesi) tercih edilir — yedek yalnız boşlukta devreye girer.
+- 📌 KULLANICI AKSİYONU: Railway'de `KIYOTAKA_API_KEY` dolu/geçerli mi kontrol et. Doluysa tam çözünürlük döner; değilse site artık yine de footprint gösterir (yedek).
+
+## 6e. GRAFİK UX (kullanıcı istekleri — kalıcı)
+- Katman aç/kapa: main'de zaten TradingView tarzı sol-üst indikatör listesi var (`_kIND` + `renderKLeg`, ◉/○ + ⚙ renk panelleri). Yeni katman eklerken SADECE `_kIND`'e ekle.
+- ✅ GEÇMİŞE KAYDIRMA: `/api/ohlcv` artık `end_ms` alır (`brain.get_ohlcv` → Binance `endTime`). Eskiden yalnız SON N mum dönüyordu → grafik belli bir tarihten geriye GİTMİYORDU. Artık sola kaydırınca (`getVisibleLogicalRange().from < 12`) önceki 500 mum sayfası çekilip başa eklenir, kaydırma konumu korunur (`setVisibleLogicalRange` indeks kaydırmasıyla). Sayfa bitince `_gecmisBitti` ile durur.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).

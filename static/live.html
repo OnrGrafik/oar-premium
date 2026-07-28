@@ -671,7 +671,8 @@ async function initKomutaGrafikler(){
     const vw=ch.addLineSeries({color:'#2962FF',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:_kAyar.oar&&_kAyar.vwap});
     _kcharts[sym]={ch,ca,vw,kutular:[]};
     kMumStili(ca,false);   // başlangıç normal; zoom'a göre kFpCiz ince moda geçirir
-    const ciz=()=>kOverlayCiz(sym);
+    // görünür aralık değişince: overlay çiz + sol kenara yaklaşıldıysa GEÇMİŞİ yükle
+    const ciz=()=>{kOverlayCiz(sym);kGecmisKontrol(sym);};
     ch.timeScale().subscribeVisibleLogicalRangeChange(ciz);
     new ResizeObserver(()=>{try{ch.applyOptions({width:el.clientWidth});ciz();}catch(e){}}).observe(el);
     // dikey pan/zoom (fiyat ekseni) hiçbir event vermiyor → rAF döngüsüyle sürekli senkron çiz
@@ -707,6 +708,38 @@ async function akisVeriYukle(sym,zorla){
   try{kOverlayCiz(sym);}catch(e){}
 }
 
+// ── GEÇMİŞE KAYDIRMA: sola kaydırınca daha eski mumlar sayfa sayfa yüklenir.
+//    (Eskiden /api/ohlcv yalnız SON N mumu veriyordu → grafik belli bir tarihten geriye
+//     GİTMİYORDU. Artık end_ms ile önceki sayfa istenir; kaydırma konumu korunur.)
+async function kGecmisYukle(sym){
+  const c=_kcharts[sym];if(!c||c._gecmisYukleniyor||c._gecmisBitti)return;
+  const ham=c._ham;if(!ham||!ham.length)return;
+  c._gecmisYukleniyor=true;
+  try{
+    const tf=_kTFMap[_kTF]||_kTFMap['5m'];
+    const enEski=ham[0].ts;
+    const d=await jget('/api/ohlcv?symbol='+sym+'&interval='+tf.iv+'&limit=500&end_ms='+(enEski-1));
+    const ekle=((d&&d.candles)||[]).filter(x=>x.ts<enEski);
+    if(!ekle.length){c._gecmisBitti=true;}
+    else{
+      c._ham=ekle.concat(ham);
+      const M=c._ham.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
+      const gr=c.ch.timeScale().getVisibleLogicalRange();
+      c.ca.setData(M.map(x=>({time:x.t+K_TZ,open:x.o,high:x.h,low:x.l,close:x.c})));
+      // yeni mumlar SOLA eklendi → görünür aralığı aynı mumlarda tut (zıplama olmasın)
+      if(gr)try{c.ch.timeScale().setVisibleLogicalRange({from:gr.from+ekle.length,to:gr.to+ekle.length});}catch(e){}
+    }
+  }catch(e){}
+  c._gecmisYukleniyor=false;
+}
+function kGecmisKontrol(sym){
+  const c=_kcharts[sym];if(!c)return;
+  try{
+    const gr=c.ch.timeScale().getVisibleLogicalRange();
+    if(gr&&gr.from<12)kGecmisYukle(sym);   // sol kenara yaklaşıldı → önceki sayfayı getir
+  }catch(e){}
+}
+
 async function kGrafikVeri(sym,zorla){
   const c=_kcharts[sym];if(!c)return;
   ST.kgraf=ST.kgraf||{};
@@ -726,6 +759,8 @@ async function kGrafikVeri(sym,zorla){
   const mumlar=(d.oh&&d.oh.candles)||[];
   if(!mumlar.length)return;
   const M=mumlar.map(x=>({t:Math.floor(x.ts/1000),o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume||0}));
+  // geçmişe kaydırma durumu: ham mumları sakla (sola kaydırınca öncesi başa eklenecek)
+  c._ham=mumlar.slice();c._gecmisBitti=false;
   c.ca.setData(M.map(x=>({time:x.t+K_TZ,open:x.o,high:x.h,low:x.l,close:x.c})));
   const spot=M[M.length-1].c, sonTs=M[M.length-1].t;
   c.sonTs=sonTs;

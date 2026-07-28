@@ -31,13 +31,21 @@ def save_json(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 # ─── Binance OHLCV Verisi ────────────────────────────────────────────────────
-async def get_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200) -> list:
-    """Mum verisi çek — backtest ve indikatörler için"""
+async def get_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200,
+                    end_ms: int = None) -> list:
+    """
+    Mum verisi çek — backtest ve indikatörler için.
+    end_ms verilirse O ANA KADAR olan son `limit` mum döner (grafikte geçmişe kaydırma
+    sayfalaması: kullanıcı sola kaydırdıkça daha eskisi istenir). None = en güncel mumlar.
+    """
     async with httpx.AsyncClient(timeout=15) as c:
         try:
+            params = {"symbol": symbol, "interval": interval, "limit": limit}
+            if end_ms:
+                params["endTime"] = int(end_ms)
             r = await c.get(
                 "https://api.binance.com/api/v3/klines",
-                params={"symbol": symbol, "interval": interval, "limit": limit}
+                params=params
             )
             if r.status_code == 200:
                 candles = []

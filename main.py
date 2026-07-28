@@ -2973,6 +2973,19 @@ async def hacim_gorev_endpoint():
         return {"durum": "hata", "aciklama": str(e)[:100]}
 
 
+@app.get("/api/oar-footprint-grafik")
+async def oar_footprint_grafik_endpoint(symbol: str = "BTCUSDT", tf: str = "5m", mum: int = 60):
+    """
+    FOOTPRINT GÖRSELİ verisi: TF mumları + her mumun fiyat-merdiveni (agresif alış/satış)
+    + delta + CVD + gün POC'u. Şampiyonun kullandığı AYNI delta matematiği (2·alış − toplam).
+    """
+    try:
+        from oar_footprint_grafik import footprint_grafik
+        return await footprint_grafik(symbol, tf, mum)
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:120], "mumlar": []}
+
+
 @app.get("/api/oar-footprint")
 async def oar_footprint_endpoint():
     """
@@ -3371,8 +3384,14 @@ async def live_page():
     return p.read_text(encoding="utf-8") if p.exists() else HTMLResponse("<h1>live.html eksik</h1>")
 
 @app.get("/api/ohlcv")
-async def api_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200):
-    candles = await get_ohlcv(symbol, interval, min(limit, 1000))
+async def api_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 200,
+                    end_ms: int = 0):
+    """
+    Mum verisi. end_ms verilirse O ANA KADARKİ son `limit` mum döner → grafikte sola
+    kaydırınca geçmiş sayfa sayfa yüklenir (eskiden yalnız son N mum gelirdi, bu yüzden
+    grafik belli bir tarihten geriye gitmiyordu).
+    """
+    candles = await get_ohlcv(symbol, interval, min(limit, 1000), end_ms or None)
     return {"symbol": symbol, "candles": candles}
 
 
