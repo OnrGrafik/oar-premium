@@ -242,13 +242,28 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     ts_list = [int(r[0]) for r in mumlar_ham]
     ts_set = set(ts_list)
     tablo = {ts: {} for ts in ts_list}
-    hata = ""
+    hata = ""; taker_kaynak = ""
+
+    async def _taker(bas):
+        # klines_taker'ın Bybit fallback'i YOK; Railway'de fapi (futures) bazen
+        # geo-blokli → önce futures, boş/hata olursa SPOT (canlı footprint spot'la
+        # çalışıyor, kanıtlı). İkisi de olmazsa boş → hata rozeti.
+        nonlocal hata, taker_kaynak
+        for fut in (futures, not futures):
+            try:
+                p = await klines_taker(sembol, "1m", 1000, futures=fut, start_ms=bas)
+                if p:
+                    taker_kaynak = "futures" if fut else "spot"
+                    return p
+            except Exception as e:
+                hata = str(e)[:90]
+        return []
+
+    alt = []
     try:
-        alt = []
         istek_bas = bas_ms
         for _ in range(4):                       # ≤4 istek (≤4000 1m bar kapsar)
-            parca = await klines_taker(sembol, "1m", 1000, futures=futures,
-                                       start_ms=istek_bas)
+            parca = await _taker(istek_bas)
             if not parca:
                 break
             alt.extend(parca)
@@ -271,6 +286,7 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             cell[0] += buy; cell[1] += sell
     except Exception as e:
         hata = str(e)[:90]
+    alt_bar = len(alt)
 
     mumlar = []
     birlesik_hucre = {}
@@ -308,7 +324,7 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "borsalar": list(borsalar), "spot": spot, "kaynak": "klines_taker",
         "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar),
         "eksik": len([1 for m in mumlar if not m["seviyeler"]]),
-        "tani": {"son_hata": hata} if hata else {},
+        "tani": {"son_hata": hata, "alt_bar": alt_bar, "taker": taker_kaynak or "yok"},
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}
