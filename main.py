@@ -3423,6 +3423,53 @@ async def api_akis_kiyotaka_test(symbol: str = "BTCUSDT"):
         return {"durum": "hata", "mesaj": str(e)[:200]}
 
 
+@app.get("/api/akis/footprint-tani")
+async def api_akis_footprint_tani(symbol: str = "BTCUSDT", interval: str = "5m"):
+    """TEŞHİS: son mum için Kiyotaka + aggTrades kaynaklarını DOĞRUDAN test et.
+    Tarayıcıda aç, çıktıyı yapıştır → hangi kaynak ne dönüyor kesin görülür."""
+    import time as _t, os as _os
+    _IMS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600}
+    bar_sec = _IMS.get(interval, 300)
+    now = int(_t.time())
+    bar_open = (now // bar_sec) * bar_sec - bar_sec      # tamamlanmış son mum
+    out = {"symbol": symbol, "interval": interval, "bar_open_utc": bar_open}
+
+    k = {"key_var": bool(_os.environ.get("KIYOTAKA_API_KEY"))}
+    try:
+        import kiyotaka_engine as _kiy
+        bf = await _kiy.bar_footprint(symbol, bar_open, bar_sec)
+        if bf and bf.get("seviyeler"):
+            sv = bf["seviyeler"]
+            k.update(durum="OK", seviye_sayisi=len(sv), alis=bf.get("alis"),
+                     satis=bf.get("satis"), ornek_seviye=sv[:3])
+        else:
+            k.update(durum="BOŞ/None", ham=str(bf)[:150])
+    except Exception as e:
+        k.update(durum="HATA", hata=str(e)[:150])
+    out["kiyotaka"] = k
+
+    a = {}
+    try:
+        from exchange_client import agg_trades
+        s_ms, e_ms = bar_open * 1000, (bar_open + bar_sec) * 1000
+        tr = await agg_trades(symbol, s_ms, e_ms, futures=True, max_trade=60000)
+        kaynak = "futures"
+        if not tr:
+            tr = await agg_trades(symbol, s_ms, e_ms, futures=False, max_trade=60000)
+            kaynak = "spot"
+        if tr:
+            alis = sum(t["q"] for t in tr if t["buy"])
+            satis = sum(t["q"] for t in tr if not t["buy"])
+            a.update(durum="OK", kaynak=kaynak, trade_sayisi=len(tr),
+                     alis=round(alis, 3), satis=round(satis, 3))
+        else:
+            a.update(durum="BOŞ", kaynak=kaynak)
+    except Exception as e:
+        a.update(durum="HATA", hata=str(e)[:150])
+    out["aggtrades"] = a
+    return out
+
+
 @app.get("/api/akis/likidasyon")
 async def api_akis_likidasyon(symbol: str = "BTCUSDT"):
     """Tahmini likidasyon haritası (OI/kaldıraç modeli) — order-book'tan FARKLI."""

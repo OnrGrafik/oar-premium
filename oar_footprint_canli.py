@@ -285,22 +285,33 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             for k in list(_KFP_CACHE)[:2000]:
                 _KFP_CACHE.pop(k, None)
 
-    # ── ANAHTARSIZ YEDEK (kritik): Kiyotaka HİÇ seviye vermediyse (KIYOTAKA_API_KEY yok /
-    #    401 / kota / kesinti) footprint komple boş kalıyordu → kullanıcı "footprint hiç
-    #    çalışmıyor" diyordu. Yedek: Binance 1m klines taker-buy (ANAHTAR GEREKTİRMEZ).
-    #    Delta/CVD TAM DOĞRU; fiyat kademeleri 1 dakika çözünürlüğünde (mum başına ≤ TF/1dk).
+    # ── YEDEK (Kiyotaka HİÇ seviye vermediyse — KIYOTAKA_API_KEY yok/401/kota/kesinti):
+    #  ① aggTrades GERÇEK TICK (ANAHTARSIZ, endüstri standardı): her fiyat seviyesinde
+    #     o seviyede dönen tüm trade'ler toplanır → KALIN per-fiyat seviye (Binance
+    #     footprint'iyle aynı ölçek). Kademeli doldurma (tur başına ≤8 mum) + kalıcı cache.
+    #     Bu, "seviyeler 13-15 ince" (1dk-taker) sorununu kökten çözer — gerçek tick.
+    #  ② aggTrades da vermezse → 1m klines taker (coarse ama boş kalmasın, son çare).
     yedek = {}
     kaynak_ad = "kiyotaka"
-    if not any((sembol, interval, int(r[0])) in _KFP_CACHE for r in mumlar_ham):
-        yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham))
-        if yedek:
-            kaynak_ad = "binance_1m_taker_yedek"
+    mum_ts = [int(r[0]) for r in mumlar_ham]
+    if not any((sembol, interval, ts) in _KFP_CACHE for ts in mum_ts):
+        try:
+            await _fp_doldur(sembol, interval, tick, mum_ts, futures)   # aggTrades gerçek tick
+        except Exception as e:
+            hata = (hata + " | agg:" + str(e)[:40]) if hata else str(e)[:70]
+        if any((sembol, interval, tick, ts) in _FP_CACHE for ts in mum_ts):
+            kaynak_ad = "binance_aggtrades"
+        else:                                        # son çare: 1dk taker (coarse)
+            yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham))
+            if yedek:
+                kaynak_ad = "binance_1m_taker_yedek"
 
     mumlar = []
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
-        bf = _KFP_CACHE.get((sembol, interval, ts)) or yedek.get(ts)
+        bf = (_KFP_CACHE.get((sembol, interval, ts))
+              or _FP_CACHE.get((sembol, interval, tick, ts)) or yedek.get(ts))
         if bf:
             seviyeler = bf["seviyeler"]; alis = bf["alis"]; satis = bf["satis"]; poc = bf["poc"]
         else:
@@ -341,9 +352,11 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "eksik": len([1 for m in mumlar if not m["seviyeler"]]),
         "tani": {k: v for k, v in {
             "son_hata": hata,
-            "yedek": ("Kiyotaka seviye vermedi (anahtar/kota/kesinti) → ANAHTARSIZ "
-                      "Binance 1m taker yedeği kullanıldı; kademeler 1dk çözünürlüğünde")
-                     if kaynak_ad != "kiyotaka" else "",
+            "kaynak": kaynak_ad,
+            "agg": _FP_TANI.get((sembol, interval), {}),   # aggTrades trade/hata teşhisi
+            "yedek": ("Kiyotaka seviye vermedi → aggTrades gerçek tick yedeği" if kaynak_ad == "binance_aggtrades"
+                      else "Kiyotaka+aggTrades yok → 1dk taker (coarse)" if kaynak_ad == "binance_1m_taker_yedek"
+                      else ""),
         }.items() if v},
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
