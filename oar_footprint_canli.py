@@ -231,93 +231,80 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── GERÇEK footprint: KIYOTAKA BİRİNCİL (gerçek per-fiyat = Binance'le AYNI ölçek) ─
-    #  Neden Kiyotaka birincil: Kiyotaka VOLUME_PROFILE_AGG borsanın tick-toplu GERÇEK
-    #  per-fiyat profilini verir → her seviye o fiyatta oluşan TÜM hacmi taşır (Binance
-    #  footprint'iyle aynı "kalın" seviye). klines_taker ise her dakikayı TEK fiyata
-    #  koyar → seviyeler ~1 dakikalık (13-15) ince çıkıyordu (kullanıcı gözlemi). Bu
-    #  yapısal fark; matematik değil kaynak sorunuydu → Kiyotaka'ya geçildi.
-    #  40 mumu AYNI ANDA çekmek rate-limit'e takılıyordu → THROTTLED: tur başına ≤10
-    #  eksik mum, aralıklı; GEÇMİŞ mum kalıcı cache → birkaç tazelemede 40/40 dolar.
-    #  klines_taker YALNIZCA Kiyotaka hiç veri veremezse yedek (coarse ama boş kalmasın).
+    # ── GERÇEK footprint (PROFESYONEL STANDART): mum × FİYAT seviyesinde bid/ask ────
+    #  Araştırma (ATAS/Coinank/Exocharts/orderflowlabs): footprint = her mum içinde
+    #  fiyat seviyesine göre bölünmüş tick hacmi; SOL=bid'de dönen (agresif satış),
+    #  SAĞ=ask'te dönen (agresif alış). TEK doğru veri = tick-by-tick trade (aggressor).
+    #  → klines_taker (dakika toplamı) footprint DEĞİL (13-15 ince çıkıyordu) — KALDIRILDI.
+    #  Her mum için: (1) KIYOTAKA VOLUME_PROFILE_AGG (borsanın tick'ini ön-toplamış,
+    #  hazır per-fiyat profil, 1 istek) → yoksa (2) Binance aggTrades ham tick → tick
+    #  bin'ine topla (endüstri standardı). İKİSİ DE gerçek "kalın" per-fiyat seviye.
+    #  GEÇMİŞ mum DEĞİŞMEZ → kalıcı cache; tur başına ≤8 eksik mum (rate-limit dostu)
+    #  → birkaç tazelemede 40/40 dolar. Cache formatı: {"hucre":{fiyat:[alis,satis]},"src"}.
     now = time.time() * 1000
     bar_sec = ms // 1000
     ts_list = [int(r[0]) for r in mumlar_ham]
-    ts_set = set(ts_list)
     tablo = {ts: {} for ts in ts_list}
     hata = ""; kaynak_kul = ""; alt_bar = 0
 
-    # 1) KIYOTAKA birincil (throttled, kalıcı cache — gerçek per-fiyat footprint)
-    try:
-        import kiyotaka_engine as _kiy
-        islenen = 0
-        for ts in ts_list:
-            guncel = ts <= now < ts + ms
-            ck = (sembol, interval, ts)
-            if ck in _KFP_CACHE and not guncel:
-                continue
-            if islenen >= 10:                  # tur başına nazik (rate-limit aşma)
-                break
+    async def _bar_fp(ts):
+        """Tek mumun GERÇEK per-fiyat footprint'i: önce Kiyotaka, yoksa aggTrades."""
+        nonlocal hata
+        # a) Kiyotaka — hazır per-fiyat profil (tick ön-toplanmış)
+        try:
+            import kiyotaka_engine as _kiy
             bf = await _kiy.bar_footprint(sembol, ts // 1000, bar_sec)
             if bf and bf.get("seviyeler"):
-                _KFP_CACHE[ck] = bf
-            islenen += 1
-            await asyncio.sleep(0.1)
-        if len(_KFP_CACHE) > 6000:
-            for k in list(_KFP_CACHE)[:2000]:
-                _KFP_CACHE.pop(k, None)
-    except Exception as e:
-        hata = "kiyo:" + str(e)[:70]
-    for ts in ts_list:                         # kiyotaka cache → tablo
-        bf = _KFP_CACHE.get((sembol, interval, ts))
-        if not bf:
-            continue
-        for s in bf["seviyeler"]:
-            cell = tablo[ts].setdefault(s["p"], [0.0, 0.0])
-            cell[0] += s["alis"]; cell[1] += s["satis"]
-    kiyo_dolu = sum(1 for ts in ts_list if _KFP_CACHE.get((sembol, interval, ts)))
-    if kiyo_dolu:
-        kaynak_kul = "kiyotaka"; alt_bar = kiyo_dolu
-
-    # 2) Kiyotaka HİÇ dolduramadıysa → klines_taker yedek (coarse ama boş kalmasın)
-    if not kiyo_dolu:
-        from exchange_client import klines_taker
-        alt = []
-        try:
-            istek_bas = bas_ms
-            for _ in range(4):
-                parca = None
-                for fut in (futures, not futures):
-                    try:
-                        p = await klines_taker(sembol, "1m", 1000, futures=fut, start_ms=istek_bas)
-                        if p:
-                            parca = p; break
-                    except Exception as e:
-                        hata = (hata + " | taker:" + str(e)[:40]) if hata else str(e)[:70]
-                if not parca:
-                    break
-                alt.extend(parca)
-                son = int(parca[-1][0])
-                if son >= int(mumlar_ham[-1][0]) or len(parca) < 1000:
-                    break
-                istek_bas = son + 60_000
-            for br in alt:
-                bts = int(br[0]); parent = (bts // ms) * ms
-                if parent not in ts_set:
-                    continue
-                h1, l1, c1, v1, tb1 = (float(br[2]), float(br[3]), float(br[4]),
-                                       float(br[5]), float(br[6]))
-                if v1 <= 0:
-                    continue
-                px = (h1 + l1 + c1) / 3.0
-                fb = _bin(px, tick)
-                buy = max(tb1, 0.0); sell = max(v1 - tb1, 0.0)
-                cell = tablo[parent].setdefault(fb, [0.0, 0.0])
-                cell[0] += buy; cell[1] += sell
+                return ("kiyotaka",
+                        {s["p"]: [s["alis"], s["satis"]] for s in bf["seviyeler"]})
         except Exception as e:
-            hata = (hata + " | taker:" + str(e)[:40]) if hata else str(e)[:70]
-        if alt:
-            kaynak_kul = "binance"; alt_bar = len(alt)
+            hata = "kiyo:" + str(e)[:50]
+        # b) aggTrades — ham tick (agresif alış/satış), tick bin'ine topla
+        try:
+            from exchange_client import agg_trades
+            son = min(ts + ms, int(now) + 1000)
+            trades = await agg_trades(sembol, ts, son, futures=futures, max_trade=60000)
+            if not trades and futures:                 # futures boş → spot dene
+                trades = await agg_trades(sembol, ts, son, futures=False, max_trade=60000)
+            if trades:
+                hucre = {}
+                for tr in trades:
+                    fb = _bin(tr["p"], tick)
+                    h = hucre.setdefault(fb, [0.0, 0.0])
+                    if tr["buy"]:
+                        h[0] += tr["q"]                # ask'te dönen = agresif alış (sağ)
+                    else:
+                        h[1] += tr["q"]                # bid'de dönen = agresif satış (sol)
+                return ("aggtrades", hucre)
+        except Exception as e:
+            hata = (hata + " | agg:" + str(e)[:40]) if hata else "agg:" + str(e)[:50]
+        return (None, None)
+
+    islenen = 0
+    for ts in ts_list:
+        guncel = ts <= now < ts + ms
+        ck = (sembol, interval, ts)
+        if ck in _KFP_CACHE and not guncel:            # geçmiş mum kalıcı cache
+            continue
+        if islenen >= 8:                               # tur başına nazik
+            break
+        src, hucre = await _bar_fp(ts)
+        if hucre:
+            _KFP_CACHE[ck] = {"hucre": hucre, "src": src}
+        islenen += 1
+        await asyncio.sleep(0.05)
+    if len(_KFP_CACHE) > 6000:
+        for k in list(_KFP_CACHE)[:2000]:
+            _KFP_CACHE.pop(k, None)
+
+    for ts in ts_list:                                 # cache → tablo
+        c = _KFP_CACHE.get((sembol, interval, ts))
+        if not c:
+            continue
+        tablo[ts] = {p: [v[0], v[1]] for p, v in c["hucre"].items()}
+        if not kaynak_kul:
+            kaynak_kul = c["src"]
+    alt_bar = sum(1 for ts in ts_list if _KFP_CACHE.get((sembol, interval, ts)))
 
     mumlar = []
     birlesik_hucre = {}
