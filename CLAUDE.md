@@ -10,6 +10,17 @@
 - **Sohbet SİLİNDİ** (kullanıcı): `/api/chat` + `/api/leader/chat` erken `return` ile devre dışı (LLM çağırmaz). Karar (LONG/SHORT) zaten deterministik (`confidence_karar`); yalnız düz-metin gerekçe kural-tabanlı.
 - Eski Gemini/Groq yardımcıları (`call_gemini`/`stream_ai`/`_gemini_request`/`_groq_request`/`_hizli_ai` gövdesi) ARTIK ÇAĞRILMIYOR (ölü kod; geri bağlama). Tek KALAN manuel istisna: knowledge görsel-öğretme upload (`call_gemini` vision) — UI'da yok, site akışında çağrılmıyor. GEMINI_API_KEY/GROQ_API_KEY env'leri gereksiz.
 
+## 0UYE. ÜYELİK / ERİŞİM SİSTEMİ (kullanıcı onaylı — kalıcı)
+- Site artık **üyelik kapılı**: içerik yalnız **onaylı üyelere** açık. `auth.py` (SQLite `DATA_DIR/users.db`, bcrypt→pbkdf2 fallback, server-side oturum → HttpOnly+Secure+SameSite=Strict çerez `oar_session`).
+- Akış: **başvuru+admin onayı** · **e-posta+şifre** · **admin-manuel + Telegram bildirim** (yeni başvuru `_telegram_gonder` ile bildirilir). Kullanıcı seçimi.
+- **İlk admin**: `ADMIN_EMAIL`+`ADMIN_PASS` env'den startup'ta kurulur (`auth._bootstrap_admin`). Bunlar Railway Variables'a EKLENMELİ yoksa admin yok.
+- Kapı: `main.py` `_uyelik_kapisi` middleware → tüm `/api/*` oturum ister (istisna `/api/auth/login|register|me|logout`). `/api/admin/*` rol=admin ister. **X-API-Key==OAR_API_KEY olan istekler oturumdan MUAF** (PC senkron scriptleri: yerel-ekle/kitap push bozulmasın).
+- Uçlar: `/api/auth/*` (register/login/logout/me/profil/sifre) + `/api/admin/*` (uyeler/onayla/durum/rol/sil/sifre-sifirla/olustur/audit).
+- Frontend (live.html): girişsiz → tam ekran login/kayıt overlay (`authEkraniGoster`); authed → `boot()` içerik yükler. NAV'a **👤 Üye Paneli** + (admin ise) **🛡 Yönetim** + Çıkış eklenir. `scrUye` (profil+şifre), `scrAdmin` (bekleyenler/üye tablosu/rol/askı/sil/şifre-sıfırla/yeni üye/denetim).
+- ⚠️ `users.db` gitignore'da (`data/`+`*.db`) → şifre hash'i repo'ya GİRMEZ. Railway kalıcı volume (`/var/data`) şart yoksa restart'ta üyeler silinir.
+- ⚠️ `secure=True` çerez → yalnız HTTPS. Localhost http'de giriş çalışmaz (Railway https'te sorun yok).
+- Yeni bağımlılık: `bcrypt` (requirements). Yoksa auth pbkdf2'ye düşer (sandbox).
+
 ## 00. İLETİŞİM KURALI (kullanıcı isteği — kalıcı, her cevapta uygula)
 - Kısa, doğrudan, madde madde. **Güzelleme/övgü YOK.**
 - Tek seferde tek şey; net "sonraki adım".
@@ -252,16 +263,16 @@
 - Deribit opsiyon paneli KALIR (OAR opsiyon overlay'i kullanıyor). KALAN: index.html'deki jenerik "Gemini kripto asistanı" welcome/chip'leri (Kazanan/Kaybeden, genel risk) hâlâ OAR-dışı → sadeleştirilecek.
 - KULLANICI GIT: local `MERGING` durumunda kaldı (MERGE_HEAD exists → pull bloke). Çözüm: `git merge --abort` (ya da `git commit` ile merge'i bitir) → sonra `git pull`.
 
-## 6d. FOOTPRINT GÖRSELİ — "komple gitmiş" TEŞHİSİ (kullanıcı sitemi, kalıcı ders)
-- KULLANICI: "Footprint komple gitmiş, hiçbir şekilde çalışmıyor. Nerede hata yaptık?"
-- 🔍 GERÇEK KÖK NEDEN (koddan+git geçmişinden doğrulandı): footprint **"gitmemiş", SİTEDE HİÇ YAPILMAMIŞ**. `git log -S` ile `static/` altında footprint UI'ı HİÇ commit edilmemiş. Footprint bugüne dek YALNIZ MOTOR tarafındaydı: `oar_canli_footprint` per-dk delta/CVD + gün POC'u hesaplayıp ŞAMPİYONUN `poc_taraf` bloğunu besliyordu (§3 Faz 1+2). `/api/oar-footprint` ise ÇİZİM verisi değil, TEŞHİS endpoint'i (gerçek POC vs eski proxy ortanca kıyası). `live.html` bu endpoint'i hiç çağırmıyordu (frontend endpoint listesinde yok).
-- ⚠️ ASIL HATA (ders): CLAUDE.md §3'e "CANLI FOOTPRINT ÇÖZÜLDÜ ✅" yazılmıştı — bu MOTOR için doğruydu ama kullanıcının zihnindeki "footprint" TradingView'deki GÖRSEL footprint'ti. Doküman dili boşluğu gizledi. KURAL: "X çözüldü" derken **motor mu, site mi** açıkça yaz; kullanıcının gördüğü şey site.
-- ✅ YAPILDI (`oar_footprint_grafik.py` + `/api/oar-footprint-grafik` + live.html katmanı): TF mumları + her mumun FİYAT MERDİVENİ (agresif alış×satış) + delta + CVD + gün POC. Şampiyonla **BİREBİR AYNI matematik**: `delta = 2·taker_buy − hacim` (Binance 1m klines alan[9]) ve aynı fiyat bini `_pbin` (4 anlamlı hane → BTC ~$10, ETH ~$1). Yeni/uydurma gösterge YOK. Tek REST isteği (1m klines_taker ≤1000), 45s cache.
-- ⚠️ DÜRÜST SINIR (UI'da da yazar): bu **1-DAKİKA granülasyonlu** footprint. Delta/CVD TAM DOĞRU (yaklaşım değil); ama fiyat kademeleri 1m çözünürlüğünde → mum başına en fazla (TF/1dk) kademe (5m→5, 15m→15). Gerçek TICK-seviyesi bid×ask merdiveni aggTrades ister; canlıda her mum için tick çekmek 512MB sunucuda ağır/rate-limitli. İstenirse dar pencere için ayrı iş.
-- Çizim: canvas overlay'de alt panelde delta çubukları + CVD çizgisi; mum genişliği ≥26px olunca fiyat merdiveni kademeleri, ≥44px olunca `alış×satış` sayıları. Footprint **OAR toggle'ından BAĞIMSIZ** (kendi göz ikonu).
+## 6d. FOOTPRINT "HİÇ ÇALIŞMIYOR" — GERÇEK KÖK NEDEN: KIYOTAKA BAĞIMLILIĞI (kalıcı)
+- KULLANICI: "Footprint komple gitmiş, hiçbir şekilde çalışmıyor."
+- ⚠️ ÖNCE YANLIŞ TEŞHİS KOYDUM (ders): "footprint sitede hiç yapılmamış" dedim — ÇÜNKÜ dalım main'in GERİSİNDEYDİ ve `git log -S` yalnız kendi dalımı taradı. GERÇEKTE main'de gelişmiş footprint VARDI (`oar_footprint_canli.py`, `/api/akis/footprint`, `kFpCiz` sağ-alış/sol-satış + diagonal imbalance, WS canlı akış). **KURAL: teşhis öncesi `git fetch origin main` + main'i tara; kendi dalın güncel sanma.**
+- 🔍 GERÇEK KÖK NEDEN: `oar_footprint_canli.footprint()` per-mum seviyeleri **tamamen KIYOTAKA'dan** alıyor (`kiyotaka_engine.bar_footprint`; kod yorumu "aggTrades ÇÖP" deyip Kiyotaka'ya geçmiş). Kiyotaka = DIŞ API + `KIYOTAKA_API_KEY`. Anahtar boş/expired/kota dolu → `bar_footprint` 401/hata → `None` → `_KFP_CACHE` boş → HER mumda `seviyeler=[]` → **footprint komple boş çizilir**. Tek nokta arızası; denetimde (§5u) uyardığım kiyotaka riski tam olarak buydu.
+- ✅ DÜZELTME — ANAHTARSIZ YEDEK (`_yedek_doldur` → `oar_footprint_grafik.py`): Kiyotaka HİÇ seviye vermezse footprint otomatik **Binance 1m klines taker-buy** yedeğine düşer (ANAHTAR GEREKTİRMEZ, tek REST isteği). Şampiyonla BİREBİR AYNI matematik: `delta = 2·taker_buy − hacim`, aynı fiyat bini `_pbin`. Yanıtta `kaynak="binance_1m_taker_yedek"` + `tani.yedek` açıklaması → arıza SESSİZ kalmaz. Test: Kiyotaka yok senaryosunda önce 0/12 seviyeli mum → yedekle **10/12**.
+- ⚠️ YEDEK SINIRI: delta/CVD TAM DOĞRU; fiyat kademeleri 1dk çözünürlüğünde (mum başına ≤ TF/1dk kademe; 5m→5, 15m→15). Kiyotaka çalışırsa o (tick-seviyesi) tercih edilir — yedek yalnız boşlukta devreye girer.
+- 📌 KULLANICI AKSİYONU: Railway'de `KIYOTAKA_API_KEY` dolu/geçerli mi kontrol et. Doluysa tam çözünürlük döner; değilse site artık yine de footprint gösterir (yedek).
 
 ## 6e. GRAFİK UX (kullanıcı istekleri — kalıcı)
-- ✅ GÖZ İKONLU LEGEND (TradingView tarzı): katmanlar grafiğin ALTINDA, her birinin yanında 👁/🚫 → hangisi açık/kapalı NET görünür (eskiden yalnız ⚙ menüsündeki gizli checkbox'lardı → "belirsiz"). `▾ katmanlar` ile tümü katlanır (yer kaplamasın). Tek kaynak `_kLegend` dizisi — hem legend hem ⚙ paneli hem tam-ekran paneli ondan üretilir (yeni katman eklerken SADECE oraya ekle). Durum localStorage'da kalıcı.
+- Katman aç/kapa: main'de zaten TradingView tarzı sol-üst indikatör listesi var (`_kIND` + `renderKLeg`, ◉/○ + ⚙ renk panelleri). Yeni katman eklerken SADECE `_kIND`'e ekle.
 - ✅ GEÇMİŞE KAYDIRMA: `/api/ohlcv` artık `end_ms` alır (`brain.get_ohlcv` → Binance `endTime`). Eskiden yalnız SON N mum dönüyordu → grafik belli bir tarihten geriye GİTMİYORDU. Artık sola kaydırınca (`getVisibleLogicalRange().from < 12`) önceki 500 mum sayfası çekilip başa eklenir, kaydırma konumu korunur (`setVisibleLogicalRange` indeks kaydırmasıyla). Sayfa bitince `_gecmisBitti` ile durur.
 
 ## 7. Kullanıcı hakkında
