@@ -76,10 +76,13 @@ def _mum_kur(rows: list, tf_dk: int) -> list:
     return mumlar
 
 
-async def footprint_grafik(sembol: str = "BTCUSDT", tf: str = "5m", mum: int = 60) -> dict:
+async def footprint_grafik(sembol: str = "BTCUSDT", tf: str = "5m", mum: int = 60,
+                           futures: bool = True) -> dict:
     """
     Site grafiği için footprint verisi. TF mumları + her mumun fiyat-merdiveni + delta/CVD.
     Tek REST isteği (1m klines_taker, limit≤1000) → hafif, restart-dayanıklı.
+    ⚠ VARSAYILAN PERP (futures=True): kullanıcı perp izliyor → veri PERP olmalı; SPOT
+    yalnız perp gelmezse yedek (fiyat/hacim farkı olmasın).
     """
     tf_dk = _TF_DK.get(tf, 5)
     mum = max(5, min(int(mum or 60), 200))
@@ -95,13 +98,21 @@ async def footprint_grafik(sembol: str = "BTCUSDT", tf: str = "5m", mum: int = 6
         return c["veri"]
 
     baslangic = int((simdi - gerekli_dk * 60) * 1000)
+    rows = None
     try:
         from exchange_client import klines_taker
         rows = await klines_taker(sembol, "1m", min(gerekli_dk + 5, 1000),
-                                  futures=False, start_ms=baslangic)
-    except Exception as e:
-        return {"durum": "veri_yok", "aciklama": f"1m taker verisi alınamadı: {str(e)[:80]}",
-                "sembol": sembol, "tf": tf, "mumlar": []}
+                                  futures=futures, start_ms=baslangic)   # PERP birincil
+    except Exception:
+        rows = None
+    if not rows and futures:                                            # perp boş → SPOT yedek
+        try:
+            from exchange_client import klines_taker
+            rows = await klines_taker(sembol, "1m", min(gerekli_dk + 5, 1000),
+                                      futures=False, start_ms=baslangic)
+        except Exception as e:
+            return {"durum": "veri_yok", "aciklama": f"1m taker verisi alınamadı: {str(e)[:80]}",
+                    "sembol": sembol, "tf": tf, "mumlar": []}
     if not rows:
         return {"durum": "veri_yok", "aciklama": "1m taker verisi boş",
                 "sembol": sembol, "tf": tf, "mumlar": []}

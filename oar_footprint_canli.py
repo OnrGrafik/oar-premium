@@ -198,15 +198,16 @@ def _poc_va(hucreler: dict) -> dict:
             "val": round(fiyatlar[alt], 4)}
 
 
-async def _yedek_doldur(sembol: str, interval: str, mum_sayisi: int) -> dict:
+async def _yedek_doldur(sembol: str, interval: str, mum_sayisi: int,
+                        futures: bool = True) -> dict:
     """
     ANAHTARSIZ footprint yedeği: Binance 1m klines taker-buy → per-mum fiyat kademeleri.
     Kiyotaka (dış API, anahtar ister) yoksa/boşsa devreye girer; footprint asla komple
-    ölmez. Döner: {mum_ts: {seviyeler, alis, satis, delta, poc}}.
+    ölmez. PERP (futures=True) birincil. Döner: {mum_ts: {seviyeler, alis, satis, delta, poc}}.
     """
     try:
         from oar_footprint_grafik import footprint_grafik
-        d = await footprint_grafik(sembol, interval, max(5, mum_sayisi))
+        d = await footprint_grafik(sembol, interval, max(5, mum_sayisi), futures=futures)
     except Exception:
         return {}
     if not d or d.get("durum") != "ok":
@@ -304,7 +305,7 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             hata = (hata + " | agg:" + str(e)[:40]) if hata else str(e)[:70]
         agg_var = any((sembol, interval, tick, ts) in _FP_CACHE for ts in mum_ts)
         # ANLIK boyama: 1dk taker (tek istek, hızlı) → aggTrades doldukça per-mum ÜSTÜNE geçer
-        yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham))
+        yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham), futures)
         kaynak_ad = "binance_aggtrades" if agg_var else ("binance_1m_taker_yedek" if yedek else "yok")
 
     mumlar = []
