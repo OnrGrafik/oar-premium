@@ -1031,7 +1031,7 @@ function kFpCiz(g,c,ts,W,H,sym){
   else if(fp&&fp.durum==='ok'){const sv=fp.seviyeli_mum||0,tp=fp.toplam_mum||0,t=fp.tani||{};
     if(tp&&sv>=tp){rozet='FP tam · '+tp+' mum';rc='#0a8f5c';}
     else if(sv>0){rozet='FP '+sv+'/'+tp+' dolduruyor…';rc='#0a8f5c';}
-    else{rozet='FP boş · 1m-bar:'+(t.alt_bar||0)+' kaynak:'+(t.taker||'yok')+(t.son_hata?' · '+t.son_hata:'');rc='#d1344b';}}
+    else{rozet='FP boş · bar:'+(t.alt_bar||0)+' kaynak:'+(t.kaynak||'yok')+(t.son_hata?' · '+t.son_hata:'');rc='#d1344b';}}
   else{rozet='FP yükleniyor…';rc='#b0851f';}
   g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();

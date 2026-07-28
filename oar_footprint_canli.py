@@ -231,39 +231,35 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── GERÇEK footprint: 1m klines TAKER-BUY (sunucu-tarafı GÜVENİLİR, tek istek) ──
-    # Binance 1m klines yanıtı taker_buy_base taşır → per-dk agresif alış/satış =
-    # backtest ŞAMPİYONUNUN kullandığı AYNI veri (2·taker_buy−vol delta mantığı).
-    # Her görünür mum = N adet 1m alt-bar; alt-bar tipik-fiyatı tick bin'ine,
-    # alış=taker_buy / satış=vol−taker_buy toplanır. TEK istekle tüm pencere
-    # (≤1000 1m bar; gerekirse ≤3 istek) → "1 mumda var" + "11/40" sorunu KÖKTEN biter.
-    # (Kiyotaka per-mum yolu 40 ayrı HTTP → rate-limit → yarısı boş; TERK EDİLDİ.)
-    from exchange_client import klines_taker
+    # ── GERÇEK footprint: ÇİFT KAYNAK (hangisi Railway'de erişilebilirse o) ──────────
+    #  1) Binance 1m klines taker_buy_base (TEK istek, tüm pencere) — erişilebilirse
+    #     anında dolar (buy=taker_buy, sell=vol−taker_buy = şampiyon backtest verisi).
+    #  2) Binance boş dönerse (Railway'de bloklu → klines_taker'ın Bybit yedeği YOK)
+    #     → KIYOTAKA VOLUME_PROFILE_AGG per-mum (Railway'de ULAŞILABİLİR — 11/40 kanıt).
+    #     40 mumu AYNI ANDA çekmek rate-limit'e takılıyordu → THROTTLED: tur başına ≤10
+    #     eksik mum, aralıklı; GEÇMİŞ mum kalıcı cache → birkaç tazelemede 40/40 dolar.
+    #  Her iki kaynak da AYNI tablo'ya akar → mumlar tek yerden kurulur.
+    now = time.time() * 1000
+    bar_sec = ms // 1000
     ts_list = [int(r[0]) for r in mumlar_ham]
     ts_set = set(ts_list)
     tablo = {ts: {} for ts in ts_list}
-    hata = ""; taker_kaynak = ""
+    hata = ""; kaynak_kul = ""; alt_bar = 0
 
-    async def _taker(bas):
-        # klines_taker'ın Bybit fallback'i YOK; Railway'de fapi (futures) bazen
-        # geo-blokli → önce futures, boş/hata olursa SPOT (canlı footprint spot'la
-        # çalışıyor, kanıtlı). İkisi de olmazsa boş → hata rozeti.
-        nonlocal hata, taker_kaynak
-        for fut in (futures, not futures):
-            try:
-                p = await klines_taker(sembol, "1m", 1000, futures=fut, start_ms=bas)
-                if p:
-                    taker_kaynak = "futures" if fut else "spot"
-                    return p
-            except Exception as e:
-                hata = str(e)[:90]
-        return []
-
+    # 1) Binance klines_taker (futures→spot fallback), tek/az istekle tüm pencere
+    from exchange_client import klines_taker
     alt = []
     try:
         istek_bas = bas_ms
-        for _ in range(4):                       # ≤4 istek (≤4000 1m bar kapsar)
-            parca = await _taker(istek_bas)
+        for _ in range(4):
+            parca = None
+            for fut in (futures, not futures):
+                try:
+                    p = await klines_taker(sembol, "1m", 1000, futures=fut, start_ms=istek_bas)
+                    if p:
+                        parca = p; break
+                except Exception as e:
+                    hata = str(e)[:90]
             if not parca:
                 break
             alt.extend(parca)
@@ -279,14 +275,48 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
                                    float(br[5]), float(br[6]))
             if v1 <= 0:
                 continue
-            px = (h1 + l1 + c1) / 3.0             # 1m tipik fiyat → seviye
+            px = (h1 + l1 + c1) / 3.0
             fb = _bin(px, tick)
-            buy = max(tb1, 0.0); sell = max(v1 - tb1, 0.0)   # agresif alış / satış
+            buy = max(tb1, 0.0); sell = max(v1 - tb1, 0.0)
             cell = tablo[parent].setdefault(fb, [0.0, 0.0])
             cell[0] += buy; cell[1] += sell
+        alt_bar = len(alt)
+        if alt:
+            kaynak_kul = "binance"
     except Exception as e:
         hata = str(e)[:90]
-    alt_bar = len(alt)
+
+    # 2) Binance HİÇ veri vermediyse → KIYOTAKA (throttled, kalıcı cache)
+    if not alt:
+        kaynak_kul = "kiyotaka"
+        try:
+            import kiyotaka_engine as _kiy
+            islenen = 0
+            for ts in ts_list:
+                guncel = ts <= now < ts + ms
+                ck = (sembol, interval, ts)
+                if ck in _KFP_CACHE and not guncel:
+                    continue
+                if islenen >= 10:              # tur başına nazik (rate-limit'i aşma)
+                    break
+                bf = await _kiy.bar_footprint(sembol, ts // 1000, bar_sec)
+                if bf and bf.get("seviyeler"):
+                    _KFP_CACHE[ck] = bf
+                islenen += 1
+                await asyncio.sleep(0.1)
+            if len(_KFP_CACHE) > 6000:
+                for k in list(_KFP_CACHE)[:2000]:
+                    _KFP_CACHE.pop(k, None)
+        except Exception as e:
+            hata = (hata + " | kiyo:" + str(e)[:50]) if hata else ("kiyo:" + str(e)[:60])
+        for ts in ts_list:                     # kiyotaka cache → tablo
+            bf = _KFP_CACHE.get((sembol, interval, ts))
+            if not bf:
+                continue
+            for s in bf["seviyeler"]:
+                cell = tablo[ts].setdefault(s["p"], [0.0, 0.0])
+                cell[0] += s["alis"]; cell[1] += s["satis"]
+        alt_bar = sum(1 for ts in ts_list if _KFP_CACHE.get((sembol, interval, ts)))
 
     mumlar = []
     birlesik_hucre = {}
@@ -318,13 +348,23 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "seviyeler": _seviye_listesi(birlesik_hucre),
         **_poc_va(birlesik_hucre),
     }
+    # tick = gerçek seviye aralığı (Kiyotaka bin'i klines tick'inden farklı olabilir →
+    # satır yüksekliği doğru olsun diye medyan komşu-fiyat farkından türet)
+    tpx = sorted({s["p"] for m in mumlar for s in m["seviyeler"]})
+    if len(tpx) >= 3:
+        gaps = sorted(tpx[i + 1] - tpx[i] for i in range(len(tpx) - 1) if tpx[i + 1] > tpx[i])
+        if gaps:
+            g = gaps[len(gaps) // 2]
+            if g > 0:
+                tick = round(g, 4)
+
     seviyeli = sum(1 for m in mumlar if m["seviyeler"])
     veri = {
         "sembol": sembol, "interval": interval, "tick": tick,
-        "borsalar": list(borsalar), "spot": spot, "kaynak": "klines_taker",
+        "borsalar": list(borsalar), "spot": spot, "kaynak": kaynak_kul or "yok",
         "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar),
         "eksik": len([1 for m in mumlar if not m["seviyeler"]]),
-        "tani": {"son_hata": hata, "alt_bar": alt_bar, "taker": taker_kaynak or "yok"},
+        "tani": {"son_hata": hata, "alt_bar": alt_bar, "kaynak": kaynak_kul or "yok"},
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
     _CACHE[anahtar] = {"ts": simdi, "veri": veri}
