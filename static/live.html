@@ -464,6 +464,42 @@ function scrLeader(){
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
 const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:true};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
+// Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
+const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28'};
+let _kRenk=(()=>{try{return {..._kRenkVars,...JSON.parse(localStorage.getItem('oar_krenk')||'{}')};}catch(e){return {..._kRenkVars};}})();
+function kRenkSet(k,v){_kRenk[k]=v;try{localStorage.setItem('oar_krenk',JSON.stringify(_kRenk));}catch(e){}for(const s of['BTCUSDT','ETHUSDT'])try{kOverlayCiz(s);}catch(e){}}
+function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.split('').map(x=>x+x).join('');const n=parseInt(hx,16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
+
+// ── TradingView tarzı SOL-ÜST indikatör listesi + her birinin ayar/renk paneli ──
+const _kIND=[
+  {id:'oar', ad:'OAR Sistemi', ana:'oar', alt:[['seans','Seans kutuları'],['fib','Asia Fibonacci'],['key','Key Levels'],['vwap','VWAP (D)'],['vp','Volume Profile']]},
+  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['hmap','Heatmap']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif']]},
+  {id:'liq', ad:'Liq Map',     ana:'liq', alt:[], renk:[['liqBid','Alt (bid)'],['liqAsk','Üst (ask)']]},
+  {id:'opt', ad:'Opsiyon',     ana:'opt', alt:[]},
+];
+function renderKLeg(sym){
+  const el=document.getElementById('kleg-'+sym);if(!el)return;
+  const dg=sym==='BTCUSDT'?'ETHUSDT':'BTCUSDT';
+  el.innerHTML=_kIND.map(g=>{const on=_kAyar[g.ana];
+    return `<div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.82);border-radius:4px;padding:1px 5px;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+      <span onclick="kAyarSet('${g.ana}',!_kAyar['${g.ana}']);renderKLeg('${sym}');renderKLeg('${dg}')" style="cursor:pointer;width:12px;text-align:center;color:${on?'#0a8f5c':'#c2c2c2'}" title="göster/gizle">${on?'◉':'○'}</span>
+      <span style="color:#2a2a2a;font-weight:600">${g.ad}</span>
+      <span onclick="kIndAyar('${sym}','${g.id}')" style="cursor:pointer;color:#8a9c99;font-size:10px" title="ayarlar">⚙</span>
+    </div>`;}).join('')+`<div id="kindpanel-${sym}"></div>`;
+}
+function kIndAyar(sym,id){
+  const p=document.getElementById('kindpanel-'+sym);if(!p)return;
+  if(p.dataset.open===id){p.innerHTML='';p.dataset.open='';return;}
+  p.dataset.open=id;const g=_kIND.find(x=>x.id===id);if(!g){p.innerHTML='';return;}
+  const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;font-size:11px;color:#333"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#0a8f5c">${l}</label>`;
+  const cr=(k,l)=>`<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 0;font-size:11px;color:#333">${l}<input type="color" value="${_kRenk[k]}" onchange="kRenkSet('${k}',this.value)" style="width:26px;height:18px;border:1px solid #ddd;border-radius:3px;background:none;padding:0;cursor:pointer"></label>`;
+  p.innerHTML=`<div style="background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:7px 9px;margin-top:2px;box-shadow:0 4px 14px rgba(0,0,0,.16);min-width:158px">
+    <div style="font-size:9px;letter-spacing:.1em;color:#999;margin-bottom:3px">${g.ad.toUpperCase()} · AYAR</div>
+    ${(g.alt||[]).map(([k,l])=>cb(k,l)).join('')}
+    ${g.renk&&g.renk.length?'<div style="height:1px;background:#eee;margin:4px 0"></div><div style="font-size:9px;color:#aaa;margin-bottom:2px">Renkler</div>':''}
+    ${(g.renk||[]).map(([k,l])=>cr(k,l)).join('')}
+  </div>`;
+}
 function kAyarSet(k,v){
   _kAyar[k]=v;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));
   // aynı ayarın tüm kopyalarını (BTC/ETH + tam-ekran panelleri) senkronla
@@ -478,6 +514,7 @@ function kAyarSet(k,v){
   if(k==='fp'&&v)bfpBaslat();   // tarayıcı-doğrudan canlı footprint akışı
   if(k==='fp'){for(const sym of ['BTCUSDT','ETHUSDT']){const cc=_kcharts[sym];if(cc){cc._fpThin=undefined;if(!v)kMumStili(cc.ca,false);}}
     document.querySelectorAll('[data-fpbtn]').forEach(b=>{b.style.background=v?'#123':'none';b.style.borderColor=v?'#1ff0ad':'#1a2422';b.style.color=v?'#1ff0ad':'#8a9c99';});}
+  if(['oar','fp','liq','opt'].includes(k))for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
 }
 function kAyarFsToggle(sym){
   const el=document.getElementById('kayarfs-'+sym);if(!el)return;
@@ -561,6 +598,7 @@ function komutaGrafikKart(sym,ad){
     <div id="kwrap-${sym}" style="position:relative;background:#fff">
       <div id="kchart-${sym}" style="height:340px"></div>
       <canvas id="kover-${sym}" style="position:absolute;left:0;top:0;pointer-events:none;z-index:10"></canvas>
+      <div id="kleg-${sym}" style="position:absolute;left:6px;top:5px;z-index:18;display:flex;flex-direction:column;gap:2px;font-size:11px"></div>
       <div id="kyorumfs-${sym}" style="display:none;position:absolute;left:0;right:0;bottom:0;z-index:20;background:rgba(7,10,10,.78);backdrop-filter:blur(3px);padding:12px 46px 12px 16px;font-size:12.5px;color:#d5e2df;line-height:1.55;max-height:32%;overflow-y:auto"></div>
       <button id="kyorumbtn-${sym}" onclick="kYorumToggle('${sym}')" style="display:none;position:absolute;right:10px;bottom:10px;z-index:21;background:rgba(7,10,10,.85);border:1px solid #2a3835;border-radius:6px;color:#7af0c4;font-size:11px;padding:5px 10px;cursor:pointer">▼ yorumu gizle</button>
       <div id="kfsbar-${sym}" style="display:none;position:absolute;right:10px;top:10px;z-index:21;gap:7px">
@@ -643,6 +681,7 @@ async function initKomutaGrafikler(){
     if(_kAyar.fp||_kAyar.hmap||_kAyar.liq)akisVeriYukle(sym,true);
   }
   if(_kAyar.fp)bfpBaslat();   // tarayıcı-doğrudan canlı footprint akışı
+  for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
 }
 
 // Footprint / heatmap / liq verisini çek (yalnız açık olan katmanlar) → mumlarla hizalı çiz.
@@ -994,8 +1033,8 @@ function kFpCiz(g,c,ts,W,H,sym){
     else if(t&&t.son_hata){rozet='FP veri hata: '+t.son_hata;rc='#d1344b';}
     else{rozet='FP '+sv+'/'+tp+' · Δ hazır';rc='#b0851f';}}
   else{rozet='FP yükleniyor…';rc='#b0851f';}
-  g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,4,g.measureText(rozet).width+8,13);
-  g.fillStyle=rc;g.fillText(rozet,8,5);g.restore();
+  g.fillStyle='rgba(255,255,255,.72)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);   // alt-sol (legend ile çakışmasın)
+  g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
   if(!thinIste)return;   // uzakta footprint çizme → normal mum görünür (grafik kaybolmaz)
   // TÜM görünür mumların İNCE gövdesi + fitil (footprint verisi olmayanlar da KAYBOLMASIN)
   const kg=ST.kgraf&&ST.kgraf[sym];const allc=(kg&&kg.oh&&kg.oh.candles)||[];
@@ -1003,7 +1042,7 @@ function kFpCiz(g,c,ts,W,H,sym){
   for(const x of allc){const cx0=ts.timeToCoordinate(Math.floor(x.ts/1000)+K_TZ);
     if(cx0==null||cx0<-4||cx0>W+4)continue;
     const yh=c.ca.priceToCoordinate(x.high),yl=c.ca.priceToCoordinate(x.low),yo=c.ca.priceToCoordinate(x.open),yc2=c.ca.priceToCoordinate(x.close);
-    if(yo==null||yc2==null)continue;const col=x.close>=x.open?'#0a8f5c':'#d1344b';
+    if(yo==null||yc2==null)continue;const col=x.close>=x.open?_kRenk.fpAl:_kRenk.fpSat;
     if(yh!=null&&yl!=null){g.strokeStyle=col;g.globalAlpha=.4;g.lineWidth=1;g.beginPath();g.moveTo(cx0,yh);g.lineTo(cx0,yl);g.stroke();g.globalAlpha=1;}
     g.fillStyle=col;g.fillRect(cx0-bwv/2,Math.min(yo,yc2),bwv,Math.max(Math.abs(yc2-yo),1));}
   if(!fp||!fp.mumlar||!fp.mumlar.length)return;
@@ -1022,7 +1061,7 @@ function kFpCiz(g,c,ts,W,H,sym){
     const yH=c.ca.priceToCoordinate(m.h);
     if(yH!=null&&tot>0){g.textAlign='center';
       g.font='bold 9px '+K_FONT;g.fillStyle='#111111';g.fillText(_akK(tot),cx,Math.max(yH-16,6));
-      g.fillStyle=delta>=0?'#0a8f5c':'#d1344b';g.fillText((delta>=0?'+':'')+_akK(delta),cx,Math.max(yH-6,15));}
+      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(delta),cx,Math.max(yH-6,15));}
     // ── seviye hücreleri: SAĞ=alım / SOL=satım + DIAGONAL IMBALANCE (pro footprint) ──
     if(sev&&sev.length&&bw>=14){
       let maxH=1;for(const s of sev)maxH=Math.max(maxH,s.alis,s.satis);
@@ -1036,10 +1075,10 @@ function kFpCiz(g,c,ts,W,H,sym){
       g.font='8px '+K_FONT;
       for(let i=0;i<sev.length;i++){const s=sev[i];const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
         let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;const yy=y-rh/2,rhh=Math.max(rh-0.5,1);
-        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=sImb[i]?'rgba(255,70,90,0.92)':'rgba(209,52,75,'+(0.12+it*0.5)+')';g.fillRect(cx-yariW,yy,yariW-2,rhh);
-          if(sImb[i]){g.fillStyle='#ff2d4a';g.fillRect(cx-yariW-2,yy,2,rhh);}}   // sol kenar parlak işaret
-        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=bImb[i]?'rgba(30,240,150,0.92)':'rgba(10,143,92,'+(0.12+it*0.5)+')';g.fillRect(cx+2,yy,yariW-2,rhh);
-          if(bImb[i]){g.fillStyle='#12f090';g.fillRect(cx+yariW,yy,2,rhh);}}     // sağ kenar parlak işaret
+        if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=sImb[i]?_hx2rgba(_kRenk.fpSat,0.92):_hx2rgba(_kRenk.fpSat,0.12+it*0.5);g.fillRect(cx-yariW,yy,yariW-2,rhh);
+          if(sImb[i]){g.fillStyle=_kRenk.fpSat;g.fillRect(cx-yariW-2,yy,2,rhh);}}   // sol kenar parlak işaret
+        if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=bImb[i]?_hx2rgba(_kRenk.fpAl,0.92):_hx2rgba(_kRenk.fpAl,0.12+it*0.5);g.fillRect(cx+2,yy,yariW-2,rhh);
+          if(bImb[i]){g.fillStyle=_kRenk.fpAl;g.fillRect(cx+yariW,yy,2,rhh);}}     // sağ kenar parlak işaret
         if(sayi&&rh>=8){g.fillStyle=sImb[i]?'#3a0008':'#7a2230';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-3,y);
           g.fillStyle=bImb[i]?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+3,y);}}
       // STACKED imbalance: ≥3 ardışık aynı yön → yan kenarda kalın çizgi (güçlü sinyal)
@@ -1085,7 +1124,7 @@ function kLiqCiz(g,c,ts,W,H){
     const r=Math.min(1,qty/maxQ);const len=Math.max(6,r*maxLen);
     // renk yoğunluğu duvar boyuyla; küçük duvarlar soluk
     const a=0.18+r*0.62;
-    g.strokeStyle=al?'rgba(20,200,140,'+a+')':'rgba(255,140,40,'+a+')';
+    g.strokeStyle=al?_hx2rgba(_kRenk.liqBid,a):_hx2rgba(_kRenk.liqAsk,a);
     g.lineWidth=Math.max(1.2,r*3.2);
     g.beginPath();g.moveTo(sagX,y);g.lineTo(sagX-len,y);g.stroke();};
   for(const b of d.bids)ciz(b[0],b[1],true);
@@ -1094,7 +1133,7 @@ function kLiqCiz(g,c,ts,W,H){
   const buyuk=[...d.bids.map(b=>({p:b[0],q:b[1],al:true})),...d.asks.map(a=>({p:a[0],q:a[1],al:false}))].sort((x,y)=>y.q-x.q).slice(0,4);
   for(const b of buyuk){const y=c.ca.priceToCoordinate(b.p);if(y==null||y<0||y>H)continue;
     const len=Math.max(6,Math.min(1,b.q/maxQ)*maxLen);
-    g.fillStyle=b.al?'#12c88c':'#ff8c28';g.textAlign='left';g.fillText(_akK(b.q),Math.max(sagX-len+2,2),y-5);}
+    g.fillStyle=b.al?_kRenk.liqBid:_kRenk.liqAsk;g.textAlign='left';g.fillText(_akK(b.q),Math.max(sagX-len+2,2),y-5);}
   g.restore();
 }
 
