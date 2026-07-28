@@ -231,14 +231,15 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── GERÇEK footprint: ÇİFT KAYNAK (hangisi Railway'de erişilebilirse o) ──────────
-    #  1) Binance 1m klines taker_buy_base (TEK istek, tüm pencere) — erişilebilirse
-    #     anında dolar (buy=taker_buy, sell=vol−taker_buy = şampiyon backtest verisi).
-    #  2) Binance boş dönerse (Railway'de bloklu → klines_taker'ın Bybit yedeği YOK)
-    #     → KIYOTAKA VOLUME_PROFILE_AGG per-mum (Railway'de ULAŞILABİLİR — 11/40 kanıt).
-    #     40 mumu AYNI ANDA çekmek rate-limit'e takılıyordu → THROTTLED: tur başına ≤10
-    #     eksik mum, aralıklı; GEÇMİŞ mum kalıcı cache → birkaç tazelemede 40/40 dolar.
-    #  Her iki kaynak da AYNI tablo'ya akar → mumlar tek yerden kurulur.
+    # ── GERÇEK footprint: KIYOTAKA BİRİNCİL (gerçek per-fiyat = Binance'le AYNI ölçek) ─
+    #  Neden Kiyotaka birincil: Kiyotaka VOLUME_PROFILE_AGG borsanın tick-toplu GERÇEK
+    #  per-fiyat profilini verir → her seviye o fiyatta oluşan TÜM hacmi taşır (Binance
+    #  footprint'iyle aynı "kalın" seviye). klines_taker ise her dakikayı TEK fiyata
+    #  koyar → seviyeler ~1 dakikalık (13-15) ince çıkıyordu (kullanıcı gözlemi). Bu
+    #  yapısal fark; matematik değil kaynak sorunuydu → Kiyotaka'ya geçildi.
+    #  40 mumu AYNI ANDA çekmek rate-limit'e takılıyordu → THROTTLED: tur başına ≤10
+    #  eksik mum, aralıklı; GEÇMİŞ mum kalıcı cache → birkaç tazelemede 40/40 dolar.
+    #  klines_taker YALNIZCA Kiyotaka hiç veri veremezse yedek (coarse ama boş kalmasın).
     now = time.time() * 1000
     bar_sec = ms // 1000
     ts_list = [int(r[0]) for r in mumlar_ham]
@@ -246,77 +247,77 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     tablo = {ts: {} for ts in ts_list}
     hata = ""; kaynak_kul = ""; alt_bar = 0
 
-    # 1) Binance klines_taker (futures→spot fallback), tek/az istekle tüm pencere
-    from exchange_client import klines_taker
-    alt = []
+    # 1) KIYOTAKA birincil (throttled, kalıcı cache — gerçek per-fiyat footprint)
     try:
-        istek_bas = bas_ms
-        for _ in range(4):
-            parca = None
-            for fut in (futures, not futures):
-                try:
-                    p = await klines_taker(sembol, "1m", 1000, futures=fut, start_ms=istek_bas)
-                    if p:
-                        parca = p; break
-                except Exception as e:
-                    hata = str(e)[:90]
-            if not parca:
-                break
-            alt.extend(parca)
-            son = int(parca[-1][0])
-            if son >= int(mumlar_ham[-1][0]) or len(parca) < 1000:
-                break
-            istek_bas = son + 60_000
-        for br in alt:
-            bts = int(br[0]); parent = (bts // ms) * ms
-            if parent not in ts_set:
+        import kiyotaka_engine as _kiy
+        islenen = 0
+        for ts in ts_list:
+            guncel = ts <= now < ts + ms
+            ck = (sembol, interval, ts)
+            if ck in _KFP_CACHE and not guncel:
                 continue
-            h1, l1, c1, v1, tb1 = (float(br[2]), float(br[3]), float(br[4]),
-                                   float(br[5]), float(br[6]))
-            if v1 <= 0:
-                continue
-            px = (h1 + l1 + c1) / 3.0
-            fb = _bin(px, tick)
-            buy = max(tb1, 0.0); sell = max(v1 - tb1, 0.0)
-            cell = tablo[parent].setdefault(fb, [0.0, 0.0])
-            cell[0] += buy; cell[1] += sell
-        alt_bar = len(alt)
-        if alt:
-            kaynak_kul = "binance"
+            if islenen >= 10:                  # tur başına nazik (rate-limit aşma)
+                break
+            bf = await _kiy.bar_footprint(sembol, ts // 1000, bar_sec)
+            if bf and bf.get("seviyeler"):
+                _KFP_CACHE[ck] = bf
+            islenen += 1
+            await asyncio.sleep(0.1)
+        if len(_KFP_CACHE) > 6000:
+            for k in list(_KFP_CACHE)[:2000]:
+                _KFP_CACHE.pop(k, None)
     except Exception as e:
-        hata = str(e)[:90]
+        hata = "kiyo:" + str(e)[:70]
+    for ts in ts_list:                         # kiyotaka cache → tablo
+        bf = _KFP_CACHE.get((sembol, interval, ts))
+        if not bf:
+            continue
+        for s in bf["seviyeler"]:
+            cell = tablo[ts].setdefault(s["p"], [0.0, 0.0])
+            cell[0] += s["alis"]; cell[1] += s["satis"]
+    kiyo_dolu = sum(1 for ts in ts_list if _KFP_CACHE.get((sembol, interval, ts)))
+    if kiyo_dolu:
+        kaynak_kul = "kiyotaka"; alt_bar = kiyo_dolu
 
-    # 2) Binance HİÇ veri vermediyse → KIYOTAKA (throttled, kalıcı cache)
-    if not alt:
-        kaynak_kul = "kiyotaka"
+    # 2) Kiyotaka HİÇ dolduramadıysa → klines_taker yedek (coarse ama boş kalmasın)
+    if not kiyo_dolu:
+        from exchange_client import klines_taker
+        alt = []
         try:
-            import kiyotaka_engine as _kiy
-            islenen = 0
-            for ts in ts_list:
-                guncel = ts <= now < ts + ms
-                ck = (sembol, interval, ts)
-                if ck in _KFP_CACHE and not guncel:
-                    continue
-                if islenen >= 10:              # tur başına nazik (rate-limit'i aşma)
+            istek_bas = bas_ms
+            for _ in range(4):
+                parca = None
+                for fut in (futures, not futures):
+                    try:
+                        p = await klines_taker(sembol, "1m", 1000, futures=fut, start_ms=istek_bas)
+                        if p:
+                            parca = p; break
+                    except Exception as e:
+                        hata = (hata + " | taker:" + str(e)[:40]) if hata else str(e)[:70]
+                if not parca:
                     break
-                bf = await _kiy.bar_footprint(sembol, ts // 1000, bar_sec)
-                if bf and bf.get("seviyeler"):
-                    _KFP_CACHE[ck] = bf
-                islenen += 1
-                await asyncio.sleep(0.1)
-            if len(_KFP_CACHE) > 6000:
-                for k in list(_KFP_CACHE)[:2000]:
-                    _KFP_CACHE.pop(k, None)
+                alt.extend(parca)
+                son = int(parca[-1][0])
+                if son >= int(mumlar_ham[-1][0]) or len(parca) < 1000:
+                    break
+                istek_bas = son + 60_000
+            for br in alt:
+                bts = int(br[0]); parent = (bts // ms) * ms
+                if parent not in ts_set:
+                    continue
+                h1, l1, c1, v1, tb1 = (float(br[2]), float(br[3]), float(br[4]),
+                                       float(br[5]), float(br[6]))
+                if v1 <= 0:
+                    continue
+                px = (h1 + l1 + c1) / 3.0
+                fb = _bin(px, tick)
+                buy = max(tb1, 0.0); sell = max(v1 - tb1, 0.0)
+                cell = tablo[parent].setdefault(fb, [0.0, 0.0])
+                cell[0] += buy; cell[1] += sell
         except Exception as e:
-            hata = (hata + " | kiyo:" + str(e)[:50]) if hata else ("kiyo:" + str(e)[:60])
-        for ts in ts_list:                     # kiyotaka cache → tablo
-            bf = _KFP_CACHE.get((sembol, interval, ts))
-            if not bf:
-                continue
-            for s in bf["seviyeler"]:
-                cell = tablo[ts].setdefault(s["p"], [0.0, 0.0])
-                cell[0] += s["alis"]; cell[1] += s["satis"]
-        alt_bar = sum(1 for ts in ts_list if _KFP_CACHE.get((sembol, interval, ts)))
+            hata = (hata + " | taker:" + str(e)[:40]) if hata else str(e)[:70]
+        if alt:
+            kaynak_kul = "binance"; alt_bar = len(alt)
 
     mumlar = []
     birlesik_hucre = {}
