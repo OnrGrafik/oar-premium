@@ -468,6 +468,12 @@ let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('o
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff'};
 let _kRenk=(()=>{try{return {..._kRenkVars,...JSON.parse(localStorage.getItem('oar_krenk')||'{}')};}catch(e){return {..._kRenkVars};}})();
 function kRenkSet(k,v){_kRenk[k]=v;try{localStorage.setItem('oar_krenk',JSON.stringify(_kRenk));}catch(e){}for(const s of['BTCUSDT','ETHUSDT'])try{kOverlayCiz(s);}catch(e){}}
+// ── FOOTPRINT TICK (seviye sıklığı) — referanstaki "Tick" seçici. 0=otomatik (sunucu varsayılanı).
+const _kTickVars={BTCUSDT:0,ETHUSDT:0};   // 0=otomatik (BTC 5 / ETH 0.5 sunucu tarafı)
+let _kTick=(()=>{try{return {..._kTickVars,...JSON.parse(localStorage.getItem('oar_ktick')||'{}')};}catch(e){return {..._kTickVars};}})();
+const _kTickPreset={BTCUSDT:[0,1,2,5,10,25,50],ETHUSDT:[0,0.1,0.5,1,2,5]};
+function kTickSet(sym,v){_kTick[sym]=+v||0;try{localStorage.setItem('oar_ktick',JSON.stringify(_kTick));}catch(e){}
+  akisVeriYukle(sym,true);try{renderKLeg(sym);}catch(e){}}
 function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.split('').map(x=>x+x).join('');const n=parseInt(hx,16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
 
 // ── TradingView tarzı SOL-ÜST indikatör listesi + her birinin ayar/renk paneli ──
@@ -494,8 +500,21 @@ function kIndAyar(sym,id){
   p.dataset.open=id;const g=_kIND.find(x=>x.id===id);if(!g){p.innerHTML='';return;}
   const cb=(k,l)=>`<label style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;font-size:11px;color:#333"><input type="checkbox" ${_kAyar[k]?'checked':''} onchange="kAyarSet('${k}',this.checked)" style="accent-color:#0a8f5c">${l}</label>`;
   const cr=(k,l)=>`<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 0;font-size:11px;color:#333">${l}<input type="color" value="${_kRenk[k]}" onchange="kRenkSet('${k}',this.value)" style="width:26px;height:18px;border:1px solid #ddd;border-radius:3px;background:none;padding:0;cursor:pointer"></label>`;
+  // Footprint için TICK seçici (seviye sıklığı) — referanstaki "Tick" gibi
+  let tickHtml='';
+  if(id==='fp'){
+    const cur=_kTick[sym]||0, pres=_kTickPreset[sym]||[0,1,5,10];
+    const chip=v=>`<span onclick="kTickSet('${sym}',${v})" style="cursor:pointer;padding:2px 7px;border-radius:4px;font-size:11px;border:1px solid ${cur===v?'#0a8f5c':'#d8d8d8'};background:${cur===v?'#0a8f5c':'#f4f4f4'};color:${cur===v?'#fff':'#444'}">${v===0?'Oto':v}</span>`;
+    tickHtml=`<div style="font-size:9px;letter-spacing:.1em;color:#999;margin-bottom:3px">TICK (seviye sıklığı)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">${pres.map(chip).join('')}</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333;margin-bottom:5px">Özel:
+        <input type="number" step="any" min="0" value="${cur||''}" placeholder="oto"
+          onchange="kTickSet('${sym}',this.value)" style="width:60px;padding:2px 4px;border:1px solid #ddd;border-radius:3px;font-size:11px"></label>
+      <div style="height:1px;background:#eee;margin:4px 0"></div>`;
+  }
   p.innerHTML=`<div style="background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:7px 9px;margin-top:2px;box-shadow:0 4px 14px rgba(0,0,0,.16);min-width:158px">
     <div style="font-size:9px;letter-spacing:.1em;color:#999;margin-bottom:3px">${g.ad.toUpperCase()} · AYAR</div>
+    ${tickHtml}
     ${(g.alt||[]).map(([k,l])=>cb(k,l)).join('')}
     ${g.renk&&g.renk.length?'<div style="height:1px;background:#eee;margin:4px 0"></div><div style="font-size:9px;color:#aaa;margin-bottom:2px">Renkler</div>':''}
     ${(g.renk||[]).map(([k,l])=>cr(k,l)).join('')}
@@ -698,7 +717,7 @@ async function akisVeriYukle(sym,zorla){
   const bor='binance_perp';
   const intraday=['1m','5m','15m','1h'].includes(_kTF);
   const jobs=[];
-  if(_kAyar.fp&&intraday)jobs.push(jget('/api/akis/footprint?symbol='+sym+'&interval='+_kTF+'&limit=40&borsalar='+bor).then(d=>{if(d)c.fpData=d;}).catch(()=>{}));
+  if(_kAyar.fp&&intraday)jobs.push(jget('/api/akis/footprint?symbol='+sym+'&interval='+_kTF+'&limit=40&tick='+(_kTick[sym]||0)+'&borsalar='+bor).then(d=>{if(d)c.fpData=d;}).catch(()=>{}));
   else c.fpData=null;
   if(_kAyar.hmap)jobs.push(jget('/api/akis/heatmap?symbol='+sym+'&borsalar='+bor).then(d=>{if(d)c.hmData=d;}).catch(()=>{}));
   if(_kAyar.liq)jobs.push(jget('/api/akis/orderbook?symbol='+sym+'&seviye=50').then(d=>{if(d)c.domData=d;}).catch(()=>{}));
