@@ -27,8 +27,9 @@ _INTERVAL_MS = {
     "1d": 86_400_000,
 }
 
-# Sembol başına makul varsayılan footprint tick (frontend override edebilir).
-_VARSAYILAN_TICK = {"BTCUSDT": 10.0, "ETHUSDT": 1.0}
+# Sembol başına varsayılan footprint tick (frontend override edebilir).
+# Referans yoğunluğu için daha İNCE (mum başına ~15-20 seviye): BTC 5, ETH 0.5.
+_VARSAYILAN_TICK = {"BTCUSDT": 5.0, "ETHUSDT": 0.5}
 
 _CACHE = {}          # {(sembol,interval,tick,limit,borsalar): {"ts":epoch, "veri":...}}
 _CACHE_TTL_S = 2     # kısa (arka plan doldukça yeni seviyeler görünsün)
