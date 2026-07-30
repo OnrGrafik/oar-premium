@@ -68,9 +68,9 @@ async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
             if ck in _FP_CACHE and _FP_CACHE[ck]["seviyeler"] and not guncel:
                 continue
             eksik.append(cts)
-            if len(eksik) >= 16:
+            if len(eksik) >= 10:
                 break
-        sem = asyncio.Semaphore(5)
+        sem = asyncio.Semaphore(3)   # nazik: klines'i rate-limit'e sokup veri_yok yaptırma
 
         async def _bir(cts):
             son = min(cts + ms, int(now) + 1000)
@@ -252,10 +252,14 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     try:
         kl = await klines(sembol, interval, limit + 1, futures=futures)
     except Exception:
+        kl = None
+    if not kl:
+        # klines gelmedi (ör. arka-plan aggTrades yoğunluğu klines'i rate-limit'e soktu).
+        # SON İYİ CACHE'i döndür → footprint "komple gitmesin" (bir sonraki poll toparlar).
+        if c and c["veri"].get("durum") == "ok":
+            return c["veri"]
         return {"sembol": sembol, "interval": interval, "durum": "veri_yok",
                 "not": "mum verisi gelmedi"}
-    if not kl:
-        return {"sembol": sembol, "interval": interval, "durum": "veri_yok"}
 
     mumlar_ham = kl[-limit:]
     bas_ms = int(mumlar_ham[0][0])

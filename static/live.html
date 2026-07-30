@@ -755,7 +755,7 @@ async function akisVeriYukle(sym,zorla){
   const bor='binance_perp';
   const intraday=['1m','5m','15m','1h'].includes(_kTF);
   const jobs=[];
-  if(_kAyar.fp&&intraday)jobs.push(jget('/api/akis/footprint?symbol='+sym+'&interval='+_kTF+'&limit=40&tick='+(_kTick[sym]||0)+'&borsalar='+bor).then(d=>{if(d&&d.durum==='ok')c.fpData=d;}).catch(()=>{}));  // yalnız GEÇERLİ yanıt üstüne yaz → geçici boş yanıt veriyi SİLMEZ
+  if(_kAyar.fp&&intraday)jobs.push(jget('/api/akis/footprint?symbol='+sym+'&interval='+_kTF+'&limit=40&tick='+(_kTick[sym]||0)+'&borsalar='+bor).then(d=>{if(d&&(d.durum==='ok'||!(c.fpData&&c.fpData.durum==='ok')))c.fpData=d;}).catch(()=>{}));  // iyi yanıtla güncelle; iyi veri yoksa ne gelirse göster (kalıcı null olmasın); geçici boş İYİ veriyi silmez
   else c.fpData=null;
   if(_kAyar.hmap)jobs.push(jget('/api/akis/heatmap?symbol='+sym+'&borsalar='+encodeURIComponent(_kHeatBorsa.join(','))).then(d=>{if(d)c.hmData=d;}).catch(()=>{}));
   if(_kAyar.liq)jobs.push(jget('/api/akis/orderbook?symbol='+sym+'&seviye=50').then(d=>{if(d)c.domData=d;}).catch(()=>{}));
