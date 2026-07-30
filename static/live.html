@@ -476,12 +476,20 @@ let _kTick=(()=>{try{return {..._kTickVars,...JSON.parse(localStorage.getItem('o
 const _kTickPreset={BTCUSDT:[0,1,2,5,10,25,50],ETHUSDT:[0,0.1,0.5,1,2,5]};
 function kTickSet(sym,v){_kTick[sym]=+v||0;try{localStorage.setItem('oar_ktick',JSON.stringify(_kTick));}catch(e){}
   akisVeriYukle(sym,true);try{renderKLeg(sym);}catch(e){}}
+// ── ISI HARİTASI BORSALARI (çoklu-borsa order-book duvarları) — varsayılan TÜMÜ (aggregated) ──
+const _kHeatBorsaHepsi=[['binance_perp','Binance Perp'],['bybit','Bybit'],['okx','OKX'],['coinbase','Coinbase']];
+let _kHeatBorsa=(()=>{try{const s=JSON.parse(localStorage.getItem('oar_kheatb')||'null');return Array.isArray(s)&&s.length?s:['binance_perp','bybit','okx','coinbase'];}catch(e){return ['binance_perp','bybit','okx','coinbase'];}})();
+function kHeatBorsaTgl(b){const i=_kHeatBorsa.indexOf(b);if(i>=0)_kHeatBorsa.splice(i,1);else _kHeatBorsa.push(b);
+  if(!_kHeatBorsa.length)_kHeatBorsa.push('binance_perp');
+  try{localStorage.setItem('oar_kheatb',JSON.stringify(_kHeatBorsa));}catch(e){}
+  for(const sym of['BTCUSDT','ETHUSDT']){akisVeriYukle(sym,true);try{renderKLeg(sym);}catch(e){}}}
 function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.split('').map(x=>x+x).join('');const n=parseInt(hx,16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
 
 // ── TradingView tarzı SOL-ÜST indikatör listesi + her birinin ayar/renk paneli ──
 const _kIND=[
   {id:'oar', ad:'OAR Sistemi', ana:'oar', alt:[['seans','Seans kutuları'],['fib','Asia Fibonacci'],['key','Key Levels'],['vwap','VWAP (D)'],['vp','Volume Profile']]},
-  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['fpHeat','Hücre arka planı (heat)'],['fpBirlesik','Sağda birleşik mum'],['fpUsd','Değerler $ (kapalı = BTC adedi)'],['hmap','Heatmap']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif'],['arkaplan','Grafik arka planı']]},
+  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['fpHeat','Hücre arka planı (heat)'],['fpBirlesik','Sağda birleşik mum'],['fpUsd','Değerler $ (kapalı = BTC adedi)']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif'],['arkaplan','Grafik arka planı']]},
+  {id:'hmap', ad:'Isı Haritası (duvarlar)', ana:'hmap', borsa:true},
   {id:'likmap', ad:'Liq Map',  ana:'likmap', alt:[], renk:[['liqLong','Long likidasyon'],['liqShort','Short likidasyon']]},
   {id:'liq', ad:'Likidite (emirler)', ana:'liq', alt:[], renk:[['liqBid','Alt (bid)'],['liqAsk','Üst (ask)']]},
   {id:'opt', ad:'Opsiyon',     ana:'opt', alt:[]},
@@ -514,9 +522,19 @@ function kIndAyar(sym,id){
           onchange="kTickSet('${sym}',this.value)" style="width:60px;padding:2px 4px;border:1px solid #ddd;border-radius:3px;font-size:11px"></label>
       <div style="height:1px;background:#eee;margin:4px 0"></div>`;
   }
+  // Isı Haritası için ÇOKLU-BORSA seçici (aggregated order-book duvarları)
+  let borsaHtml='';
+  if(g.borsa){
+    const chip=([b,l])=>{const on=_kHeatBorsa.includes(b);
+      return `<span onclick="kHeatBorsaTgl('${b}')" style="cursor:pointer;padding:2px 7px;border-radius:4px;font-size:11px;border:1px solid ${on?'#0a8f5c':'#d8d8d8'};background:${on?'#0a8f5c':'#f4f4f4'};color:${on?'#fff':'#444'}">${l}</span>`;};
+    borsaHtml=`<div style="font-size:9px;letter-spacing:.1em;color:#999;margin-bottom:3px">BORSALAR (aggregated)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${_kHeatBorsaHepsi.map(chip).join('')}</div>
+      <div style="font-size:9px;color:#aaa;margin-bottom:4px">Canlı biriken (order-book anlık; geçmiş yok). Açtığın andan itibaren dolar.</div>
+      <div style="height:1px;background:#eee;margin:4px 0"></div>`;
+  }
   p.innerHTML=`<div style="background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:7px 9px;margin-top:2px;box-shadow:0 4px 14px rgba(0,0,0,.16);min-width:158px">
     <div style="font-size:9px;letter-spacing:.1em;color:#999;margin-bottom:3px">${g.ad.toUpperCase()} · AYAR</div>
-    ${tickHtml}
+    ${tickHtml}${borsaHtml}
     ${(g.alt||[]).map(([k,l])=>cb(k,l)).join('')}
     ${g.renk&&g.renk.length?'<div style="height:1px;background:#eee;margin:4px 0"></div><div style="font-size:9px;color:#aaa;margin-bottom:2px">Renkler</div>':''}
     ${(g.renk||[]).map(([k,l])=>cr(k,l)).join('')}
@@ -536,7 +554,7 @@ function kAyarSet(k,v){
   if(k==='fp'&&v)bfpBaslat();   // tarayıcı-doğrudan canlı footprint akışı
   if(k==='fp'){for(const sym of ['BTCUSDT','ETHUSDT']){const cc=_kcharts[sym];if(cc){cc._fpThin=undefined;if(!v)kMumStili(cc.ca,false);}}
     document.querySelectorAll('[data-fpbtn]').forEach(b=>{b.style.background=v?'#123':'none';b.style.borderColor=v?'#1ff0ad':'#1a2422';b.style.color=v?'#1ff0ad':'#8a9c99';});}
-  if(['oar','fp','liq','likmap','opt'].includes(k))for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
+  if(['oar','fp','hmap','liq','likmap','opt'].includes(k))for(const sym of ['BTCUSDT','ETHUSDT'])try{renderKLeg(sym);}catch(e){}
 }
 function kAyarFsToggle(sym){
   const el=document.getElementById('kayarfs-'+sym);if(!el)return;
@@ -737,7 +755,7 @@ async function akisVeriYukle(sym,zorla){
   const jobs=[];
   if(_kAyar.fp&&intraday)jobs.push(jget('/api/akis/footprint?symbol='+sym+'&interval='+_kTF+'&limit=40&tick='+(_kTick[sym]||0)+'&borsalar='+bor).then(d=>{if(d)c.fpData=d;}).catch(()=>{}));
   else c.fpData=null;
-  if(_kAyar.hmap)jobs.push(jget('/api/akis/heatmap?symbol='+sym+'&borsalar='+bor).then(d=>{if(d)c.hmData=d;}).catch(()=>{}));
+  if(_kAyar.hmap)jobs.push(jget('/api/akis/heatmap?symbol='+sym+'&borsalar='+encodeURIComponent(_kHeatBorsa.join(','))).then(d=>{if(d)c.hmData=d;}).catch(()=>{}));
   if(_kAyar.liq)jobs.push(jget('/api/akis/orderbook?symbol='+sym+'&seviye=50').then(d=>{if(d)c.domData=d;}).catch(()=>{}));
   if(_kAyar.likmap){jobs.push(jget('/api/akis/likidasyon?symbol='+sym).then(d=>{if(d)c.likData=d;}).catch(()=>{}));
     jobs.push(jget('/api/akis/liq?symbol='+sym).then(d=>{if(d)c.lqData=d;}).catch(()=>{}));}
