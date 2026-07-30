@@ -45,12 +45,11 @@ _KFP_CACHE = {}         # {(sembol,interval,bar_ts): kiyotaka bar footprint} —
 
 async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
     """
-    Eksik mumların per-seviye footprint'ini aggTrades'ten mum-mum çeker → _FP_CACHE.
-    Yeniden→eskiye; tur başına en fazla 8 mum (nazik, rate-limit dostu). GEÇMİŞ mum
-    bir kez çekilir (dolu cache); GÜNCEL mum her turda tazelenir.
-    ⚠ BOŞ sonuç KALICI cache'lenmez → tekrar denenir (0/40'ta takılma çözümü).
-    ⚠ Futures aggTrades boş dönerse SPOT aggTrades fallback (weight 1, daha güvenli).
-    Teşhis (_FP_TANI): kaç trade geldi / hata ne (frontend rozetinde görünür).
+    Eksik mumların per-seviye footprint'ini aggTrades'ten çeker → _FP_CACHE.
+    HIZLI: YENİDEN→ESKİYE (kullanıcı sağdaki güncel mumlara bakıyor → önce onlar),
+    PARALEL (Semaphore 5), tur başına ≤16 eksik mum → 40 mum ~2-3 turda dolar.
+    GEÇMİŞ mum bir kez çekilir (kalıcı cache); GÜNCEL mum her turda tazelenir.
+    ⚠ BOŞ sonuç KALICI cache'lenmez → tekrar denenir. Futures boş → SPOT fallback.
     """
     key0 = (sembol, interval, tick)
     if key0 in _FP_ISLENIYOR:
@@ -61,30 +60,33 @@ async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
         from exchange_client import agg_trades
         ms = _INTERVAL_MS.get(interval, 300_000)
         now = time.time() * 1000
-        islenen = 0
-        for cts in mum_ts_list:
-            if islenen >= 8:
-                break
+        # EKSİK mumlar YENİDEN→ESKİYE (görünür/güncel önce), tur başına ≤16
+        eksik = []
+        for cts in reversed(mum_ts_list):
             ck = (sembol, interval, tick, cts)
             guncel = cts <= now < cts + ms
             if ck in _FP_CACHE and _FP_CACHE[ck]["seviyeler"] and not guncel:
                 continue
+            eksik.append(cts)
+            if len(eksik) >= 16:
+                break
+        sem = asyncio.Semaphore(5)
+
+        async def _bir(cts):
             son = min(cts + ms, int(now) + 1000)
-            trades = []
-            kaynak = ""
-            try:
-                trades = await agg_trades(sembol, cts, son, futures=futures,
-                                          max_trade=40000)
-                kaynak = "futures" if futures else "spot"
-                if not trades and futures:      # futures boş → spot fallback
-                    trades = await agg_trades(sembol, cts, son, futures=False,
-                                              max_trade=40000)
-                    kaynak = "spot"
-            except Exception as e:
-                tani["son_hata"] = str(e)[:90]
+            trades = []; kaynak = ""
+            async with sem:
+                try:
+                    trades = await agg_trades(sembol, cts, son, futures=futures, max_trade=40000)
+                    kaynak = "futures" if futures else "spot"
+                    if not trades and futures:          # futures boş → spot fallback
+                        trades = await agg_trades(sembol, cts, son, futures=False, max_trade=40000)
+                        kaynak = "spot"
+                except Exception as e:
+                    tani["son_hata"] = str(e)[:90]
             tani["denendi"] += 1
             if not trades:
-                continue                        # BOŞ → cache'leme, sonra tekrar dene
+                return
             hucreler = {}
             for tr in trades:
                 fb = _bin(tr["p"], tick)
@@ -97,16 +99,16 @@ async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
             satis = sum(s for _, s in hucreler.values())
             hacim = {p: (a + s) for p, (a, s) in hucreler.items()}
             poc = max(hacim, key=hacim.get) if hacim else None
-            _FP_CACHE[ck] = {
+            _FP_CACHE[(sembol, interval, tick, cts)] = {
                 "seviyeler": _seviye_listesi(hucreler),
                 "alis": round(alis, 4), "satis": round(satis, 4),
                 "delta": round(alis - satis, 4),
                 "poc": round(poc, 4) if poc is not None else None,
             }
             tani["son_trade"] = len(trades); tani["kaynak"] = kaynak
-            islenen += 1
-            now = time.time() * 1000
-            await asyncio.sleep(0.2)
+
+        if eksik:
+            await asyncio.gather(*[_bir(c) for c in eksik])
         if len(_FP_CACHE) > 4000:
             for k in list(_FP_CACHE)[:1500]:
                 _FP_CACHE.pop(k, None)
