@@ -462,7 +462,7 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true,fpUsd:false};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff',arkaplan:'#fbf8f0'};
@@ -481,7 +481,7 @@ function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.s
 // ── TradingView tarzı SOL-ÜST indikatör listesi + her birinin ayar/renk paneli ──
 const _kIND=[
   {id:'oar', ad:'OAR Sistemi', ana:'oar', alt:[['seans','Seans kutuları'],['fib','Asia Fibonacci'],['key','Key Levels'],['vwap','VWAP (D)'],['vp','Volume Profile']]},
-  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['fpHeat','Hücre arka planı (heat)'],['fpBirlesik','Sağda birleşik mum'],['hmap','Heatmap']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif'],['arkaplan','Grafik arka planı']]},
+  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['fpHeat','Hücre arka planı (heat)'],['fpBirlesik','Sağda birleşik mum'],['fpUsd','Değerler $ (kapalı = BTC adedi)'],['hmap','Heatmap']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif'],['arkaplan','Grafik arka planı']]},
   {id:'likmap', ad:'Liq Map',  ana:'likmap', alt:[], renk:[['liqLong','Long likidasyon'],['liqShort','Short likidasyon']]},
   {id:'liq', ad:'Likidite (emirler)', ana:'liq', alt:[], renk:[['liqBid','Alt (bid)'],['liqAsk','Üst (ask)']]},
   {id:'opt', ad:'Opsiyon',     ana:'opt', alt:[]},
@@ -1123,6 +1123,8 @@ function kFpCiz(g,c,ts,W,H,sym){
   if(!fpMode)return;
 
   const tick=fp.tick;
+  const usd=_kAyar.fpUsd;                         // true=$ notional, false=BTC adedi (varsayılan)
+  const dv=(v,p)=>usd?v*p:v;                      // görüntü birimi dönüşümü
   const hw=Math.min(60,bw*0.46);                 // yarım sütun genişliği
   const cw=Math.max(2,Math.min(5,bw*0.045));     // ince mum gövde genişliği
   const cyari=cw/2+1;
@@ -1162,8 +1164,8 @@ function kFpCiz(g,c,ts,W,H,sym){
         if(bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
         // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse
         if(rh>=8){
-          g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(s.satis),cx-cyari-2,y);
-          g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(s.alis),cx+cyari+2,y);
+          g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(dv(s.satis,s.p)),cx-cyari-2,y);
+          g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(dv(s.alis,s.p)),cx+cyari+2,y);
         }
       }
       // POC çerçevesi (turuncu)
@@ -1174,8 +1176,8 @@ function kFpCiz(g,c,ts,W,H,sym){
     // ── ALT: toplam + delta (referanstaki gibi mumun altında) ──
     const tot=(alis||0)+(satis||0);
     if(yLo!=null&&tot>0&&yLo<H-28){g.textAlign='center';
-      g.fillStyle='#37474f';g.fillText(_akK(tot),cx,yLo+13);
-      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(delta),cx,yLo+24);}
+      g.fillStyle='#37474f';g.fillText(_akK(dv(tot,m.c)),cx,yLo+13);
+      g.fillStyle=delta>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText((delta>=0?'+':'')+_akK(dv(delta,m.c)),cx,yLo+24);}
   }
 
   // ── #4 SAĞDA BİRLEŞİK MUM: EKRANA SIĞAN tüm mumların hacim profili + Toplam/Delta ──
@@ -1196,11 +1198,11 @@ function kFpCiz(g,c,ts,W,H,sym){
         g.fillStyle=_hx2rgba(_kRenk.fpAl,0.82);g.fillRect(xR-aW,yy,aW,rhh);          // alış (eksene yaslı)
         g.fillStyle=_hx2rgba(_kRenk.fpSat,0.82);g.fillRect(xR-aW-sW,yy,sW,rhh);      // satış (solunda)
         if(p===pocP){g.strokeStyle='#111';g.lineWidth=1;g.strokeRect(xR-aW-sW,yy,aW+sW,rhh);}}
-      // üst-sağ: Toplam + Delta özeti
-      const td=tA-tS;g.textAlign='right';g.font='bold 11px '+K_FONT;
-      g.fillStyle='rgba(255,255,255,.9)';g.fillRect(xR-142,6,142,34);
-      g.fillStyle='#37474f';g.fillText('Toplam '+_akK(tA+tS),xR-8,17);
-      g.fillStyle=td>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText('Δ '+(td>=0?'+':'')+_akK(td),xR-8,31);
+      // üst-sağ: Toplam + Delta özeti (birim: BTC adedi / $ — fpUsd)
+      const sp=fp.spot||0;const td=tA-tS;g.textAlign='right';g.font='bold 11px '+K_FONT;
+      g.fillStyle='rgba(255,255,255,.9)';g.fillRect(xR-150,6,150,34);
+      g.fillStyle='#37474f';g.fillText('Toplam '+_akK(dv(tA+tS,sp))+(usd?' $':' ₿'),xR-8,17);
+      g.fillStyle=td>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText('Δ '+(td>=0?'+':'')+_akK(dv(td,sp)),xR-8,31);
       g.restore();
     }
   }
