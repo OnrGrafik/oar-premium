@@ -3528,6 +3528,22 @@ async def api_akis_footprint_tani(symbol: str = "BTCUSDT", interval: str = "5m")
     except Exception as e:
         a.update(durum="HATA", hata=str(e)[:150])
     out["aggtrades"] = a
+
+    # footprint() GERÇEK çıktısı — ekranda görünen değerlerin ham (BTC) hali mi?
+    f = {}
+    try:
+        import oar_footprint_canli as _fp
+        v = await _fp.footprint(symbol, interval, 0.0, 40, ("binance_perp",))
+        if v.get("mumlar"):
+            m = v["mumlar"][-1]; b = v.get("birlesik", {})
+            f = {"kaynak": v.get("kaynak"), "son_mum_alis_BTC": m["alis"], "son_mum_satis_BTC": m["satis"],
+                 "birlesik_alis_BTC": b.get("alis"), "birlesik_satis_BTC": b.get("satis"),
+                 "not": "bunlar BTC adedi olmali (agg_trades ile ~ayni olcek). Ekranda milyon gorunuyorsa 'Degerler $' modu ACIK demektir."}
+        else:
+            f = {"durum": v.get("durum"), "tani": v.get("tani")}
+    except Exception as e:
+        f = {"hata": str(e)[:150]}
+    out["footprint_ciktisi"] = f
     return out
 
 
