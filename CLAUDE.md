@@ -283,6 +283,12 @@
   ② **Canlı site URL'si = `oar-premium-production.up.railway.app`** (`-production` VAR). `oar-premium.up.railway.app` (CLAUDE.md eski varsayılan) PROVISION EDİLMEMİŞ → "Not Found: train has not arrived" verir (uygulama down sanılır ama değil). hacim_indir.py varsayılan URL'si de bu yüzden yanlış (`-production`'a güncellenecek).
   ③ Teşhis öncesi mutlaka `git fetch origin main` + main'i temel al; feature dalın main'in gerisinde olabilir (footprint mimarisi main'de daha ileri — bu oturumda feature dalı merge etmeye çalışınca çakıştı, iptal edilip main'e cerrahi eklendi).
 
+## 6d2. FOOTPRINT TICK / SMART VERTICAL SCALING (kullanıcı "tick 3'te göster", kalıcı)
+- KULLANICI: "tick ayarını tam yapamadığın için kötü gösteriyor; tick 3'te göstermeye çalış."
+- 🔍 KÖK NEDEN (prof. araştırma — ATAS/Coinank): footprint TEK tick'i hem VERİ TOPLAMA hem EKRAN satırı için kullanıyordu. İnce tick (BTC $3) → 15m mumda 50-100 seviye → her satır ~1px → sayılar SIĞMIYOR → sadece renk bloğu = "kötü görüntü". Kalın tick (25/50) → az seviye ama referanstaki yoğunluk YOK.
+- ✅ ÇÖZÜM = **SMART VERTICAL SCALING** (ATAS "Vertical Smart Scaling" birebir): COLLECTION tick İNCE (`_VARSAYILAN_TICK` BTC 3.0 / ETH 0.3), EKRAN satırı `kFpCiz`'de `mergeN=round(13px/ppTick)` ile birleştirilir (`dTick=tick*mergeN`) → satır ≈13px, sayılar okunur. DİKEY ZOOM yapınca (right-drag #2) ppTick büyür → mergeN→1 → ham $3 detayına inilir. Ekran POC birleşik satırdan yeniden hesaplanır. Tek-tick render'ın "sayı sığmıyor" sorunu kökten çözüldü.
+- Frontend tick preset'e 3 (BTC) / 0.3 (ETH) eklendi; Oto(0)=sunucu ince tick'i. Backend `footprint()` yine median-gap ile tick'i düzeltir (satır yüksekliği doğru). ŞAMPİYONA DOKUNULMADI (yalnız görselleştirme).
+
 ## 6e. GRAFİK UX (kullanıcı istekleri — kalıcı)
 - Katman aç/kapa: main'de zaten TradingView tarzı sol-üst indikatör listesi var (`_kIND` + `renderKLeg`, ◉/○ + ⚙ renk panelleri). Yeni katman eklerken SADECE `_kIND`'e ekle.
 - ✅ GEÇMİŞE KAYDIRMA: `/api/ohlcv` artık `end_ms` alır (`brain.get_ohlcv` → Binance `endTime`). Eskiden yalnız SON N mum dönüyordu → grafik belli bir tarihten geriye GİTMİYORDU. Artık sola kaydırınca (`getVisibleLogicalRange().from < 12`) önceki 500 mum sayfası çekilip başa eklenir, kaydırma konumu korunur (`setVisibleLogicalRange` indeks kaydırmasıyla). Sayfa bitince `_gecmisBitti` ile durur.

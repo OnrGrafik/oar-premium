@@ -27,9 +27,10 @@ _INTERVAL_MS = {
     "1d": 86_400_000,
 }
 
-# Sembol başına varsayılan footprint tick (frontend override edebilir).
-# Referans yoğunluğu için daha İNCE (mum başına ~15-20 seviye): BTC 5, ETH 0.5.
-_VARSAYILAN_TICK = {"BTCUSDT": 5.0, "ETHUSDT": 0.5}
+# Sembol başına varsayılan footprint COLLECTION tick'i (frontend override edebilir).
+# İNCE topla (BTC 3, ETH 0.3) → ekranda "smart vertical scaling" ile okunur yüksekliğe
+# birleştirilir (ATAS tarzı); dikey zoom yapınca bu ham tick detayına inilir.
+_VARSAYILAN_TICK = {"BTCUSDT": 3.0, "ETHUSDT": 0.3}
 
 _CACHE = {}          # {(sembol,interval,tick,limit,borsalar): {"ts":epoch, "veri":...}}
 _CACHE_TTL_S = 2     # kısa (arka plan doldukça yeni seviyeler görünsün)

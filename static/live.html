@@ -473,9 +473,9 @@ function kRenkSet(k,v){_kRenk[k]=v;try{localStorage.setItem('oar_krenk',JSON.str
   if(k==='arkaplan')for(const s of['BTCUSDT','ETHUSDT']){const c=_kcharts[s];if(c)try{c.ch.applyOptions({layout:{background:{color:v}}});}catch(e){}}
   for(const s of['BTCUSDT','ETHUSDT'])try{kOverlayCiz(s);}catch(e){}}
 // ── FOOTPRINT TICK (seviye sıklığı) — referanstaki "Tick" seçici. 0=otomatik (sunucu varsayılanı).
-const _kTickVars={BTCUSDT:0,ETHUSDT:0};   // 0=otomatik (BTC 5 / ETH 0.5 sunucu tarafı)
+const _kTickVars={BTCUSDT:0,ETHUSDT:0};   // 0=otomatik (BTC 3 / ETH 0.3 sunucu tarafı) — ekranda smart-scale ile birleşir
 let _kTick=(()=>{try{return {..._kTickVars,...JSON.parse(localStorage.getItem('oar_ktick')||'{}')};}catch(e){return {..._kTickVars};}})();
-const _kTickPreset={BTCUSDT:[0,1,2,5,10,25,50],ETHUSDT:[0,0.1,0.5,1,2,5]};
+const _kTickPreset={BTCUSDT:[0,1,2,3,5,10,25,50],ETHUSDT:[0,0.1,0.3,0.5,1,2,5]};
 function kTickSet(sym,v){_kTick[sym]=+v||0;try{localStorage.setItem('oar_ktick',JSON.stringify(_kTick));}catch(e){}
   akisVeriYukle(sym,true);try{renderKLeg(sym);}catch(e){}}
 // ── ISI HARİTASI BORSALARI (çoklu-borsa order-book duvarları) — varsayılan TÜMÜ (aggregated) ──
@@ -1149,6 +1149,14 @@ function kFpCiz(g,c,ts,W,H,sym){
   const cw=Math.max(2,Math.min(5,bw*0.045));     // ince mum gövde genişliği
   const cyari=cw/2+1;
   g.textBaseline='middle';g.font='bold 9px '+K_FONT;
+  // ── SMART VERTICAL SCALING (ATAS/Coinank tarzı): ham (ince) collection tick'ini
+  //    ekranda OKUNUR yüksekliğe (≈13px) birleştir. Dikey zoom yapınca mergeN küçülür
+  //    → ham tick detayına inilir. tick=3 gibi ince veri hem okunur hem zoom'da detaylı.
+  //    (Tek-tick render'da satır ~1px → sayı sığmıyordu; asıl "kötü görüntü" nedeni buydu.)
+  const _pA=c.ca.priceToCoordinate(fp.spot),_pB=c.ca.priceToCoordinate(fp.spot+tick);
+  const ppTick=(_pA!=null&&_pB!=null)?Math.abs(_pA-_pB):0;   // 1 collection tick = kaç px
+  const mergeN=ppTick>0?Math.max(1,Math.round(13/ppTick)):1; // okunur satır için birleşme
+  const dTick=tick*mergeN;                                    // ekran satır tick'i
   for(const m of fp.mumlar){
     const cx=ts.timeToCoordinate(Math.floor(m.t/1000)+K_TZ);
     if(cx==null||cx<-hw-40||cx>W+hw+40)continue;
@@ -1165,13 +1173,21 @@ function kFpCiz(g,c,ts,W,H,sym){
 
     // ── SEVİYE GRİDİ: SOL=satış / SAĞ=alış (referans düzeni) ──
     if(sev.length){
-      let maxH=1;for(const s of sev)maxH=Math.max(maxH,s.alis,s.satis);
+      // ekran satırları: ham (ince) seviyeleri dTick bin'ine topla → okunur yükseklik
+      let dsev;
+      if(mergeN>1){const dm={};for(const s of sev){const db=Math.round(s.p/dTick)*dTick;
+          const r=dm[db]||(dm[db]={p:db,alis:0,satis:0});r.alis+=s.alis;r.satis+=s.satis;}
+        dsev=Object.values(dm).sort((a,b)=>b.p-a.p);}
+      else dsev=sev;
+      let maxH=1;for(const s of dsev)maxH=Math.max(maxH,s.alis,s.satis);
       const RAT=3,MINV=Math.max(maxH*0.08,1);
       const cellW=hw-cyari-1;
-      for(let i=0;i<sev.length;i++){const s=sev[i];const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
-        let rh=Math.abs((c.ca.priceToCoordinate(s.p-tick)||(y+9))-y);if(!(rh>=3))rh=3;
+      // ekran POC (birleşik satırda en yüksek toplam hacim)
+      let dpoc=poc,dpv=-1;if(mergeN>1){for(const s of dsev){const v=s.alis+s.satis;if(v>dpv){dpv=v;dpoc=s.p;}}}
+      for(let i=0;i<dsev.length;i++){const s=dsev[i];const y=c.ca.priceToCoordinate(s.p);if(y==null)continue;
+        let rh=Math.abs((c.ca.priceToCoordinate(s.p-dTick)||(y+9))-y);if(!(rh>=3))rh=3;
         const yy=y-rh/2,rhh=Math.max(rh-0.6,1);
-        const alt=sev[i+1],ust=sev[i-1];
+        const alt=dsev[i+1],ust=dsev[i-1];
         const bImb=(s.alis>MINV&&s.alis>=RAT*Math.max(alt?alt.satis:0,1));   // agresif alıcı
         const sImb=(s.satis>MINV&&s.satis>=RAT*Math.max(ust?ust.alis:0,1));  // agresif satıcı
         // heat hücre (sol satış / sağ alış) — yoğunluk kadar dolu (fpHeat kapatılabilir)
@@ -1182,14 +1198,14 @@ function kFpCiz(g,c,ts,W,H,sym){
         // imbalance → beyaz kutu (referanstaki gibi)
         if(sImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,cellW-1,rhh-1);}
         if(bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
-        // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse
+        // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse (smart-scale ile artık sığar)
         if(rh>=8){
           g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(dv(s.satis,s.p)),cx-cyari-2,y);
           g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(dv(s.alis,s.p)),cx+cyari+2,y);
         }
       }
-      // POC çerçevesi (turuncu)
-      if(poc!=null){const yp=c.ca.priceToCoordinate(poc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(poc-tick)||(yp+9))-yp);if(!(rh>=3))rh=3;
+      // POC çerçevesi (turuncu) — ekran (birleşik) POC
+      if(dpoc!=null){const yp=c.ca.priceToCoordinate(dpoc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(dpoc-dTick)||(yp+9))-yp);if(!(rh>=3))rh=3;
         g.strokeStyle='#e8a30c';g.lineWidth=1.4;g.strokeRect(cx-hw,yp-rh/2,hw*2,rh);}}
     }
 
