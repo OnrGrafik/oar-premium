@@ -464,6 +464,8 @@ function scrLeader(){
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
 const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true,fpUsd:false};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
+// TEK SEFERLİK: kazara açık kalmış '$' (fpUsd) modunu BTC'ye sıfırla (kullanıcı BTC adedi istedi)
+try{if(!localStorage.getItem('oar_fpusd_reset')){_kAyar.fpUsd=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpusd_reset','1');}}catch(e){}
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff',arkaplan:'#fbf8f0'};
 let _kRenk=(()=>{try{return {..._kRenkVars,...JSON.parse(localStorage.getItem('oar_krenk')||'{}')};}catch(e){return {..._kRenkVars};}})();
@@ -1218,8 +1220,8 @@ function kFpCiz(g,c,ts,W,H,sym){
         if(p===pocP){g.strokeStyle='#111';g.lineWidth=1;g.strokeRect(xR-aW-sW,yy,aW+sW,rhh);}}
       // üst-sağ: Toplam + Delta özeti (birim: BTC adedi / $ — fpUsd)
       const sp=fp.spot||0;const td=tA-tS;g.textAlign='right';g.font='bold 11px '+K_FONT;
-      g.fillStyle='rgba(255,255,255,.9)';g.fillRect(xR-150,6,150,34);
-      g.fillStyle='#37474f';g.fillText('Toplam '+_akK(dv(tA+tS,sp))+(usd?' $':' ₿'),xR-8,17);
+      g.fillStyle='rgba(255,255,255,.9)';g.fillRect(xR-160,6,160,34);
+      g.fillStyle='#37474f';g.fillText('Toplam '+_akK(dv(tA+tS,sp))+(usd?' USD':' BTC'),xR-8,17);
       g.fillStyle=td>=0?_kRenk.fpDeltaP:_kRenk.fpDeltaN;g.fillText('Δ '+(td>=0?'+':'')+_akK(dv(td,sp)),xR-8,31);
       g.restore();
     }
