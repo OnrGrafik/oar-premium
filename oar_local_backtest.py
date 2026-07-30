@@ -252,12 +252,16 @@ def _ms_olcekle(ts):
 
 
 # ─── Gün-bazlı ön hesap — STREAMING (bellek-güvenli) ─────────────────────────
-def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
+def _gun_hazirla(klines, aggt_yollari, metrics_df=None,
+                 seans_bas=ASIA_BAS_UTC, seans_bit=ASIA_BIT_UTC, post_bit=NY_CLOSE_UTC):
     """
-    Her gün için Asya H/L, fib, post-asia barlar + dakikalık CVD + günlük POC
+    Her gün için SEANS H/L, fib, post-seans barlar + dakikalık CVD + günlük POC
     (+ varsa OI/whale/retail metrics haritaları).
-    aggTrades AY AY okunur; tüm yıl asla RAM'e alınmaz (yalnız küçük gün-özetleri).
-    Döner: {gun_idx: {...}}
+    seans_bas/seans_bit: range'in oluştuğu pencere (UTC saat). VARSAYILAN = Asya (0-4)
+    → şampiyon yolu BİREBİR AYNI (geriye uyum). London=(7,11), NY=(13,17) için
+    oar_yeni_sampiyon farklı geçer. Footprint (delta/CVD/POC) GÜN-düzeyi → seanstan
+    bağımsız; yalnız range fib-çıpası + hangi post-barlarda gezildiği değişir.
+    aggTrades AY AY okunur; tüm yıl asla RAM'e alınmaz. Döner: {gun_idx: {...}}
     """
     import pandas as pd
     import numpy as np
@@ -288,8 +292,8 @@ def _gun_hazirla(klines, aggt_yollari, metrics_df=None):
     rejim = _gunluk_rejim(k)     # trend/range rejimi (Efficiency Ratio), no-lookahead
     gunler = {}
     for gun, kg in k.groupby("gun"):
-        asia = kg[(kg["saat"] >= ASIA_BAS_UTC) & (kg["saat"] < ASIA_BIT_UTC)]
-        post = kg[(kg["saat"] >= ASIA_BIT_UTC) & (kg["saat"] < NY_CLOSE_UTC)].sort_values("open_time")
+        asia = kg[(kg["saat"] >= seans_bas) & (kg["saat"] < seans_bit)]
+        post = kg[(kg["saat"] >= seans_bit) & (kg["saat"] < post_bit)].sort_values("open_time")
         if asia.empty or post.empty:
             continue
         a_h, a_l = float(asia["high"].max()), float(asia["low"].min())
