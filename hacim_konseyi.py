@@ -39,6 +39,9 @@ DURUM_FILE    = _DATA_DIR / "hacim_konsey_durum.json"    # son özet günü + ha
 VERISET_FILE  = Path(__file__).resolve().parent / "hacim_veriseti.json"  # repo-kökü, git-senkron (PC'ye iner)
 
 SEMBOLLER   = ("BTCUSDT", "ETHUSDT")
+# Konsensüs YÖN eşiği — TEK KAYNAK (lider bağlamı da bunu yazar; eşik-altı "zayıf eğilim"
+# olarak gösterilir ki lider "NOTR" ile anlık olaydaki "SHORT"u çelişki sanmasın).
+_NET_ESIK   = 0.15
 TOPLA_ARALIK_S = 300          # 5 dk'da bir snapshot
 SNAPSHOT_CAP   = 3000         # ~1 hafta (2 sembol × 288/gün × 7 ≈ 4032; cap güvenli üst sınır)
 OZET_SAAT_UTC  = 3            # gün sonu özet saati (UTC). Kullanıcı "gece 03:00" — değiştirilebilir.
@@ -290,7 +293,7 @@ def _konsensus(uyeler):
         elif isaret < 0:
             short_g += u["guc"]
     net = puan / agirlik if agirlik > 0 else 0.0
-    yon = "LONG" if net > 0.15 else ("SHORT" if net < -0.15 else "NOTR")
+    yon = "LONG" if net > _NET_ESIK else ("SHORT" if net < -_NET_ESIK else "NOTR")
     # mutabakat = baskın yöndeki üye sayısı / aktif üye
     yonler = [u["yon"] for u in aktif if u["yon"] != "NOTR"]
     if yonler:
@@ -382,6 +385,12 @@ async def olay_tara(snap: dict):
 
     # durum güncelle (ilk turda yalnız taban kurulur → sahte 'dönüş' bildirimi olmaz)
     durum[sembol] = {"yon": yon, "gamma": gam, "ts": _now().isoformat()}
+    if olaylar and onceki:
+        # BÜTÜNLEŞİKLİK: olayları sakla → lider gözlemi de bunları görsün (konsey_baglami)
+        gecmis = durum.get("son_olaylar") or []
+        for o in olaylar:
+            gecmis.append({"ts": _now().isoformat(), "metin": o.replace("*", "")})
+        durum["son_olaylar"] = gecmis[-20:]
     _olay_durum_yaz(durum)
 
     if olaylar and onceki:
@@ -661,12 +670,20 @@ async def gunluk_ozet_loop():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def konsey_baglami() -> str:
-    """Son snapshot(lar) dan kısa lider bağlamı metni (site bağlamına eklenir)."""
+    """
+    Son snapshot(lar)dan lider bağlamı metni (site bağlamına eklenir).
+    BÜTÜNLEŞİKLİK (kullanıcı sitemi: "biri NOTR derken diğeri SHORT veriyor"):
+      ① snapshot ZAMANI + YAŞI yazılır → lider bayat veriyi taze sanmaz (konsey 5dk'da
+         güncellenir + site bağlamı 120s cache → lidere ~7dk bayat düşebiliyordu).
+      ② NOTR ise EĞİLİM açıkça yazılır (net −0.13 eşiğin kılpayı üstünde "NOTR" görünüp
+         anlık olaydaki SHORT ile ÇELİŞKİ sanılıyordu — aslında ikisi de aynı yöne eğilimli).
+      ③ SON OLAYLAR eklenir → lider, anlık bildirim hattının ne dediğini de görür.
+    """
     db = _load(SNAPSHOT_FILE, {"snapshots": []})
     snaps = db.get("snapshots", [])
     if not snaps:
         return "HACİM KONSEYİ: henüz snapshot yok."
-    L = ["HACİM KONSEYİ (bağımsız hacim analizörleri, son durum):"]
+    L = [f"HACİM KONSEYİ (bağımsız hacim analizörleri · yön eşiği ±{_NET_ESIK}):"]
     for sembol in SEMBOLLER:
         son = None
         for s in reversed(snaps):
@@ -676,10 +693,33 @@ def konsey_baglami() -> str:
         if not son:
             continue
         k = son.get("konsensus", {})
+        net = k.get("net", 0.0)
+        yon = k.get("yon", "?")
+        # ② eşik-altı eğilimi göster (sert eşik sürekli değeri ikili gösteriyordu)
+        if yon == "NOTR" and abs(net) > 0.03:
+            yon_txt = f"NOTR (zayıf {'SHORT' if net < 0 else 'LONG'} eğilimi)"
+        else:
+            yon_txt = yon
+        # ① tazelik
+        yas = ""
+        try:
+            dk = (_now() - _parse_ts(son.get("ts"))).total_seconds() / 60.0
+            yas = f", {dk:.0f} dk önce" if dk >= 1 else ", şimdi"
+        except Exception:
+            pass
         aktif = [u for u in son.get("uyeler", []) if u.get("aktif")]
         uye_txt = ", ".join(f"{u['ad']}={u['yon']}({u['guc']:.1f})" for u in aktif) or "aktif üye yok"
-        L.append(f"  {sembol}: konsensüs {k.get('yon','?')} (net {k.get('net',0):+.2f}, "
-                 f"mutabakat %{k.get('mutabakat',0)*100:.0f}) · {uye_txt}")
+        L.append(f"  {sembol}: konsensüs {yon_txt} (net {net:+.2f}, "
+                 f"mutabakat %{k.get('mutabakat',0)*100:.0f}{yas}) · {uye_txt}")
+    # ③ anlık olay hattıyla bütünleşme
+    try:
+        olaylar = (_load(OLAY_FILE, {}) or {}).get("son_olaylar", [])[-3:]
+        if olaylar:
+            L.append("  Son anlık olaylar (aynı konseyin canlı bildirimleri):")
+            for o in olaylar:
+                L.append(f"    · {o.get('ts','')[11:16]} — {o.get('metin','')}")
+    except Exception:
+        pass
     return "\n".join(L)
 
 
