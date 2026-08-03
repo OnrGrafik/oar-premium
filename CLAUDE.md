@@ -309,6 +309,13 @@
 - Katman aç/kapa: main'de zaten TradingView tarzı sol-üst indikatör listesi var (`_kIND` + `renderKLeg`, ◉/○ + ⚙ renk panelleri). Yeni katman eklerken SADECE `_kIND`'e ekle.
 - ✅ GEÇMİŞE KAYDIRMA: `/api/ohlcv` artık `end_ms` alır (`brain.get_ohlcv` → Binance `endTime`). Eskiden yalnız SON N mum dönüyordu → grafik belli bir tarihten geriye GİTMİYORDU. Artık sola kaydırınca (`getVisibleLogicalRange().from < 12`) önceki 500 mum sayfası çekilip başa eklenir, kaydırma konumu korunur (`setVisibleLogicalRange` indeks kaydırmasıyla). Sayfa bitince `_gecmisBitti` ile durur.
 
+## 6f. WRD (Whale-Retail Delta) İŞARET KURALI — Oar-Sinyal-Bot (kullanıcı sorusu, KALICI)
+- KULLANICI: "whale eksi retail longda ama görsel ters, shortta gösteriyor — doğru mu?" CEVAP: görsel DOĞRU, metrik yanlış okunuyordu.
+- **KURAL: `WRD = whale_long% − retail_long%` işareti YAPISAL OFFSET'tir, sinyal DEĞİL.** Whale = Binance `topLongShortPositionRatio` (POZİSYON-ağırlıklı), retail = `globalLongShortAccountRatio` (HESAP-ağırlıklı). Farklı birim + ikisi de yapısal olarak **hep >%50 long** gelir → WRD neredeyse HER ZAMAN negatiftir. **Negatif WRD "whale short" DEMEK DEĞİLDİR** (örnek: retail 65.84, WRD −3.97 → whale %61.87 long, yani net LONG). Anlamlı olan işaret değil, **pencere içindeki percentile konumu**: −3.97'nin %92 pct'te (sağ uçta) olması = makas daralıyor = whale göreli LONG. Bu yüzden "negatif ama ekstrem yüksek" ÇELİŞKİ DEĞİL.
+- ⚠️ AYNI HATANIN TETİKLEDİĞİ 2 SESSİZ ARIZA (bulundu+düzeltildi): ① `volume_bot.check_conditions` WR filtresi `wrd > 0` istiyordu → HİÇBİR aday geçemiyor, tüm hacim sinyalleri sessizce eleniyordu (bot susuyordu). ② `ma_scanner.whale_retail_kontrol` LONG teyidi `retail<50 and wrd>0` istiyordu → LONG kolu HİÇ tetiklenmiyor, yalnız SHORT kolu çalışıyordu (tek yönlü sahte kurulum).
+- ✅ DÜZELTME (`analiz_bot._goreli_yon(pct)`, 40-60 nötr bandı): tüm yön/filtre kararları artık **pencere içi percentile**'dan (`r_rel`/`w_rel`), mutlak %50 eşiğinden DEĞİL. Grafik WRD kutusunda mutlak `Whale X% · Retail Y% long` + makas yönü + altta açıklama notu yazar; caption'a ayrı 🐋 Whale satırı eklendi; whale nötr bantta ise pozisyon önerisi $0. Mutlak `r_long`/`w_long` alanları YALNIZ gösterimde kaldı (karar için kullanma).
+- NOT: oar-premium tarafındaki `whale_retail_zit` bloğu FARKLI veri kullanır (L/S **ratio** >1.0 karşılaştırması, `oar_local_backtest:737`) → bu hata onda YOK, ANAYASA #8 kapsamında DOKUNULMADI.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
