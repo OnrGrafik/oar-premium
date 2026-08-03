@@ -144,10 +144,15 @@ def teshis(ay=None):
         out["sistemler"][ad] = kayit
 
     out["toplam_equity_pct"] = round(toplam_eq, 2)
-    out["genel"] = ("İki sistemin ay toplamı %{:.1f}. ".format(toplam_eq) +
-                    ("Sistemlerden biri ANOMALİ işaretli → gerçek inceleme gerekir."
-                     if any("ANOMALİ" in (v.get("karar") or "") for v in out["sistemler"].values())
-                     else "Anomali yok → düşük-WR sistemin normal zararlı ayı; şampiyona dokunma."))
+    islem_var = any(v.get("ozet") for v in out["sistemler"].values())
+    if not islem_var:
+        out["genel"] = (f"{ay} ayında HİÇ işlem yok. Muhtemelen YEREL state boş — canlı "
+                        f"paper Railway'de çalışır. Railway endpoint kullan: /api/oar-ay-teshis?ay=... "
+                        f"ya da doğru ayı gir. (0 işlem ≠ zararlı ay.)")
+    elif any("ANOMALİ" in (v.get("karar") or "") for v in out["sistemler"].values()):
+        out["genel"] = f"İki sistemin ay toplamı %{toplam_eq:.1f}. Bir sistem ANOMALİ → gerçek inceleme gerekir."
+    else:
+        out["genel"] = f"İki sistemin ay toplamı %{toplam_eq:.1f}. Anomali yok → düşük-WR sistemin normal zararlı ayı; şampiyona dokunma."
     return out
 
 
