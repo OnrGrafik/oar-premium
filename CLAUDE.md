@@ -241,6 +241,11 @@
 - 3 AÇI (her aday SERAP bateriyle elenir — DSR≥0.95 ∧ CI-alt>0 ∧ perm-p<0.05(FDR) ∧ 5x-likid=0): ① SEANS GENELLEŞTİRME (şampiyon fade mekanizmasını LONDON 07-11 + NY 13-17 range'ine uygula; tam 34-blok) ② POZİSYON-EKSTREMİ (funding verisi YOK→backtest edilemez; vekil oi_yuksek/whale_retail_zit blokları zaten ① keşfinde) ③ REJİM-SWITCH META (range günü FADE + trend günü TREND birleşik).
 - `_gun_hazirla` SEANS-PARAMETRELİ yapıldı (`seans_bas/seans_bit/post_bit`, VARSAYILAN=Asya → şampiyon yolu BİREBİR AYNI, ANAYASA #8 korundu). Footprint gün-düzeyi → seanstan bağımsız; yalnız range fib-çıpası değişir.
 - ŞAMPİYONA/portföye DOKUNMAZ: öneriler `oar_yeni_sampiyon_aday.json`'a; serap-geçer+onayla+walk-forward ile portföye alınır. Cache `.yeni_sampiyon_cache` (seans başına aggTrades bir kez, re-run hızlı). AĞIR (2 yeni seans×aggTrades) → gece koşusu. `python oar_yeni_sampiyon.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram`. Çıktı: yeni_sampiyon_sonuc.json. Çıkmazsa "bu zeminlerde de edge yok" KESİN öğrenilir.
+- ✅ SONUÇ (KULLANICI KOŞTU, 2019-2025 — kesin):
+  ① **London fade `poc_taraf+breakout_teyit+frvp_poc`: n65 PF4.7 DSR0.969 CI-alt+0.092 → serap-GEÇTİ ama İNCE+MARJİNAL.** Gerçekten YENİ (Asya'dan farklı bloklar; fade mekanizması London'a da taşınıyor) AMA n65 (~10 işlem/yıl) + DSR eşiğin hemen üstünde (0.969 vs şampiyon 1.0) → umut verici, TEYİT gerekir; walk-forward ay-ay kör tutmadan canlıya ALINMAZ. Düşük frekans standalone şampiyon olarak zayıf.
+  ② **Rejim-switch (FADE range-günü + TREND trend-günü): n1246 PF2.87 DSR1.0 CI-alt+0.148 → GÜÇLÜ ama YENİ EDGE DEĞİL** — mevcut iki şampiyonun rejime göre birleşimi (DSR 1.0 onlardan). Yeni kaynak değil, DAĞITIM kuralı (range→FADE, trend→TREND).
+  ③ **NY seansı → hepsi SERAP** (London çalışıyor, NY çalışmıyor). ④ Funding → veri yok.
+  KESİN DERS: seans genelleştirme fade mekanizmasının London'da (zayıf) var olduğunu gösterdi ama n çok düşük; bu boyutlarda GÜÇLÜ yeni bağımsız 3. şampiyon çıkmadı. İki kanıtlı şampiyon (Asya FADE+TREND) yerinde kalır. London adayı `_aday.json`'da bekliyor (teyit edilirse düşük-frekans ek).
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
