@@ -37,7 +37,14 @@ ADAY = KOK / "oar_yeni_sampiyon_aday.json"
 PORTFOY = KOK / "oar_sampiyon_portfoy.json"
 
 # seans_ad: (bas_utc, bit_utc, post_bit_utc) — range penceresi + sonrası (gün sonuna dek)
-SEANSLAR = {"london": (7.0, 11.0, 24.0), "ny": (13.0, 17.0, 24.0)}
+# london/ny KANITLI koşuldu; london_kisa + us_acilis = YENİ ZEMİN (kullanıcı isteği).
+# ⚠ ÇOKLU-KARŞILAŞTIRMA: seans arttıkça FDR cezası büyür → geçmek zorlaşır (savunma).
+SEANSLAR = {
+    "london": (7.0, 11.0, 24.0),
+    "ny": (13.0, 17.0, 24.0),
+    "london_kisa": (7.0, 10.0, 24.0),    # daha dar London range (kırılım daha keskin?)
+    "us_acilis": (13.5, 15.5, 24.0),     # ABD borsa açılışı (13:30 UTC) 2 saatlik range
+}
 N_DENEME = 300   # DSR çoklu-karşılaştırma cezası (konservatif — şampiyonla aynı)
 
 

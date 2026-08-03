@@ -105,6 +105,61 @@ def _topla(tum, pencereler):
     }
 
 
+def _pool_yukle(semboller, bas, bit, seans):
+    """
+    Seans havuzu: asya → serap cache (_havuz_yukle); london/ny → oar_yeni_sampiyon'un
+    .yeni_sampiyon_cache pickle'ları (kullanıcı yeni-şampiyon koşusunda kaydetti).
+    """
+    if seans in (None, "asya"):
+        return _havuz_yukle(semboller, bas, bit)
+    import pickle
+    cd = KOK if 'KOK' in globals() else Path(__file__).resolve().parent
+    cache = cd / ".yeni_sampiyon_cache"
+    havuz = []
+    for sym in semboller:
+        yol = cache / f"{sym}_{seans}_{bas}_{bit}.pkl"
+        if yol.exists():
+            with open(yol, "rb") as f:
+                havuz.extend(pickle.load(f))
+        else:
+            print(f"[WF] ⚠ {yol.name} yok — önce oar_yeni_sampiyon koş", flush=True)
+    return havuz
+
+
+def analiz_custom(semboller, bas, bit, bloklar, seans="asya", train_ay=2, test_ay=1):
+    """
+    ÖZEL ADAY walk-forward: verilen blok kümesini (ör. London adayı) seans havuzunda
+    ay-ay KÖR test et. Yeni adayı canlıya almadan önce zaman-sağlamlığını ölçer.
+    """
+    from oar_kesif import _filtre
+    havuz = _pool_yukle(semboller, bas, bit, seans)
+    if not havuz:
+        print("⚠ havuz boş.", flush=True); return None
+    for c in havuz:
+        c["_ay"] = _ay(c["ts"])
+    aylar = sorted({c["_ay"] for c in havuz})
+    pencereler = _pencere_listesi(aylar, train_ay, test_ay)
+    print(f"[WF-custom] {seans} · [{'+'.join(bloklar)}] · {len(aylar)} ay · {len(pencereler)} pencere", flush=True)
+    pen = []; tum = []
+    for _tr, te_a in pencereler:
+        test = [c for c in havuz if c["_ay"] in te_a]
+        if not test:
+            continue
+        tt = _filtre(test, bloklar)
+        kay = [(c["ts"], c["pct"]) for c in tt]
+        m = _senaryo_metrik(kay) if kay else None
+        rej, _ = _rejim_etiket(tt)
+        tum.extend(kay)
+        pen.append({"test_ay": sorted(te_a), "rejim": rej, "n": m["n"] if m else 0,
+                    "pf": m["pf"] if m else None, "beklenti": m["beklenti"] if m else None})
+        print(f"[WF-custom] {sorted(te_a)} → n{m['n'] if m else 0} PF {m['pf'] if m else '—'} "
+              f"bek {m['beklenti'] if m else '—'} [{rej}]", flush=True)
+    return {"tarih": datetime.now(timezone.utc).isoformat(), "aralik": f"{bas}..{bit}",
+            "semboller": semboller, "mod": "custom", "seans": seans, "bloklar": bloklar,
+            "train_ay": train_ay, "test_ay": test_ay, "pencere_sayisi": len(pencereler),
+            "custom": {"bloklar": bloklar, "seans": seans, **_topla(tum, pen)}}
+
+
 def analiz(semboller, bas, bit, train_ay=2, test_ay=1, mod="rediscover", taze=False):
     from oar_kesif import _filtre, kesfet
     havuz = _havuz_yukle(semboller, bas, bit, taze)
@@ -193,6 +248,11 @@ def rapor_metni(s):
         return "sonuç yok"
     L = [f"═══ WALK-FORWARD (geçmişi gelecekmiş gibi) · mod={s['mod']} ═══",
          f"train {s['train_ay']}ay → test {s['test_ay']}ay, yuvarla · {s['pencere_sayisi']} pencere"]
+    if s["mod"] == "custom":
+        _blok_ozet(L, f"ÖZEL ADAY [{s.get('seans')}: {'+'.join(s.get('bloklar', []))}]", s.get("custom") or {})
+        L.append("\nYORUM: pozitif-pencere yüksek + toplu OOS pozitif + likidasyon yok → aday zamanda tutuyor "
+                 "(canlıya alınabilir). Düşük/dalgalıysa n azlığından şans → alınmaz.")
+        return "\n".join(L)
     if s["mod"] == "rediscover":
         _blok_ozet(L, "REDISCOVER (süreç doğrulama)", s.get("rediscover") or {})
     else:
@@ -213,11 +273,18 @@ def main():
     ap.add_argument("--train-ay", type=int, default=2)
     ap.add_argument("--test-ay", type=int, default=1)
     ap.add_argument("--mod", choices=["rediscover", "sabit"], default="rediscover")
+    ap.add_argument("--bloklar", default="", help="ÖZEL ADAY blokları (virgüllü) → custom WF (ör. London adayı)")
+    ap.add_argument("--seans", choices=["asya", "london", "ny"], default="asya",
+                    help="özel aday havuzu seansı (london/ny → oar_yeni_sampiyon cache'i)")
     ap.add_argument("--telegram", action="store_true")
     ap.add_argument("--taze", action="store_true")
     a = ap.parse_args()
     semboller = [s.strip().upper() for s in a.symbol.split(",") if s.strip()]
-    s = analiz(semboller, a.bas, a.bit, a.train_ay, a.test_ay, a.mod, a.taze)
+    if a.bloklar.strip():
+        bl = [b.strip() for b in a.bloklar.split(",") if b.strip()]
+        s = analiz_custom(semboller, a.bas, a.bit, bl, a.seans, a.train_ay, a.test_ay)
+    else:
+        s = analiz(semboller, a.bas, a.bit, a.train_ay, a.test_ay, a.mod, a.taze)
     if not s:
         return
     metin = rapor_metni(s)
@@ -231,6 +298,9 @@ def main():
             if s["mod"] == "sabit":
                 ozet = " · ".join(f"{k}:{v['pozitif_pencere']}/{v['pencere_sayisi']}"
                                   for k, v in (s.get("sampiyonlar") or {}).items())
+            elif s["mod"] == "custom":
+                c = s.get("custom") or {}
+                ozet = f"{c.get('pozitif_pencere')}/{c.get('pencere_sayisi')} [{s.get('seans')}]"
             else:
                 r = s.get("rediscover") or {}
                 ozet = f"{r.get('pozitif_pencere')}/{r.get('pencere_sayisi')}"
