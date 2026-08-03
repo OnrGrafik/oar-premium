@@ -2969,6 +2969,20 @@ async def oar_paper_endpoint():
     return d
 
 
+@app.get("/api/oar-ay-teshis")
+async def oar_ay_teshis_endpoint(ay: str = None):
+    """
+    AY TEŞHİSİ: bir ayın şampiyon işlemleri hata mı, normal varyans mı. FADE+TREND
+    canlı kayıtlarını okur; tarihsel bant (walkforward_sonuc.json) ile kıyaslar +
+    kazanan/kaybeden teyit farkını gösterir. ay=YYYY-MM (boşsa bu ay).
+    """
+    try:
+        from oar_ay_teshis import teshis
+        return teshis(ay)
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:120]}
+
+
 @app.get("/api/oar-orderbook")
 async def oar_orderbook_endpoint():
     """
