@@ -277,6 +277,15 @@
 - ⚠️ KALAN eksik blok `footprint_trapped`: canlıya BAĞLANAMAZ — trend adayında reclaim ileri-bar'a bakar (gelecek veri, giriş anında yok). Bu yüzden canlı en fazla poc_taraf'lı (~$1396) olabilir, tam şampiyona ($1740) değil. Dürüst sınır.
 - ⚠️ REDEPLOY: Railway main deploy eder; poc_taraf gate ancak redeploy'da canlıya girer. asia_poc_gercek httpx ister (Railway'de var).
 
+## 5z. METRICS ZAMAN-DAMGASI HATASI (kritik — 3 blok yıllardır ÖLÜ, ampirik kanıtlı)
+- KÖK NEDEN: `oar_local_backtest._metrics_oku` → `pd.to_datetime(create_time).astype("int64") // 1_000_000`. pandas 1.x'te to_datetime HEP datetime64[ns] verirdi → bölme ms üretirdi (DOĞRU). **pandas 2.0+ çözünürlüğü KORUYOR** ("2023-01-01 00:00:00" → [s]/[us]) → aynı bölme **SANİYE** üretiyor (1000× küçük). `_ms_olcekle` yalnız AŞAĞI ölçekler (ns/µs→ms) → saniyeyi DÜZELTMEZ. Kod yıllardır doğruydu, kütüphane güncellenince sessizce bozuldu.
+- ETKİ 1 (ampirik doğrulandı): `_gun_hazirla`'da metrics gün indeksi (≈19) klines gün indeksiyle (≈19700) eşleşmiyor → `gunler.get(gun)` None → continue → **oi_map/whale_ls_map/retail_ls_map HİÇ KURULMUYOR** → `oi_yuksek`+`whale_retail_zit`+`oi_tuzak` blokları TÜM keşif koşularında sessizce None → kesfet PAS GEÇTİ. "31/34 blok tarandı" koşuları fiilen **3 blok EKSİK** taradı. Bu bloklar kaybetmedi, sahaya HİÇ ÇIKMADI.
+- ETKİ 2: `oar_wsd_backtest` ilk koşusu 0 karar günü verdi (her metrik satırı "40 yıl bayat" → tazelik kapısında elendi). Belirti: tüm aylar taranır, sıfır satır, "metrics yok" uyarısı YOK.
+- ✅ DÜZELTİLDİ (yalnız yeni modüllerde): `oar_wsd_backtest._ts_ms` = çözünürlükten BAĞIMSIZ epoch-ms (metin+sayısal, s/ms/µs/ns) · `_olcek_dogrula` = 2014–2033 dışıysa HATA fırlatır (bir daha sessiz gün düşmesi YOK) · elenen-gün sayaçları.
+- ⚠️ `_metrics_oku`'nun KENDİSİ DÜZELTİLMEDİ (ANAYASA #8 — şampiyon dosyası, kullanıcı onayı bekliyor).
+- 🔧 ÖLÇÜM ARACI `oar_metrics_etki.py`: düzeltmeyi dosyaya YAZMADAN çalışma anında enjekte eder (monkey-patch, iki ad-alanına: olb + oar_sampiyon_confirm) → ① kapsam ② **GÜVENLİK KANITI**: aynı havuzda metrics alanları VARKEN vs SİLİNMİŞKEN şampiyon işlem kümesi birebir aynı mı (portföy json PF'iyle kıyaslama YANILTICI olurdu — o kayıt farklı aralık/çıkışla üretildi, sahte alarm verir) ③ kesfet (metrics blokları artık yarışıyor) ④ serap bateri (DSR≥0.95). Portföye YAZMAZ. Cache `.metrics_etki_cache` — **`.serap_cache` KULLANILMAZ** (oradaki adaylar bozuk metrics ile üretildi, alanları taşımıyor).
+- KOMUT: `python oar_metrics_etki.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram` (aggTrades yeniden işlenir → AĞIR) · `--kendi-test` parquet gerektirmez.
+
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
 - Tüm research/backtest/pattern/hipotez ajanları bulgularını buraya raporlar (OAR'ı geliştirmeye yönelik).
