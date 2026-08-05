@@ -63,7 +63,7 @@ def indir_bir_kez(base: str) -> bool:
     gun = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     dosya = ARSIV_DIR / f"hacim_veriseti_{gun}.json"
     try:
-        dosya.write_text(json.dumps(veri, ensure_ascii=False, indent=2))
+        dosya.write_text(json.dumps(veri, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         print(f"[hacim_indir] ❌ yazma hatası: {str(e)[:120]}", flush=True)
         return False
