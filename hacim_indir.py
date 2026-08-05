@@ -11,9 +11,9 @@ SİLİNMEDEN önce PC'ye insin diye). Her GÜN için bir dosya → hiçbir ham v
 KAYIT: ./hacim_arsiv/hacim_veriseti_<YYYY-MM-DD>.json (aynı gün tekrar çalışırsa günceller).
 
 KULLANIM:
-  Tek sefer:   python hacim_indir.py [https://oar-premium.up.railway.app]
+  Tek sefer:   python hacim_indir.py [https://oar-premium-production.up.railway.app]
   Sürekli:     python hacim_indir.py --loop            (24 saatte bir çeker)
-  Sunucu URL:  argüman > env OAR_SITE_URL > varsayılan (oar-premium.up.railway.app)
+  Sunucu URL:  argüman > env OAR_SITE_URL > varsayılan (oar-premium-production.up.railway.app)
 
 NOT: dış bağımlılık YOK (stdlib urllib). Vardiya (oar_vardiya.py) her turda tek-sefer
 çağırır → kullanıcı ayrı komut öğrenmez (CLAUDE.md 5h "tek komut" ilkesi).
@@ -26,7 +26,7 @@ import urllib.request
 from pathlib import Path
 from datetime import datetime, timezone
 
-VARSAYILAN_URL = "https://oar-premium.up.railway.app"
+VARSAYILAN_URL = "https://oar-premium-production.up.railway.app"  # §6d: -production ŞART (yalın adres provision değil, "Not Found" döner)
 ARSIV_DIR = Path(__file__).resolve().parent / "hacim_arsiv"
 
 
