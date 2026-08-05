@@ -342,6 +342,13 @@
 - ✅ DÜZELTİLENLER (yalnız tutarsız METİN/belge): `seed_oar_rules` kural bankasındaki eski "true/retail" terimi → doğru tanım + kaldırılan formülün notu (ajanlar bu bankayı okuyor). `whale_backtest.py` docstring'i "gerçek whale/retail botu verisi kullanır" DİYORDU ama `_whale_yon` whale yönünü 1/3/7g FİYAT hareketinden SİMÜLE ediyor (±%0.5 klines) → dürüst uyarı eklendi; sonuçları "whale edge" diye yorumlama.
 - ⚠️ AÇIK FIRSAT (ANAYASA #8 — YAPILMADI, onay+backtest ister): bot artık `wrd_ekstrem` (WRD kendi medyanının üstünde), `r_ekstrem`, `retail_pct` alanlarını da üretiyor. Canlı confirm yalnız `wrd` işaretine bakıyor. "WRD ekstremi" şampiyona confirm olarak eklenebilir AMA serap testi (DSR≥0.95) + #8 onayı gerekir.
 
+## 6g. SÖZLEŞME BEKÇİSİ (`oar_sozlesme_bekci.py`) — bağımlılık değişince UYAR (kalıcı)
+- KULLANICI: "kod değişince agent sistemi Telegram'a bildirim atsın, güncelleme uyarısı versin — ya da değişen sisteme uyum sağlayan yapıda kodlayalım?"
+- ⚠️ TASARIM KARARI (bilinçli, gerekçesi sunuldu): **TAM OTOMATİK UYUM YOK.** Canlı işlem sisteminde SESSİZ davranış değişimi en tehlikeli arıza sınıfı (bu oturumun kanıtları: Kiyotaka ölünce footprint boş, FRED ölünce makro None, silinmiş botların bayat kaydı lider raporuna sızması). Ayrıca ANAYASA #8 + §5s kanıtı (kendini yeniden-optimize eden sistem PF 3.05→1.31, maxDD %5→%36). Doğrusu: **TESPİT + BİLDİRİM + KAPI**; otomatik uyum yalnız KANITLI fail-safe'te (footprint Kiyotaka→Binance yedeği) ve o da BİLDİRİLİR.
+- İZLENEN 7 SÖZLEŞME (hepsi gerçek arızalardan türetildi): ① Binance L/S `longAccount` alanı (whale/retail confirm temeli) ② Binance klines index 9 takerBuyBase (footprint delta temeli) ③ `KIYOTAKA_API_KEY` ④ `FRED_API_KEY` ⑤ **ŞAMPİYON PORTFÖY BÜTÜNLÜĞÜ** — kanıtlı bloklar sessizce EZİLDİ Mİ (§5p/§5r'de İKİ KEZ yaşandı!) ⑥ serap kapısı (DSR≥0.95) ⑦ WRD formülü (eski `(gl−0.2wl)/0.8`'e dönülmüş mü; kaynak dosyayı OKUR, import ETMEZ → bağımlılık yokken de çalışır).
+- DAVRANIŞ: 6 saatte bir denetim; **imza** bazlı karşılaştırma → ilk tur SESSİZ taban kurar, değişim yoksa SESSİZ (§6b), yalnız BOZULMA/DÜZELME'de Telegram (`ajan_merkez.bildir`, tur=eksik). Kritik olanlar ⛔, fail-safe yedeğe düşenler 🟡. Durum `DATA_DIR/sozlesme_durum.json`; lider bağlamında + `/api/sozlesme-bekci`.
+- TEST: taban sessiz ✓ · değişimsiz tur sessiz ✓ · şampiyon bloğu saptırılınca ⛔ kritik alarm + `git checkout` talimatı ✓. Sandbox denetimi gerçek arızaları yakaladı (kiyotaka=yedek, fred=kırık, portföy+serap=ok).
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
