@@ -551,9 +551,11 @@ async def vade_masasi(currency="BTC"):
 # ~bu kadar USD kayar → delta-nötr kalmak için o kadar spot alıp satması gerekir.
 #  + = dealer long gamma (vol bastırır, pinler) · − = short gamma (hareketi hızlandırır)
 # Greek toggle: gamma(gex)/vega(vgx)/theta(tex)/vanna(vex) — hepsi zaten hesaplı.
-_GREEK_ALAN = {"gamma":"gex", "vega":"vgx", "theta":"tex", "vanna":"vex", "volga":"volx"}
+_GREEK_ALAN = {"gamma":"gex", "vega":"vgx", "theta":"tex", "vanna":"vex", "volga":"volx",
+               "charm":"cex"}
 _GREEK_BIRIM = {"gamma":"γ USD/%1", "vega":"vega USD/1%IV", "theta":"θ USD/gün",
-                "vanna":"vanna USD/%1", "volga":"volga USD/1%IV²"}
+                "vanna":"vanna USD/%1", "volga":"volga USD/1%IV²",
+                "charm":"charm USD/gün"}
 
 async def gex_heatmap(currency="BTC", greek="gamma", bant=0.20, max_vade=10, max_strike=32, esik=2_000_000.0, mod="kapali"):
     """Strike × vade GEX ısı haritası (çok-borsa). satirlar[].hucreler = vadeler
