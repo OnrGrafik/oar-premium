@@ -75,8 +75,10 @@ MASTER_KURALLAR = [
     (
         "OAR Asia Range — SHORT Kurulumu (Tepe Likidite Alımı)",
         "Fiyat Asia-High üstü ÜST ekstrem fib'e (≥1.0) gelince: POC üstü ve VWAP 2. bandı "
-        "üstündeyse tepe likiditesi alma eğilimidir. Whale delta SHORT iken true/retail "
-        "LONG (zıt) ve OI yüksekse güçlüdür. VPFR günlük yoğun hacim bölgesi 'kırmızı SR "
+        "üstündeyse tepe likiditesi alma eğilimidir. Whale SHORT iken retail LONG (zıt) "
+        "ve OI yüksekse güçlüdür. (WRD = whale% − retail%; retail = global HESAP oranı, "
+        "whale = top-trader POZİSYON oranı. Eski 'true retail' (gl−0.2·wl)/0.8 formülü "
+        "KALDIRILDI — matematiksel olarak yalnız 1.25× ölçek çarpanıydı.) VPFR günlük yoğun hacim bölgesi 'kırmızı SR "
         "kutusu' = direnç. 0.377 civarından likidite alınıp footprint/VPFR SR olarak "
         "çalışır; fiyat range içine girip POC/VWAP retest sonrası VWAP 2. alt bandına iner. "
         "GİRİŞ: tepe testi sonrası VWAP bandına dönüşle SHORT. STOP: VPFR hacim bölgesi "
