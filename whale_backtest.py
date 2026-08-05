@@ -1,7 +1,13 @@
 """
 whale_backtest.py — Whale/Retail + OI + Taker + VWAP + MA + RSI Backtest
 ═══════════════════════════════════════════════════════════════════════════
-Mevcut Whale/Retail botunun 1-3-7 günlük verilerini backtest filtresi olarak kullanır.
+⚠️ DÜRÜST UYARI (denetimde bulundu): başlıktaki "Whale" burada GERÇEK whale/retail
+verisi DEĞİL — `_whale_yon` fonksiyonu whale yönünü 1/3/7 günlük FİYAT hareketinden
+SİMÜLE eder (klines kapanış farkı ±%0.5). Gerçek whale/retail (top-trader pozisyon
+oranı vs global hesap oranı) canlıda `oar_session_agent._whale_retail_teyit`,
+backtest'te `oar_local_backtest` metrics parquet'i (whale_ls_map/retail_ls_map)
+üzerinden kullanılır. Bu modül eski/bağımsız bir denemedir; sonuçları "whale edge"
+diye yorumlama.
 OAR Fib seviyeleri + şu filtreler:
   • Whale yönü (1g/3g/7g) OAR sinyaliyle uyumlu mu?
   • OI: Artıyor mu?

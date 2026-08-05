@@ -321,6 +321,16 @@
 - Uygulama: `analiz_bot._wsd_yon(wsd)` (|WSD| pencerenin alt çeyreğinde → nötr) → `w_rel` artık WSD işaretinden; conviction gücü |WSD|'nin percentile'ından; grafik 4 panel (OI · Retail · ★WSD sıfır-çizgili · WRD türev). **FAIL-SAFE**: top-trader hesap ucu gelmezse eski percentile yöntemine düşer (`w_rel_kaynak`). volume_bot + ma_scanner aynı `w_rel`'i okuduğu için otomatik position-size tabanlı oldu.
 - ⚠️ Binance alan-adı tuzağı: `topLongShortPositionRatio` yanıtında alan adı yine `longAccount` ama DEĞERİ pozisyon oranıdır. Kod doğru okuyor; isme aldanma.
 
+## 6f. WHALE/RETAIL FORMÜL DEĞİŞİMİ — OAR ZATEN UYUMLU (denetim, kalıcı)
+- KULLANICI: "Whale retail kodu değişti, agentler onu kontrol edip kendini güncellesin."
+- DEĞİŞEN (sinyal-bot reposu, `4c1db82` analiz_bot.py): eski **"true retail"** `(global − 0.2·whale)/0.8` formülü KALDIRILDI → düz **`WRD = whale% − retail%`**. Gerekçe: eski formül matematiksel olarak yalnız `1.25·(whale − global)` idi (sadece ölçek çarpanı). Sayısal doğrulandı: g=0.62/t=0.48 → yeni −14.0, eski −17.5 = 1.25×(−14.0) ✓.
+- ✅ DENETİM SONUCU: **OAR'da güncellenecek kod YOK — zaten yeni formüldeydi.**
+  • CANLI şampiyon confirm `oar_session_agent._whale_retail_teyit`: `retail=globalLongShortAccountRatio.longAccount×100`, `whale=topLongShortPositionRatio.longAccount×100`, `wrd=whale−retail` → bot'un YENİ formülüyle BİREBİR (sayısal test: fark 0).
+  • BACKTEST `oar_local_backtest` (whale_ls_map/retail_ls_map, metrics parquet): L/S ORANLARINI 1.0'a kıyaslar; `oran>1.0 ⟺ long%>50` → yeni mantıkla SEMANTİK OLARAK AYNI (yalnız gösterim farkı: oran vs yüzde).
+  • Eski `(gl−0.2·wl)/0.8` formülünün OAR'da HİÇBİR izi yok.
+- ✅ DÜZELTİLENLER (yalnız tutarsız METİN/belge): `seed_oar_rules` kural bankasındaki eski "true/retail" terimi → doğru tanım + kaldırılan formülün notu (ajanlar bu bankayı okuyor). `whale_backtest.py` docstring'i "gerçek whale/retail botu verisi kullanır" DİYORDU ama `_whale_yon` whale yönünü 1/3/7g FİYAT hareketinden SİMÜLE ediyor (±%0.5 klines) → dürüst uyarı eklendi; sonuçları "whale edge" diye yorumlama.
+- ⚠️ AÇIK FIRSAT (ANAYASA #8 — YAPILMADI, onay+backtest ister): bot artık `wrd_ekstrem` (WRD kendi medyanının üstünde), `r_ekstrem`, `retail_pct` alanlarını da üretiyor. Canlı confirm yalnız `wrd` işaretine bakıyor. "WRD ekstremi" şampiyona confirm olarak eklenebilir AMA serap testi (DSR≥0.95) + #8 onayı gerekir.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
