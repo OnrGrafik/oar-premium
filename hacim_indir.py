@@ -39,8 +39,17 @@ def _base_url() -> str:
 
 def indir_bir_kez(base: str) -> bool:
     url = f"{base}/api/hacim-veriseti"
+    # ÜYELİK KAPISI (§0UYE): /api/* oturum ister; yerel senkron scriptleri X-API-Key ile
+    # MUAF. OAR_API_KEY env'i (Railway'deki ile AYNI) ayarlı değilse 401 yenir.
+    headers = {"User-Agent": "oar-hacim-indir"}
+    _key = os.environ.get("OAR_API_KEY")
+    if _key:
+        headers["X-API-Key"] = _key
+    else:
+        print("[hacim_indir] ⚠ OAR_API_KEY env yok → üyelik kapısı 401 dönebilir "
+              "(Railway'deki OAR_API_KEY'i PC'ye ayarla).", flush=True)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "oar-hacim-indir"})
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=30) as r:
             veri = json.loads(r.read().decode("utf-8"))
     except Exception as e:
