@@ -11,9 +11,9 @@ SİLİNMEDEN önce PC'ye insin diye). Her GÜN için bir dosya → hiçbir ham v
 KAYIT: ./hacim_arsiv/hacim_veriseti_<YYYY-MM-DD>.json (aynı gün tekrar çalışırsa günceller).
 
 KULLANIM:
-  Tek sefer:   python hacim_indir.py [https://oar-premium.up.railway.app]
+  Tek sefer:   python hacim_indir.py [https://oar-premium-production.up.railway.app]
   Sürekli:     python hacim_indir.py --loop            (24 saatte bir çeker)
-  Sunucu URL:  argüman > env OAR_SITE_URL > varsayılan (oar-premium.up.railway.app)
+  Sunucu URL:  argüman > env OAR_SITE_URL > varsayılan (oar-premium-production.up.railway.app)
 
 NOT: dış bağımlılık YOK (stdlib urllib). Vardiya (oar_vardiya.py) her turda tek-sefer
 çağırır → kullanıcı ayrı komut öğrenmez (CLAUDE.md 5h "tek komut" ilkesi).
@@ -26,7 +26,7 @@ import urllib.request
 from pathlib import Path
 from datetime import datetime, timezone
 
-VARSAYILAN_URL = "https://oar-premium.up.railway.app"
+VARSAYILAN_URL = "https://oar-premium-production.up.railway.app"  # §6d: -production ŞART (yalın adres provision değil, "Not Found" döner)
 ARSIV_DIR = Path(__file__).resolve().parent / "hacim_arsiv"
 
 
@@ -39,8 +39,17 @@ def _base_url() -> str:
 
 def indir_bir_kez(base: str) -> bool:
     url = f"{base}/api/hacim-veriseti"
+    # ÜYELİK KAPISI (§0UYE): /api/* oturum ister; yerel senkron scriptleri X-API-Key ile
+    # MUAF. OAR_API_KEY env'i (Railway'deki ile AYNI) ayarlı değilse 401 yenir.
+    headers = {"User-Agent": "oar-hacim-indir"}
+    _key = os.environ.get("OAR_API_KEY")
+    if _key:
+        headers["X-API-Key"] = _key
+    else:
+        print("[hacim_indir] ⚠ OAR_API_KEY env yok → üyelik kapısı 401 dönebilir "
+              "(Railway'deki OAR_API_KEY'i PC'ye ayarla).", flush=True)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "oar-hacim-indir"})
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=30) as r:
             veri = json.loads(r.read().decode("utf-8"))
     except Exception as e:
