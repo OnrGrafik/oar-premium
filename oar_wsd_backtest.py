@@ -71,6 +71,51 @@ OT_MIN, OT_MAX = 1_400_000_000_000, 2_000_000_000_000
 # ═══════════════════════════════════════════════════════════════════════════════
 #  METRİK DÖNÜŞÜMLERİ
 # ═══════════════════════════════════════════════════════════════════════════════
+def _ts_ms(seri):
+    """
+    Zaman kolonu → epoch MİLİSANİYE. pandas ÇÖZÜNÜRLÜĞÜNDEN BAĞIMSIZ.
+
+    ⚠️ NEDEN AYRI: `_metrics_oku` şunu yapıyor →
+        pd.to_datetime(create_time).astype("int64") // 1_000_000
+    pandas 1.x'te to_datetime HEP datetime64[ns] veriyordu → //1e6 = ms (doğru).
+    pandas 2.0+ çözünürlüğü KORUYOR ("2023-01-01 00:00:00" → [s] veya [us]) →
+    aynı bölme SANİYE üretiyor, yani 1000× küçük. `_ms_olcekle` yalnız AŞAĞI
+    ölçekler (ns/µs→ms), saniyeyi düzeltmez → metrik satırları 40 yıl bayat
+    görünür ve sessizce elenir. Bu fonksiyon her iki dünyada da doğru sonucu verir.
+    """
+    import numpy as np
+    import pandas as pd
+
+    if pd.api.types.is_numeric_dtype(seri):
+        arr = np.asarray(seri, dtype="float64")
+        out = arr.copy()
+        out[arr < 1e11] = arr[arr < 1e11] * 1_000.0            # s  → ms
+        out[(arr >= 1e14) & (arr < 1e17)] = arr[(arr >= 1e14) & (arr < 1e17)] / 1_000.0   # µs → ms
+        out[arr >= 1e17] = arr[arr >= 1e17] / 1_000_000.0      # ns → ms
+        return out.astype("int64")
+
+    dt = pd.to_datetime(seri, errors="coerce", utc=True)
+    epoch = pd.Timestamp("1970-01-01", tz="UTC")
+    return ((dt - epoch) // pd.Timedelta("1ms")).to_numpy(dtype="int64")
+
+
+def _olcek_dogrula(ad, arr):
+    """Zaman dizisi makul epoch-ms aralığında mı (2014–2033). Değilse HATA — sessiz düşme YOK."""
+    import numpy as np
+    if not len(arr):
+        return
+    orta = float(np.median(np.asarray(arr, dtype="float64")))
+    if not (OT_MIN <= orta < OT_MAX):
+        raise ValueError(
+            f"{ad}: zaman ölçeği bozuk (medyan {orta:.0f} → "
+            f"{_utc(orta).year}). Beklenen epoch-ms.")
+
+
+def _utc(ms):
+    """epoch-ms → UTC datetime (tz-aware; utcfromtimestamp deprecation'ı yok)."""
+    return datetime.fromtimestamp(max(float(ms), 0) / 1000, tz=timezone.utc)
+
+
 def long_pct(oran):
     """L/S oranı → long yüzdesi. r=1 → %50. Geçersiz/negatif → None."""
     try:
@@ -133,10 +178,15 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None):
     cl = k["close"].to_numpy(dtype="float64")
     op = k["open"].to_numpy(dtype="float64")
 
+    # ⚠️ ts_ms'i _metrics_oku'dan ALMIYORUZ (pandas 2.0+ çözünürlük tuzağı — _ts_ms
+    #    docstring'ine bak). Ham create_time'dan yeniden, çözünürlükten bağımsız kurulur.
     m = m.copy()
-    m["ts_ms"] = _ms_olcekle(m["ts_ms"])
+    zaman_kolon = "create_time" if "create_time" in m.columns else "ts_ms"
+    m["ts_ms"] = _ts_ms(m[zaman_kolon])
     m = m.sort_values("ts_ms")
     mts = m["ts_ms"].to_numpy(dtype="int64")
+    _olcek_dogrula(f"{sembol} metrics ({zaman_kolon})", mts)
+    _olcek_dogrula(f"{sembol} klines", ot)
     m_kayit = m.to_dict("records")
 
     # σ_gün: önceki SIGMA_PENCERE gününün ortalama günlük range%'i (STRICT geçmiş)
@@ -153,10 +203,12 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None):
 
     satirlar = []
     son_ay = ""
+    red = {"sigma_penceresi": 0, "giris_bari": 0, "ileri_pencere": 0, "metrik_bayat": 0}
     for g in gunler:
         g = int(g)
         sigma = sigma_map.get(g)
         if sigma is None:
+            red["sigma_penceresi"] += 1
             continue
         karar_ts = g * GUN_MS + int(KARAR_SAAT_UTC * SAAT_MS)
 
@@ -168,21 +220,27 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None):
         # giriş barı: karar anına ait/önceki 1m bar (en fazla 5 dk boşluk)
         gi = int(np.searchsorted(ot, karar_ts, side="right")) - 1
         if gi < 0 or karar_ts - int(ot[gi]) > 5 * 60_000:
+            red["giris_bari"] += 1
             continue
         # ileri yol: giriş barından sonra TUT_SAAT boyunca
         i0 = gi + 1
         i1 = int(np.searchsorted(ot, karar_ts + TUT_SAAT * SAAT_MS, side="right"))
         if i1 - i0 < 60:
+            red["ileri_pencere"] += 1
             continue
         # metrik satırı: karar anından en fazla TAZELIK_DK eski
         mi = int(np.searchsorted(mts, karar_ts, side="right")) - 1
         if mi < 0 or karar_ts - int(mts[mi]) > TAZELIK_DK * 60_000:
+            red["metrik_bayat"] += 1
             continue
 
         mv = _metrikler(m_kayit[mi])
         satirlar.append({"gun": g, "ts": karar_ts, "giris": float(cl[gi]),
                          "sigma": sigma, "i0": i0, "i1": i1, **mv})
 
+    if red["metrik_bayat"] or not satirlar:
+        ara = lambda a: (f"{_utc(a[0]):%Y-%m-%d} → {_utc(a[-1]):%Y-%m-%d}") if len(a) else "boş"
+        print(f"      · elenen gün: {red} | klines {ara(ot)} | metrics {ara(mts)}", flush=True)
     _pct_ekle(satirlar, ["wsd", "kohort", "taker", "wrd"])
     return satirlar, hi, lo, cl
 
