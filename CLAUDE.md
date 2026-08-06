@@ -318,6 +318,18 @@
   ② **Canlı site URL'si = `oar-premium-production.up.railway.app`** (`-production` VAR). `oar-premium.up.railway.app` (CLAUDE.md eski varsayılan) PROVISION EDİLMEMİŞ → "Not Found: train has not arrived" verir (uygulama down sanılır ama değil). hacim_indir.py varsayılan URL'si de bu yüzden yanlış (`-production`'a güncellenecek).
   ③ Teşhis öncesi mutlaka `git fetch origin main` + main'i temel al; feature dalın main'in gerisinde olabilir (footprint mimarisi main'de daha ileri — bu oturumda feature dalı merge etmeye çalışınca çakıştı, iptal edilip main'e cerrahi eklendi).
 
+## 6d3. FOOTPRINT "VERİLER DOĞRU DEĞİL" — GERÇEK KÖK NEDEN: KIYOTAKA ŞİŞİK BİRİM (KESİN, teşhisle kanıtlandı)
+- KULLANICI (defalarca, haklı sitem): "veriler doğru değil, çubuklar boş/dolmuyor, matematik yanlış." Grafik değil VERİ sorunuymuş.
+- 🔬 TEŞHİS (canlı `/api/akis/footprint-tani` — aggTrades vs klines kıyası eklendi): bir 5m BTC barı için
+  • klines_volume (OTORİTE) = **132.937 BTC** (takerBuy 37.798 / takerSell 95.139)
+  • bizim aggTrades = **132.937 BTC** (alis 37.798 = takerBuy BİREBİR) → **%100 eşleşme, veri TAM & DOĞRU**
+  • Kiyotaka = alis **1.319.984** / satis **547.475** (~1.87M) → gerçek 133 BTC'nin ~**14.000×'i**, BTC DEĞİL
+  • footprint_ciktisi: kaynak=**kiyotaka**, birlesik_alis **34.102.946** → ekrandaki "Toplam 77.1M BTC" (imkânsız)
+- 🎯 KÖK NEDEN: footprint() Kiyotaka'yı BİRİNCİL seçiyordu (`_KFP_CACHE` dolunca aggTrades hiç çalışmıyordu). Kiyotaka bar_footprint BTC değil şişik birim (USD/kontrat) döndürüyor → "BTC" sanılıp toplanıyordu. Bizim %100 doğru aggTrades'imiz yalnız Kiyotaka boşken devreye giren YEDEK'ti. §6d'de "Kiyotaka çalışırsa tercih edilir" YANLIŞ karar çıktı — Kiyotaka'nın birimi bozuk.
+- ✅ DÜZELTME (kalıcı): **KIYOTAKA footprint kaynağından TAMAMEN ÇIKARILDI.** footprint() artık her zaman aggTrades gerçek tick (arka planda `_fp_doldur`, ensure_future) + 1dk-taker anlık yedek (o da doğru BTC=takerBuyBase) kullanır. Read-order'dan `_KFP_CACHE` çıkarıldı (`bf = _FP_CACHE or yedek`). Dış API bağımlılığı bitti, OAR-native, birim DOĞRU BTC.
+- ⚠️ SONUÇ: ekrandaki değerler artık GERÇEK BTC adedi (bar başı ~100-2000 BTC, seviye başı küçük sayılar — kullanıcının istediği "BTC adedi"). cryexc/referans "milyon" gösterir çünkü onlar USD notional (fpUsd toggle) — ayrı tercih. Kiyotaka'nın 5u/6d'deki confirm/CIO kullanımları AYRI (bu düzeltme yalnız footprint görselini etkiler).
+- 📌 DERS: "veri doğru mu" sorusunda ÖNCE otorite kıyası (aggTrades toplamı == klines hacmi %). Kaynak tercih ederken birim/ölçek DOĞRULA — yüksek çözünürlük ≠ doğru birim. Teşhis ucu (footprint-tani) geçici üye-kapısından muaf (redeploy sonrası kullanıcı doğrular; sonra tekrar kapatılabilir).
+
 ## 6d2. FOOTPRINT TICK / SMART VERTICAL SCALING (kullanıcı "tick 3'te göster", kalıcı)
 - KULLANICI: "tick ayarını tam yapamadığın için kötü gösteriyor; tick 3'te göstermeye çalış."
 - 🔍 KÖK NEDEN (prof. araştırma — ATAS/Coinank): footprint TEK tick'i hem VERİ TOPLAMA hem EKRAN satırı için kullanıyordu. İnce tick (BTC $3) → 15m mumda 50-100 seviye → her satır ~1px → sayılar SIĞMIYOR → sadece renk bloğu = "kötü görüntü". Kalın tick (25/50) → az seviye ama referanstaki yoğunluk YOK.
