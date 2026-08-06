@@ -39,6 +39,9 @@ DURUM_FILE    = _DATA_DIR / "hacim_konsey_durum.json"    # son özet günü + ha
 VERISET_FILE  = Path(__file__).resolve().parent / "hacim_veriseti.json"  # repo-kökü, git-senkron (PC'ye iner)
 
 SEMBOLLER   = ("BTCUSDT", "ETHUSDT")
+# Konsensüs YÖN eşiği — TEK KAYNAK (lider bağlamı da bunu yazar; eşik-altı "zayıf eğilim"
+# olarak gösterilir ki lider "NOTR" ile anlık olaydaki "SHORT"u çelişki sanmasın).
+_NET_ESIK   = 0.15
 TOPLA_ARALIK_S = 300          # 5 dk'da bir snapshot
 SNAPSHOT_CAP   = 3000         # ~1 hafta (2 sembol × 288/gün × 7 ≈ 4032; cap güvenli üst sınır)
 OZET_SAAT_UTC  = 3            # gün sonu özet saati (UTC). Kullanıcı "gece 03:00" — değiştirilebilir.
@@ -223,14 +226,24 @@ async def a_opsiyon(sembol):
         spot = g.get("spot"); zg = g.get("zero_gamma")
         cw = g.get("call_wall"); pw = g.get("put_wall")
         yon = "NOTR"; guc = 0.0
+        # GAMMA REJİMİ ARTIK YÖNE GİRİYOR (kullanıcı: "diğeri negatif gamma bildirimi
+        # atıyor, bu arkadaşlar bu işe bakmıyor mu?" — HAKLIYDI: rejim hesaplanıyor ama
+        # yalnız açıklama metnine yazılıyordu, oy (CW+PW)/2 orta noktasından geliyordu).
+        # Mekanizma (Hull böl.19): spot < ZG → dealer NEGATİF gamma → hareketi HIZLANDIRIR
+        # (momentum/aşağı ivme) · spot > ZG → POZİTİF gamma → bastırır (duvarlar arası pinleme).
         if spot and zg:
-            # NEGATİF gamma (spot<ZG) → volatil/trend; POZİTİF → mean-revert.
-            # Yön: put_wall'a yakın = destekli (LONG eğilim), call_wall'a yakın = dirençli (SHORT).
-            if pw and cw and cw > pw:
-                orta = (cw + pw) / 2
-                sapma = (orta - spot) / spot     # spot ortanın altında → yukarı alan (LONG)
-                yon = "LONG" if sapma > 0.005 else ("SHORT" if sapma < -0.005 else "NOTR")
-                guc = _clamp01(abs(sapma) * 20.0)
+            zg_sapma = (spot - zg) / spot            # + : ZG üstü (pozitif gamma)
+            if zg_sapma < -0.001:                    # NEGATİF gamma → düşüş ivmelenir
+                yon = "SHORT"
+                guc = _clamp01(abs(zg_sapma) * 25.0 + 0.25)
+            elif zg_sapma > 0.001:                   # POZİTİF gamma → mean-revert/pinleme
+                # Pozitif gamma'da yön duvarlara göre: PW'ye yakın destekli (LONG),
+                # CW'ye yakın dirençli (SHORT); duvar yoksa stabilize = NOTR.
+                if pw and cw and cw > pw:
+                    orta = (cw + pw) / 2
+                    sapma = (orta - spot) / spot
+                    yon = "LONG" if sapma > 0.005 else ("SHORT" if sapma < -0.005 else "NOTR")
+                    guc = _clamp01(abs(sapma) * 20.0)
         return {"ad": ad, "yon": yon, "guc": guc,
                 "kanit": f"{g.get('gamma_rejim','—')} · spot {spot} CW {cw} PW {pw} ZG {zg}",
                 "ham": {"spot": spot, "call_wall": cw, "put_wall": pw, "zero_gamma": zg,
@@ -280,7 +293,7 @@ def _konsensus(uyeler):
         elif isaret < 0:
             short_g += u["guc"]
     net = puan / agirlik if agirlik > 0 else 0.0
-    yon = "LONG" if net > 0.15 else ("SHORT" if net < -0.15 else "NOTR")
+    yon = "LONG" if net > _NET_ESIK else ("SHORT" if net < -_NET_ESIK else "NOTR")
     # mutabakat = baskın yöndeki üye sayısı / aktif üye
     yonler = [u["yon"] for u in aktif if u["yon"] != "NOTR"]
     if yonler:
@@ -314,6 +327,80 @@ def _snapshot_ekle(snap):
     _save(SNAPSHOT_FILE, db)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  OLAY YAKALAMA (kullanıcı: "hacim değişince bildirim yok, gün sonunu bekliyor")
+#  Konsey artık gün sonunu BEKLEMEDEN anlamlı DEĞİŞİMİ anında bildirir. Doğası gereği
+#  düşük gürültü: yalnız DURUM DEĞİŞTİĞİNDE tetiklenir (§6b), tekrarlamaz.
+# ═══════════════════════════════════════════════════════════════════════════════
+OLAY_FILE = _DATA_DIR / "hacim_konsey_olay.json"
+MUTABAKAT_OLAY_ESIK = 0.60      # bu mutabakatın üstündeki yön dönüşü bildirilir
+
+
+def _olay_durum_yukle():
+    return _load(OLAY_FILE, {})
+
+
+def _olay_durum_yaz(d):
+    _save(OLAY_FILE, d)
+
+
+def _gamma_rejim(snap):
+    """Snapshot'taki opsiyon üyesinden gamma rejimini çıkar (NEGATİF/POZİTİF/—)."""
+    for u in snap.get("uyeler", []):
+        if u.get("ad") == "opsiyon":
+            r = str((u.get("ham") or {}).get("gamma_rejim") or "")
+            if "NEGAT" in r.upper():
+                return "NEGATİF"
+            if "POZİT" in r.upper() or "POZIT" in r.upper():
+                return "POZİTİF"
+    return ""
+
+
+async def olay_tara(snap: dict):
+    """
+    Snapshot'ı önceki durumla karşılaştır → anlamlı olayı ANINDA Telegram'a bildir.
+    Yakalananlar: ① konsensüs YÖN DÖNÜŞÜ (güçlü mutabakatla) ② GAMMA REJİM dönüşü
+    (diğer bildirim hattının konuştuğu olay — konsey artık ondan habersiz değil).
+    """
+    sembol = snap.get("sembol")
+    kon = snap.get("konsensus") or {}
+    yon = kon.get("yon"); mut = kon.get("mutabakat", 0.0)
+    gam = _gamma_rejim(snap)
+    durum = _olay_durum_yukle()
+    onceki = durum.get(sembol) or {}
+    olaylar = []
+
+    # ① Konsensüs yön dönüşü (yalnız GÜÇLÜ mutabakatta — zayıf salınım gürültüdür)
+    o_yon = onceki.get("yon")
+    if (o_yon and yon and yon != "NOTR" and o_yon != "NOTR" and yon != o_yon
+            and mut >= MUTABAKAT_OLAY_ESIK):
+        olaylar.append(f"🔄 *{sembol}* hacim konsensüsü *{o_yon} → {yon}* "
+                       f"(mutabakat %{mut*100:.0f}, net {kon.get('net',0):+.2f})")
+
+    # ② Gamma rejim dönüşü (opsiyon üyesi artık bunu YÖNE de katıyor)
+    o_gam = onceki.get("gamma")
+    if o_gam and gam and gam != o_gam:
+        olaylar.append(f"⚡ *{sembol}* gamma rejimi *{o_gam} → {gam}* "
+                       f"({'hareket hızlanır' if gam=='NEGATİF' else 'hareket bastırılır/pinleme'})")
+
+    # durum güncelle (ilk turda yalnız taban kurulur → sahte 'dönüş' bildirimi olmaz)
+    durum[sembol] = {"yon": yon, "gamma": gam, "ts": _now().isoformat()}
+    if olaylar and onceki:
+        # BÜTÜNLEŞİKLİK: olayları sakla → lider gözlemi de bunları görsün (konsey_baglami)
+        gecmis = durum.get("son_olaylar") or []
+        for o in olaylar:
+            gecmis.append({"ts": _now().isoformat(), "metin": o.replace("*", "")})
+        durum["son_olaylar"] = gecmis[-20:]
+    _olay_durum_yaz(durum)
+
+    if olaylar and onceki:
+        uyeler = ", ".join(f"{u['ad']}={u['yon']}" for u in snap.get("uyeler", []) if u.get("aktif"))
+        metin = ("⚠️ *HACİM KONSEYİ — ANLIK OLAY*\n" + "\n".join(olaylar)
+                 + f"\n_üyeler: {uyeler}_")
+        await _uzun_gonder(metin)
+        print(f"[hacim_konseyi] olay bildirildi: {sembol} {olaylar}", flush=True)
+
+
 async def konsey_loop():
     """Sürekli toplayıcı. Başlatma: main.py startup Group 1 (order-book'un yanına)."""
     await asyncio.sleep(45)   # startup yoğunluğu geçsin
@@ -322,6 +409,10 @@ async def konsey_loop():
             for s in SEMBOLLER:
                 snap = await konsey_topla(s)
                 _snapshot_ekle(snap)
+                try:
+                    await olay_tara(snap)      # gün sonunu bekleme — anlamlı değişimi anında bildir
+                except Exception as e:
+                    print(f"[hacim_konseyi] olay tarama hata: {e}", flush=True)
                 await asyncio.sleep(2)
         except Exception as e:
             print(f"[hacim_konseyi] toplayıcı hata: {e}", flush=True)
@@ -397,6 +488,14 @@ def denetim(gun_ozeti=None):
         aktif_oran = b["aktif_n"] / n
         notr_oran = b["notr"] / n
         guc_ort = b["guc_top"] / n
+        # SABİT ÜYE tespiti: gün boyu TEK yön (ör. makro 279/279 SHORT) → hiç ayrışma
+        # üretmiyor, konsensüse sadece sabit bir kayma ekliyor = BİLGİ KATKISI YOK.
+        tek_yon = max(b["long"], b["short"], b["notr"])
+        if aktif_oran >= 0.3 and n >= 20 and tek_yon / n >= 0.98:
+            hangi = "LONG" if b["long"] == tek_yon else ("SHORT" if b["short"] == tek_yon else "NOTR")
+            notlar.append(f"🔁 {ad}: gün boyu SABİT {hangi} ({tek_yon}/{n}) — hiç ayrışma yok, "
+                          f"konsensüse sabit kayma ekliyor (bilgi katkısı ~YOK).")
+            continue
         if aktif_oran < 0.3:
             notlar.append(f"⚠️ {ad}: aktif-oran %{aktif_oran*100:.0f} — çoğu zaman veri gelmiyor (ARIZALI/gereksiz?).")
         elif notr_oran > 0.9:
@@ -571,12 +670,20 @@ async def gunluk_ozet_loop():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def konsey_baglami() -> str:
-    """Son snapshot(lar) dan kısa lider bağlamı metni (site bağlamına eklenir)."""
+    """
+    Son snapshot(lar)dan lider bağlamı metni (site bağlamına eklenir).
+    BÜTÜNLEŞİKLİK (kullanıcı sitemi: "biri NOTR derken diğeri SHORT veriyor"):
+      ① snapshot ZAMANI + YAŞI yazılır → lider bayat veriyi taze sanmaz (konsey 5dk'da
+         güncellenir + site bağlamı 120s cache → lidere ~7dk bayat düşebiliyordu).
+      ② NOTR ise EĞİLİM açıkça yazılır (net −0.13 eşiğin kılpayı üstünde "NOTR" görünüp
+         anlık olaydaki SHORT ile ÇELİŞKİ sanılıyordu — aslında ikisi de aynı yöne eğilimli).
+      ③ SON OLAYLAR eklenir → lider, anlık bildirim hattının ne dediğini de görür.
+    """
     db = _load(SNAPSHOT_FILE, {"snapshots": []})
     snaps = db.get("snapshots", [])
     if not snaps:
         return "HACİM KONSEYİ: henüz snapshot yok."
-    L = ["HACİM KONSEYİ (bağımsız hacim analizörleri, son durum):"]
+    L = [f"HACİM KONSEYİ (bağımsız hacim analizörleri · yön eşiği ±{_NET_ESIK}):"]
     for sembol in SEMBOLLER:
         son = None
         for s in reversed(snaps):
@@ -586,10 +693,33 @@ def konsey_baglami() -> str:
         if not son:
             continue
         k = son.get("konsensus", {})
+        net = k.get("net", 0.0)
+        yon = k.get("yon", "?")
+        # ② eşik-altı eğilimi göster (sert eşik sürekli değeri ikili gösteriyordu)
+        if yon == "NOTR" and abs(net) > 0.03:
+            yon_txt = f"NOTR (zayıf {'SHORT' if net < 0 else 'LONG'} eğilimi)"
+        else:
+            yon_txt = yon
+        # ① tazelik
+        yas = ""
+        try:
+            dk = (_now() - _parse_ts(son.get("ts"))).total_seconds() / 60.0
+            yas = f", {dk:.0f} dk önce" if dk >= 1 else ", şimdi"
+        except Exception:
+            pass
         aktif = [u for u in son.get("uyeler", []) if u.get("aktif")]
         uye_txt = ", ".join(f"{u['ad']}={u['yon']}({u['guc']:.1f})" for u in aktif) or "aktif üye yok"
-        L.append(f"  {sembol}: konsensüs {k.get('yon','?')} (net {k.get('net',0):+.2f}, "
-                 f"mutabakat %{k.get('mutabakat',0)*100:.0f}) · {uye_txt}")
+        L.append(f"  {sembol}: konsensüs {yon_txt} (net {net:+.2f}, "
+                 f"mutabakat %{k.get('mutabakat',0)*100:.0f}{yas}) · {uye_txt}")
+    # ③ anlık olay hattıyla bütünleşme
+    try:
+        olaylar = (_load(OLAY_FILE, {}) or {}).get("son_olaylar", [])[-3:]
+        if olaylar:
+            L.append("  Son anlık olaylar (aynı konseyin canlı bildirimleri):")
+            for o in olaylar:
+                L.append(f"    · {o.get('ts','')[11:16]} — {o.get('metin','')}")
+    except Exception:
+        pass
     return "\n".join(L)
 
 
