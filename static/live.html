@@ -462,7 +462,7 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true,fpUsd:false};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true,fpUsd:false,fpDelta:true};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 // TEK SEFERLİK: kazara açık kalmış '$' (fpUsd) modunu BTC'ye sıfırla (kullanıcı BTC adedi istedi)
 try{if(!localStorage.getItem('oar_fpusd_reset')){_kAyar.fpUsd=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpusd_reset','1');}}catch(e){}
@@ -490,7 +490,7 @@ function _hx2rgba(hx,a){hx=(hx||'#000').replace('#','');if(hx.length===3)hx=hx.s
 // ── TradingView tarzı SOL-ÜST indikatör listesi + her birinin ayar/renk paneli ──
 const _kIND=[
   {id:'oar', ad:'OAR Sistemi', ana:'oar', alt:[['seans','Seans kutuları'],['fib','Asia Fibonacci'],['key','Key Levels'],['vwap','VWAP (D)'],['vp','Volume Profile']]},
-  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['fpHeat','Hücre arka planı (heat)'],['fpBirlesik','Sağda birleşik mum'],['fpUsd','Değerler $ (kapalı = BTC adedi)']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif'],['arkaplan','Grafik arka planı']]},
+  {id:'fp',  ad:'Footprint',   ana:'fp',  alt:[['fpDelta','Delta modu (tek sayı — referans)'],['fpHeat','Hücre arka planı (heat)'],['fpBirlesik','Sağda birleşik mum'],['fpUsd','Değerler $ (kapalı = BTC adedi)']], renk:[['fpAl','Alım'],['fpSat','Satım'],['fpDeltaP','Δ pozitif'],['fpDeltaN','Δ negatif'],['arkaplan','Grafik arka planı']]},
   {id:'hmap', ad:'Isı Haritası (duvarlar)', ana:'hmap', borsa:true},
   {id:'likmap', ad:'Liq Map',  ana:'likmap', alt:[], renk:[['liqLong','Long likidasyon'],['liqShort','Short likidasyon']]},
   {id:'liq', ad:'Likidite (emirler)', ana:'liq', alt:[], renk:[['liqBid','Alt (bid)'],['liqAsk','Üst (ask)']]},
@@ -1157,6 +1157,7 @@ function kFpCiz(g,c,ts,W,H,sym){
   const ppTick=(_pA!=null&&_pB!=null)?Math.abs(_pA-_pB):0;   // 1 collection tick = kaç px
   const mergeN=ppTick>0?Math.max(1,Math.round(13/ppTick)):1; // okunur satır için birleşme
   const dTick=tick*mergeN;                                    // ekran satır tick'i
+  const deltaMode=_kAyar.fpDelta!==false;   // varsayılan: DELTA hücresi (cryexc/josedonato tarzı, tek sayı — okunur)
   for(const m of fp.mumlar){
     const cx=ts.timeToCoordinate(Math.floor(m.t/1000)+K_TZ);
     if(cx==null||cx<-hw-40||cx>W+hw+40)continue;
@@ -1168,8 +1169,12 @@ function kFpCiz(g,c,ts,W,H,sym){
     const yO=c.ca.priceToCoordinate(m.o),yC=c.ca.priceToCoordinate(m.c),
           yHi=c.ca.priceToCoordinate(m.h),yLo=c.ca.priceToCoordinate(m.l);
     const yesil=m.c>=m.o, mc=yesil?'#26a69a':'#ef5350';
-    if(yHi!=null&&yLo!=null){g.strokeStyle=mc;g.lineWidth=1;g.beginPath();g.moveTo(cx,yHi);g.lineTo(cx,yLo);g.stroke();}
-    if(yO!=null&&yC!=null){g.fillStyle=mc;g.fillRect(cx-cw/2,Math.min(yO,yC),cw,Math.max(Math.abs(yC-yO),1));}
+    // DELTA modunda mum GÖVDESİ çizilmez (delta blokları mumu temsil eder — referans gibi);
+    // fitil hücrelerin ÜSTÜNE grid sonrası çizilir. Klasik modda normal ince mum.
+    if(!deltaMode){
+      if(yHi!=null&&yLo!=null){g.strokeStyle=mc;g.lineWidth=1;g.beginPath();g.moveTo(cx,yHi);g.lineTo(cx,yLo);g.stroke();}
+      if(yO!=null&&yC!=null){g.fillStyle=mc;g.fillRect(cx-cw/2,Math.min(yO,yC),cw,Math.max(Math.abs(yC-yO),1));}
+    }
 
     // ── SEVİYE GRİDİ: SOL=satış / SAĞ=alış (referans düzeni) ──
     if(sev.length){
@@ -1179,7 +1184,7 @@ function kFpCiz(g,c,ts,W,H,sym){
           const r=dm[db]||(dm[db]={p:db,alis:0,satis:0});r.alis+=s.alis;r.satis+=s.satis;}
         dsev=Object.values(dm).sort((a,b)=>b.p-a.p);}
       else dsev=sev;
-      let maxH=1;for(const s of dsev)maxH=Math.max(maxH,s.alis,s.satis);
+      let maxH=1,maxAbsD=1;for(const s of dsev){maxH=Math.max(maxH,s.alis,s.satis);maxAbsD=Math.max(maxAbsD,Math.abs(s.alis-s.satis));}
       const RAT=3,MINV=Math.max(maxH*0.08,1);
       const cellW=hw-cyari-1;
       // ekran POC (birleşik satırda en yüksek toplam hacim)
@@ -1190,24 +1195,36 @@ function kFpCiz(g,c,ts,W,H,sym){
         const alt=dsev[i+1],ust=dsev[i-1];
         const bImb=(s.alis>MINV&&s.alis>=RAT*Math.max(alt?alt.satis:0,1));   // agresif alıcı
         const sImb=(s.satis>MINV&&s.satis>=RAT*Math.max(ust?ust.alis:0,1));  // agresif satıcı
-        // heat hücre (sol satış / sağ alış) — yoğunluk kadar dolu (fpHeat kapatılabilir)
-        if(_kAyar.fpHeat){
-          if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpSat,0.10+it*0.55);g.fillRect(cx-hw,yy,cellW,rhh);}
-          if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpAl,0.10+it*0.55);g.fillRect(cx+cyari,yy,cellW,rhh);}
-        }
-        // imbalance → beyaz kutu (referanstaki gibi)
-        if(sImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,cellW-1,rhh-1);}
-        if(bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
-        // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse (smart-scale ile artık sığar)
-        if(rh>=8){
-          g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(dv(s.satis,s.p)),cx-cyari-2,y);
-          g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(dv(s.alis,s.p)),cx+cyari+2,y);
+        if(deltaMode){
+          // ── DELTA HÜCRESİ (referans/cryexc): tek renk blok + tek delta sayısı ──
+          const dd=(s.alis||0)-(s.satis||0);const it=Math.min(1,Math.abs(dd)/maxAbsD);
+          if(_kAyar.fpHeat){g.fillStyle=_hx2rgba(dd>=0?_kRenk.fpAl:_kRenk.fpSat,0.14+it*0.74);g.fillRect(cx-hw,yy,hw*2,rhh);}
+          if(sImb||bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,hw*2-1,rhh-1);}   // imbalance kutusu
+          if(rh>=8&&(dd||s.alis||s.satis)){g.textAlign='center';
+            g.fillStyle=it>0.58?'#ffffff':(dd>=0?'#06371f':'#4a0713');
+            g.fillText((dd>=0?'+':'')+_akK(dv(dd,s.p)),cx,y);}
+        }else{
+          // heat hücre (sol satış / sağ alış) — yoğunluk kadar dolu (fpHeat kapatılabilir)
+          if(_kAyar.fpHeat){
+            if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpSat,0.10+it*0.55);g.fillRect(cx-hw,yy,cellW,rhh);}
+            if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpAl,0.10+it*0.55);g.fillRect(cx+cyari,yy,cellW,rhh);}
+          }
+          // imbalance → beyaz kutu (referanstaki gibi)
+          if(sImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,cellW-1,rhh-1);}
+          if(bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
+          // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse (smart-scale ile artık sığar)
+          if(rh>=8){
+            g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(dv(s.satis,s.p)),cx-cyari-2,y);
+            g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(dv(s.alis,s.p)),cx+cyari+2,y);
+          }
         }
       }
       // POC çerçevesi (turuncu) — ekran (birleşik) POC
       if(dpoc!=null){const yp=c.ca.priceToCoordinate(dpoc);if(yp!=null){let rh=Math.abs((c.ca.priceToCoordinate(dpoc-dTick)||(yp+9))-yp);if(!(rh>=3))rh=3;
         g.strokeStyle='#e8a30c';g.lineWidth=1.4;g.strokeRect(cx-hw,yp-rh/2,hw*2,rh);}}
     }
+    // DELTA modunda fitil (H→L) hücrelerin ÜSTÜNE ince/soluk çizilir → range görünür
+    if(deltaMode&&yHi!=null&&yLo!=null){g.strokeStyle='rgba(70,80,92,.5)';g.lineWidth=1;g.beginPath();g.moveTo(cx,yHi);g.lineTo(cx,yLo);g.stroke();}
 
     // ── ALT: toplam + delta (referanstaki gibi mumun altında) ──
     const tot=(alis||0)+(satis||0);
