@@ -368,12 +368,17 @@ def seriler_birlestir(seri_listesi):
     return birlesik
 
 
-def degerlendir(seriler):
-    """Varyant serilerini yargıla: temel + OOS + serap bateri + BH-FDR."""
+def degerlendir(seriler, yon_map=None):
+    """
+    Varyant serilerini yargıla: temel + OOS + serap bateri + BH-FDR.
+    yon_map: {varyant_adı: "LONG"/"SHORT"} — verilmezse bu modülün varyantlarından
+    kurulur. BAŞKA modüller (ör. oar_funding_carry) kendi varyant setini geçirir →
+    işlem motoru + yargı bateri tek yerde kalır, kopyalanmaz.
+    """
     import numpy as np
     from oar_serap_testi import _temel, _bh_fdr, _karar, serap_karnesi
 
-    yon_map = {ad: yon for ad, yon, _ in _varyantlar()}
+    yon_map = yon_map or {ad: yon for ad, yon, _ in _varyantlar()}
     sonuc = {}
     for ad, (pcts, tsler, turler) in seriler.items():
         yon = yon_map.get(ad, "?")
