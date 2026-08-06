@@ -142,6 +142,42 @@ def carry_notr_esik(tutma_gun=1.0):
     return (FEE_PCT + SLIP_PCT) / 100.0 / periyot
 
 
+TUTMA_MERDIVEN = [("1 gün", 1.0), ("1 hafta", 7.0), ("1 ay", 30.0), ("1 yıl", 365.0)]
+
+
+def carry_merdiven(kayitlar):
+    """
+    TUTMA SÜRESİ MERDİVENİ — "farm kârlı mı" sorusunun asıl cevabı.
+
+    ⚠️ NEDEN GEREKLİ: tek bir carry-nötr eşiği (1 gün) YANILTICI. Giriş+çıkış
+    maliyeti pozisyon başına BİR KEZ ödenir; ne kadar uzun tutarsan yıla düşen
+    maliyet o kadar azalır. 1 günlük tutmada eşik tipik funding'in ~4 katıdır
+    (farm kârsız görünür), 1 aylık tutmada eşiğin ÇOK altına iner (farm kârlı).
+    Merdiven olmadan "%5.5 zaman eşik üstünde" satırı "bu iş para kazandırmaz"
+    diye okunur — YANLIŞ sonuç.
+
+    net_yillik = brüt carry − (fee+slip) × (365 / tutma_gün)
+    """
+    import numpy as np
+    if not kayitlar:
+        return []
+    r = np.array([k["rate"] for k in kayitlar], dtype=float)
+    brut = float(r.mean()) * YIL_PERIYOT * 100
+    out = []
+    for ad, gun in TUTMA_MERDIVEN:
+        esik = carry_notr_esik(gun)
+        maliyet = (FEE_PCT + SLIP_PCT) * (365.0 / gun)
+        out.append({
+            "tutma": ad,
+            "esik_pct": round(esik * 100, 6),
+            "esik_ustu_zaman_pct": round(100.0 * float((r > esik).mean()), 1),
+            "brut_yillik_pct": round(brut, 2),
+            "maliyet_yillik_pct": round(maliyet, 2),
+            "net_yillik_pct": round(brut - maliyet, 2),
+        })
+    return out
+
+
 def carry_ozet(kayitlar, oi_deger_map=None):
     """
     Funding serisinden tanımlayıcı özet:
@@ -435,6 +471,14 @@ def rapor_metni(sonuc):
                    f" · pozitif periyot %{oz['pozitif_periyot_pct']}")
         sat.append(f"     carry-nötr eşiği %{oz['carry_notr_esik_pct']} (1 gün taşıma)"
                    f" · eşik ÜSTÜ zaman %{oz['esik_ustu_zaman_pct']}")
+        merdiven = sonuc.get("merdiven", {}).get(sym) or []
+        if merdiven:
+            sat.append("     TUTMA SÜRESİ MERDİVENİ (maliyet pozisyon başına BİR KEZ ödenir):")
+            for m in merdiven:
+                sat.append(f"       {m['tutma']:<8} eşik %{m['esik_pct']:<9}"
+                           f" eşik-üstü zaman %{m['esik_ustu_zaman_pct']:<5}"
+                           f" → brüt %{m['brut_yillik_pct']} − maliyet %{m['maliyet_yillik_pct']}"
+                           f" = NET %{m['net_yillik_pct']}/yıl")
         if "transfer_toplam_usd" in oz:
             sat.append(f"     taşınan para: toplam ${oz['transfer_toplam_usd']:,}"
                        f" · günlük ort ${oz['transfer_gunluk_ort_usd']:,}"
@@ -549,9 +593,15 @@ def kendi_test():
     seriler = seriler_uret(satirlar, hi, lo, cl)
     snc = degerlendir(seriler, yon_map=_yon_map())
     harita = rejim_haritasi(satirlar)
+    merd = carry_merdiven(kayitlar)
+    assert [m["net_yillik_pct"] for m in merd] == sorted(m["net_yillik_pct"] for m in merd), \
+        "uzun tutma net carry'yi ARTIRMALI (maliyet bir kez ödenir)"
+    assert merd[0]["net_yillik_pct"] < merd[-1]["net_yillik_pct"], "merdiven düz çıktı"
+    print(f"[SELF-TEST] tutma merdiveni: 1 gün net %{merd[0]['net_yillik_pct']}"
+          f" → 1 yıl net %{merd[-1]['net_yillik_pct']} ✓")
     print("\n" + rapor_metni({"aralik": "sentetik", "semboller": ["TESTUSDT"],
-                              "carry": {"TESTUSDT": oz}, "rejim": {"TESTUSDT": harita},
-                              "varyantlar": snc}))
+                              "carry": {"TESTUSDT": oz}, "merdiven": {"TESTUSDT": merd},
+                              "rejim": {"TESTUSDT": harita}, "varyantlar": snc}))
 
     gomulu = snc["FUND_ASIRI_POZ_SHORT"]["beklenti"]
     ters = snc["FUND_ASIRI_POZ_LONG"]["beklenti"]
@@ -591,7 +641,7 @@ def main():
         print("\n✓ indirme bitti. Analiz için --indir olmadan tekrar çalıştır.")
         return
 
-    carry, rejim, seri_listesi, per_sembol, ozet = {}, {}, [], {}, []
+    carry, merdiven, rejim, seri_listesi, per_sembol, ozet = {}, {}, {}, [], {}, []
     for sym in semboller:
         print(f"[Funding] {sym} {args.bas}..{args.bit}…", flush=True)
         satirlar, hi, lo, cl, oi_map = gun_tablosu(sym, args.bas, args.bit)
@@ -599,6 +649,7 @@ def main():
             continue
         kayitlar = funding_oku(sym)
         carry[sym] = carry_ozet(kayitlar, oi_map)
+        merdiven[sym] = carry_merdiven(kayitlar)
         rejim[sym] = rejim_haritasi(satirlar)
         seriler = seriler_uret(satirlar, hi, lo, cl)
         seri_listesi.append(seriler)
@@ -615,7 +666,8 @@ def main():
 
     sonuc = {"tarih": datetime.now(timezone.utc).isoformat(),
              "aralik": f"{args.bas}..{args.bit}",
-             "semboller": semboller, "carry": carry, "rejim": rejim,
+             "semboller": semboller, "carry": carry, "merdiven": merdiven,
+             "rejim": rejim,
              "varyantlar": portfoy or per_sembol[list(per_sembol)[0]],
              "per_sembol": per_sembol}
     rapor = rapor_metni(sonuc)
