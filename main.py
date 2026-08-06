@@ -1508,6 +1508,12 @@ async def startup_event():
         import hacim_gorev as _hg
         asyncio.create_task(_hg.worker_dongu())
         print("[Startup] Hacim görev worker başlatıldı")
+        # SÖZLEŞME BEKÇİSİ: ajan bağımlılıkları (Binance alanları, dış API anahtarları,
+        # kanıtlı şampiyon blokları, serap kapısı, WRD formülü) değişince/kırılınca
+        # Telegram'a "ne değişti + ne yapmalı" uyarısı. Otomatik UYUM YOK (ANAYASA #8).
+        import oar_sozlesme_bekci as _sb
+        asyncio.create_task(_sb.bekci_loop())
+        print("[Startup] Sözleşme bekçisi başlatıldı")
         # LİDER GÖZLEMİ → Telegram thread 4882 (ölü _lider_baglam_topla bağlamı canlandırıldı)
         asyncio.create_task(lider_gozlem_loop())
         print("[Startup] Lider gözlem yayıncısı başlatıldı (thread 4882)")
@@ -2030,6 +2036,10 @@ async def _site_baglami() -> str:
     try:
         from hacim_konseyi import konsey_baglami
         par.append(konsey_baglami())  # HACİM KONSEYİ: bağımsız hacim analizörlerinin son konsensüsü
+    except Exception: pass
+    try:
+        from oar_sozlesme_bekci import baglam_metni as _sozlesme_baglam
+        par.append(_sozlesme_baglam())   # SÖZLEŞME BEKÇİSİ: bozuk/yedekte bağımlılıklar
     except Exception: pass
     try:
         from hacim_gorev import baglam_metni as _gorev_baglam
@@ -3020,6 +3030,17 @@ async def hacim_veriseti_endpoint():
     try:
         from hacim_konseyi import veriset_indirme
         return veriset_indirme()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/sozlesme-bekci")
+async def sozlesme_bekci_endpoint():
+    """Sözleşme bekçisi: ajan bağımlılıklarının (Binance alanları, dış API anahtarları,
+    kanıtlı şampiyon blokları, serap kapısı, WRD formülü) son denetim durumu."""
+    try:
+        from oar_sozlesme_bekci import durum
+        return durum()
     except Exception as e:
         return {"durum": "hata", "aciklama": str(e)[:100]}
 

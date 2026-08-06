@@ -78,10 +78,22 @@ async def _gun_bias(sembol):
     return None
 
 
+def _poc_taraf_ok(yon, fiyat, poc):
+    """
+    Şampiyon TREND bloğu poc_taraf — oar_sinyaller.poc_taraf ile BİREBİR (drift yok).
+    LONG: fiyat ≤ gerçek POC · SHORT: fiyat ≥ gerçek POC. POC hiç yoksa True (bloğun
+    kendi davranışı). asia_poc_gercek gelmezse POC ortancaya düşer → gate çoğu kırılımı
+    bloklar = FAIL-SAFE (işlem yok, zarar yok; canlı negatif-edge proxy'den iyidir).
+    """
+    from oar_sinyaller import poc_taraf as _blok
+    return _blok({"poc": poc, "fiyat": fiyat, "yon": yon})
+
+
 def _ac_karar_trend(analiz, bias):
-    """Kırılım-devam kararı: TP/SL = tp_sl_breakout birebir; bias uyumu şart."""
+    """Kırılım-devam kararı: TP/SL = tp_sl_breakout birebir; bias + poc_taraf şart."""
     asia = analiz.get("asia") or {}
     hi, lo = asia.get("high"), asia.get("low")
+    poc = asia.get("poc")
     fiyat = analiz.get("fiyat")
     if not (hi and lo and fiyat) or hi <= lo:
         return None
@@ -100,6 +112,13 @@ def _ac_karar_trend(analiz, bias):
     if fiyat > hi:                       # üst kırılım → LONG devam
         if bias != "LONG":
             return None
+        # poc_taraf ŞAMPİYON BLOĞU (ANAYASA #8, kullanıcı 10-ay $ testiyle onayladı):
+        # canlı TREND'e eklendi. Kanıt (oar_trend_10ay, 10 rastgele ay $1000·5x):
+        # MEVCUT[gun_bias] $1000→$1 (parayı yakıyor) · +poc_taraf $1000→$1396 · şampiyon
+        # $1740. poc_taraf serap-geçer (DSR≥0.95, oar_trend_confirm). footprint_trapped
+        # ileri-bar reclaim ister → canlıda hesaplanamaz (tek eksik kalan blok).
+        if not _poc_taraf_ok("LONG", fiyat, poc):
+            return None
         sl = mid
         R = fiyat - sl
         tp = fiyat + 3.0 * R
@@ -108,6 +127,8 @@ def _ac_karar_trend(analiz, bias):
         return {"yon": "LONG", "giris": round(fiyat, 2), "tp": round(tp, 2), "sl": round(sl, 2), **kanit}
     if fiyat < lo:                       # alt kırılım → SHORT devam
         if bias != "SHORT":
+            return None
+        if not _poc_taraf_ok("SHORT", fiyat, poc):   # poc_taraf şampiyon bloğu (bkz LONG)
             return None
         sl = mid
         R = sl - fiyat
