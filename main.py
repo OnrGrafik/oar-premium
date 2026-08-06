@@ -95,7 +95,8 @@ app.add_middleware(
 # Tüm /api/* uçları oturum ister (site içeriği yalnız onaylı üyelere).
 # İstisna: kimlik uçları (giriş/kayıt/durum/çıkış) + Telegram webhook health.
 _ACIK_API = {"/api/auth/login", "/api/auth/register", "/api/auth/me", "/api/auth/logout",
-             "/api/health"}   # Railway healthcheck — oturumsuz erişilebilir olmalı
+             "/api/health",
+             "/api/akis/footprint-tani"}   # Railway healthcheck + footprint teşhisi (salt-okunur, hassas veri yok)
 
 @app.middleware("http")
 async def _uyelik_kapisi(request: Request, call_next):
@@ -3509,20 +3510,50 @@ async def api_akis_footprint_tani(symbol: str = "BTCUSDT", interval: str = "5m")
         k.update(durum="HATA", hata=str(e)[:150])
     out["kiyotaka"] = k
 
+    # KLINES gerçek hacmi (otorite toplam) — aggTrades toplamı buna EŞİT olmalı.
+    kl_info = {}
+    try:
+        from exchange_client import klines_taker, klines
+        s_ms, e_ms = bar_open * 1000, (bar_open + bar_sec) * 1000
+        kt = await klines_taker(symbol, interval, 3, futures=True)
+        # o bar_open'a denk gelen satırı bul
+        row = next((r for r in kt if int(r[0]) == s_ms), None) if kt else None
+        if row is None and kt:
+            row = kt[-2]  # son kapanan
+        if row:
+            vol = float(row[5]); takerbuy = float(row[6]) if len(row) > 6 else None
+            kl_info = {"klines_volume_BTC": round(vol, 3),
+                       "klines_takerBuy_BTC": round(takerbuy, 3) if takerbuy is not None else None,
+                       "klines_takerSell_BTC": round(vol - takerbuy, 3) if takerbuy is not None else None,
+                       "bar_open_eslesti": int(row[0]) == s_ms}
+        else:
+            kl_info = {"durum": "klines satırı bulunamadı"}
+    except Exception as e:
+        kl_info = {"hata": str(e)[:150]}
+    out["klines"] = kl_info
+
     a = {}
     try:
         from exchange_client import agg_trades
         s_ms, e_ms = bar_open * 1000, (bar_open + bar_sec) * 1000
-        tr = await agg_trades(symbol, s_ms, e_ms, futures=True, max_trade=60000)
+        tr = await agg_trades(symbol, s_ms, e_ms, futures=True, max_trade=500000)
         kaynak = "futures"
         if not tr:
-            tr = await agg_trades(symbol, s_ms, e_ms, futures=False, max_trade=60000)
+            tr = await agg_trades(symbol, s_ms, e_ms, futures=False, max_trade=500000)
             kaynak = "spot"
         if tr:
             alis = sum(t["q"] for t in tr if t["buy"])
             satis = sum(t["q"] for t in tr if not t["buy"])
+            toplam = alis + satis
+            # KLINES ile kıyas → eksik toplama var mı? (asıl teşhis)
+            kv = kl_info.get("klines_volume_BTC")
+            oran = round(toplam / kv * 100, 1) if kv else None
             a.update(durum="OK", kaynak=kaynak, trade_sayisi=len(tr),
-                     alis=round(alis, 3), satis=round(satis, 3))
+                     alis=round(alis, 3), satis=round(satis, 3), toplam_BTC=round(toplam, 3),
+                     klines_volume_BTC=kv, aggTrades_yuzde=oran,
+                     tani=("aggTrades toplamı klines hacmine ~eşit → veri TAM" if oran and 90 <= oran <= 110
+                           else f"⚠ EKSİK: aggTrades klines'in %{oran}'i (pagination/max_trade kesiyor)" if oran
+                           else "klines kıyası yok"))
         else:
             a.update(durum="BOŞ", kaynak=kaynak)
     except Exception as e:
