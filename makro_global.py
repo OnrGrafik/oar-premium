@@ -487,6 +487,73 @@ def _bolge_ozet(g: dict, anahtarlar: list[str], bolge: str) -> dict:
     return {"gostergeler": satir, "eksik": eksik}
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  TEŞHİS — ECB seri anahtarları GERÇEKTEN çalışıyor mu?
+# ═══════════════════════════════════════════════════════════════════
+# ⚠ ECB uç noktası geliştirme ortamında (dış ağ kapalı) DOĞRULANAMADI. Seri
+# anahtarı değişmişse sayfa sessizce "veri yok" der — bu teşhis sessizliği bozar:
+# her seriyi TEK TEK dener, HTTP kodunu ve ilk satırı gösterir; anahtar yanlışsa
+# hangisinin yanlış olduğu tek bakışta görünür.
+async def ab_teshis(cl) -> list[dict]:
+    out = []
+    for k, (anahtar, ad, birim) in ECB_SERILER.items():
+        denenen = [anahtar] + ([_ECB_YEDEK[k]] if k in _ECB_YEDEK else [])
+        kayit = {"anahtar": k, "ad": ad, "denenen": denenen}
+        for a in denenen:
+            t0 = time.time()
+            try:
+                r = await cl.get(_ECB_URL.format(anahtar=a, n=3),
+                                 headers={**HDR, "Accept": "text/csv"}, timeout=TO)
+                ms = int((time.time() - t0) * 1000)
+                if r.status_code != 200:
+                    kayit.update({"durum": "hata", "ms": ms,
+                                  "detay": f"HTTP {r.status_code} — seri anahtarı geçersiz olabilir: {a}"})
+                    continue
+                rows = _ecb_csv_coz(r.text)
+                if not rows:
+                    kayit.update({"durum": "bos", "ms": ms,
+                                  "detay": f"200 döndü ama satır çözülemedi ({a}) — "
+                                           f"CSV başlıkları: {r.text.splitlines()[0][:120] if r.text else 'boş'}"})
+                    continue
+                son = rows[-1]
+                kayit.update({"durum": "ok", "ms": ms, "kullanilan": a,
+                              "ornek": {"tarih": son["tarih"], "deger": son["deger"]},
+                              "detay": f"son: {son['tarih']} = {son['deger']}{birim}"})
+                break
+            except Exception as e:
+                kayit.update({"durum": "hata", "ms": int((time.time() - t0) * 1000),
+                              "detay": f"{type(e).__name__}: {str(e)[:90]}"})
+        out.append(kayit)
+    return out
+
+
+async def teshis() -> dict:
+    """Tüm makro veri kaynaklarını CANLI dener — 'neden boş?' sorusunun cevabı."""
+    sonuc = {"zaman": datetime.now(timezone.utc).isoformat(), "kaynaklar": [], "ab": []}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=25) as cl:
+            import makro_kaynak
+            sonuc["kaynaklar"] = await makro_kaynak.kaynak_testi(cl)
+            sonuc["ab"] = await ab_teshis(cl)
+            sonuc["durum"] = makro_kaynak.durum()
+    except Exception as e:
+        sonuc["hata"] = f"{type(e).__name__}: {str(e)[:120]}"
+
+    tum = list(sonuc["kaynaklar"]) + list(sonuc["ab"])
+    calisan = [t for t in tum if t.get("durum") == "ok"]
+    sorunlu = [t for t in tum if t.get("durum") in ("bos", "hata")]
+    sonuc["ozet"] = f"{len(calisan)}/{len(tum)} kaynak çalışıyor"
+    sonuc["sorunlular"] = [{"ad": t.get("ad") or t.get("anahtar"), "durum": t.get("durum"),
+                            "detay": t.get("detay")} for t in sorunlu]
+    # Japonya: anahtarsız resmî kaynak yok — teşhiste ayrıca yazılır (eksik sanılmasın)
+    sonuc["japonya_notu"] = (
+        "Japonya TÜFE'si için anahtarsız güvenilir resmî kaynak yok; FRED anahtarı "
+        "varsa oradan gelir. BoJ faizi ve USD/JPY carry panelinden okunuyor. "
+        "Takvim ve senaryolar gerçekleşen değere bağlı değil — her durumda çalışır.")
+    return sonuc
+
+
 if __name__ == "__main__":
     async def _dene():
         d = await kuresel_takvim()

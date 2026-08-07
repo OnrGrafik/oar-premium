@@ -2865,6 +2865,19 @@ async def makro_ozet():
     }
 
 
+@app.get("/api/makro/teshis")
+async def makro_teshis():
+    """
+    MAKRO KAYNAK TEŞHİSİ — her veri kaynağını CANLI dener ve neyin çalışıp
+    neyin çalışmadığını tek bakışta gösterir (BLS · Hazine getiri eğrisi ·
+    NY Fed faizi · FRED · ECB serileri tek tek).
+    Makro sayfasında bir alan boşsa ÖNCE burayı aç: hangi uç nokta/seri
+    anahtarı kırık olduğu detayda yazar. Site arayüzünde gösterilmez (§6c).
+    """
+    from makro_global import teshis
+    return await teshis()
+
+
 @app.get("/api/makro/kuresel")
 async def makro_kuresel(once: int = 2, sonra: int = 21, min_etki: str = "YÜKSEK"):
     """
