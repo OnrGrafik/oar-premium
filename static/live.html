@@ -468,6 +468,11 @@ let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('o
 try{if(!localStorage.getItem('oar_fpusd_reset')){_kAyar.fpUsd=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpusd_reset','1');}}catch(e){}
 // TEK SEFERLİK: delta modunu KAPAT → alış/satış AYRI göster (kullanıcı: "alım satayım göreyim", toplu/delta DEĞİL)
 try{if(!localStorage.getItem('oar_fpdelta_off')){_kAyar.fpDelta=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpdelta_off','1');}}catch(e){}
+// TEK SEFERLİK (2. tur): kullanıcı ekranda hâlâ DELTA görüyordu. Sebep kodda değil
+// TARAYICI HAFIZASINDA: fpDelta localStorage'da açık kalmıştı ve 1. tur bayrağı
+// (oar_fpdelta_off) zaten yandığı için sıfırlama bir daha çalışmıyordu. Yeni anahtar
+// → ayarı bir kez daha ALIŞ/SATIŞ'a alır. (Kullanıcı isterse panelden geri açabilir.)
+try{if(!localStorage.getItem('oar_fpdelta_off2')){_kAyar.fpDelta=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpdelta_off2','1');}}catch(e){}
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff',arkaplan:'#fbf8f0'};
 let _kRenk=(()=>{try{return {..._kRenkVars,...JSON.parse(localStorage.getItem('oar_krenk')||'{}')};}catch(e){return {..._kRenkVars};}})();
@@ -1153,7 +1158,10 @@ function kFpCiz(g,c,ts,W,H,sym){
     else if(sv>0){rozet='FP '+sv+'/'+tp+' dolduruyor…';}
     else if(t.son_hata){rozet='FP hata: '+t.son_hata;rc='#d1344b';}
     else{rozet='FP hazırlanıyor…';rc='#b0851f';}}
-  if(bw<34)rozet=(rozet||'FP')+' · yakınlaş →';
+  // MOD her zaman rozette yazsın → hangi görünümde olduğun bir daha gizli kalmasın
+  // (delta modu sessizce açık kalıp "alım/satım nerede?" karışıklığı yaratmıştı).
+  rozet=(rozet||'FP')+(_kAyar.fpDelta?' · DELTA':' · ALIŞ/SATIŞ');
+  if(bw<34)rozet=rozet+' · yakınlaş →';
   g.fillStyle='rgba(255,255,255,.78)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
 
