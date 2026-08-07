@@ -480,7 +480,7 @@ function kRenkSet(k,v){_kRenk[k]=v;try{localStorage.setItem('oar_krenk',JSON.str
   if(k==='arkaplan')for(const s of['BTCUSDT','ETHUSDT']){const c=_kcharts[s];if(c)try{c.ch.applyOptions({layout:{background:{color:v}}});}catch(e){}}
   for(const s of['BTCUSDT','ETHUSDT'])try{kOverlayCiz(s);}catch(e){}}
 // ── FOOTPRINT TICK (seviye sıklığı) — referanstaki "Tick" seçici. 0=otomatik (sunucu varsayılanı).
-const _kTickVars={BTCUSDT:0,ETHUSDT:0};   // 0=otomatik (BTC 5 / ETH 0.5 sunucu tarafı, referansla aynı) — ayarlardan değiştir
+const _kTickVars={BTCUSDT:0,ETHUSDT:0};   // 0=otomatik (BTC 3 / ETH 0.3 sunucu tarafı) — ekranda smart-scale ile birleşir
 let _kTick=(()=>{try{return {..._kTickVars,...JSON.parse(localStorage.getItem('oar_ktick')||'{}')};}catch(e){return {..._kTickVars};}})();
 const _kTickPreset={BTCUSDT:[0,1,2,3,5,10,25,50],ETHUSDT:[0,0.1,0.3,0.5,1,2,5]};
 function kTickSet(sym,v){_kTick[sym]=+v||0;try{localStorage.setItem('oar_ktick',JSON.stringify(_kTick));}catch(e){}
@@ -1126,8 +1126,6 @@ function kOverlayCiz(sym){
 // ═══════════ AKIŞ KATMANLARI (footprint + heatmap + liq/depth) ═══════════
 // Mumlarla HİZALI çizim: LightweightCharts priceToCoordinate/timeToCoordinate ile.
 function _akK(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3)return (n/1e3).toFixed(1)+'k';if(n>=100)return n.toFixed(0);if(n>=10)return n.toFixed(0);if(n>=1)return n.toFixed(1);return n.toFixed(2);}
-// Footprint HÜCRE sayısı: TAM SAYI (referans gibi) — "0.82/0.07" ondalık gürültüsü YOK.
-function _fpN(n){n=Math.abs(n);if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e4)return (n/1e3).toFixed(0)+'k';return Math.round(n).toString();}
 
 // Footprint modunda mum gövdesini ŞEFFAF yap (ince kalsın, footprint sayıları örtülmesin);
 // ince gövdeyi kFpCiz kendi çizer. Kapalıyken normal mum.
@@ -1234,21 +1232,20 @@ function kFpCiz(g,c,ts,W,H,sym){
           if(sImb||bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,hw*2-1,rhh-1);}   // imbalance kutusu
           if(rh>=8&&(dd||s.alis||s.satis)){g.textAlign='center';
             g.fillStyle=it>0.58?'#ffffff':(dd>=0?'#06371f':'#4a0713');
-            g.fillText((dd>=0?'+':'')+_fpN(dv(dd,s.p)),cx,y);}
+            g.fillText((dd>=0?'+':'')+_akK(dv(dd,s.p)),cx,y);}
         }else{
-          // ── ALIŞ/SATIŞ AYRI (referans ATAS): SOL satış / SAĞ alış, DOLU renkli hücre ──
-          const heat=_kAyar.fpHeat, sit=Math.min(1,s.satis/maxH), bit=Math.min(1,s.alis/maxH);
-          if(heat){   // cream zeminde POP etsin diye DOLGUN renk (referans gibi net ızgara)
-            if(s.satis>0){g.fillStyle=_hx2rgba(_kRenk.fpSat,0.22+sit*0.68);g.fillRect(cx-hw,yy,cellW,rhh);}
-            if(s.alis>0){g.fillStyle=_hx2rgba(_kRenk.fpAl,0.22+bit*0.68);g.fillRect(cx+cyari,yy,cellW,rhh);}
+          // heat hücre (sol satış / sağ alış) — yoğunluk kadar dolu (fpHeat kapatılabilir)
+          if(_kAyar.fpHeat){
+            if(s.satis>0){const it=Math.min(1,s.satis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpSat,0.10+it*0.55);g.fillRect(cx-hw,yy,cellW,rhh);}
+            if(s.alis>0){const it=Math.min(1,s.alis/maxH);g.fillStyle=_hx2rgba(_kRenk.fpAl,0.10+it*0.55);g.fillRect(cx+cyari,yy,cellW,rhh);}
           }
-          // imbalance → BELİRGİN kutu (cream'de beyaz görünmez → koyu/kalın kenar, referans vurgusu)
-          if(sImb){g.strokeStyle='#5a0016';g.lineWidth=1.3;g.strokeRect(cx-hw+0.5,yy+0.5,cellW-1,rhh-1);}
-          if(bImb){g.strokeStyle='#003b25';g.lineWidth=1.3;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
-          // sayılar TAM SAYI (referans gibi — ondalık gürültüsü yok), dolu hücrede okunur renk
+          // imbalance → beyaz kutu (referanstaki gibi)
+          if(sImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx-hw+0.5,yy+0.5,cellW-1,rhh-1);}
+          if(bImb){g.strokeStyle='#e9edf0';g.lineWidth=1;g.strokeRect(cx+cyari+0.5,yy+0.5,cellW-1,rhh-1);}
+          // sayılar (satış sola, alış sağa) — hücre yeterince yüksekse (smart-scale ile artık sığar)
           if(rh>=8){
-            g.textAlign='right';if(s.satis>0){g.fillStyle=(heat&&sit>0.5)?'#fff':'#7a1020';g.fillText(_fpN(dv(s.satis,s.p)),cx-cyari-2,y);}
-            g.textAlign='left';if(s.alis>0){g.fillStyle=(heat&&bit>0.5)?'#fff':'#0a5c3a';g.fillText(_fpN(dv(s.alis,s.p)),cx+cyari+2,y);}
+            g.fillStyle=sImb?'#3a0008':'#7a1523';g.textAlign='right';if(s.satis>0)g.fillText(_akK(dv(s.satis,s.p)),cx-cyari-2,y);
+            g.fillStyle=bImb?'#00301e':'#0c5238';g.textAlign='left';if(s.alis>0)g.fillText(_akK(dv(s.alis,s.p)),cx+cyari+2,y);
           }
         }
       }
