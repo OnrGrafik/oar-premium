@@ -320,6 +320,40 @@ async def konsey_topla(sembol):
 #  TOPLAYICI DÖNGÜ — 5 dk'da bir snapshot → site hafızası (DATA_DIR, haftalık silinir).
 # ═══════════════════════════════════════════════════════════════════════════════
 
+SKOR_LOG = _DATA_DIR / "hacim_skor_log.jsonl"   # KOMPAKT + KALICI (haftalık silmeden MUAF)
+SKOR_LOG_CAP = 40000                             # ~2 sembol×288/gün → ~70 gün
+
+
+def _skor_kaydet(snap):
+    """
+    KARNE için kompakt kayıt (ham snapshot haftalık siliniyor, bu KALICI).
+    Bir satır ≈ 200 bayt: {t, s, ky/kn/km (konsensüs), u:{analizör:[yön_kodu, güç]}}.
+    İleri getiri RAPOR ANINDA klines'tan hesaplanır → fiyat saklamaya gerek yok.
+    """
+    try:
+        kod = {"LONG": 1, "SHORT": -1, "NOTR": 0}
+        k = snap.get("konsensus") or {}
+        kayit = {
+            "t": snap.get("ts"), "s": snap.get("sembol"),
+            "ky": kod.get(k.get("yon"), 0), "kn": k.get("net", 0.0), "km": k.get("mutabakat", 0.0),
+            "u": {u["ad"]: [kod.get(u.get("yon"), 0), round(u.get("guc", 0.0), 3)]
+                  for u in snap.get("uyeler", []) if u.get("aktif")},
+        }
+        with open(SKOR_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(kayit, ensure_ascii=False) + "\n")
+        # nadiren kırp (dosya şişmesin)
+        if kayit["s"] == SEMBOLLER[-1] and _now().minute < 5:
+            try:
+                satirlar = SKOR_LOG.read_text(encoding="utf-8").splitlines()
+                if len(satirlar) > SKOR_LOG_CAP:
+                    SKOR_LOG.write_text("\n".join(satirlar[-SKOR_LOG_CAP:]) + "\n",
+                                        encoding="utf-8")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _snapshot_ekle(snap):
     db = _load(SNAPSHOT_FILE, {"snapshots": []})
     db["snapshots"].append(snap)
@@ -409,6 +443,7 @@ async def konsey_loop():
             for s in SEMBOLLER:
                 snap = await konsey_topla(s)
                 _snapshot_ekle(snap)
+                _skor_kaydet(snap)          # KARNE için kalıcı kompakt kayıt
                 try:
                     await olay_tara(snap)      # gün sonunu bekleme — anlamlı değişimi anında bildir
                 except Exception as e:

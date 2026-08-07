@@ -377,6 +377,15 @@
 - DAVRANIŞ: 6 saatte bir denetim; **imza** bazlı karşılaştırma → ilk tur SESSİZ taban kurar, değişim yoksa SESSİZ (§6b), yalnız BOZULMA/DÜZELME'de Telegram (`ajan_merkez.bildir`, tur=eksik). Kritik olanlar ⛔, fail-safe yedeğe düşenler 🟡. Durum `DATA_DIR/sozlesme_durum.json`; lider bağlamında + `/api/sozlesme-bekci`.
 - TEST: taban sessiz ✓ · değişimsiz tur sessiz ✓ · şampiyon bloğu saptırılınca ⛔ kritik alarm + `git checkout` talimatı ✓. Sandbox denetimi gerçek arızaları yakaladı (kiyotaka=yedek, fred=kırık, portföy+serap=ok).
 
+## 6h. ANALİZÖR KARNESİ (`hacim_haftalik_rapor.py`) — haftalık kanıt raporu (kalıcı)
+- KULLANICI (Kartal haftalık raporunu örnek göstererek): "Hacimlerde öne çıkan durumları haftalık rapor edip sisteme/şampiyonlara/agent kararlarına katkı sağlayabilir miyiz? YOLUMUZUN DOĞRU OLUP OLMADIĞINI da ölçüp, agent kodlarında düzenlemeye ve GEREKSİZ bakılan verilerde SADELEŞTİRMEYE gidebilir miyiz?"
+- YÖNTEM = Kartal raporunun disiplini hacim konseyine uygulanmış hali: ① **EŞİK TARAMASI** (güç ≥ 0.2/0.3/0.4… için beklenti/isabet/PF — Kartal'ın RVOL taraması) ② **MONOTONLUK** (güç kovası ↑ iken beklenti ↑ mı — ŞANS ile EDGE'i ayıran ASIL test; Kartal'ın "RVOL kova" testi) ③ **IS/OOS** (ilk %70 / son %30 zaman bölmesi) ④ **KARAR**: DEĞERLİ / GÜRÜLTÜ / TERS / YETERSİZ → doğrudan sadeleştirme önerisi. Ölçüm: yön-işaretli ileri getiri (LONG→+, SHORT→−), ufuk 4s.
+- VERİ: `hacim_konseyi.SKOR_LOG` (kompakt JSONL, satır ~200B, cap 40k ≈ 70 gün) — ham snapshot HAFTALIK SİLİNDİĞİ için ayrı ve KALICI tutulur. İleri getiri RAPOR ANINDA klines'tan hesaplanır → fiyat saklamaya gerek yok, sızıntı yok.
+- ✅ YÖNTEM DOĞRULANDI (kullanıcının "yolumuz doğru mu" sorusunun cevabı): sentetik testte BİLİNEN edge → "DEĞERLİ" (monotonluk 1.0, kovalar +0.018→+0.047→+0.059→+0.329, OOS pozitif); SAF GÜRÜLTÜ → "GÜRÜLTÜ" (beklenti ~0, kovalar rastgele). Yani karne gerçek sinyali yakalıyor, şansı eliyor.
+- ⚠️ RAPOR KENDİ SINIRINI YAZAR: (a) **ETKİN ÖRNEKLEM** — snapshot'lar 5dk arayla + ufuklar ÇAKIŞIR → ardışık kayıtlar bağımsız DEĞİL; etkin n ≈ süre/ufuk. Ham n'e aldanma (rapor etkin n'i hesaplayıp yazar, <20 ise "YETERSİZ" der). (b) **ÇOKLU KARŞILAŞTIRMA** — 7 analizör × 2 sembol × eşikler; savunma = monotonluk + OOS'un aynı yönde tutması.
+- ⚠️ CANLI KARARI DEĞİŞTİRMEZ: çıktı ADAY'dır. Şampiyona confirm bağlanması ancak serap testi (DSR≥0.95) + ANAYASA #8 onayı ile (§5e/§5p). Sadeleştirme (gürültü analizörü çıkarma) GÜVENLİ — şampiyona dokunmaz.
+- Haftalık Pazartesi 04:00 UTC Telegram (sayfalı) + git-senkron `hacim_karne_arsiv.json` (son 52 hafta) + lider bağlamı + `/api/hacim-karne?uret=true`.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
