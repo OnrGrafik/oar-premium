@@ -318,6 +318,12 @@
   ② **Canlı site URL'si = `oar-premium-production.up.railway.app`** (`-production` VAR). `oar-premium.up.railway.app` (CLAUDE.md eski varsayılan) PROVISION EDİLMEMİŞ → "Not Found: train has not arrived" verir (uygulama down sanılır ama değil). hacim_indir.py varsayılan URL'si de bu yüzden yanlış (`-production`'a güncellenecek).
   ③ Teşhis öncesi mutlaka `git fetch origin main` + main'i temel al; feature dalın main'in gerisinde olabilir (footprint mimarisi main'de daha ileri — bu oturumda feature dalı merge etmeye çalışınca çakıştı, iptal edilip main'e cerrahi eklendi).
 
+## 6dX. ⛔ MUTLAK KURAL — FOOTPRINT GRAFİĞİNE İZİNSİZ DOKUNMA (kullanıcı emri, kalıcı, en üstün)
+- ⛔ KULLANICI AÇIKÇA "grafikte/footprint görselinde ŞUNU düzelt" DEMEDİKÇE footprint grafiğine / görsele / layout'a / renge / hücre çizimine / mum genişliğine / tick görünümüne **HİÇBİR ŞEKİLDE EL ATMA.**
+- Varsayılan iş alanı = **yalnız VERİ/backend** (sayının doğruluğu: gerçek BTC, doğru alış/satış, doğru kaynak/birim, kapsam denetimi). Görsel "iyileştirme" bile olsa DAVETSİZ YAPMA.
+- Kullanıcı bir veri sorunu bildirince: SADECE veriyi düzelt, aynı turda görsele "bonus" dokunma. Görsel değişiklik ancak kullanıcı KELİMESİYLE grafik/görsel isterse.
+- Bu kural §6dK ve §6d2'nin üstündedir: onlar "veri öncelikli" der; bu "izinsiz görsele SIFIR dokunuş" der.
+
 ## 6dK. KALICI KURAL — FOOTPRINT/GRAFİK ŞİKAYETİ = VERİ DOĞRULUĞU, TASARIM DEĞİL (kullanıcı emri, kalıcı)
 - ⚠️ KULLANICI EMRİ (defalarca, net): "veriler doğru değil / çubuklar dolmuyor / matematik yanlış" dediğinde sorun **TASARIM DEĞİL, VERİNİN DOĞRU GÖSTERİLMESİDİR**. Enerjiyi renk/layout/görsel yerine **SAYININ DOĞRULUĞUNA** ver (gerçek BTC, doğru alış/satış, doğru kaynak/birim). Kullanıcı açıkça "tasarım/görsel" demedikçe layout ile OYNAMA.
 - İLK ADIM her zaman OTORİTE KIYASI: aggTrades toplamı == klines hacmi (%). Kaynak seçerken birim/ölçek DOĞRULA (yüksek çözünürlük ≠ doğru birim — Kiyotaka dersi §6d3).
