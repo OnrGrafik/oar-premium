@@ -1518,6 +1518,13 @@ async def startup_event():
         # LİDER GÖZLEMİ → Telegram thread 4882 (ölü _lider_baglam_topla bağlamı canlandırıldı)
         asyncio.create_task(lider_gozlem_loop())
         print("[Startup] Lider gözlem yayıncısı başlatıldı (thread 4882)")
+        # MAKRO OTOMATİK TAZELEME: makro veri eskiden YALNIZ kullanıcı sayfayı
+        # açınca çekiliyordu → 08:30 ET açıklaması siteye saatlerce düşmüyordu.
+        # Loop 10 dk'da (açıklama penceresinde 2 dk) tazeler ve YENİ veri geldiğinde
+        # ajan kanalına bildirir (dedup'lı — §6b gürültü yasağına uyar).
+        import macro_engine as _mac
+        asyncio.create_task(_mac.makro_yenile_loop())
+        print("[Startup] Makro otomatik tazeleme başlatıldı")
         # GEX ISI HARİTASI SNAPSHOT: gamma grid'ini 5dk'da kaydeder → ısı
         # haritasında Δ anlık(~22dk)/gün-içi(açılış) + gün-içi gamma drift serisi.
         import oar_gex_snapshot as _gsnap
@@ -2047,19 +2054,38 @@ async def _site_baglami() -> str:
         par.append(_gorev_baglam())   # GÖREV WORKER: kuyruk durumu (bekleyen/PC'de/tamamlanan)
     except Exception: pass
     try:
-        from macro_engine import makro_veri
+        # ⚠️ İKİ SESSİZ HATA DÜZELTİLDİ: (1) göstergeler `mk["gostergeler"]` altında,
+        # kök dict'te aranıyordu; (2) değer alanı `guncel`, `deger` okunuyordu →
+        # lider bağlamı HER ZAMAN "makro veri YOK" yazıyordu (veri gelse bile).
+        from macro_engine import makro_veri, makro_sentez
         mk = await makro_veri()
+        _g = (mk or {}).get("gostergeler") or {}
         def _mv(k):
-            v = (mk or {}).get(k) or {}
-            return v.get("guncel", {}).get("deger") if isinstance(v.get("guncel"), dict) else v.get("deger")
+            v = _g.get(k) or {}
+            return None if v.get("veri_yok") else v.get("guncel")
         _deg = [_mv('fedFaiz'), _mv('cpi'), _mv('isRate'), _mv('nfp')]
         if all(v is None for v in _deg):
-            # SESSİZ ARIZA GÖRÜNÜR OLSUN: hepsi None ise sebep yaz (çıplak "None" yanıltıyordu)
             import os as _os
-            _sbp = "FRED_API_KEY tanımsız" if not _os.environ.get("FRED_API_KEY") else "veri kaynağı yanıt vermedi"
+            _sbp = ("FRED_API_KEY tanımsız (anahtarsız kaynaklar da yanıt vermedi)"
+                    if not _os.environ.get("FRED_API_KEY") else "veri kaynağı yanıt vermedi")
             par.append(f"[MAKRO] ⚠️ veri YOK ({_sbp}) — makro göstergeleri okunamıyor")
         else:
-            par.append(f"[MAKRO] FedFaiz {_deg[0]} · CPI {_deg[1]} · İşsizlik {_deg[2]} · NFP {_deg[3]}")
+            _sz = makro_sentez(mk)
+            par.append(f"[MAKRO] Eğilim {_sz['egilim']} (skor {_sz['skor']:+d}) · {_sz['rejim']} · "
+                       f"FedFaiz {_deg[0]} · CPI {_deg[1]} · İşsizlik {_deg[2]} · NFP {_deg[3]}")
+            for _b in _sz.get("bloklar", []):
+                par.append(f"  ├ {_b['ad']}: {_b['durum']} ({_b['skor']:+.2f})")
+            _bg = [o for o in (_sz.get("bugun") or []) if o.get("gecti")]
+            if _bg:
+                par.append("  ├ BUGÜN AÇIKLANDI: " + ", ".join(o["ad"] for o in _bg))
+            _yn = (mk or {}).get("son_30gun_yenilik") or []
+            if _yn:
+                par.append("  ├ Son gelen veriler: " + ", ".join(
+                    f"{y['ad']} {y['donem']}={y.get('deger')}" for y in _yn[:4]))
+            _sn = (_sz.get("sonraki") or [])[:2]
+            if _sn:
+                par.append("  └ Sıradaki: " + " | ".join(
+                    f"{o['tarih']} {o['saat_utc']}UTC {o['ad']}" for o in _sn))
     except Exception: pass
     metin = "═══ SİTE BAĞLAMI (Komuta Merkezi + Opsiyon + Makro sayfalarının CANLI verisi) ═══\n" + "\n".join(par)
     _site_baglam_cache["ts"] = _t.time(); _site_baglam_cache["metin"] = metin
@@ -2671,10 +2697,12 @@ async def _piyasa_durumu_hesapla():
         m = await makro_veri()
         g = (m or {}).get("gostergeler", m or {})
         parca = []
-        for k, ad in (("fedFaiz", "Fed"), ("cpi", "CPI"), ("isRate", "İşsizlik")):
+        # değer alanı `guncel` (eski kod `deger` okuyordu → piyasa durumu makroyu HİÇ görmüyordu)
+        for k, ad in (("fedFaiz", "Fed"), ("cpi", "CPI"), ("isRate", "İşsizlik"),
+                      ("us10y", "10Y"), ("dxy", "Dolar")):
             v = g.get(k)
-            if isinstance(v, dict) and v.get("deger") is not None:
-                parca.append(f"{ad} {v['deger']}")
+            if isinstance(v, dict) and not v.get("veri_yok") and v.get("guncel") is not None:
+                parca.append(f"{ad} {v['guncel']}")
         if parca:
             veri["makro"] = " · ".join(parca)
     except Exception: pass
@@ -2790,23 +2818,51 @@ async def makro_carry():
 
 @app.get("/api/makro/ozet")
 async def makro_ozet():
-    """Makro AI özeti — kitaplardan destekli, Lider notu dahil."""
-    import httpx
+    """
+    Makro SENTEZ — geçmiş + güncel harmanı, blok blok, piyasa beklentisiyle.
+    ÖNCE tek cümlelik `btcYorum.sentez` dönüyordu (kullanıcı: "çok sığ kalmış").
+    ARTIK: 5 analiz bloğu (enflasyon/istihdam/büyüme/politika+beklenti/likidite),
+    net skor, bugün açıklananlar, sıradaki katalistler ve tezi bozacak koşul.
+    """
+    from macro_engine import makro_veri, makro_sentez, carry_trade
+    data = await makro_veri()
+    try:
+        carry = await carry_trade()
+    except Exception:
+        carry = None
+    s = makro_sentez(data, carry)
+    yorum = data.get("btcYorum", {})
+    return {
+        "ozet": s["ozet"], "baslik": s["baslik"], "egilim": s["egilim"],
+        "skor": s["skor"], "rejim": s["rejim"], "bloklar": s["bloklar"],
+        "bugun": s["bugun"], "sonraki": s["sonraki"], "gecersizlik": s["gecersizlik"],
+        "eksik_gostergeler": s["eksik_gostergeler"],
+        "kisa_sentez": yorum.get("sentez", ""),
+        "yeni_veriler": data.get("son_30gun_yenilik", []),
+        "kaynak_ozet": data.get("kaynak_ozet"),
+        "kaynak_teshis": data.get("kaynak_teshis"),
+        "guncellendi": data.get("guncellendi"),
+    }
+
+
+@app.get("/api/makro/takvim")
+async def makro_takvim_ucu(once: int = 5, sonra: int = 14):
+    """
+    ABD makro açıklama takvimi: bugün açıklanan/beklenen + önceki günler + sıradakiler.
+    `kesin=false` olanlar TİPİK PENCERE (tahmini tarih) — sitede öyle etiketlenir.
+    Kesin tarihler (FOMC vb.) repo kökündeki makro_takvim_override.json'dan gelir.
+    """
+    from makro_takvim import takvim, bugunku_aciklamalar, sonraki_olaylar, aktif_olay_penceresi
     from macro_engine import makro_veri
     data = await makro_veri()
-    g = data.get("gostergeler", {})
-    yorum = data.get("btcYorum", {})
-    # Makro/ekonomi kitaplarından bilgi
-    kitap_notu = ""
-    try:
-        from kitap_db import ara
-        ks = ara("federal reserve interest rate inflation macro economy bitcoin liquidity", limit=2)
-        if ks:
-            kitap_notu = " | ".join(f"{s['title']}: {s['content'][:150]}" for s in ks)
-    except Exception: pass
-    # Deterministik makro sentezi (macro_engine btcYorum) — LLM yok
-    ozet = yorum.get("sentez", "")
-    return {"ozet": ozet, "egilim": yorum.get("egilim"), "guncellendi": data.get("guncellendi")}
+    return {
+        "bugun": bugunku_aciklamalar(),
+        "sonraki": sonraki_olaylar(6),
+        "takvim": takvim(once, sonra),
+        "aktif_pencere": aktif_olay_penceresi(),
+        "gelen_veriler": data.get("son_30gun_yenilik", []),
+        "guncellendi": data.get("guncellendi"),
+    }
 
 @app.get("/api/ticker")
 async def ticker_get():
@@ -3181,13 +3237,23 @@ async def makro_3ay(yorum: bool = True):
     out = {"son_3ay": ozet, "guncellendi": veri.get("guncellendi"),
            "kaynak_ozet": veri.get("kaynak_ozet"),
            "canli_uyari": None if fb == 0 else
-           f"⚠ {fb} gösterge fallback (FRED_API_KEY ekleyin → canlı NFP/CPI/faiz)."}
-    # KURAL-TABANLI 3-aylık makro özeti (LLM yok)
+           f"⚠ {fb} gösterge hafızadan servis ediliyor (canlı kaynak yanıt vermedi)."}
+    # KURAL-TABANLI 3-aylık makro özeti (LLM yok) — ham anahtar dökümü yerine
+    # blok blok sentez (kullanıcı: "sığ kalmış").
     if yorum:
-        parca = []
-        for k, v in ozet.items():
-            parca.append(f"{k}: {v.get('guncel')} (3-ay {v.get('degisim_3ay')}, {v.get('trend')})")
-        out["ai_yorum"] = "Son 3 ay — " + " · ".join(parca) + "." if parca else ""
+        from macro_engine import makro_sentez, GOSTERGE_META
+        s = makro_sentez(veri)
+        parca = [f"{b['ikon']} {b['ad']}: {b['durum']}" for b in s.get("bloklar", [])]
+        hareket = sorted(
+            [(k, v) for k, v in ozet.items() if v.get("degisim_3ay") is not None],
+            key=lambda kv: abs(kv[1]["degisim_3ay"]), reverse=True)[:4]
+        out["ai_yorum"] = (
+            f"Son 3 ay — {s['baslik']} (skor {s['skor']:+d}). " + " · ".join(parca) +
+            (". En çok hareket eden göstergeler: " + " · ".join(
+                f"{(GOSTERGE_META.get(k) or (k,))[0]} {v['guncel']} (3-ay {v['degisim_3ay']:+})"
+                for k, v in hareket) if hareket else "") + ".")
+        out["sentez"] = {"baslik": s["baslik"], "skor": s["skor"], "egilim": s["egilim"],
+                         "bloklar": s["bloklar"], "gecersizlik": s["gecersizlik"]}
     return out
 
 

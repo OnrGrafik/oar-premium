@@ -1,0 +1,14 @@
+{
+  "_aciklama": "KESİN TARİHLİ makro olaylar (FOMC, olağanüstü toplantılar, tatil kaymaları). makro_takvim.py bu dosyayı okur ve buradaki olayları kesin=true olarak işaretler. Kural-türetimli takvim (NFP=ilk Cuma, başvurular=her Perşembe, ISM=1./3. iş günü) zaten otomatik; CPI/PPI/PCE/perakende tipik pencereden TAHMİN edilir ve sitede 'tahmini tarih' diye gösterilir. Kesin tarihi buraya yazarsan tahmin yerine o kullanılır. Biçim: tarih (YYYY-MM-DD) -> olay listesi. saat = ABD Doğu Saati (ET). etki: ORTA | YÜKSEK | ÇOK YÜKSEK. gostergeler = bu açıklamanın güncellediği gösterge anahtarları (cpi, ppi, nfp, isRate, pce, gsyih, perakende, ism, claims). Dosya git ile senkron; PC'de doldurup push edince site okur.",
+  "_ornek": {
+    "2026-09-16": [
+      {
+        "kod": "FOMC",
+        "ad": "FOMC faiz kararı + nokta grafiği",
+        "saat": "14:00",
+        "etki": "ÇOK YÜKSEK",
+        "gostergeler": ["fedFaiz"]
+      }
+    ]
+  }
+}

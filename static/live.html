@@ -1929,34 +1929,116 @@ function scrOptions(){
   </div>`;
 }
 
-// ─── MAKRO EKONOMİ (v3 — görsel 7) ───
+// ─── MAKRO EKONOMİ (v4 — takvim + derin sentez + hızlı göstergeler) ───
+function makroYas(iso){
+  if(!iso)return '';
+  const dk=Math.round((Date.now()-new Date(iso).getTime())/60000);
+  if(!isFinite(dk))return '';
+  return dk<1?'az önce':(dk<60?dk+' dk önce':Math.round(dk/60)+' saat önce');
+}
+
+// Bugün/bu hafta hangi ABD verisi açıklandı — sitede HİÇ yoktu, kullanıcı sitemi buydu
+function makroTakvimHtml(){
+  const t=ST.makroTakvim||{}; const bugun=t.bugun||[], sonraki=t.sonraki||[], gelen=t.gelen_veriler||[];
+  if(!bugun.length && !sonraki.length && !gelen.length)return '';
+  const rozet=(o)=>{
+    const c=o.gecti?'#1ff0ad':'#ffb13c';
+    const durum=o.gecti?'✅ açıklandı':'⏳ bekleniyor';
+    return `<span style="display:inline-flex;align-items:center;gap:6px;background:#0a0f0f;border:1px solid ${c}44;border-radius:6px;padding:4px 9px;font-size:10px;color:#c4d2cf">
+      <b style="color:${c}">${durum}</b> ${esc(o.ad)}
+      <span style="color:#5e716f">${esc(o.saat_utc)} UTC${o.kesin?'':' · tahmini'}</span></span>`;};
+  const ileri=(o)=>`<div style="display:flex;gap:9px;padding:6px 0;border-bottom:1px solid #131918">
+      <span style="font-size:9.5px;color:#7af0c4;width:96px;flex-shrink:0">${esc(o.tarih)} ${esc(o.saat_utc)}</span>
+      <div style="flex:1"><div style="font-size:10.5px;color:#c4d2cf">${esc(o.ad)}${o.kesin?'':' <span style="color:#5e716f;font-size:9px">(tahmini tarih)</span>'}</div>
+      ${o.yorum?`<div style="font-size:9px;color:#8a9c99;line-height:1.45;margin-top:2px">${esc(o.yorum)}</div>`:''}</div>
+      <span style="font-size:8.5px;color:${o.etki==='ÇOK YÜKSEK'?'#ff5d6c':o.etki==='YÜKSEK'?'#ffb13c':'#5e716f'};flex-shrink:0">${esc(o.etki)}</span>
+    </div>`;
+  return `<div class="card" style="padding:14px 16px;margin-bottom:13px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <span class="sg" style="font-size:9px;letter-spacing:.14em;color:#7af0c4">📅 AÇIKLAMA TAKVİMİ</span>
+      ${t.aktif_pencere?`<span style="font-size:9px;color:#ff5d6c;border:1px solid #ff5d6c44;border-radius:5px;padding:2px 7px">⚡ VERİ PENCERESİ AÇIK — ${esc(t.aktif_pencere.aciklama||'')}</span>`:''}
+    </div>
+    ${bugun.length?`<div style="font-size:9px;color:#5e716f;margin-bottom:5px">BUGÜN</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px">${bugun.map(rozet).join('')}</div>`:
+      '<div style="font-size:10px;color:#5e716f;margin-bottom:10px">Bugün planlı ABD açıklaması yok.</div>'}
+    ${gelen.length?`<div style="font-size:9px;color:#5e716f;margin-bottom:5px">SON GELEN VERİLER (siteye düştüğü an)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px">${gelen.slice(0,6).map(v=>
+        `<span style="font-size:9.5px;background:#0a0f0f;border:1px solid #1a2422;border-radius:5px;padding:3px 8px;color:#c4d2cf">
+          ${esc(v.ad)} <span style="color:#5e716f">${esc(v.donem)}</span> <b style="color:#1ff0ad">${v.deger==null?'—':fmtNum(v.deger)}</b>
+          ${v.onceki_deger!=null?`<span style="color:#5e716f">← ${fmtNum(v.onceki_deger)}</span>`:''}</span>`).join('')}</div>`:''}
+    ${sonraki.length?`<div style="font-size:9px;color:#5e716f;margin-bottom:3px">SIRADAKİ KATALİSTLER</div>${sonraki.slice(0,5).map(ileri).join('')}`:''}
+  </div>`;
+}
+
+// Derin sentez: 5 blok (geçmiş→güncel→çıkarım) + net skor + geçersizlik koşulu
+function makroSentezHtml(){
+  const oz=ST.makroOzet||{}, bl=oz.bloklar||[];
+  const sk=(typeof oz.skor==='number')?oz.skor:null;
+  const renk=(oz.egilim||'').indexOf('POZİTİF')>=0?'#1ff0ad':(oz.egilim||'').indexOf('NEGATİF')>=0?'#ff5d6c':'#ffb13c';
+  if(!bl.length){
+    return `<div class="card" style="padding:15px 17px;margin-bottom:13px;background:#0b1010;border-color:#3a3022">
+      <div class="sg" style="font-size:9px;letter-spacing:.14em;color:#ffb13c;margin-bottom:8px">🪙 MAKRO SENTEZ</div>
+      <div style="font-size:12px;color:#c4d2cf;line-height:1.6;white-space:pre-wrap">${esc(oz.ozet||'Makro sentez yükleniyor...')}</div></div>`;}
+  const bar=sk==null?'':`<div style="flex:1;min-width:130px;height:6px;background:#141d1b;border-radius:3px;position:relative;overflow:hidden">
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#2a3634"></div>
+      <div style="position:absolute;top:0;bottom:0;background:${renk};border-radius:3px;${sk>=0?`left:50%;width:${Math.min(50,sk/2)}%`:`right:50%;width:${Math.min(50,-sk/2)}%`}"></div>
+    </div>`;
+  const blokKart=(b)=>{
+    const bc=b.skor>0.2?'#1ff0ad':b.skor<-0.2?'#ff5d6c':'#ffb13c';
+    return `<div style="padding:11px 0;border-top:1px solid #141d1b">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="font-size:12px">${b.ikon||'•'}</span>
+        <span class="sg" style="font-size:10px;letter-spacing:.1em;color:#eaf4f2;font-weight:600">${esc(b.ad)}</span>
+        <span style="font-size:9px;color:${bc};border:1px solid ${bc}44;border-radius:4px;padding:1px 7px">${esc(b.durum)}</span>
+        <span style="margin-left:auto;font-size:9px;color:${bc}">${b.skor>=0?'+':''}${b.skor}</span>
+      </div>
+      <div style="font-size:10.5px;color:#a8b8b5;line-height:1.55">${esc(b.metin)}</div>
+    </div>`;};
+  return `<div class="card" style="padding:15px 17px;margin-bottom:13px;background:#0b1010;border-color:#3a3022">
+    <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:9px">
+      <span class="sg" style="font-size:9px;letter-spacing:.14em;color:#ffb13c">🪙 MAKRO SENTEZ</span>
+      <span style="font-size:12px;color:#eaf4f2;font-weight:600">${esc(oz.baslik||'')}</span>
+      ${bar}
+      <span style="font-size:11px;font-weight:700;color:${renk}">${sk==null?'':(sk>=0?'+':'')+sk}</span>
+    </div>
+    ${oz.rejim?`<div style="font-size:10px;color:#7d908d;margin-bottom:4px">Rejim: <b style="color:#c4d2cf">${esc(oz.rejim)}</b></div>`:''}
+    ${bl.map(blokKart).join('')}
+    ${oz.gecersizlik?`<div style="margin-top:11px;padding:9px 11px;background:#0a0f0f;border-left:2px solid #ffb13c;border-radius:0 5px 5px 0">
+      <div style="font-size:8.5px;letter-spacing:.1em;color:#5e716f;margin-bottom:3px">TEZİ BOZACAK KOŞUL</div>
+      <div style="font-size:10px;color:#c4d2cf;line-height:1.5">${esc(oz.gecersizlik)}</div></div>`:''}
+    ${(oz.eksik_gostergeler||[]).length?`<div style="margin-top:8px;font-size:9px;color:#5e716f">Şu an okunamayan göstergeler: ${esc((oz.eksik_gostergeler||[]).join(', '))} — sentez kalan verilerle kuruldu.</div>`:''}
+  </div>`;
+}
+
 function scrMacro(){
   const m=ST.makro||{}, g=m.gostergeler||{}, y=m.btcYorum||{}, h=y.harita||{};
   const oz=ST.makroOzet||{};
 
-  const gosterge=(key,ad,altAd,birim,suffix)=>{
+  const gosterge=(key,ad,altAd,birim,suffix,kucuk)=>{
     const d=g[key]; if(!d)return '';
     if(d.veri_yok||d.guncel==null){return `<div class="card" style="padding:15px;opacity:.7">
       <div class="sg" style="font-size:12px;color:#eaf4f2;font-weight:600">${ad}</div>
       <div style="font-size:8.5px;color:#5e716f">${altAd}</div>
-      <div style="font-size:12px;color:#ff9d5c;margin-top:12px">⚠ Kaynak erişilemedi — veri yok</div>
+      <div style="font-size:12px;color:#ff9d5c;margin-top:12px">⚠ Veri alınamadı</div>
       <div style="font-size:8.5px;color:#5e716f;margin-top:4px">Eski veri güncelmiş gibi gösterilmez.</div></div>`;}
     const tr=d.trend, trRenk=tr==='yukari'?'#1ff0ad':tr==='asagi'?'#ff5d6c':'#9fb0ad';
     const trOk=tr==='yukari'?'▲ Yükselen':tr==='asagi'?'▼ Düşüş':'● Yatay';
     const vals=(d.gecmis||[]).map(x=>x.deger);
-    const btc=h[key]||'';
-    const fb=d.fallback?'<span style="font-size:8px;color:#5e716f">~</span>':'';
-    return `<div class="card" style="padding:15px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <div><div class="sg" style="font-size:12px;color:#eaf4f2;font-weight:600">${ad} ${fb}</div>
+    const btc=kucuk?'':(h[key]||'');
+    // Bayat = kaynak bu göstergeyi artık güncellemiyor · Hafızadan = canlı çekim başarısız
+    const uyari=d.bayat?`<span title="Bu göstergede yeni yayın gelmedi" style="font-size:8px;color:#ff9d5c;border:1px solid #ff9d5c44;border-radius:4px;padding:1px 5px">eski dönem</span>`
+      :(d.hafizadan?`<span style="font-size:8px;color:#5e716f;border:1px solid #1a2422;border-radius:4px;padding:1px 5px">hafızadan</span>`:'');
+    return `<div class="card" style="padding:${kucuk?'12px 13px':'15px'}">
+      <div style="display:flex;justify-content:space-between;gap:6px;margin-bottom:3px">
+        <div><div class="sg" style="font-size:${kucuk?'11px':'12px'};color:#eaf4f2;font-weight:600">${ad} ${uyari}</div>
         <div style="font-size:8.5px;color:#5e716f">${altAd}</div></div>
         ${d.degisim!=null?`<span style="font-size:9px;color:${d.degisim>=0?'#1ff0ad':'#ff5d6c'};border:1px solid #1a2422;padding:2px 6px;border-radius:4px;height:fit-content">${d.degisim>=0?'+':''}${d.degisim}</span>`:''}
       </div>
-      <div class="sg" style="font-weight:700;font-size:24px;color:#eaf4f2;margin:6px 0">${birim||''}${d.guncel}${suffix||''}</div>
-      <div style="font-size:9px;color:${trRenk};margin-bottom:8px">${trOk} Trend</div>
-      ${vals.length?spark(vals,trRenk,300,32):''}
-      ${(d.gecmis||[]).length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
-        ${(d.gecmis||[]).slice(-3).map((x,i,a)=>{const prev=i>0?a[i-1].deger:null;const c=prev==null?'#9fb0ad':x.deger>=prev?'#1ff0ad':'#ff5d6c';return `<span style="font-size:8.5px;background:#0a0f0f;border:1px solid #1a2422;border-radius:4px;padding:2px 6px"><span style="color:#5e716f">${esc(x.tarih)}</span> <b style="color:${c}">${birim||''}${x.deger}${suffix||''}</b></span>`;}).join('')}
+      <div class="sg" style="font-weight:700;font-size:${kucuk?'19px':'24px'};color:#eaf4f2;margin:6px 0">${birim||''}${fmtNum(d.guncel)}${suffix||''}</div>
+      <div style="font-size:9px;color:${trRenk};margin-bottom:8px">${trOk} Trend${d.tarih?` <span style="color:#5e716f">· dönem ${esc(String(d.tarih))}</span>`:''}</div>
+      ${vals.length?spark(vals,trRenk,kucuk?200:300,kucuk?26:32):''}
+      ${(!kucuk&&(d.gecmis||[]).length)?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+        ${(d.gecmis||[]).slice(-3).map((x,i,a)=>{const prev=i>0?a[i-1].deger:null;const c=prev==null?'#9fb0ad':x.deger>=prev?'#1ff0ad':'#ff5d6c';return `<span style="font-size:8.5px;background:#0a0f0f;border:1px solid #1a2422;border-radius:4px;padding:2px 6px"><span style="color:#5e716f">${esc(x.tarih)}</span> <b style="color:${c}">${birim||''}${fmtNum(x.deger)}${suffix||''}</b></span>`;}).join('')}
       </div>`:''}
       ${btc?`<div style="margin-top:10px;padding-top:9px;border-top:1px solid #141d1b">
         <div style="font-size:8px;letter-spacing:.1em;color:#5e716f;margin-bottom:4px">BTC ETKİSİ</div>
@@ -1964,34 +2046,56 @@ function scrMacro(){
     </div>`;
   };
 
-  const egilimRenk=(y.egilim||'').includes('POZİTİF')?'#1ff0ad':(y.egilim||'').includes('NEGATİF')?'#ff5d6c':'#ffb13c';
+  const eg=oz.egilim||y.egilim||'—';
+  const egilimRenk=(eg||'').indexOf('POZİTİF')>=0?'#1ff0ad':(eg||'').indexOf('NEGATİF')>=0?'#ff5d6c':'#ffb13c';
+  const egri=g.egri||{};
 
   return `
-  <div style="display:flex;align-items:baseline;gap:13px;margin-bottom:13px">
+  <div style="display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;margin-bottom:13px">
     <h1 class="sg" style="margin:0;font-weight:600;font-size:19px;color:#eaf4f2">Makro Ekonomi Göstergeleri</h1>
-    <span style="font-size:12px;color:#5e716f">${m.kaynak_ozet||''}${m.guncellendi?' · güncel: '+esc(m.guncellendi.slice(0,16).replace('T',' ')):''}</span>
+    <span style="font-size:11px;color:#5e716f">${esc(m.kaynak_ozet||'')}${m.guncellendi?' · veri '+makroYas(m.guncellendi):''}</span>
     <button onclick="loadMakro(true)" style="font-size:10px;color:#7af0c4;background:none;border:1px solid #1a2422;border-radius:6px;padding:4px 9px;cursor:pointer">↻ En son veriyi çek</button>
-    <span style="margin-left:auto;font-size:12px;font-weight:600;color:${egilimRenk};border:1px solid ${egilimRenk}44;padding:4px 11px;border-radius:6px">BTC Eğilimi: ${y.egilim||'—'}</span>
+    <span style="font-size:9px;color:#5e716f">otomatik yenileme açık</span>
+    <span style="margin-left:auto;font-size:12px;font-weight:600;color:${egilimRenk};border:1px solid ${egilimRenk}44;padding:4px 11px;border-radius:6px">BTC Eğilimi: ${esc(eg)}${typeof oz.skor==='number'?` (${oz.skor>=0?'+':''}${oz.skor})`:''}</span>
   </div>
 
-  <!-- AI MAKRO ÖZET -->
-  <div class="card" style="padding:15px 17px;margin-bottom:13px;background:#0b1010;border-color:#3a3022">
-    <div class="sg" style="font-size:9px;letter-spacing:.14em;color:#ffb13c;margin-bottom:8px">🪙 AI MAKRO ÖZET</div>
-    <div style="font-size:12px;color:#c4d2cf;line-height:1.6;white-space:pre-wrap">${esc(oz.ozet||y.sentez||'Makro özet yükleniyor...')}</div>
-  </div>
+  ${makroTakvimHtml()}
+  ${makroSentezHtml()}
 
-  <!-- 9 GÖSTERGE -->
+  <!-- ANA GÖSTERGELER -->
+  <div class="sg" style="font-size:9px;letter-spacing:.14em;color:#5e716f;margin:0 0 8px">◆ ANA GÖSTERGELER</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-    ${gosterge('fedFaiz','Fed Faiz / Hazine','FED FUNDS RATE','%','')}
+    ${gosterge('fedFaiz','Fed Politika Faizi','POLİTİKA FAİZİ','%','')}
     ${gosterge('cpi','TÜFE (CPI)','TÜKETİCİ FİYAT ENDEKSİ','','')}
-    ${gosterge('nfp','Tarım Dışı İstihdam','NON-FARM PAYROLLS / AYLIK','','K')}
+    ${gosterge('nfp','Tarım Dışı İstihdam','AYLIK DEĞİŞİM / BİN KİŞİ','','K')}
     ${gosterge('ppi','ÜFE (PPI)','ÜRETİCİ FİYAT / YILLIK','%','')}
     ${gosterge('gsyih','GSYİH','BÜYÜME / ÇEYREKLİK','%','')}
-    ${gosterge('pce','PCE','FED TERCİH GÖSTERGESİ','%','')}
+    ${gosterge('pce','PCE','FED HEDEF GÖSTERGESİ / YILLIK','%','')}
     ${gosterge('isRate','İşsizlik Oranı','UNEMPLOYMENT / AYLIK','%','')}
     ${gosterge('ism','ISM İmalat PMI','MANUFACTURING PMI','','')}
-    ${gosterge('perakende','Perakende Satışlar','RETAIL SALES / Mr$','','Mr$')}
+    ${gosterge('perakende','Perakende Satışlar','PERAKENDE / YILLIK','%','')}
   </div>
+
+  <!-- HIZLI GÖSTERGELER: haftalık/günlük — piyasa beklentisi buradan okunur -->
+  <div class="sg" style="font-size:9px;letter-spacing:.14em;color:#5e716f;margin:22px 0 4px">◆ HIZLI GÖSTERGELER (günlük / haftalık)</div>
+  <div style="font-size:9.5px;color:#7d908d;margin-bottom:10px;line-height:1.5">Aylık veriler gecikmeli gelir. Faiz beklentisi, dolar ve iş piyasası bu günlük/haftalık göstergelerden çok daha erken okunur — politika faizi ile 2 yıllık getiri arasındaki makas, piyasanın ima ettiği indirim/artırım yönüdür.</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px">
+    ${gosterge('claims','Haftalık İşsizlik Başvurusu','HAFTALIK · KİŞİ','','',1)}
+    ${gosterge('cpi_cekirdek','Çekirdek TÜFE','GIDA+ENERJİ HARİÇ','','',1)}
+    ${gosterge('us2y','2 Yıllık Getiri','FAİZ BEKLENTİSİ ÇIPASI','%','',1)}
+    ${gosterge('us10y','10 Yıllık Getiri','İSKONTO ORANI ÇIPASI','%','',1)}
+    ${gosterge('reel10y','10Y Reel Getiri','ENFLASYONDAN ARINDIRILMIŞ','%','',1)}
+    ${gosterge('dxy','Dolar Endeksi','BTC İLE TERS KORELASYON','','',1)}
+    ${gosterge('sanayi','Sanayi Üretimi','YILLIK','%','',1)}
+    ${gosterge('guven','Tüketici Güveni','ANKET ENDEKSİ','','',1)}
+  </div>
+  ${egri.guncel!=null?`<div class="card" style="padding:12px 15px;margin-top:11px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="sg" style="font-size:10px;color:#eaf4f2;font-weight:600">Getiri Eğrisi (10Y − 2Y)</span>
+      <span style="font-size:16px;font-weight:700;color:${egri.guncel<0?'#ff5d6c':'#1ff0ad'}">${egri.guncel>=0?'+':''}${egri.guncel} puan</span>
+      <span style="font-size:10px;color:#8a9c99">${egri.guncel<0?'TERS EĞRİ — tarihsel resesyon öncüsü; dikleşmeye dönmesi faiz indirim döngüsünün klasik habercisidir.':'Normal/dikleşen eğri — büyüme ve gevşeme beklentisi birlikte fiyatlanıyor.'}</span>
+      ${egri.m3!=null?`<span style="margin-left:auto;font-size:9px;color:#5e716f">3 ay ${egri.m3}% · 30 yıl ${egri.y30!=null?egri.y30+'%':'—'}</span>`:''}
+    </div></div>`:''}
 
   ${carryTradeHtml()}`;
 }
@@ -2763,7 +2867,22 @@ async function loadOarSistem(){
   if(ST.tab==='leader')render();
 }
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
-async function loadMakro(force){const q=force?'?refresh=true':'';const d=await jget('/api/makro'+q);if(d)ST.makro=d;const o=await jget('/api/makro/ozet');if(o)ST.makroOzet=o;const cr=await jget('/api/makro/carry');if(cr)ST.makroCarry=cr;if(ST.tab==='macro')render();}
+async function loadMakro(force){
+  const q=force?'?refresh=true':'';
+  const [d,o,cr,tk]=await Promise.all([
+    jget('/api/makro'+q), jget('/api/makro/ozet'), jget('/api/makro/carry'), jget('/api/makro/takvim')]);
+  if(d)ST.makro=d; if(o)ST.makroOzet=o; if(cr)ST.makroCarry=cr; if(tk)ST.makroTakvim=tk;
+  if(ST.tab==='macro')render();
+  makroOtoYenile();
+}
+// Sayfa açıkken makro kendini tazeler (ABD verisi 08:30 ET'de düşer; eskiden
+// yalnız sayfa ilk açılışında çekiliyordu → açıklama siteye hiç yansımıyordu).
+let _makroTimer=null;
+function makroOtoYenile(){
+  if(_makroTimer)clearTimeout(_makroTimer);
+  const pencere=!!((ST.makroTakvim||{}).aktif_pencere);
+  _makroTimer=setTimeout(()=>{ if(ST.tab==='macro')loadMakro(); }, pencere?60000:180000);
+}
 async function loadDevops(force){const d=await jget('/api/devops');if(d)ST.devops=d;if(force&&ST.tab==='knowledge')render();}
 async function loadFeed(){
   const d=await jget('/api/leader/rapor-gecmisi?limit=10');

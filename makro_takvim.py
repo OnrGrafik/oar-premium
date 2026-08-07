@@ -137,8 +137,170 @@ def move_source_belirle(*, fiyat_chg_pct: float = 0.0,
             "alternatifler": [a[0] for a in adaylar[1:]]}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  AÇIKLAMA TAKVİMİ — "bugün hangi ABD verisi açıklandı / sırada ne var"
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kullanıcı sitemi: "Bugün ABD verisi açıklandı ama makro veriler kısmında yok."
+# Sitede takvim HİÇ yoktu; yalnız gün-içi risk penceresi vardı (saat bazlı).
+#
+# DÜRÜSTLÜK KURALI (ANAYASA #3): ücretsiz + anahtarsız bir "ekonomik takvim API'si"
+# YOK. O yüzden tarihleri TÜRETİYORUZ ve her olayı `kesin` bayrağıyla etiketliyoruz:
+#   kesin=True  → takvim kuralı KESİN (NFP = ayın ilk Cuma'sı, başvurular = her
+#                 Perşembe, ISM = ayın 1./3. iş günü). Sapma nadir (tatil kayması).
+#   kesin=False → TİPİK PENCERE (CPI ~10-15, perakende ~15-17, PCE/GSYİH ay sonu).
+#                 Sitede "tahmini" diye gösterilir — kesinmiş gibi sunulmaz.
+# FOMC gibi sabit tarihli olaylar tahmin EDİLMEZ; repo kökündeki
+# `makro_takvim_override.json` dosyasından okunur (kullanıcı elle girer, git-senkron):
+#   {"2026-09-16": [{"kod":"FOMC","ad":"FOMC faiz kararı","saat":"14:00","etki":"ÇOK YÜKSEK"}]}
+
+from datetime import date as _date
+
+_OVERRIDE_AD = "makro_takvim_override.json"
+
+# (kod, ad, kural, saat_et, dk, etki, kesin, etkilenen_göstergeler)
+RELEASE_KURALLARI = [
+    ("NFP",       "Tarım Dışı İstihdam (NFP) + İşsizlik",  "ilk_cuma",     8, 30, "ÇOK YÜKSEK", True,  ["nfp", "isRate", "kazanc"]),
+    ("CLAIMS",    "Haftalık İşsizlik Başvuruları",         "her_persembe", 8, 30, "ORTA",       True,  ["claims"]),
+    ("ISM_IMALAT", "ISM İmalat PMI",                       "is_gunu_1",   10,  0, "YÜKSEK",     True,  ["ism"]),
+    ("ISM_HIZMET", "ISM Hizmet PMI",                       "is_gunu_3",   10,  0, "YÜKSEK",     True,  []),
+    ("CPI",       "TÜFE (CPI) enflasyon",                  "ay_10_15",     8, 30, "ÇOK YÜKSEK", False, ["cpi"]),
+    ("PPI",       "ÜFE (PPI) üretici enflasyonu",          "ay_11_16",     8, 30, "YÜKSEK",     False, ["ppi"]),
+    ("PERAKENDE", "Perakende Satışlar",                    "ay_15_17",     8, 30, "YÜKSEK",     False, ["perakende"]),
+    ("GDP",       "GSYİH (öncü/revize)",                   "ay_son_persembe", 8, 30, "YÜKSEK",  False, ["gsyih"]),
+    ("PCE",       "PCE — Fed'in tercih ettiği enflasyon",  "ay_son_is_gunu",  8, 30, "ÇOK YÜKSEK", False, ["pce"]),
+    ("SANAYI",    "Sanayi Üretimi",                        "ay_15_17",     9, 15, "ORTA",       False, ["sanayi"]),
+    ("GUVEN",     "Michigan Tüketici Güveni (öncü)",       "ikinci_cuma",  10,  0, "ORTA",       False, ["guven"]),
+]
+
+
+def _ay_gunleri(yil: int, ay: int) -> list[_date]:
+    from calendar import monthrange
+    return [_date(yil, ay, g) for g in range(1, monthrange(yil, ay)[1] + 1)]
+
+
+def _is_gunleri(yil: int, ay: int) -> list[_date]:
+    return [d for d in _ay_gunleri(yil, ay) if d.weekday() < 5]
+
+
+def _kural_tarihleri(kural: str, yil: int, ay: int) -> list[_date]:
+    """Bir kuralın o aydaki tarih(ler)i. Bilinmeyen kural → boş."""
+    gunler = _ay_gunleri(yil, ay)
+    isg = _is_gunleri(yil, ay)
+    cumalar = [d for d in gunler if d.weekday() == 4]
+    persembeler = [d for d in gunler if d.weekday() == 3]
+    if kural == "ilk_cuma":
+        return cumalar[:1]
+    if kural == "ikinci_cuma":
+        return cumalar[1:2]
+    if kural == "her_persembe":
+        return persembeler
+    if kural == "is_gunu_1":
+        return isg[:1]
+    if kural == "is_gunu_3":
+        return isg[2:3]
+    if kural == "ay_son_is_gunu":
+        return isg[-1:]
+    if kural == "ay_son_persembe":
+        return persembeler[-1:]
+    if kural in ("ay_10_15", "ay_11_16", "ay_15_17"):
+        bas, bit = {"ay_10_15": (10, 15), "ay_11_16": (11, 16), "ay_15_17": (15, 17)}[kural]
+        aday = [d for d in gunler if bas <= d.day <= bit and d.weekday() < 5]
+        # pencerenin ortasındaki iş gününü temsilci seç (tipik açıklama günü)
+        return aday[len(aday) // 2:len(aday) // 2 + 1] if aday else []
+    return []
+
+
+def _override_oku() -> dict:
+    """Kullanıcının elle girdiği kesin tarihler (FOMC vb.). Yoksa boş."""
+    import json
+    from pathlib import Path
+    for kok in (Path(__file__).resolve().parent, Path.cwd()):
+        p = kok / _OVERRIDE_AD
+        try:
+            if p.exists():
+                d = json.loads(p.read_text(encoding="utf-8"))
+                return d if isinstance(d, dict) else {}
+        except Exception:
+            continue
+    return {}
+
+
+def _olay(tarih: _date, kod, ad, sa, dk, etki, kesin, gostergeler) -> dict:
+    yerel = datetime(tarih.year, tarih.month, tarih.day, sa, dk, tzinfo=ET)
+    utc = yerel.astimezone(ZoneInfo("UTC"))
+    simdi = datetime.now(ZoneInfo("UTC"))
+    fark_dk = (utc - simdi).total_seconds() / 60.0
+    return {
+        "tarih": tarih.isoformat(),
+        "kod": kod, "ad": ad,
+        "saat_et": f"{sa:02d}:{dk:02d}",
+        "saat_utc": utc.strftime("%H:%M"),
+        "utc": utc.isoformat(),
+        "etki": etki,
+        "kesin": bool(kesin),
+        "gostergeler": list(gostergeler),
+        "gecti": fark_dk <= 0,
+        "dakika": int(fark_dk),
+        "bugun": tarih == simdi.astimezone(ET).date(),
+    }
+
+
+def takvim(once_gun: int = 5, sonra_gun: int = 14) -> list[dict]:
+    """
+    [bugün−once_gun, bugün+sonra_gun] aralığındaki ABD makro açıklamaları.
+    Kural-türetimli (kesin=True) + tipik pencere (kesin=False) + override (kesin).
+    Tarihe göre sıralı döner.
+    """
+    bugun = datetime.now(ET).date()
+    bas, bit = bugun - timedelta(days=once_gun), bugun + timedelta(days=sonra_gun)
+    aylar = {(bas.year, bas.month), (bugun.year, bugun.month), (bit.year, bit.month)}
+    out = []
+    for yil, ay in sorted(aylar):
+        for kod, ad, kural, sa, dk, etki, kesin, gost in RELEASE_KURALLARI:
+            for t in _kural_tarihleri(kural, yil, ay):
+                if bas <= t <= bit:
+                    out.append(_olay(t, kod, ad, sa, dk, etki, kesin, gost))
+    for tarih_str, olaylar in (_override_oku() or {}).items():
+        try:
+            t = datetime.strptime(str(tarih_str)[:10], "%Y-%m-%d").date()
+        except Exception:
+            continue
+        if not (bas <= t <= bit):
+            continue
+        for o in (olaylar if isinstance(olaylar, list) else [olaylar]):
+            try:
+                sa, dk = (int(x) for x in str(o.get("saat", "08:30")).split(":")[:2])
+            except Exception:
+                sa, dk = 8, 30
+            out.append(_olay(t, o.get("kod", "OLAY"), o.get("ad", "Makro olay"), sa, dk,
+                             o.get("etki", "YÜKSEK"), True, o.get("gostergeler", [])))
+    out.sort(key=lambda x: (x["tarih"], x["saat_utc"]))
+    return out
+
+
+def bugunku_aciklamalar() -> list[dict]:
+    """Bugün açıklanan / açıklanacak ABD verileri (ET gününe göre)."""
+    return [o for o in takvim(0, 0) if o["bugun"]]
+
+
+def sonraki_olaylar(n: int = 4, yalniz_yuksek: bool = False) -> list[dict]:
+    """Sıradaki n açıklama (henüz geçmemiş)."""
+    ileri = [o for o in takvim(0, 21) if not o["gecti"]]
+    if yalniz_yuksek:
+        ileri = [o for o in ileri if o["etki"] in ("YÜKSEK", "ÇOK YÜKSEK")]
+    return ileri[:n]
+
+
+def gosterge_olaylari(anahtar: str, once_gun: int = 10) -> list[dict]:
+    """Bir göstergeyi (ör. 'nfp') etkileyen son açıklamalar."""
+    return [o for o in takvim(once_gun, 0)
+            if anahtar in (o.get("gostergeler") or []) and o["gecti"]]
+
+
 if __name__ == "__main__":
     import json
+    print("Bugün:", json.dumps(bugunku_aciklamalar(), ensure_ascii=False, indent=1))
+    print("Sıradaki:", json.dumps(sonraki_olaylar(3), ensure_ascii=False, indent=1))
     print("Aktif pencere:", json.dumps(aktif_olay_penceresi(), ensure_ascii=False))
     print("Askıdaki hipotezler:", askiya_alinan_hipotezler())
     print("move_source:", json.dumps(
