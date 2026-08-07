@@ -323,6 +323,7 @@
 - İLK ADIM her zaman OTORİTE KIYASI: aggTrades toplamı == klines hacmi (%). Kaynak seçerken birim/ölçek DOĞRULA (yüksek çözünürlük ≠ doğru birim — Kiyotaka dersi §6d3).
 - Kullanıcı footprint'te **ALIŞ + SATIŞ'ı AYRI** görmek ister (trade için: "alım satayım göreyim") — DELTA/tek-birleşik-sayı DEĞİL. Varsayılan = iki sütun (SOL satış / SAĞ alış), gerçek BTC değerleriyle. Delta yalnız opsiyonel toggle. (Delta'yı varsayılan yapmak HATAYDI, geri alındı.)
 - Tekrar tasarıma kaçma: kullanıcı "veri" derken görseli düzeltmek = zaman kaybı + kullanıcıyı "dalga geçiyor" hissine iter. Önce ölç (teşhis ucu), sonra veriyi düzelt.
+- ⚠️ GEOMETRİ GERÇEĞİ (kullanıcı kararı, kalıcı): tek ekranda ÜÇÜ BİRDEN olmaz — (a) çok mum + (b) alış/satış AYRI iki sütun + (c) okunur. Kullanıcı **(b)+(c)'yi** seçti (alış/satışı ayrı görmek trade için şart). Uygulama: FP açıkken `kFpGenislet()` mumları GENİŞLETİR (barSpacing ~w/11, ~11 mum ekrana sığar → her seviyede SOL satış / SAĞ alış okunur; ATAS/Sierra tarzı, geçmişe sola kaydır). 40 dar mumda iki sütun fiziksel SIĞMAZ — "eski karmaşık görüntü" tam olarak buydu. FP kapanınca `kFpDaralt()` normal genişliğe döner. Delta (tek sayı) yalnız opsiyonel toggle (kullanıcı istemedi).
 
 ## 6d3. FOOTPRINT "VERİLER DOĞRU DEĞİL" — GERÇEK KÖK NEDEN: KIYOTAKA ŞİŞİK BİRİM (KESİN, teşhisle kanıtlandı)
 - KULLANICI (defalarca, haklı sitem): "veriler doğru değil, çubuklar boş/dolmuyor, matematik yanlış." Grafik değil VERİ sorunuymuş.
