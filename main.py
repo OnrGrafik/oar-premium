@@ -2084,8 +2084,19 @@ async def _site_baglami() -> str:
                     f"{y['ad']} {y['donem']}={y.get('deger')}" for y in _yn[:4]))
             _sn = (_sz.get("sonraki") or [])[:2]
             if _sn:
-                par.append("  └ Sıradaki: " + " | ".join(
+                par.append("  ├ Sıradaki (ABD): " + " | ".join(
                     f"{o['tarih']} {o['saat_utc']}UTC {o['ad']}" for o in _sn))
+    except Exception: pass
+    try:
+        # KÜRESEL TAKVİM (§5k: siteye eklenen her panel lider bağlamına da girer).
+        # Bölge kanalı farklı: ABD dolar · AB ters dolar · Japonya carry.
+        from makro_global import kuresel_takvim
+        _kt = await kuresel_takvim()
+        _kr = (_kt or {}).get("kritik") or []
+        if _kr:
+            par.append("[KÜRESEL TAKVİM] Sıradaki kritik: " + " | ".join(
+                f"{o['bayrak']} {o['tarih_utc']} {o['saat_utc']}UTC {o['ad']}"
+                f" (kanal: {o.get('kanal')})" for o in _kr))
     except Exception: pass
     metin = "═══ SİTE BAĞLAMI (Komuta Merkezi + Opsiyon + Makro sayfalarının CANLI verisi) ═══\n" + "\n".join(par)
     _site_baglam_cache["ts"] = _t.time(); _site_baglam_cache["metin"] = metin
@@ -2843,6 +2854,18 @@ async def makro_ozet():
         "kaynak_teshis": data.get("kaynak_teshis"),
         "guncellendi": data.get("guncellendi"),
     }
+
+
+@app.get("/api/makro/kuresel")
+async def makro_kuresel(once: int = 2, sonra: int = 21, min_etki: str = "YÜKSEK"):
+    """
+    Küresel makro takvimi: ABD + Euro Bölgesi + Japonya, kronolojik (UTC).
+    Her olayda beklenti (elle girilen konsensüs varsa o, yoksa OAR projeksiyonu —
+    kaynağı ETİKETLİ) + SICAK/PARALEL/SOĞUK senaryoları ve BTC'ye etki zinciri.
+    Bölge kanalı farklıdır: ABD doğrudan dolar · AB ters dolar · Japonya carry.
+    """
+    from makro_global import kuresel_takvim
+    return await kuresel_takvim(once, sonra, min_etki)
 
 
 @app.get("/api/makro/takvim")

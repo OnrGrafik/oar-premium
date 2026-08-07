@@ -2097,7 +2097,103 @@ function scrMacro(){
       ${egri.m3!=null?`<span style="margin-left:auto;font-size:9px;color:#5e716f">3 ay ${egri.m3}% · 30 yıl ${egri.y30!=null?egri.y30+'%':'—'}</span>`:''}
     </div></div>`:''}
 
-  ${carryTradeHtml()}`;
+  ${carryTradeHtml()}
+  ${kureselTakvimHtml()}`;
+}
+
+// ─── KÜRESEL MAKRO TAKVİMİ (ABD + Euro Bölgesi + Japonya) ───
+// Bölge kanalları AYNI yönde çalışmaz: ABD doğrudan dolar · AB ters dolar · JP carry.
+function kureselAc(id){
+  ST.kureselAcik = ST.kureselAcik || {};
+  ST.kureselAcik[id] = !ST.kureselAcik[id];
+  render();
+}
+function kureselTakvimHtml(){
+  const k=ST.kuresel||{}; const ol=k.olaylar||[];
+  if(!ol.length)return '';
+  const acik=ST.kureselAcik||{};
+  const etkiRenk=(e)=>e==='ÇOK YÜKSEK'?'#ff5d6c':e==='YÜKSEK'?'#ffb13c':'#5e716f';
+  const dalRenk=(t)=>t==='İYİ'?'#1ff0ad':t==='KÖTÜ'?'#ff5d6c':t==='KARIŞIK'?'#ffb13c':'#9fb0ad';
+
+  // Bölge özet şeridi — her bölgenin son gerçekleşen değerleri
+  const bolgeler=k.bolgeler||{};
+  const bolgeSerit=Object.keys(bolgeler).map(bk=>{
+    const b=bolgeler[bk]||{}; const gs=b.gostergeler||[];
+    return `<div class="card" style="padding:11px 13px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+        <span style="font-size:14px">${b.bayrak||''}</span>
+        <span class="sg" style="font-size:10px;color:#eaf4f2;font-weight:600">${esc(b.ad||bk)}</span>
+        <span style="margin-left:auto;font-size:8px;color:#5e716f">${bk==='ABD'?'dolar kanalı':bk==='AB'?'ters dolar kanalı':'carry kanalı'}</span>
+      </div>
+      ${gs.length?gs.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:9.5px;padding:2px 0">
+          <span style="color:#8a9c99">${esc(x.ad)}</span>
+          <b style="color:#c4d2cf">${fmtNum(x.deger)}${esc(x.birim||'')}</b></div>`).join('')
+        :'<div style="font-size:9px;color:#ff9d5c">Bu bölgenin gerçekleşen değerleri alınamadı — takvim ve senaryolar yine çalışıyor.</div>'}
+    </div>`;}).join('');
+
+  const satir=(o)=>{
+    const id=o.tarih_utc+'|'+o.kod;
+    const ac=!!acik[id];
+    const b=o.beklenti||{};
+    const bDeger=(b.deger==null)?'—':(fmtNum(b.deger)+(b.birim||''));
+    const bRozet=b.kaynak==='konsensüs'
+      ? '<span style="font-size:7.5px;color:#1ff0ad;border:1px solid #1ff0ad44;border-radius:3px;padding:0 4px">konsensüs</span>'
+      : (b.kaynak==='OAR projeksiyonu'
+        ? '<span title="Piyasa konsensüsü değil — göstergenin kendi serisinden türetildi" style="font-size:7.5px;color:#ffb13c;border:1px solid #ffb13c44;border-radius:3px;padding:0 4px">projeksiyon</span>'
+        : '');
+    return `<div style="border-bottom:1px solid #131918">
+      <div onclick="kureselAc('${id}')" style="display:flex;align-items:center;gap:9px;padding:8px 2px;cursor:pointer">
+        <span style="font-size:9.5px;color:${o.gecti?'#5e716f':'#7af0c4'};width:104px;flex-shrink:0">${esc(o.tarih_utc)} ${esc(o.saat_utc)}</span>
+        <span style="font-size:13px;flex-shrink:0">${o.bayrak||''}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10.5px;color:#c4d2cf">${esc(o.ad)}
+            ${o.kesin?'':'<span style="font-size:8px;color:#5e716f">· tahmini tarih</span>'}
+            ${o.gecti?'<span style="font-size:8px;color:#1ff0ad">· açıklandı</span>':''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;min-width:96px">
+          <div style="font-size:10px;color:#eaf4f2">${bDeger} ${bRozet}</div>
+          ${b.onceki!=null?`<div style="font-size:8px;color:#5e716f">önceki ${fmtNum(b.onceki)}${esc(b.birim||'')}</div>`:''}
+        </div>
+        <span style="font-size:8px;color:${etkiRenk(o.etki)};flex-shrink:0;width:68px;text-align:right">${esc(o.etki)}</span>
+        <span style="font-size:9px;color:#5e716f;flex-shrink:0">${ac?'▾':'▸'}</span>
+      </div>
+      ${ac?`<div style="padding:2px 0 12px 113px">
+        ${b.kaynak_not?`<div style="font-size:8.5px;color:#5e716f;margin-bottom:7px">Beklenti: ${esc(b.kaynak_not)}</div>`:''}
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+          ${(o.senaryolar||[]).map(d=>`<div style="background:#0a0f0f;border:1px solid #1a2422;border-left:2px solid ${dalRenk(d.etiket)};border-radius:0 5px 5px 0;padding:9px 10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span class="sg" style="font-size:9px;letter-spacing:.1em;color:#eaf4f2;font-weight:600">${esc(d.dal)}</span>
+              <span style="font-size:8.5px;color:${dalRenk(d.etiket)};border:1px solid ${dalRenk(d.etiket)}44;border-radius:3px;padding:0 5px">BTC: ${esc(d.etiket)}</span>
+            </div>
+            <div style="font-size:8.5px;color:#7af0c4;margin-bottom:4px">${esc(d.esik)}</div>
+            <div style="font-size:9.5px;color:#a8b8b5;line-height:1.5">${esc(d.metin)}</div>
+          </div>`).join('')}
+        </div></div>`:''}
+    </div>`;};
+
+  const kritik=(k.kritik||[]).map(o=>`<span style="font-size:9.5px;background:#0a0f0f;border:1px solid ${etkiRenk(o.etki)}44;border-radius:5px;padding:3px 8px;color:#c4d2cf">
+      ${o.bayrak||''} ${esc(o.ad)} <span style="color:#5e716f">${esc(o.tarih_utc)} ${esc(o.saat_utc)} UTC</span></span>`).join('');
+
+  return `
+  <div style="display:flex;align-items:center;gap:11px;margin:24px 0 11px;flex-wrap:wrap">
+    <span class="sg" style="font-size:12px;letter-spacing:.14em;color:#eaf4f2;font-weight:600">🌍 KÜRESEL MAKRO TAKVİMİ</span>
+    <span style="font-size:9px;color:#5e716f">ABD · Euro Bölgesi · Japonya — kronolojik, saatler UTC</span>
+    ${k.carry_riski?`<span style="margin-left:auto;font-size:9px;color:${k.carry_riski==='YÜKSEK'?'#ff5d6c':k.carry_riski==='ORTA'?'#ffb13c':'#1ff0ad'};border:1px solid #1a2422;border-radius:5px;padding:2px 8px">yen carry riski: ${esc(k.carry_riski)}</span>`:''}
+  </div>
+  <div style="font-size:9.5px;color:#7d908d;margin-bottom:11px;line-height:1.55">
+    Üç bölge aynı yönde çalışmaz: <b style="color:#c4d2cf">ABD</b> verisi doğrudan dolar/faiz kanalından etkiler —
+    sıcak veri BTC'ye baskıdır. <b style="color:#c4d2cf">Euro Bölgesi</b> ters kanaldır: sıcak AB verisi euroyu
+    güçlendirip dolar endeksini zayıflatır, yani BTC'ye destektir. <b style="color:#c4d2cf">Japonya</b> carry kanalıdır:
+    sıcak JP verisi yeni güçlendirip yen ile fonlanan pozisyonların kapanmasına yol açar, bu da risk varlıklarında satış demektir.
+    Satıra tıklayınca o açıklamanın sıcak / paralel / soğuk senaryoları açılır.
+  </div>
+  ${bolgeSerit?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:12px">${bolgeSerit}</div>`:''}
+  ${kritik?`<div style="margin-bottom:10px"><div style="font-size:9px;color:#5e716f;margin-bottom:5px">SIRADAKİ EN KRİTİK 3 OLAY</div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">${kritik}</div></div>`:''}
+  <div class="card" style="padding:6px 14px 4px">
+    ${ol.map(satir).join('')}
+  </div>
+  ${k.beklenti_notu?`<div style="font-size:9px;color:#5e716f;margin-top:8px;line-height:1.5">${esc(k.beklenti_notu)}</div>`:''}`;
 }
 
 function carryTradeHtml(){
@@ -2869,9 +2965,11 @@ async function loadOarSistem(){
 async function loadBasariSkoru(){const d=await jget('/api/basari-skoru');if(d)ST.basariSkoru=d;}
 async function loadMakro(force){
   const q=force?'?refresh=true':'';
-  const [d,o,cr,tk]=await Promise.all([
-    jget('/api/makro'+q), jget('/api/makro/ozet'), jget('/api/makro/carry'), jget('/api/makro/takvim')]);
+  const [d,o,cr,tk,kr]=await Promise.all([
+    jget('/api/makro'+q), jget('/api/makro/ozet'), jget('/api/makro/carry'),
+    jget('/api/makro/takvim'), jget('/api/makro/kuresel')]);
   if(d)ST.makro=d; if(o)ST.makroOzet=o; if(cr)ST.makroCarry=cr; if(tk)ST.makroTakvim=tk;
+  if(kr)ST.kuresel=kr;
   if(ST.tab==='macro')render();
   makroOtoYenile();
 }

@@ -387,6 +387,20 @@
 - 📌 KULLANICI AKSİYONU (opsiyonel, sayfayı TAM doldurur): Railway Variables'a `FRED_API_KEY` (ücretsiz, fred.stlouisfed.org) → GSYİH/PCE/perakende/sanayi/güven/başvuru da gelir. `BLS_API_KEY` (ücretsiz) → BLS günlük 25 istek sınırı 500'e çıkar. İkisi de YOKSA site yine çalışır (enflasyon/istihdam/faiz/getiri eğrisi anahtarsız gelir).
 - ⚠️ REDEPLOY + hard-refresh (Ctrl+Shift+R) ŞART; §6d ①: Railway **main** dalını deploy eder.
 
+## 6i. KÜRESEL MAKRO TAKVİMİ — ABD + Euro Bölgesi + Japonya (`makro_global.py`, kullanıcı onaylı tasarım)
+- KULLANICI: "En aşağı ABD, JPY ve Euro bölgesi makro veri takvimi ve beklentiler, ayrıca beklentilere paralel yorumlamalar, iyi-kötü senaryolar." → tasarım sunuldu, **3 seçenek de kullanıcı tarafından onaylandı**: ① beklenti = OAR projeksiyonu + manuel override ② görünüm = tek kronolojik liste, bölge rozetli ③ kapsam = yalnız YÜKSEK/ÇOK YÜKSEK etkili olaylar.
+- ⭐ ASIL KATMA DEĞER — **ÜÇ BÖLGE AYNI YÖNDE ÇALIŞMAZ** (`makro_global._zincir`, senaryo motorunun çekirdeği):
+  • **ABD → doğrudan dolar kanalı**: sıcak veri → indirim ötelenir → dolar/reel getiri ↑ → BTC BASKI.
+  • **Euro Bölgesi → TERS dolar kanalı**: sıcak AB verisi → ECB şahin → EUR ↑ → **dolar endeksi ZAYIFLAR** → BTC DESTEK. (ABD'nin tam tersi; en sık ters okunan yer.)
+  • **Japonya → CARRY kanalı**: sıcak JP verisi → BoJ şahin → yen ↑ → yen-fonlamalı carry pozisyonları kapanır → küresel risk-off → BTC BASKI. Mevcut carry paneline bağlı (kopuk kutu değil).
+- BEKLENTİ — ⚠️ **ücretsiz+anahtarsız gerçek konsensüs API'si YOK** (ANAYASA #3). İki katman, ikisi de ETİKETLİ, uydurma sayı YOK: ① `makro_takvim_override.json`'daki `beklenti` alanı → "konsensüs" rozeti ② yoksa **OAR projeksiyonu** (göstergenin KENDİ serisinden: TÜFE=3-ay yıllıklandırılmış hız · NFP=3-ay ort · başvuru=4-hafta ort · diğer=trend eğimi) → "projeksiyon · piyasa konsensüsü DEĞİLDİR" rozeti. Hesaplanamıyorsa kolon BOŞ kalır.
+- SENARYO: her olayda **SICAK / PARALEL / SOĞUK** dalı + sayısal eşik (beklenti ± band; band göstergeye özel: TÜFE 0.2pp, NFP 50 bin, başvuru 15 bin, faiz 25bp) + BTC etiketi (İYİ/KÖTÜ/KARIŞIK/NÖTR) + zincir metni. "İyi/kötü" **risk varlığı** açısından tanımlı, ekonomi açısından DEĞİL (sıcak enflasyon ekonomi için güç, BTC için baskı). İstihdam dalında "50 binin çok altı = soğuma değil ÇÖKÜŞ" uyarısı ayrıca yazılır.
+- TAKVİM: `makro_takvim` bölge-farkındalı yapıldı (`BOLGELER` + kural sözlükleri). AB: HICP flash/final, öncü PMI, GSYİH, işsizlik, ZEW, Ifo · JP: ulusal TÜFE, Tokyo TÜFE (son Cuma = KESİN kural), GSYİH, Tankan, ücret. Çeyreklik olaylar `aylar` alanıyla filtrelenir. Merkez bankası (FOMC/ECB/BoJ) tahmin EDİLMEZ → override'dan.
+- ⚠️ **SAAT TUZAĞI (düzeltildi)**: Japonya 08:30 JST = bir ÖNCEKİ günün 23:30 UTC'si. Yerel tarih + UTC saati yan yana yazılırsa YANILTIR → her olay `tarih_utc` taşır, kronolojik sıralama `utc` damgasına göre yapılır. Bölge saatleri yerel tutulup UTC'ye çevrilir (yaz saati kayması otomatik).
+- VERİ SINIRI (dürüst): AB gerçekleşen değerleri **ECB veri servisinden anahtarsız** (HICP, çekirdek, politika faizi, işsizlik; CSV kolonları TIME_PERIOD/OBS_VALUE ADIYLA bulunur, mevduat faizi gelmezse ana refinansman faizine düşer). **Japonya için anahtarsız güvenilir resmî kaynak YOK** → TÜFE ancak FRED anahtarıyla gelir, yoksa "veri yok" (uydurulmaz); BoJ faizi + USD/JPY carry panelinden yeniden kullanılır (tekrar istek yok). Takvim + senaryolar gerçekleşen değere bağlı DEĞİL → her hâlükârda çalışır.
+- ⚠️ ECB uç noktası bu oturumda **doğrulanamadı** (sandbox dış ağı kapalı, 403). Parse savunmacı yazıldı ve boşsa "veri yok" der; ilk canlı turda bölge şeridinde AB satırları boşsa seri anahtarları kontrol edilmeli.
+- Uçlar: `/api/makro/kuresel` (once/sonra/min_etki). Site: makro sayfasının EN ALTI — bölge özet şeridi + "sıradaki en kritik 3 olay" + kronolojik liste (satıra tıkla → 3 senaryo kartı açılır). Lider bağlamına (`_site_baglami`) kritik olaylar + kanal etiketiyle eklendi (§5k).
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
