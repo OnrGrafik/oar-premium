@@ -34,6 +34,7 @@ _VARSAYILAN_TICK = {"BTCUSDT": 3.0, "ETHUSDT": 0.3}
 
 _CACHE = {}          # {(sembol,interval,tick,limit,borsalar): {"ts":epoch, "veri":...}}
 _CACHE_TTL_S = 2     # kısa (arka plan doldukça yeni seviyeler görünsün)
+KAPSAM_ESIK = 0.99   # mum footprint'i "tam" sayılmak için klines hacminin ≥%99'u olmalı
 
 # Per-mum footprint önbelleği (GEÇMİŞ mum DEĞİŞMEZ → bir kez çekilir, kalıcı cache).
 # {(sembol,interval,tick,mum_ts): {"seviyeler":[...], "alis","satis","delta","poc"}}
@@ -231,6 +232,37 @@ async def _yedek_doldur(sembol: str, interval: str, mum_sayisi: int,
     return out
 
 
+def _kaynak_sec(agg, yed, hacim_ref, kapanmis):
+    """
+    Bir mum için footprint kaynağını seç + KAPSAM denetimi yap.
+
+    ⚠️ NEDEN GEREKLİ (sessiz veri kaybı): aggTrades toplamı klines hacmine EŞİT
+    olmalıdır (§6d3 otorite kıyası). Ama `_fp_doldur`, `agg_trades`i max_trade
+    tavanıyla çağırır; yoğun mumda (özellikle 15m BTC) tavan aşılınca agg_trades
+    KESİP döner → alış/satış SESSİZCE eksik çıkar ve kimse fark etmez. Tam da
+    "veriler doğru değil" şikâyetinin kaynağı bu sınıf.
+
+    Eksikse toplamı YAPISAL OLARAK TAM olan 1dk-taker yedeğine düşülür: fiyat
+    çözünürlüğü kaba ama SAYI DOĞRU (alis=takerBuy, satis=hacim−takerBuy).
+    Doğruluk, çözünürlükten önce gelir (§6dK).
+
+    Devam eden mumda klines ile aggTrades arasında anlık kayma normaldir → yalnız
+    KAPANMIŞ mumda kaynak değiştirilir; açık mumda kapsam sadece raporlanır.
+
+    Döner: (secilen_kayit, kaynak_adi, kapsam_orani)
+    """
+    bf = agg or yed
+    kaynak = "aggtrades" if agg else ("1m_taker" if yed else "yok")
+    if not bf or not hacim_ref or hacim_ref <= 0:
+        return bf, kaynak, None
+    kapsam = (bf["alis"] + bf["satis"]) / hacim_ref
+    if agg and kapanmis and kapsam < KAPSAM_ESIK and yed:
+        bf = yed
+        kaynak = "1m_taker (agg eksik)"
+        kapsam = (bf["alis"] + bf["satis"]) / hacim_ref
+    return bf, kaynak, kapsam
+
+
 async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
                     tick: float = 0.0, limit: int = 40,
                     borsalar: tuple = ("binance_perp",)) -> dict:
@@ -292,7 +324,12 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
-        bf = (_FP_CACHE.get((sembol, interval, tick, ts)) or yedek.get(ts))   # aggTrades → 1dk-taker yedek
+        hacim_ref = float(r[5])                     # OTORİTE: klines hacmi (§6d3)
+        agg = _FP_CACHE.get((sembol, interval, tick, ts))
+        yed = yedek.get(ts)
+        kapanmis = (ts + ms) <= now
+        bf, kaynak_mum, kapsam = _kaynak_sec(agg, yed, hacim_ref, kapanmis)
+
         if bf:
             seviyeler = bf["seviyeler"]; alis = bf["alis"]; satis = bf["satis"]; poc = bf["poc"]
         else:
@@ -306,6 +343,8 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             "alis": round(alis, 4), "satis": round(satis, 4),
             "delta": round(alis - satis, 4),
             "poc": poc, "seviyeler": seviyeler,
+            "kapsam": round(kapsam, 4) if kapsam is not None else None,
+            "fp_kaynak": kaynak_mum,
         })
 
     b_alis = sum(a for a, _ in birlesik_hucre.values())
@@ -326,11 +365,16 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
                 tick = round(g, 4)
 
     seviyeli = sum(1 for m in mumlar if m["seviyeler"])
+    # kapsam özeti: kaç mumun toplamı klines hacmiyle uyuşuyor (veri doğruluğu göstergesi)
+    olculen = [m for m in mumlar if m.get("kapsam") is not None]
+    tam_mum = sum(1 for m in olculen if m["kapsam"] >= KAPSAM_ESIK)
+    eksik_kapsam = len(olculen) - tam_mum
     veri = {
         "sembol": sembol, "interval": interval, "tick": tick,
         "borsalar": list(borsalar), "spot": spot, "kaynak": kaynak_ad,
         "seviyeli_mum": seviyeli, "toplam_mum": len(mumlar),
         "eksik": len([1 for m in mumlar if not m["seviyeler"]]),
+        "tam_mum": tam_mum, "eksik_kapsam": eksik_kapsam, "kapsam_esik": KAPSAM_ESIK,
         "tani": {k: v for k, v in {
             "son_hata": hata,
             "kaynak": kaynak_ad,

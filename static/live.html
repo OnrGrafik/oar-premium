@@ -1161,6 +1161,8 @@ function kFpCiz(g,c,ts,W,H,sym){
   // MOD her zaman rozette yazsın → hangi görünümde olduğun bir daha gizli kalmasın
   // (delta modu sessizce açık kalıp "alım/satım nerede?" karışıklığı yaratmıştı).
   rozet=(rozet||'FP')+(_kAyar.fpDelta?' · DELTA':' · ALIŞ/SATIŞ');
+  // KAPSAM: mum toplamı hacimle uyuşmuyorsa (eksik tick verisi) SESSİZ kalmasın.
+  if(fp&&fp.eksik_kapsam>0){rozet+=' · ⚠'+fp.eksik_kapsam+' mum kaba';rc='#b0851f';}
   if(bw<34)rozet=rozet+' · yakınlaş →';
   g.fillStyle='rgba(255,255,255,.78)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
