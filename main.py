@@ -1515,6 +1515,11 @@ async def startup_event():
         import oar_sozlesme_bekci as _sb
         asyncio.create_task(_sb.bekci_loop())
         print("[Startup] Sözleşme bekçisi başlatıldı")
+        # ANALİZÖR KARNESİ: haftalık kanıt raporu (eşik taraması + monotonluk + IS/OOS)
+        # → hangi hacim analizörü DEĞERLİ, hangisi GÜRÜLTÜ (sadeleştirme kararı).
+        import hacim_haftalik_rapor as _hkr
+        asyncio.create_task(_hkr.karne_loop())
+        print("[Startup] Analizör karnesi başlatıldı")
         # LİDER GÖZLEMİ → Telegram thread 4882 (ölü _lider_baglam_topla bağlamı canlandırıldı)
         asyncio.create_task(lider_gozlem_loop())
         print("[Startup] Lider gözlem yayıncısı başlatıldı (thread 4882)")
@@ -2044,6 +2049,10 @@ async def _site_baglami() -> str:
     try:
         from hacim_konseyi import konsey_baglami
         par.append(konsey_baglami())  # HACİM KONSEYİ: bağımsız hacim analizörlerinin son konsensüsü
+    except Exception: pass
+    try:
+        from hacim_haftalik_rapor import baglam_metni as _karne_baglam
+        par.append(_karne_baglam())      # ANALİZÖR KARNESİ: hangi analizör değerli/gürültü
     except Exception: pass
     try:
         from oar_sozlesme_bekci import baglam_metni as _sozlesme_baglam
@@ -3112,6 +3121,17 @@ async def hacim_veriseti_endpoint():
         return veriset_indirme()
     except Exception as e:
         return {"durum": "hata", "aciklama": str(e)[:100]}
+
+
+@app.get("/api/hacim-karne")
+async def hacim_karne_endpoint(uret: bool = False, gun: int = 14):
+    """Analizör karnesi: her hacim analizörünün ileri-getiri isabeti + monotonluk + IS/OOS.
+    uret=true → şimdi yeniden hesapla (ağ ister)."""
+    try:
+        from hacim_haftalik_rapor import durum, karne_uret
+        return await karne_uret(gun) if uret else durum()
+    except Exception as e:
+        return {"durum": "hata", "aciklama": str(e)[:120]}
 
 
 @app.get("/api/sozlesme-bekci")
