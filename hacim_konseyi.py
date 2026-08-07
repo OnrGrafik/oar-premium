@@ -257,17 +257,20 @@ async def a_makro(sembol):
     """7. Makro lensi — makro göstergelerin BTC yön eğilimi (sembol-bağımsız, kaba)."""
     ad = "makro"
     try:
-        from macro_engine import makro_veri
+        # ÖNCE: btcYorum dict'i STRING'e çevrilip anahtar kelime sayılıyordu — metin
+        # neredeyse hiç değişmediği için bu üye gün boyu TEK yön veriyordu (§5t
+        # "sabit üye, bilgi katkısı ~yok" denetimi). ARTIK sayısal makro sentez skoru
+        # kullanılıyor: bloklar (enflasyon/istihdam/politika/likidite) değiştikçe oy da değişir.
+        from macro_engine import makro_veri, makro_sentez
         mv = await makro_veri()
-        yorum = str(mv.get("btcYorum") or "")
-        dusuk = yorum.lower()
-        boga = sum(w in dusuk for w in ("olumlu", "destekleyici", "risk-on", "boğa", "yükseli", "pozitif", "gevşe"))
-        ayi  = sum(w in dusuk for w in ("olumsuz", "baskı", "risk-off", "ayı", "düşüş", "negatif", "sıkılaş"))
-        yon = "LONG" if boga > ayi else ("SHORT" if ayi > boga else "NOTR")
-        guc = _clamp01(abs(boga - ayi) * 0.2)
+        s = makro_sentez(mv)
+        skor = s.get("skor") or 0
+        yon = "LONG" if skor >= 15 else ("SHORT" if skor <= -15 else "NOTR")
+        guc = _clamp01(abs(skor) / 60.0)
+        bloklar = ", ".join(f"{b['ad'].split()[0]}:{b['durum']}" for b in s.get("bloklar", []))
         return {"ad": ad, "yon": yon, "guc": guc,
-                "kanit": f"makro yön {yon} (boğa{boga}/ayı{ayi}) · {mv.get('kaynak_ozet','')}",
-                "ham": {"boga": boga, "ayi": ayi, "btcYorum": yorum[:200]},
+                "kanit": f"makro net skor {skor:+d}/100 ({s.get('rejim', '')}) · {mv.get('kaynak_ozet', '')}",
+                "ham": {"skor": skor, "egilim": s.get("egilim"), "bloklar": bloklar[:200]},
                 "aktif": True}
     except Exception as e:
         return _bos(ad, f"hata: {e}")

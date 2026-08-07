@@ -41,7 +41,7 @@ _FP_CACHE = {}
 _FP_ISLENIYOR = set()   # {(sembol,interval,tick)} — aynı anda tek arka-plan doldurucu
 _FP_TANI = {}           # {(sembol,interval): {"son_trade","son_hata","denendi","kaynak"}}
 _FP_SON = {}            # {(sembol,interval): epoch} — son doldurma tetiği (backoff için)
-_KFP_CACHE = {}         # {(sembol,interval,bar_ts): kiyotaka bar footprint} — GERÇEK veri, kalıcı
+_KFP_CACHE = {}         # (KULLANIM DIŞI — Kiyotaka footprint kaynağından çıkarıldı, şişik birim)
 
 
 async def _fp_doldur(sembol, interval, tick, mum_ts_list, futures):
@@ -268,60 +268,31 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
     if not tick or tick <= 0:
         tick = varsayilan_tick(sembol, spot)
 
-    # ── GERÇEK footprint: KIYOTAKA VOLUME_PROFILE_AGG per-mum (aggTrades ÇÖP) ──
-    # Geçmiş mum DEĞİŞMEZ → kalıcı cache; eksik + oluşmakta olan mumu Kiyotaka'dan
-    # PARALEL çek. Kiyotaka hazır per-mum footprint verir → "1 mumda var" sorunu biter.
+    # ── GERÇEK footprint: aggTrades TICK (ANAHTARSIZ, %100 klines-DOĞRULANDI) ──
+    # ⚠ KIYOTAKA KALDIRILDI (teşhisle kanıtlandı): Kiyotaka bar_footprint BTC DEĞİL,
+    #   ~14.000× ŞİŞİK birim döndürüyor (bir bar: kiyotaka 1.87M vs gerçek 133 BTC →
+    #   birleşik "34M BTC" imkânsız). Bizim aggTrades'imiz klines hacmine BİREBİR eşit
+    #   (alis 37.798 = takerBuy 37.798, toplam %100) → TEK DOĞRU KAYNAK. Dış API yok.
+    # aggTrades gerçek tick'i ARKA PLANDA dolar (ensure_future — endpoint'i bloke etmez);
+    # 1dk-taker yedeği ANLIK kaba boyar (o da doğru BTC = takerBuyBase), aggTrades üstüne geçer.
     now = time.time() * 1000
-    bar_sec = ms // 1000
-    eksik = [int(r[0]) for r in mumlar_ham
-             if (sembol, interval, int(r[0])) not in _KFP_CACHE
-             or (int(r[0]) <= now < int(r[0]) + ms)]     # güncel mumu tazele
     hata = ""
-    if eksik:
-        try:
-            import kiyotaka_engine as _kiy
-            sem = asyncio.Semaphore(10)
-
-            async def _cek(bts):
-                async with sem:
-                    bf = await _kiy.bar_footprint(sembol, bts // 1000, bar_sec)
-                if bf:
-                    _KFP_CACHE[(sembol, interval, bts)] = bf
-            await asyncio.gather(*[_cek(t) for t in eksik])
-        except Exception as e:
-            hata = str(e)[:90]
-        if len(_KFP_CACHE) > 6000:
-            for k in list(_KFP_CACHE)[:2000]:
-                _KFP_CACHE.pop(k, None)
-
-    # ── YEDEK (Kiyotaka HİÇ seviye vermediyse — KIYOTAKA_API_KEY yok/401/kota/kesinti):
-    #  ① aggTrades GERÇEK TICK (ANAHTARSIZ, endüstri standardı): her fiyat seviyesinde
-    #     o seviyede dönen tüm trade'ler toplanır → KALIN per-fiyat seviye (Binance
-    #     footprint'iyle aynı ölçek). Kademeli doldurma (tur başına ≤8 mum) + kalıcı cache.
-    #     Bu, "seviyeler 13-15 ince" (1dk-taker) sorununu kökten çözer — gerçek tick.
-    #  ② aggTrades da vermezse → 1m klines taker (coarse ama boş kalmasın, son çare).
     yedek = {}
-    kaynak_ad = "kiyotaka"
     mum_ts = [int(r[0]) for r in mumlar_ham]
-    if not any((sembol, interval, ts) in _KFP_CACHE for ts in mum_ts):
-        # aggTrades GERÇEK tick'i ARKA PLANDA doldur — endpoint'i BLOKE ETME. (Inline await
-        # 8 mum×sayfalama ~10s bloke ediyordu → frontend fetch timeout → "yükleniyor"da
-        # takılıyordu.) _FP_ISLENIYOR kilidi çift doldurucuyu önler; her poll'de cache dolar.
-        try:
-            asyncio.ensure_future(_fp_doldur(sembol, interval, tick, list(mum_ts), futures))
-        except Exception as e:
-            hata = (hata + " | agg:" + str(e)[:40]) if hata else str(e)[:70]
-        agg_var = any((sembol, interval, tick, ts) in _FP_CACHE for ts in mum_ts)
-        # ANLIK boyama: 1dk taker (tek istek, hızlı) → aggTrades doldukça per-mum ÜSTÜNE geçer
-        yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham), futures)
-        kaynak_ad = "binance_aggtrades" if agg_var else ("binance_1m_taker_yedek" if yedek else "yok")
+    try:
+        asyncio.ensure_future(_fp_doldur(sembol, interval, tick, list(mum_ts), futures))
+    except Exception as e:
+        hata = str(e)[:70]
+    agg_var = any((sembol, interval, tick, ts) in _FP_CACHE for ts in mum_ts)
+    # ANLIK boyama: 1dk taker (tek istek, hızlı, doğru BTC) → aggTrades doldukça ÜSTÜNE geçer
+    yedek = await _yedek_doldur(sembol, interval, len(mumlar_ham), futures)
+    kaynak_ad = "binance_aggtrades" if agg_var else ("binance_1m_taker_yedek" if yedek else "yok")
 
     mumlar = []
     birlesik_hucre = {}
     for r in mumlar_ham:
         ts = int(r[0])
-        bf = (_KFP_CACHE.get((sembol, interval, ts))
-              or _FP_CACHE.get((sembol, interval, tick, ts)) or yedek.get(ts))
+        bf = (_FP_CACHE.get((sembol, interval, tick, ts)) or yedek.get(ts))   # aggTrades → 1dk-taker yedek
         if bf:
             seviyeler = bf["seviyeler"]; alis = bf["alis"]; satis = bf["satis"]; poc = bf["poc"]
         else:
@@ -345,7 +316,7 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
         "seviyeler": _seviye_listesi(birlesik_hucre),
         **_poc_va(birlesik_hucre),
     }
-    # gerçek tick = Kiyotaka bin aralığı (medyan komşu-fiyat farkı) → satır yüksekliği doğru
+    # gerçek tick = aggTrades seviye bin aralığı (medyan komşu-fiyat farkı) → satır yüksekliği doğru
     tpx = sorted({s["p"] for m in mumlar for s in m["seviyeler"]})
     if len(tpx) >= 3:
         gaps = sorted(tpx[i + 1] - tpx[i] for i in range(len(tpx) - 1) if tpx[i + 1] > tpx[i])
@@ -364,9 +335,9 @@ async def footprint(sembol: str = "BTCUSDT", interval: str = "5m",
             "son_hata": hata,
             "kaynak": kaynak_ad,
             "agg": _FP_TANI.get((sembol, interval), {}),   # aggTrades trade/hata teşhisi
-            "yedek": ("Kiyotaka seviye vermedi → aggTrades gerçek tick yedeği" if kaynak_ad == "binance_aggtrades"
-                      else "Kiyotaka+aggTrades yok → 1dk taker (coarse)" if kaynak_ad == "binance_1m_taker_yedek"
-                      else ""),
+            "yedek": ("aggTrades gerçek tick (klines %100 doğrulandı, BTC)" if kaynak_ad == "binance_aggtrades"
+                      else "aggTrades doluyor → şimdilik 1dk taker (coarse, doğru BTC)" if kaynak_ad == "binance_1m_taker_yedek"
+                      else "veri yok"),
         }.items() if v},
         "mumlar": mumlar, "birlesik": birlesik, "durum": "ok",
     }
