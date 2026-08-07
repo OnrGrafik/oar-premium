@@ -426,14 +426,22 @@ async def _macro_skoru() -> dict:
                 nedenler.append(f"USD/JPY düşüyor (%{usdjpy_chg}) — JPY güçleniyor, carry baskı")
 
         # Makro econ tablo eğilimi (CPI/NFP/PPI/faiz — makro_veri)
-        if isinstance(makro, dict) and makro.get("egilim"):
-            eg = makro["egilim"]
+        # ⚠️ DÜZELTİLDİ: `egilim` kök dict'te DEĞİL, `btcYorum` altında → bu blok
+        # hiç çalışmıyordu (sessiz). Artık makro sentezin sayısal skoru kullanılıyor.
+        _my = (makro or {}).get("btcYorum") or {} if isinstance(makro, dict) else {}
+        if isinstance(makro, dict) and _my.get("egilim"):
+            try:
+                from macro_engine import makro_sentez
+                _ms = makro_sentez(makro)
+                _sk, eg = _ms.get("skor", 0), _ms.get("egilim", "")
+            except Exception:
+                _sk, eg = 0, _my.get("egilim", "")
             if "POZİTİF" in eg:
-                skor += 15; nedenler.append(f"Makro tablo POZİTİF ({makro.get('olumlu','?')} destek)")
+                skor += 15; nedenler.append(f"Makro tablo POZİTİF (net skor {_sk:+d})")
             elif "NEGATİF" in eg:
-                skor -= 15; nedenler.append(f"Makro tablo NEGATİF ({makro.get('olumsuz','?')} baskı)")
+                skor -= 15; nedenler.append(f"Makro tablo NEGATİF (net skor {_sk:+d})")
             else:
-                nedenler.append(f"Makro nötr ({makro.get('olumlu','?')}+/{makro.get('olumsuz','?')}-)")
+                nedenler.append(f"Makro nötr (net skor {_sk:+d})")
 
         if not nedenler:
             return {"skor": 0, "yon": "NEUTRAL", "aciklama": "Macro verisi alınamadı", "guvenis": 0}

@@ -112,10 +112,16 @@ def k_kiyotaka():
 
 
 def k_fred():
+    # Artık TEK NOKTA ARIZASI DEĞİL: anahtarsız yedekler (BLS API + US Treasury
+    # getiri eğrisi + NY Fed efektif faiz) enflasyon/istihdam/faiz/getiri tarafını
+    # taşıyor. Anahtar yoksa yalnız FRED'e ÖZEL seriler (GSYİH/PCE/perakende/
+    # sanayi/güven/başvuru) düşer → "yedek" durumu, kritik değil.
     if not os.environ.get("FRED_API_KEY"):
-        return _sonuc("fred", "kirik",
-                      "FRED_API_KEY TANIMSIZ → makro göstergeleri (FedFaiz/CPI/İşsizlik/NFP) "
-                      "okunamaz, hepsi None döner.", imza="anahtar_yok")
+        return _sonuc("fred", "yedek",
+                      "FRED_API_KEY TANIMSIZ → anahtarsız kaynaklar devrede "
+                      "(TÜFE/ÜFE/NFP/işsizlik + getiri eğrisi + politika faizi geliyor). "
+                      "Yalnız GSYİH/PCE/perakende/sanayi/güven/haftalık başvuru okunamaz.",
+                      imza="anahtar_yok")
     return _sonuc("fred", "ok", "anahtar tanımlı", imza="anahtar_var")
 
 

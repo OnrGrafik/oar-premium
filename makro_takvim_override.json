@@ -1,0 +1,48 @@
+{
+  "_aciklama": "KESİN TARİHLİ makro olaylar + ELLE GİRİLEN PİYASA BEKLENTİLERİ. makro_takvim.py bu dosyayı okur; buradaki olaylar kesin=true işaretlenir ve `beklenti` alanı varsa sitede 'konsensüs' rozetiyle gösterilir (yoksa OAR projeksiyonu gösterilir, 'konsensüs değildir' etiketiyle). Kural-türetimli takvim (NFP=ilk Cuma, başvurular=her Perşembe, ISM=1./3. iş günü, Tokyo TÜFE=son Cuma) zaten otomatiktir; CPI/PPI/PCE/HICP/perakende tipik pencereden TAHMİN edilir ve sitede 'tahmini tarih' diye gösterilir.",
+  "_alanlar": {
+    "tarih": "YYYY-MM-DD (olayın YEREL tarihi)",
+    "bolge": "ABD | AB | JAPONYA — yazılmazsa ABD sayılır",
+    "saat": "bölgenin YEREL saati (ABD ET, AB CET, Japonya JST). Site UTC'ye kendisi çevirir",
+    "etki": "ORTA | YÜKSEK | ÇOK YÜKSEK",
+    "beklenti": "piyasa konsensüsü (sayı). Girersen OAR projeksiyonunun yerine geçer",
+    "onceki": "önceki açıklanan değer (sayı, opsiyonel)",
+    "gostergeler": "bu açıklamanın güncellediği gösterge anahtarları: cpi, ppi, nfp, isRate, pce, gsyih, perakende, ism, claims, ab_hicp, ab_faiz, jp_tufe, jp_faiz"
+  },
+  "_ornek": {
+    "2026-09-16": [
+      {
+        "kod": "FOMC",
+        "ad": "FOMC faiz kararı + nokta grafiği",
+        "bolge": "ABD",
+        "saat": "14:00",
+        "etki": "ÇOK YÜKSEK",
+        "beklenti": 4.1,
+        "onceki": 4.33,
+        "gostergeler": [
+          "fedFaiz"
+        ]
+      },
+      {
+        "kod": "ECB",
+        "ad": "ECB faiz kararı",
+        "bolge": "AB",
+        "saat": "14:15",
+        "etki": "ÇOK YÜKSEK",
+        "gostergeler": [
+          "ab_faiz"
+        ]
+      },
+      {
+        "kod": "BOJ",
+        "ad": "BoJ faiz kararı",
+        "bolge": "JAPONYA",
+        "saat": "12:00",
+        "etki": "ÇOK YÜKSEK",
+        "gostergeler": [
+          "jp_faiz"
+        ]
+      }
+    ]
+  }
+}
