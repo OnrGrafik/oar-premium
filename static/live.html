@@ -462,10 +462,12 @@ function scrLeader(){
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
 // Ayarlar (TradingView tarzı aç/kapa) — localStorage'da kalıcı
-const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true,fpUsd:false,fpDelta:true};
+const _kAyarVars={oar:true,seans:true,fib:true,key:true,vwap:true,opt:true,vp:true,fp:true,hmap:false,liq:false,likmap:false,fpHeat:true,fpBirlesik:true,fpUsd:false,fpDelta:false};
 let _kAyar=(()=>{try{return {..._kAyarVars,...JSON.parse(localStorage.getItem('oar_kayar')||'{}')};}catch(e){return {..._kAyarVars};}})();
 // TEK SEFERLİK: kazara açık kalmış '$' (fpUsd) modunu BTC'ye sıfırla (kullanıcı BTC adedi istedi)
 try{if(!localStorage.getItem('oar_fpusd_reset')){_kAyar.fpUsd=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpusd_reset','1');}}catch(e){}
+// TEK SEFERLİK: delta modunu KAPAT → alış/satış AYRI göster (kullanıcı: "alım satayım göreyim", toplu/delta DEĞİL)
+try{if(!localStorage.getItem('oar_fpdelta_off')){_kAyar.fpDelta=false;localStorage.setItem('oar_kayar',JSON.stringify(_kAyar));localStorage.setItem('oar_fpdelta_off','1');}}catch(e){}
 // Renk ayarları (footprint/liq) — TradingView tarzı ayar panelinden değiştirilebilir
 const _kRenkVars={fpAl:'#0a8f5c',fpSat:'#d1344b',fpDeltaP:'#0a8f5c',fpDeltaN:'#d1344b',liqBid:'#14c88c',liqAsk:'#ff8c28',liqLong:'#ff3b6b',liqShort:'#00c2ff',arkaplan:'#fbf8f0'};
 let _kRenk=(()=>{try{return {..._kRenkVars,...JSON.parse(localStorage.getItem('oar_krenk')||'{}')};}catch(e){return {..._kRenkVars};}})();

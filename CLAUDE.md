@@ -318,6 +318,12 @@
   ② **Canlı site URL'si = `oar-premium-production.up.railway.app`** (`-production` VAR). `oar-premium.up.railway.app` (CLAUDE.md eski varsayılan) PROVISION EDİLMEMİŞ → "Not Found: train has not arrived" verir (uygulama down sanılır ama değil). hacim_indir.py varsayılan URL'si de bu yüzden yanlış (`-production`'a güncellenecek).
   ③ Teşhis öncesi mutlaka `git fetch origin main` + main'i temel al; feature dalın main'in gerisinde olabilir (footprint mimarisi main'de daha ileri — bu oturumda feature dalı merge etmeye çalışınca çakıştı, iptal edilip main'e cerrahi eklendi).
 
+## 6dK. KALICI KURAL — FOOTPRINT/GRAFİK ŞİKAYETİ = VERİ DOĞRULUĞU, TASARIM DEĞİL (kullanıcı emri, kalıcı)
+- ⚠️ KULLANICI EMRİ (defalarca, net): "veriler doğru değil / çubuklar dolmuyor / matematik yanlış" dediğinde sorun **TASARIM DEĞİL, VERİNİN DOĞRU GÖSTERİLMESİDİR**. Enerjiyi renk/layout/görsel yerine **SAYININ DOĞRULUĞUNA** ver (gerçek BTC, doğru alış/satış, doğru kaynak/birim). Kullanıcı açıkça "tasarım/görsel" demedikçe layout ile OYNAMA.
+- İLK ADIM her zaman OTORİTE KIYASI: aggTrades toplamı == klines hacmi (%). Kaynak seçerken birim/ölçek DOĞRULA (yüksek çözünürlük ≠ doğru birim — Kiyotaka dersi §6d3).
+- Kullanıcı footprint'te **ALIŞ + SATIŞ'ı AYRI** görmek ister (trade için: "alım satayım göreyim") — DELTA/tek-birleşik-sayı DEĞİL. Varsayılan = iki sütun (SOL satış / SAĞ alış), gerçek BTC değerleriyle. Delta yalnız opsiyonel toggle. (Delta'yı varsayılan yapmak HATAYDI, geri alındı.)
+- Tekrar tasarıma kaçma: kullanıcı "veri" derken görseli düzeltmek = zaman kaybı + kullanıcıyı "dalga geçiyor" hissine iter. Önce ölç (teşhis ucu), sonra veriyi düzelt.
+
 ## 6d3. FOOTPRINT "VERİLER DOĞRU DEĞİL" — GERÇEK KÖK NEDEN: KIYOTAKA ŞİŞİK BİRİM (KESİN, teşhisle kanıtlandı)
 - KULLANICI (defalarca, haklı sitem): "veriler doğru değil, çubuklar boş/dolmuyor, matematik yanlış." Grafik değil VERİ sorunuymuş.
 - 🔬 TEŞHİS (canlı `/api/akis/footprint-tani` — aggTrades vs klines kıyası eklendi): bir 5m BTC barı için

@@ -3571,10 +3571,10 @@ async def api_akis_footprint_tani(symbol: str = "BTCUSDT", interval: str = "5m")
     try:
         from exchange_client import agg_trades
         s_ms, e_ms = bar_open * 1000, (bar_open + bar_sec) * 1000
-        tr = await agg_trades(symbol, s_ms, e_ms, futures=True, max_trade=500000)
+        tr = await agg_trades(symbol, s_ms, e_ms, futures=True, max_trade=120000)
         kaynak = "futures"
         if not tr:
-            tr = await agg_trades(symbol, s_ms, e_ms, futures=False, max_trade=500000)
+            tr = await agg_trades(symbol, s_ms, e_ms, futures=False, max_trade=120000)
             kaynak = "spot"
         if tr:
             alis = sum(t["q"] for t in tr if t["buy"])
