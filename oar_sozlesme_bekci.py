@@ -112,10 +112,16 @@ def k_kiyotaka():
 
 
 def k_fred():
+    # Artık TEK NOKTA ARIZASI DEĞİL: anahtarsız yedekler (BLS API + US Treasury
+    # getiri eğrisi + NY Fed efektif faiz) enflasyon/istihdam/faiz/getiri tarafını
+    # taşıyor. Anahtar yoksa yalnız FRED'e ÖZEL seriler (GSYİH/PCE/perakende/
+    # sanayi/güven/başvuru) düşer → "yedek" durumu, kritik değil.
     if not os.environ.get("FRED_API_KEY"):
-        return _sonuc("fred", "kirik",
-                      "FRED_API_KEY TANIMSIZ → makro göstergeleri (FedFaiz/CPI/İşsizlik/NFP) "
-                      "okunamaz, hepsi None döner.", imza="anahtar_yok")
+        return _sonuc("fred", "yedek",
+                      "FRED_API_KEY TANIMSIZ → anahtarsız kaynaklar devrede "
+                      "(TÜFE/ÜFE/NFP/işsizlik + getiri eğrisi + politika faizi geliyor). "
+                      "Yalnız GSYİH/PCE/perakende/sanayi/güven/haftalık başvuru okunamaz.",
+                      imza="anahtar_yok")
     return _sonuc("fred", "ok", "anahtar tanımlı", imza="anahtar_var")
 
 
@@ -183,7 +189,39 @@ def k_wrd_formul():
                   imza="duz_fark")
 
 
-KONTROLLER_ASYNC = [k_binance_ls, k_binance_taker]
+# ── 8. MAKRO VERİ AKIŞI (yeni: anahtarsız kaynaklar sessizce ölmesin) ──────────
+async def k_makro_akis():
+    """
+    Makro göstergelerin KAÇI canlı? Kaynak uçları (BLS/Hazine/NY Fed/ECB) sessizce
+    değişir ya da kotaya takılırsa sayfa "veri yok" der ve kimse fark etmez.
+    Ekstra ağ isteği YOK — makro_yenile_loop'un zaten tazelediği cache okunur.
+    """
+    try:
+        from macro_engine import makro_veri, ANA_GOSTERGELER
+        mk = await makro_veri()
+    except Exception as e:
+        return _sonuc("makro_akis", "erisilemedi", f"makro okunamadı: {str(e)[:60]}")
+    g = (mk or {}).get("gostergeler") or {}
+    canli = [k for k in ANA_GOSTERGELER
+             if (g.get(k) or {}).get("guncel") is not None and not (g[k] or {}).get("veri_yok")]
+    bayat = [k for k in canli if (g.get(k) or {}).get("bayat")]
+    n, toplam = len(canli), len(ANA_GOSTERGELER)
+    imza = f"canli{n}"
+    if n == 0:
+        return _sonuc("makro_akis", "kirik",
+                      "⛔ HİÇBİR makro göstergesi okunamıyor → makro sayfası, sentez ve "
+                      "lider bağlamı boş. Teşhis için /api/makro/teshis aç (hangi uç kırık yazar).",
+                      imza=imza, kritik=True)
+    if n < toplam // 2:
+        return _sonuc("makro_akis", "yedek",
+                      f"Makro göstergelerin yalnız {n}/{toplam}'i canlı"
+                      + (f" ({len(bayat)} tanesi ayrıca eski dönem)" if bayat else "")
+                      + ". Kaynak uçlarından biri düşmüş olabilir → /api/makro/teshis.",
+                      imza=imza)
+    return _sonuc("makro_akis", "ok", f"{n}/{toplam} makro göstergesi canlı", imza=imza)
+
+
+KONTROLLER_ASYNC = [k_binance_ls, k_binance_taker, k_makro_akis]
 KONTROLLER_SYNC = [k_kiyotaka, k_fred, k_sampiyon_portfoy, k_serap_kapisi, k_wrd_formul]
 
 
