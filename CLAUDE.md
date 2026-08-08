@@ -338,6 +338,15 @@
 - `oar_wsd_backtest.degerlendir` **geriye uyumlu** `n_deneme` parametresi aldı (varsayılan eski davranış) → geniş uzay tarayan modüller gerçek deneme sayısını geçirebilir.
 - Vardiyaya EKLENDİ (adım 2d, hafif — aggTrades GEREKMEZ; §5h "tek komut" kuralı). ⚠ funding geçmişi yoksa modül ne yapılacağını yazıp çıkar: `python oar_funding_carry.py --indir --symbol BTCUSDT,ETHUSDT`. Çıktı: `duvar_gecerlilik_sonuc.json`. Self-test parquet/ağ gerektirmez (gömülü mekanizma yakalanıyor ✓ · saf gürültü uydurulmuyor ✓ · no-lookahead ✓).
 - ⚠️ ŞAMPİYONLARA DOKUNMAZ (ANAYASA #8). Serap testinden geçse bile canlıya bağlamak AYRI onay ister (§5p).
+- ⚠️ 1. KOŞU SONUCU (kullanıcı koştu, ufuk 24s, BTC 1619 + ETH 1307 = 2926 karar günü) — **ÖLÇÜM n-AÇLIĞINDAN ÖLDÜ, hipotez ÇÜRÜMEDİ**:
+  • **TEMAS ORANI ÇOK DÜŞÜK**: üst duvar 315/2926 gün (%10.8) · alt duvar 222/2926 (%7.6). Üstüne KARARSIZ payı %44.1 / %32.9 → çözülen olay yalnız 176 / 149. Bunu 4 rejime bölünce kovaların ÇOĞU n<25 → ön-kayıtlı H1/H2 hücrelerinin neredeyse hepsi **ÖLÇÜLEMEDİ**. Hiçbir yerde ★ (Wilson tabandan ayrık) YOK.
+  • ⚠️ AYIRIM ŞART: "ÖLÇÜLEMEDİ" ≠ "ÇÜRÜDÜ" (§5aa risk-finansman dersi). H1/H2 hâlâ test edilmemiş sayılır.
+  • ✅ GEÇERLİ NEGATİF (iyi n): **koşulsuz duvar 24s ufukta TRADE EDİLEBİLİR DEĞİL** — TABAN_UST_FADE n315 PF 0.96 bek −0.041 DSR 0.003 · TABAN_ALT_FADE n222 PF 1.04 bek +0.060 DSR 0.013 · kırılım kolları da serap. Ters kol kontrolü temiz (birlikte pozitif değil).
+  • 🔍 KÖK NEDEN = **UFUK/MESAFE UYUMSUZLUĞU (benim tasarım hatam)**: duvar = ±%20 bant içindeki EN BÜYÜK küme (canlı panelin işaretlediğiyle BİREBİR aynı — fidelity doğru), yani ÇOK GÜNLÜK bir nesne; ama ufuk WSD/funding modülleriyle kıyaslanabilirlik için 24s alınmıştı. 24s ≈ 1σ_gün yol → birkaç σ uzaktaki duvara temas YAPISAL olarak beklenmez. Bunu baştan görmeliydim.
+  • ⚠ ÜST duvarda f_8s/f_1g'de monotonluk "azalan" + asiri_poz LIFT +10.0p/+5.8p (H1'in "üst duvar tutar" yönüyle UYUMLU) AMA n=25/27, Wilson tabanı içeriyor ve f_7g'de işaret TERSİNE dönüyor (−11.4p) → **GÜRÜLTÜ, kovalanmaz**.
+  • ETH 312 gün "oi_yok" ile elendi: metrics ETH'de 2021-12'de başlıyor (§5aa ile tutarlı, hata değil).
+- 🐞 BULUNAN 2 HATA (düzeltildi): ① **`ajan_merkez.bildir` ASYNC** — `asyncio.run` olmadan çağırmıştım → rapor Telegram'a HİÇ GİTMEDİ ama ekrana "gönderildi ✓" yazdı (sahte başarı). Diğer tüm modüller `asyncio.run(bildir(...))` kullanıyor; buna uyduruldu. ② TP/SL ve rapor başlığı sabit `TUT_SAAT` yazıyordu → ufuk parametreye bağlandı.
+- ✅ EKLENEN: `--ufuk-saat` (VARSAYILAN **72**, kıyas için 24 verilebilir) + **`mesafe_tanisi`** = betimleyici teşhis tablosu (duvar mesafesi σ_gün cinsinden medyan/p25/p75 + mesafe kovası başına temas oranı) → "ölçüm neden n-aç kaldı" bir daha tahmin edilmez, ÖLÇÜLÜR. `N_DENEME` 80→**160** (ufuk boyutu dürüstlük gereği cezaya eklendi: aynı veriye ikinci bakış = araştırmacı serbestlik derecesi, §5m).
 
 ## 6. Merkezi ajan kanalı
 - `ajan_merkez.py` → Telegram thread **4129**, chat **-1002142274543**. `bildir(ajan,tur,ozet,detay)`.
