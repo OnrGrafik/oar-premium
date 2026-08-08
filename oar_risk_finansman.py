@@ -206,8 +206,24 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
             "capraz_p99_dayanir": r_liq_capraz > yukari["p99"],
         }
 
+    # ⚠ Kuyruk hükmü SEÇİLİ TEMİNAT MODUNA göre verilir ve kuyruk dict'ine YAZILIR.
+    # (Önce yalnız özete giriyordu; rapor ③ satırı her zaman izole sonucu basıyordu →
+    #  "KUYRUK ❌ ... ⇒ FİNANSE EDİLEBİLİR ✅" gibi kendi içinde çelişen çıktı oluyordu.)
     kuyruk_gecti = kuyruk.get("capraz_dayanir" if capraz else "rezervli_dayanir")
-    finanse_edilebilir = bool(normal_gecti and stres.get("gecti") and kuyruk_gecti)
+    if not kuyruk.get("veri_yok"):
+        kuyruk["gecti"] = bool(kuyruk_gecti)
+        kuyruk["mod"] = "capraz" if capraz else "izole"
+
+    # ⚠ "BAŞARISIZ" ile "ÖLÇÜLEMEDİ" AYNI ŞEY DEĞİL. Veri yoksa test düşmüş gibi
+    # ❌ basmak yanıltır (kullanıcı kurulumu suçlar, oysa eksik olan veridir).
+    # Belirsiz testler ayrı toplanır; biri bile varsa HÜKÜM VERİLMEZ.
+    belirsiz = [ad for ad, t in (("stres", stres), ("kuyruk", kuyruk)) if t.get("veri_yok")]
+    if belirsiz:
+        hukum = "belirsiz"
+        finanse_edilebilir = None
+    else:
+        finanse_edilebilir = bool(normal_gecti and stres.get("gecti") and kuyruk_gecti)
+        hukum = "evet" if finanse_edilebilir else "hayir"
     return {
         "girdi": {"sermaye": C, "kaldirac": kaldirac, "rezerv_pay": rezerv_pay,
                   "tutma_gun": tutma_gun, "bakim_teminat": BAKIM_TEMINAT,
@@ -224,6 +240,8 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
         "stres": stres,
         "kuyruk": kuyruk,
         "finanse_edilebilir": finanse_edilebilir,
+        "hukum": hukum,
+        "belirsiz": belirsiz,
     }
 
 
@@ -289,7 +307,8 @@ def rapor_metni(sonuc):
         if ky.get("veri_yok"):
             sat.append("  ③ KUYRUK ⚠ fiyat verisi yok")
         else:
-            sat.append(f"  ③ KUYRUK {_isaret(ky['rezervli_dayanir'])}  tarihsel en kötü"
+            sat.append(f"  ③ KUYRUK {_isaret(ky.get('gecti'))}"
+                       f" [{ky.get('mod', 'izole').upper()}]  tarihsel en kötü"
                        f" {g['tutma_gun']}g yukarı hareket %{ky['max_pct']}"
                        f" (p99 %{ky['p99_pct']} · p95 %{ky['p95_pct']}, {ky['ornek']} örnek)")
             sat.append(f"           likidasyon eşiği: izole-rezervsiz %{ky['likidasyon_esigi_pct']}"
@@ -302,8 +321,14 @@ def rapor_metni(sonuc):
             if not ky["rezervli_dayanir"] and ky["capraz_dayanir"]:
                 sat.append("           ⚠ ÇAPRAZ/PORTFÖY TEMİNATI ŞART: izole marjinde bu kurulum"
                            " tarihsel en kötüyü TAŞIYAMAZ; spot bacak teminata sayılırsa taşır.")
-        sat.append(f"  ⇒ RİSK FİNANSE EDİLEBİLİR: {_isaret(s['finanse_edilebilir'])}"
-                   f"  (teminat modu: {'ÇAPRAZ' if g.get('capraz_teminat') else 'İZOLE'})")
+        mod_ad = "ÇAPRAZ" if g.get("capraz_teminat") else "İZOLE"
+        if s.get("hukum") == "belirsiz":
+            sat.append(f"  ⇒ HÜKÜM VERİLEMEDİ — ölçülemeyen test: {', '.join(s['belirsiz'])}"
+                       f"  (teminat modu: {mod_ad})")
+            sat.append("     (bu 'başarısız' DEĞİL; eksik olan veri — testi tekrar koş)")
+        else:
+            sat.append(f"  ⇒ RİSK FİNANSE EDİLEBİLİR: {_isaret(s['finanse_edilebilir'])}"
+                       f"  (teminat modu: {mod_ad})")
         if s.get("tarama"):
             sat.append("     HANGİ KALDIRAÇ TAŞIR (rezerv transfer edilmiş):")
             for t in s["tarama"]:
@@ -400,6 +425,28 @@ def kendi_test():
         "gerçek BTC kuyruğunda izole ELENMELİ, çapraz GEÇMELİ"
     print(f"[SELF-TEST] çapraz teminat: izole %{izo['kuyruk']['likidasyon_esigi_rezervli_pct']}"
           f" → çapraz %{cap['kuyruk']['likidasyon_esigi_capraz_pct']} (max hareket %133) ✓")
+
+    # ⑥b RAPOR TUTARLILIĞI: ③ satırındaki işaret ile özet hükmü AYNI olmalı
+    kf = {"ort_oran": -0.00002, "periyot": 90, "baslangic": "x", "bitis": "y"}
+    izo = risk_skoru(10000, 3, 0.30, 30, 0.0001, kf, yk, capraz=False)
+    cap = risk_skoru(10000, 3, 0.30, 30, 0.0001, kf, yk, capraz=True, haircut=0.20)
+    for kart, bek in ((izo, False), (cap, True)):
+        assert kart["kuyruk"]["gecti"] == bek, "kuyruk hükmü moda göre verilmiyor"
+        assert kart["finanse_edilebilir"] == (kart["normal"]["gecti"]
+                                              and kart["stres"]["gecti"]
+                                              and kart["kuyruk"]["gecti"]), \
+            "③ satırı ile özet çelişiyor"
+    # veri eksikse ❌ DEĞİL, BELİRSİZ olmalı
+    eksik = risk_skoru(10000, 3, 0.30, 30, 0.0001, None, yk)
+    assert eksik["hukum"] == "belirsiz" and eksik["finanse_edilebilir"] is None, \
+        "eksik veri 'başarısız' sayılıyor"
+    assert "HÜKÜM VERİLEMEDİ" in rapor_metni({"aralik": "t", "semboller": {"X": eksik}})
+    print("[SELF-TEST] eksik veri → ❌ değil BELİRSİZ ✓")
+    r_izo = rapor_metni({"aralik": "t", "semboller": {"X": izo}})
+    r_cap = rapor_metni({"aralik": "t", "semboller": {"X": cap}})
+    assert "KUYRUK ❌ [IZOLE]" in r_izo and "EDİLEBİLİR: ❌" in r_izo, r_izo
+    assert "KUYRUK ✅ [CAPRAZ]" in r_cap and "EDİLEBİLİR: ✅" in r_cap, r_cap
+    print("[SELF-TEST] rapor tutarlı: ③ işareti ile özet hükmü aynı modda ✓")
 
     # ⑦ azami kaldıraç taraması: hedef sıkılaştıkça kaldıraç DÜŞMELİ
     tb = tarama(yk, capraz=False)
