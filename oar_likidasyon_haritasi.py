@@ -104,6 +104,190 @@ def _harita_kur(giris_px, notional, long_pay, sfx_min, sfx_max, spot, kaldirac_d
     return birlestir(alt_s), birlestir(alt_n), birlestir(ust_s), birlestir(ust_n)
 
 
+def duvar_tablosu(sembol, bas, bit, k_df=None, m_df=None, kaldirac_dagilim=None,
+                  bant=None, satir=None):
+    """
+    ⭐ İSTENEN ÇIKTI: GEX duvar tablosunun PERP karşılığı — fiyat seviyesi × zorunlu akış.
+
+    GEX tablosunda hücre "spot %1 oynarsa dealer ne kadar hedge eder" der.
+    Burada hücre "fiyat o seviyeye gelirse ne kadar notional ZORLA kapanır" der:
+      • ÜST seviyeler → short likidasyonları → zorunlu ALIŞ  (Call Wall muadili)
+      • ALT seviyeler → long  likidasyonları → zorunlu SATIŞ (Put Wall muadili)
+    En büyük iki küme ÜST DUVAR / ALT DUVAR olarak işaretlenir.
+
+    Veri kesitindeki SON ana göre kurulur (canlıya bağlanınca aynı fonksiyon
+    şimdiki anı kullanır). Döner: {spot, satirlar[], ust_duvar, alt_duvar, toplam}.
+    """
+    import numpy as np
+    import pandas as pd
+    from oar_local_backtest import _klines_oku, _metrics_oku, _ms_olcekle
+
+    bant = BANT_PCT if bant is None else bant
+    kaldirac_dagilim = kaldirac_dagilim or KALDIRAC_DAGILIM
+    k = k_df if k_df is not None else _klines_oku(sembol, bas, bit)
+    m = m_df if m_df is not None else _metrics_oku(sembol, bas, bit)
+    if k is None or not len(k) or m is None or not len(m):
+        return None
+
+    k = k.copy()
+    k["open_time"] = _ms_olcekle(k["open_time"])
+    k = k[(k["open_time"] >= OT_MIN) & (k["open_time"] < OT_MAX)].sort_values("open_time")
+    ot = k["open_time"].to_numpy(dtype="int64")
+    hi = k["high"].to_numpy(dtype="float64")
+    lo = k["low"].to_numpy(dtype="float64")
+    cl = k["close"].to_numpy(dtype="float64")
+
+    m = m.copy()
+    kolon = "create_time" if "create_time" in m.columns else "ts_ms"
+    m["ts_ms"] = _ts_ms(m[kolon])
+    m = m.sort_values("ts_ms")
+    mts = m["ts_ms"].to_numpy(dtype="int64")
+    oi_val = m["sum_open_interest_value"].astype(float).to_numpy()
+    taker = m["sum_taker_long_short_vol_ratio"].astype(float).to_numpy()
+    long_pay_all = np.where(taker > 0, taker / (1.0 + taker), 0.5)
+    d_oi = np.diff(oi_val, prepend=oi_val[0])
+    k_idx = np.searchsorted(ot, mts, side="right") - 1
+
+    # SON an: hem klines hem metrics'in bittiği yer
+    simdi = int(min(ot[-1], mts[-1]))
+    gi = int(np.searchsorted(ot, simdi, side="right")) - 1
+    pen_bas = simdi - PENCERE_GUN * GUN_MS
+    ma = int(np.searchsorted(mts, pen_bas, side="left"))
+    mb = int(np.searchsorted(mts, simdi, side="right"))
+    if gi < 0 or mb - ma < 10:
+        return None
+
+    yeni = d_oi[ma:mb]
+    artis = yeni > 0
+    if not artis.any():
+        return None
+    ki = k_idx[ma:mb][artis]
+    gecerli = (ki >= 0) & (ki <= gi)
+    if not gecerli.any():
+        return None
+    ki = ki[gecerli]
+
+    pen_k0 = int(np.searchsorted(ot, pen_bas, side="left"))
+    sfx_min = np.minimum.accumulate(lo[pen_k0:gi + 1][::-1])[::-1]
+    sfx_max = np.maximum.accumulate(hi[pen_k0:gi + 1][::-1])[::-1]
+    yerel = ki - pen_k0
+    spot = float(cl[gi])
+
+    alt_s, alt_n, ust_s, ust_n = _harita_kur(
+        cl[ki], yeni[artis][gecerli], long_pay_all[ma:mb][artis][gecerli],
+        sfx_min[yerel], sfx_max[yerel], spot, kaldirac_dagilim)
+
+    # fiyat kovalarına topla (GEX tablosundaki strike satırlarının karşılığı)
+    kova = {}
+    for sev, nots, yon in ((ust_s, ust_n, "alis"), (alt_s, alt_n, "satis")):
+        for p, n in zip(sev, nots):
+            mes = (p - spot) / spot * 100.0
+            if abs(mes) > bant:
+                continue
+            b = round(round(p / (spot * BIN_PCT / 100.0)) * (spot * BIN_PCT / 100.0), 2)
+            h = kova.setdefault(b, {"fiyat": b, "alis": 0.0, "satis": 0.0})
+            h[yon] += float(n)
+
+    # FUNDING BAĞLAMI: duvarlar "nerede" der, funding "hangi taraf kalabalık" der.
+    # Pozitif funding → long'lar ödüyor → long kalabalık → ALT duvar (zorunlu satış)
+    # daha tehlikeli. Negatifse ayna. İkisi birlikte okunur.
+    funding = None
+    try:
+        from oar_funding_carry import funding_oku, YIL_PERIYOT
+        fk = [r for r in funding_oku(sembol) if int(r["ts"]) <= simdi]
+        if fk:
+            son = fk[-1]
+            funding = {"oran_pct": round(son["rate"] * 100, 5),
+                       "yillik_pct": round(son["rate"] * YIL_PERIYOT * 100, 2),
+                       "ts": int(son["ts"]),
+                       "kalabalik": "LONG" if son["rate"] > 0 else
+                                    ("SHORT" if son["rate"] < 0 else "NÖTR")}
+    except Exception:
+        funding = None
+
+    satirlar = sorted(kova.values(), key=lambda r: -r["fiyat"])
+    for r in satirlar:
+        r["toplam"] = r["alis"] + r["satis"]
+        r["mesafe_pct"] = round((r["fiyat"] - spot) / spot * 100.0, 2)
+    if satir:                       # en büyük N kovayı tut, fiyata göre sırala
+        satirlar = sorted(sorted(satirlar, key=lambda r: -r["toplam"])[:satir],
+                          key=lambda r: -r["fiyat"])
+
+    ustler = [r for r in satirlar if r["fiyat"] > spot]
+    altlar = [r for r in satirlar if r["fiyat"] < spot]
+    ust_duvar = max(ustler, key=lambda r: r["alis"], default=None)
+    alt_duvar = max(altlar, key=lambda r: r["satis"], default=None)
+    for r in satirlar:
+        r["duvar"] = ("UST" if r is ust_duvar else "ALT" if r is alt_duvar else "")
+
+    return {"sembol": sembol, "ts": simdi, "spot": spot, "satirlar": satirlar,
+            "funding": funding, "ust_duvar": ust_duvar, "alt_duvar": alt_duvar,
+            "toplam_alis": round(sum(r["alis"] for r in satirlar)),
+            "toplam_satis": round(sum(r["satis"] for r in satirlar))}
+
+
+def _usd(v):
+    for bol, ek in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if abs(v) >= bol:
+            return f"${v/bol:,.2f}{ek}"
+    return f"${v:,.0f}"
+
+
+def duvar_metni(d, genislik=22):
+    """Duvar tablosunu GEX duvar tablosu düzeninde metne döker (spot çizgisi ortada)."""
+    if not d or not d.get("satirlar"):
+        return "Duvar tablosu: veri yok"
+    sat = d["satirlar"]
+    tepe = max((r["toplam"] for r in sat), default=1.0) or 1.0
+    ud, ad = d.get("ust_duvar"), d.get("alt_duvar")
+
+    out = [f"═══ ZORUNLU AKIŞ DUVARLARI · {d['sembol']} ═══",
+           f"Spot ${d['spot']:,.0f} · kesit {_utc(d['ts']):%Y-%m-%d %H:%M} UTC"
+           f" · pencere {PENCERE_GUN}g · bant ±%{BANT_PCT:.0f}",
+           f"Toplam zorunlu ALIŞ (üstte) {_usd(d['toplam_alis'])}"
+           f" · zorunlu SATIŞ (altta) {_usd(d['toplam_satis'])}",
+           ]
+    f = d.get("funding")
+    if f:
+        out.append(f"FUNDING %{f['oran_pct']} /8s (yıllık %{f['yillik_pct']}) →"
+                   f" {f['kalabalik']} tarafı kalabalık"
+                   + ("  ⇒ ALT duvar daha tehlikeli" if f["kalabalik"] == "LONG"
+                      else "  ⇒ ÜST duvar daha tehlikeli" if f["kalabalik"] == "SHORT" else ""))
+    out += ["",
+           "  FİYAT         MESAFE    ZORUNLU AKIŞ           YOĞUNLUK",
+           "  " + "─" * 62]
+
+    spot_basildi = False
+    for r in sat:
+        if not spot_basildi and r["fiyat"] < d["spot"]:
+            out.append(f"  {'':<13}{'':<9}◀── SPOT ${d['spot']:,.0f} " + "─" * 18)
+            spot_basildi = True
+        yukari_mi = r["fiyat"] > d["spot"]
+        deger = r["alis"] if yukari_mi else r["satis"]
+        tur = "ALIŞ " if yukari_mi else "SATIŞ"
+        bar = "█" * max(0, int(round(r["toplam"] / tepe * genislik)))
+        etiket = ""
+        if r is ud:
+            etiket = "  ⬅ ÜST DUVAR (zorunlu alış)"
+        elif r is ad:
+            etiket = "  ⬅ ALT DUVAR (zorunlu satış)"
+        out.append(f"  ${r['fiyat']:<12,.0f}{r['mesafe_pct']:>+7.2f}%  {tur} {_usd(deger):>10}"
+                   f"  {bar}{etiket}")
+    if not spot_basildi:
+        out.append(f"  {'':<13}{'':<9}◀── SPOT ${d['spot']:,.0f} " + "─" * 18)
+
+    out += ["",
+            "OKUMA: hücre = o fiyata gelinirse ZORLA kapanacak notional."
+            "  Üst duvar = short",
+            "  likidasyonları (zorunlu ALIŞ, Call Wall muadili) · Alt duvar = long"
+            " likidasyonları",
+            "  (zorunlu SATIŞ, Put Wall muadili).",
+            "⚠️ MODELDİR: giriş fiyatı/kaldıraç kamuya açık değil; OI artışı + taker yönü +"
+            " kaldıraç",
+            "   dağılımı varsayımıyla tahmin edilir (Coinglass/Hyblock da böyle yapar)."]
+    return "\n".join(out)
+
+
 def _kume_ozet(seviye, notional, spot, yukari):
     """
     Seviyeleri % mesafe kovalarına topla → en büyük kümeyi bul.
@@ -530,6 +714,9 @@ def main():
     ap.add_argument("--symbol", default="BTCUSDT,ETHUSDT")
     ap.add_argument("--from", dest="bas", default="2021-01")
     ap.add_argument("--to", dest="bit", default="2025-06")
+    ap.add_argument("--duvar", action="store_true",
+                    help="hipotez testi yerine ZORUNLU AKIS DUVAR TABLOSUNU yazdir")
+    ap.add_argument("--satir", type=int, default=24, help="duvar tablosunda satir sayisi")
     ap.add_argument("--telegram", action="store_true")
     ap.add_argument("--kendi-test", action="store_true")
     args = ap.parse_args()
@@ -539,6 +726,33 @@ def main():
         return
 
     semboller = [s.strip().upper() for s in args.symbol.split(",") if s.strip()]
+
+    if args.duvar:
+        tum = []
+        for sym in semboller:
+            print(f"[Duvar] {sym} haritası kuruluyor…", flush=True)
+            d = duvar_tablosu(sym, args.bas, args.bit, satir=args.satir)
+            if not d:
+                print(f"      ⚠ {sym}: veri yok (metrics 2021+ ve klines gerekli)", flush=True)
+                continue
+            tum.append(d)
+            print("\n" + duvar_metni(d))
+        if tum:
+            Path("likidasyon_duvar.json").write_text(
+                json.dumps(tum, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            print("\n💾 likidasyon_duvar.json yazıldı")
+            if args.telegram:
+                try:
+                    import asyncio
+                    from ajan_merkez import bildir
+                    metin = "\n\n".join(duvar_metni(d) for d in tum)
+                    asyncio.run(bildir("Zorunlu Akış Duvarları", "çıktı",
+                                       "Perp duvar tablosu güncellendi", detay=metin))
+                    print("[Telegram] gönderildi ✓")
+                except Exception as e:
+                    print(f"[Telegram] gönderilemedi: {str(e)[:80]}")
+        return
+
     harita, seri_listesi, per_sembol, ozet = {}, [], {}, []
     for sym in semboller:
         print(f"[Likidasyon] {sym} {args.bas}..{args.bit}…", flush=True)
