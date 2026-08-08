@@ -137,7 +137,7 @@ def en_kotu_funding_penceresi(kayitlar, tutma_gun):
 #  ÜÇ TEST
 # ═══════════════════════════════════════════════════════════════════════════════
 def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
-               ort_funding, kotu_funding, yukari):
+               ort_funding, kotu_funding, yukari, capraz=False, haircut=0.20):
     """
     Kerem'in üç testini sayıya döker. Saf fonksiyon → ağsız test edilebilir.
     ort_funding / kotu_funding: periyot başına ONDALIK oran (ör. 0.0001 = %0.01).
@@ -172,8 +172,21 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
         }
 
     # ── ③ KUYRUK: en kötü yukarı hareket hedge bacağını likide eder mi ─────
+    # ⚠️ YAPISAL GERÇEK (ilk sürümde gözden kaçıyordu): rezerv TRANSFER edilince
+    # kullanılabilir teminat M+R = C olur → dayanılan hareket 1/kaldıraç − bakım.
+    # Yani rezerv PAYI (M ile R'nin bölünmesi) kuyruk eşiğini DEĞİŞTİRMEZ; tek
+    # belirleyici KALDIRAÇTIR. Rezerv payı yalnız (a) transfer öncesi eşiği ve
+    # (b) stres kanamasına dayanma süresini etkiler.
     r_liq = (M / P) - BAKIM_TEMINAT if P > 0 else 0.0          # rezerv transfer YOK
     r_liq_rezervli = ((M + R) / P) - BAKIM_TEMINAT if P > 0 else 0.0
+    # ÇAPRAZ TEMİNAT: delta-nötr farmda fiyat yükselirken SPOT bacak da kazanır.
+    # Aynı borsada çapraz/portföy teminatı varsa bu kazanç (haircut'lı) teminata
+    # sayılır → dayanılan hareket ÇOK daha büyük olur:
+    #   P·r ≥ C + P·r·(1−h) − bakım·P   →   r_liq = (1/kaldıraç − bakım)/h
+    # Bu, farm'ın gerçekte nasıl işletildiğine daha yakın; izole marjin varsayımı
+    # (ilk sürüm) fazla karamsardı. İKİSİ DE raporlanır, kullanıcı hangisinde
+    # olduğunu bilerek karar versin.
+    r_liq_capraz = (r_liq_rezervli / haircut) if haircut > 0 else float("inf")
     kuyruk = {"veri_yok": True}
     if yukari:
         kuyruk = {
@@ -184,17 +197,21 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
             "max_pct": round(yukari["max"] * 100, 2),
             "likidasyon_esigi_pct": round(r_liq * 100, 2),
             "likidasyon_esigi_rezervli_pct": round(r_liq_rezervli * 100, 2),
+            "likidasyon_esigi_capraz_pct": round(r_liq_capraz * 100, 2),
+            "haircut": haircut,
             "rezervsiz_dayanir": r_liq > yukari["max"],
             "rezervli_dayanir": r_liq_rezervli > yukari["max"],
+            "capraz_dayanir": r_liq_capraz > yukari["max"],
             "p99_dayanir": r_liq_rezervli > yukari["p99"],
+            "capraz_p99_dayanir": r_liq_capraz > yukari["p99"],
         }
 
-    finanse_edilebilir = bool(normal_gecti
-                              and stres.get("gecti")
-                              and kuyruk.get("rezervli_dayanir"))
+    kuyruk_gecti = kuyruk.get("capraz_dayanir" if capraz else "rezervli_dayanir")
+    finanse_edilebilir = bool(normal_gecti and stres.get("gecti") and kuyruk_gecti)
     return {
         "girdi": {"sermaye": C, "kaldirac": kaldirac, "rezerv_pay": rezerv_pay,
-                  "tutma_gun": tutma_gun, "bakim_teminat": BAKIM_TEMINAT},
+                  "tutma_gun": tutma_gun, "bakim_teminat": BAKIM_TEMINAT,
+                  "capraz_teminat": capraz, "haircut": haircut},
         "pozisyon": {"notional": round(P, 2), "teminat": round(M, 2),
                      "rezerv": round(R, 2), "perp_kaldirac": round(L, 2)},
         "normal": {"brut_yillik_pct": round(brut_yillik, 2),
@@ -208,6 +225,35 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
         "kuyruk": kuyruk,
         "finanse_edilebilir": finanse_edilebilir,
     }
+
+
+def azami_kaldirac(yukari, hedef="max", capraz=False, haircut=0.20):
+    """
+    Verilen tarihsel hareket dağılımını taşıyabilen EN YÜKSEK kaldıraç.
+    "❌ finanse edilemez" demek yetmez — hangi kurulumun GEÇTİĞİ söylenmeli.
+
+    Türetme (rezerv transfer edilmiş, M+R=C):
+      izole  : 1/k − bakım ≥ r        → k ≤ 1/(r + bakım)
+      çapraz : (1/k − bakım)/h ≥ r    → k ≤ 1/(r·h + bakım)
+    """
+    if not yukari:
+        return None
+    r = yukari.get(hedef)
+    if r is None or r <= 0:
+        return None
+    payda = (r * haircut + BAKIM_TEMINAT) if capraz else (r + BAKIM_TEMINAT)
+    return round(1.0 / payda, 2) if payda > 0 else None
+
+
+def tarama(yukari, capraz=False, haircut=0.20):
+    """Her kuyruk hedefi için azami kaldıraç tablosu (izole ve çapraz yan yana)."""
+    if not yukari:
+        return []
+    return [{"hedef": h,
+             "hareket_pct": round(yukari[h] * 100, 2),
+             "azami_kaldirac_izole": azami_kaldirac(yukari, h, False, haircut),
+             "azami_kaldirac_capraz": azami_kaldirac(yukari, h, True, haircut)}
+            for h in ("p50", "p95", "p99", "max") if yukari.get(h)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -246,12 +292,24 @@ def rapor_metni(sonuc):
             sat.append(f"  ③ KUYRUK {_isaret(ky['rezervli_dayanir'])}  tarihsel en kötü"
                        f" {g['tutma_gun']}g yukarı hareket %{ky['max_pct']}"
                        f" (p99 %{ky['p99_pct']} · p95 %{ky['p95_pct']}, {ky['ornek']} örnek)")
-            sat.append(f"           likidasyon eşiği: rezervsiz %{ky['likidasyon_esigi_pct']}"
-                       f" · rezerv transferiyle %{ky['likidasyon_esigi_rezervli_pct']}")
+            sat.append(f"           likidasyon eşiği: izole-rezervsiz %{ky['likidasyon_esigi_pct']}"
+                       f" · izole-rezervli %{ky['likidasyon_esigi_rezervli_pct']}"
+                       f" · ÇAPRAZ (spot teminat, haircut %{ky['haircut']*100:.0f})"
+                       f" %{ky['likidasyon_esigi_capraz_pct']}")
             if not ky["rezervsiz_dayanir"] and ky["rezervli_dayanir"]:
                 sat.append("           ⚠ REZERV TRANSFERİ ŞART: transfer olmazsa toplam PnL düz"
                            " olsa bile HEDGE BACAĞI likide olur (ayrı cüzdan).")
-        sat.append(f"  ⇒ RİSK FİNANSE EDİLEBİLİR: {_isaret(s['finanse_edilebilir'])}")
+            if not ky["rezervli_dayanir"] and ky["capraz_dayanir"]:
+                sat.append("           ⚠ ÇAPRAZ/PORTFÖY TEMİNATI ŞART: izole marjinde bu kurulum"
+                           " tarihsel en kötüyü TAŞIYAMAZ; spot bacak teminata sayılırsa taşır.")
+        sat.append(f"  ⇒ RİSK FİNANSE EDİLEBİLİR: {_isaret(s['finanse_edilebilir'])}"
+                   f"  (teminat modu: {'ÇAPRAZ' if g.get('capraz_teminat') else 'İZOLE'})")
+        if s.get("tarama"):
+            sat.append("     HANGİ KALDIRAÇ TAŞIR (rezerv transfer edilmiş):")
+            for t in s["tarama"]:
+                sat.append(f"       {t['hedef']:<4} hareket %{t['hareket_pct']:<7}"
+                           f" → izole ≤{t['azami_kaldirac_izole']}x"
+                           f" · çapraz ≤{t['azami_kaldirac_capraz']}x")
         sat.append("")
     sat += [
         "OKUMA:",
@@ -332,6 +390,26 @@ def kendi_test():
     assert kf and kf["ort_oran"] < 0, f"kanama penceresi bulunamadı: {kf}"
     print(f"[SELF-TEST] en kötü funding penceresi %{kf['ort_oran']*100:.4f} ({kf['donem'] if 'donem' in kf else kf['baslangic']}) ✓")
 
+    # ⑥ çapraz teminat: spot bacak teminata sayılınca eşik YÜKSELMELİ
+    yk = {"n": 500, "p50": .05, "p95": .53, "p99": .80, "max": 1.33}
+    izo = risk_skoru(10000, 3, 0.30, 30, 0.0001, None, yk, capraz=False)
+    cap = risk_skoru(10000, 3, 0.30, 30, 0.0001, None, yk, capraz=True, haircut=0.20)
+    assert (cap["kuyruk"]["likidasyon_esigi_capraz_pct"]
+            > izo["kuyruk"]["likidasyon_esigi_rezervli_pct"]), "çapraz eşik yükseltmeli"
+    assert not izo["kuyruk"]["rezervli_dayanir"] and cap["kuyruk"]["capraz_dayanir"], \
+        "gerçek BTC kuyruğunda izole ELENMELİ, çapraz GEÇMELİ"
+    print(f"[SELF-TEST] çapraz teminat: izole %{izo['kuyruk']['likidasyon_esigi_rezervli_pct']}"
+          f" → çapraz %{cap['kuyruk']['likidasyon_esigi_capraz_pct']} (max hareket %133) ✓")
+
+    # ⑦ azami kaldıraç taraması: hedef sıkılaştıkça kaldıraç DÜŞMELİ
+    tb = tarama(yk, capraz=False)
+    izole_k = [t["azami_kaldirac_izole"] for t in tb]
+    assert izole_k == sorted(izole_k, reverse=True), f"tarama monoton değil: {izole_k}"
+    assert all(t["azami_kaldirac_capraz"] > t["azami_kaldirac_izole"] for t in tb), \
+        "çapraz her hedefte daha yüksek kaldıraca izin vermeli"
+    print(f"[SELF-TEST] azami kaldıraç taraması izole {izole_k} (monoton azalan) ✓")
+
+    s["tarama"] = tarama(yk, capraz=False)
     print("\n" + rapor_metni({"aralik": "sentetik", "semboller": {"TESTUSDT": s}}))
     print("\n[SELF-TEST] ✓ boru hattı doğru")
     return True
@@ -347,6 +425,10 @@ def main():
     ap.add_argument("--kaldirac", type=float, default=3.0)
     ap.add_argument("--rezerv-pay", dest="rezerv", type=float, default=0.30)
     ap.add_argument("--tutma-gun", dest="tutma", type=float, default=30.0)
+    ap.add_argument("--capraz", action="store_true",
+                    help="spot bacak teminata sayılsın (çapraz/portföy marjin)")
+    ap.add_argument("--haircut", type=float, default=0.20,
+                    help="çapraz modda spot teminat kesintisi (0.20 = %20)")
     ap.add_argument("--telegram", action="store_true")
     ap.add_argument("--kendi-test", action="store_true")
     args = ap.parse_args()
@@ -370,7 +452,8 @@ def main():
         print("      · tarihsel en kötü yukarı hareket taranıyor…", flush=True)
         yukari = en_kotu_yukari_hareket(sym, args.bas, args.bit, args.tutma)
         out[sym] = risk_skoru(args.sermaye, args.kaldirac, args.rezerv, args.tutma,
-                              ort, kotu, yukari)
+                              ort, kotu, yukari, capraz=args.capraz, haircut=args.haircut)
+        out[sym]["tarama"] = tarama(yukari, capraz=args.capraz, haircut=args.haircut)
         print(f"      ✓ {sym}: finanse edilebilir = {out[sym]['finanse_edilebilir']}", flush=True)
 
     if not out:
