@@ -15,12 +15,15 @@ NEDEN BU, GEX'İN GERÇEK PERP KARŞILIĞI:
    ① OI ARTIŞI = yeni pozisyon; o 5dk barın kapanışında açıldığı VARSAYILIR.
    ② Yeni notional kaldıraç kovalarına AĞIRLIKLA dağıtılır (varsayılan dağılım
       aşağıda, `--kaldirac-dagilim` ile değiştirilebilir).
-   ③ Long/short ayrımı `sum_taker_long_short_vol_ratio` ile yapılır — yani OI
-      arttığında AGRESİF olan taraf yeni pozisyonu açmış kabul edilir. (Elimizdeki
-      en iyi vekil; kesin değil.)
+   ③ Long/short PAYLAŞTIRILMAZ: perp'te tanım gereği long notional = short
+      notional = OI → ΔOI hem LONG hem SHORT tarafında TAM sayılır. (Taker oranı
+      yalnız "kim agresifti" bağlamı; notional'ı BÖLMEZ.)
    ④ Bakım teminatı sabit varsayılır (kademeli tablo değil).
    ⑤ Pozisyon, likidasyon seviyesine fiyat DEĞDİĞİ anda ölür (haritadan düşer);
-      OI azalışı ayrıca orantılı olarak eski pozisyonları söndürür.
+      OI AZALIŞI da orantılı sönüm uygular (`oi_sonum`) — hangi pozisyonun
+      kapandığı bilinemediği için taraf-bağımsız oransal düşüm.
+   ⑥ Yeni OI'nin bir kısmı KALDIRAÇSIZ/hedge'li olabilir (ör. carry farm); bunlar
+      zorla kapanmaz → harita zorunlu akışı bir miktar YUKARI tahmin eder.
   Bu varsayımlar YANLIŞ olabilir → bu yüzden harita "doğru" diye SUNULMAZ; ürettiği
   sinyal AYNI serap bateriyle (DSR≥0.95) sınanır. Geçmezse harita güzel görünse bile
   kullanılmaz (§5p dersi: güzel görünen çoğu şey seraptır).
@@ -77,28 +80,63 @@ def likidasyon_fiyati(giris, kaldirac, yon, bakim=BAKIM_TEMINAT):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  HARİTA — belirli bir ana kadar yaşayan zorunlu-akış kümeleri
 # ═══════════════════════════════════════════════════════════════════════════════
-def _harita_kur(giris_px, notional, long_pay, sfx_min, sfx_max, spot, kaldirac_dagilim):
+def oi_sonum(oi_pencere, d_oi_pencere):
+    """
+    ⚠️ DÜZELTME 2 — OI AZALIŞI ARTIK İŞLENİYOR.
+    Önceki sürüm yalnız OI ARTIŞINI okuyor, azalışı hiç işlemiyordu (docstring
+    "orantılı söndürür" diyordu ama kod yapmıyordu) → 7 günlük pencerede OI inip
+    çıkarken harita ŞİŞİYORDU.
+
+    OI Y kadar düşerse pozisyonların Y/OI_önce oranı kapanmıştır. Hayatta kalan
+    pay ORANTILI düşülür (hangi pozisyonun kapandığı bilinemez → tarafsız varsayım).
+    Döner: pencere barları hizasında "bugüne kalan pay" çarpanı (0..1].
+    """
+    import numpy as np
+    onceki = oi_pencere - d_oi_pencere
+    sonum = np.where((d_oi_pencere < 0) & (onceki > 0),
+                     np.divide(oi_pencere, onceki, out=np.ones_like(oi_pencere),
+                               where=onceki > 0),
+                     1.0)
+    kum = np.cumprod(np.clip(sonum, 0.0, 1.0))
+    kum = np.where(kum <= 0, 1e-12, kum)
+    return np.clip(kum[-1] / kum, 0.0, 1.0)
+
+
+def _harita_kur(giris_px, notional, sfx_min, sfx_max, spot, kaldirac_dagilim,
+                hayatta_pay=None):
     """
     Vektörel harita: her (bar × kaldıraç) için likidasyon seviyesi + hayatta mı.
     sfx_min[i] / sfx_max[i] = i. bardan KARAR ANINA kadarki en düşük/en yüksek fiyat
     → likidasyon seviyesine değmişse pozisyon ÖLMÜŞTÜR (haritadan düşer).
+
+    ⚠️ DÜZELTME 1 — LONG/SHORT PAYLAŞTIRMASI KALDIRILDI.
+    Perp'te TANIM GEREĞİ long notional = short notional = OI. OI X kadar artarsa
+    X yeni LONG **ve** X yeni SHORT doğar; bu bölünmez. Önceki sürüm ΔOI'yi taker
+    oranıyla ikiye bölüyordu → her iki duvarı da (farklı katsayılarla) küçültüyor,
+    üst/alt kıyasını da bozuyordu. Artık iki taraf da TAM notional alır.
+    Taker oranı "kim agresifti" bilgisidir, notional'ı BÖLMEZ — yalnız bağlam
+    olarak raporlanır.
+
+    hayatta_pay: OI azalışından gelen sönüm çarpanı (yoksa 1).
     Döner: (alt_seviye, alt_notional, ust_seviye, ust_notional) numpy dizileri.
     """
     import numpy as np
+    if hayatta_pay is None:
+        hayatta_pay = np.ones_like(notional)
+    taban = notional * hayatta_pay          # her iki tarafa da TAM uygulanır
     alt_s, alt_n, ust_s, ust_n = [], [], [], []
     for L, w in kaldirac_dagilim.items():
+        n = taban * w
         # LONG pozisyonlar → aşağıda likide olur (spot düşerse zorunlu SATIŞ)
         lq = giris_px * (1.0 - 1.0 / L + BAKIM_TEMINAT)
-        n_long = notional * long_pay * w
-        yasiyor = (sfx_min > lq) & (lq < spot) & (n_long > 0)   # sıfır notional haritayı kirletir
+        yasiyor = (sfx_min > lq) & (lq < spot) & (n > 0)
         if yasiyor.any():
-            alt_s.append(lq[yasiyor]); alt_n.append(n_long[yasiyor])
+            alt_s.append(lq[yasiyor]); alt_n.append(n[yasiyor])
         # SHORT pozisyonlar → yukarıda likide olur (spot yükselirse zorunlu ALIŞ)
         lq = giris_px * (1.0 + 1.0 / L - BAKIM_TEMINAT)
-        n_short = notional * (1.0 - long_pay) * w
-        yasiyor = (sfx_max < lq) & (lq > spot) & (n_short > 0)
+        yasiyor = (sfx_max < lq) & (lq > spot) & (n > 0)
         if yasiyor.any():
-            ust_s.append(lq[yasiyor]); ust_n.append(n_short[yasiyor])
+            ust_s.append(lq[yasiyor]); ust_n.append(n[yasiyor])
     bos = np.array([], dtype=float)
     birlestir = lambda x: np.concatenate(x) if x else bos
     return birlestir(alt_s), birlestir(alt_n), birlestir(ust_s), birlestir(ust_n)
@@ -170,12 +208,14 @@ def duvar_tablosu(sembol, bas, bit, k_df=None, m_df=None, kaldirac_dagilim=None,
     pen_k0 = int(np.searchsorted(ot, pen_bas, side="left"))
     sfx_min = np.minimum.accumulate(lo[pen_k0:gi + 1][::-1])[::-1]
     sfx_max = np.maximum.accumulate(hi[pen_k0:gi + 1][::-1])[::-1]
-    yerel = ki - pen_k0
+    yerel = np.clip(ki - pen_k0, 0, len(sfx_min) - 1)   # negatif indeks sessizce sarmasın
     spot = float(cl[gi])
+    # OI azalışı sönümü (düzeltme 2) — pencere barları hizasında, girişlere eşlenir
+    hayatta = oi_sonum(oi_val[ma:mb], d_oi[ma:mb])[artis][gecerli]
 
     alt_s, alt_n, ust_s, ust_n = _harita_kur(
-        cl[ki], yeni[artis][gecerli], long_pay_all[ma:mb][artis][gecerli],
-        sfx_min[yerel], sfx_max[yerel], spot, kaldirac_dagilim)
+        cl[ki], yeni[artis][gecerli], sfx_min[yerel], sfx_max[yerel], spot,
+        kaldirac_dagilim, hayatta_pay=hayatta)
 
     # fiyat kovalarına topla (GEX tablosundaki strike satırlarının karşılığı)
     kova = {}
@@ -420,7 +460,6 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None, kaldirac_dagilim=None):
         ki = ki[gecerli]
         giris_px = cl[ki]
         notional = yeni[artis][gecerli]
-        lpay = long_pay_all[ma:mb][artis][gecerli]
 
         # açılıştan KARAR ANINA kadarki fiyat uçları (likidasyon değdi mi)
         pen_k0 = int(np.searchsorted(ot, pen_bas, side="left"))
@@ -428,11 +467,13 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None, kaldirac_dagilim=None):
         pencere_hi = hi[pen_k0:gi + 1]
         sfx_min = np.minimum.accumulate(pencere_lo[::-1])[::-1]
         sfx_max = np.maximum.accumulate(pencere_hi[::-1])[::-1]
-        yerel = ki - pen_k0
+        yerel = np.clip(ki - pen_k0, 0, len(sfx_min) - 1)
         spot = float(cl[gi])
+        hayatta = oi_sonum(oi_val[ma:mb], d_oi[ma:mb])[artis][gecerli]
 
         alt_s, alt_n, ust_s, ust_n = _harita_kur(
-            giris_px, notional, lpay, sfx_min[yerel], sfx_max[yerel], spot, kaldirac_dagilim)
+            giris_px, notional, sfx_min[yerel], sfx_max[yerel], spot,
+            kaldirac_dagilim, hayatta_pay=hayatta)
         alt_top, alt_kume, alt_mes = _kume_ozet(alt_s, alt_n, spot, yukari=False)
         ust_top, ust_kume, ust_mes = _kume_ozet(ust_s, ust_n, spot, yukari=True)
         toplam = alt_top + ust_top
@@ -642,16 +683,31 @@ def kendi_test():
     # ② ölü pozisyon eleniyor mu
     giris = np.array([100.0, 100.0])
     notional = np.array([1000.0, 1000.0])
-    lpay = np.array([1.0, 1.0])                 # ikisi de LONG
     # 10x long likidasyonu ≈ 90.4 → ilkinin dibi 89 (DEĞDİ, ölmeli), ikincisi 95 (yaşıyor)
     sfx_min = np.array([89.0, 95.0])
-    sfx_max = np.array([101.0, 101.0])
-    a_s, a_n, u_s, u_n = _harita_kur(giris, notional, lpay, sfx_min, sfx_max,
+    sfx_max = np.array([101.0, 101.0])          # üst taraf hiç değmedi → short'lar yaşıyor
+    a_s, a_n, u_s, u_n = _harita_kur(giris, notional, sfx_min, sfx_max,
                                      spot=100.0, kaldirac_dagilim={10: 1.0})
     assert len(a_s) == 1 and abs(a_n[0] - 1000.0) < 1e-6, \
-        f"ölü pozisyon elenmedi (kalan {len(a_s)})"
-    assert len(u_s) == 0, "long pozisyondan short kümesi üretilmiş"
-    print("[SELF-TEST] likidasyonu değmiş pozisyon haritadan düşüyor ✓")
+        f"ölü LONG elenmedi (kalan {len(a_s)})"
+    # DÜZELTME 1: aynı ΔOI hem long hem short üretir → short tarafı da TAM
+    assert len(u_s) == 2 and abs(u_n.sum() - 2000.0) < 1e-6, \
+        f"ΔOI short tarafına TAM yansımadı (short toplam {u_n.sum()})"
+    print("[SELF-TEST] ölü LONG düşüyor · aynı ΔOI short tarafına da TAM yansıyor ✓")
+
+    # DÜZELTME 2: OI azalışı sönümü
+    oi = np.array([100.0, 100.0, 50.0, 50.0])          # 3. barda OI yarıya indi
+    d = np.diff(oi, prepend=oi[0])
+    hp = oi_sonum(oi, d)
+    assert abs(hp[0] - 0.5) < 1e-9 and abs(hp[-1] - 1.0) < 1e-9, f"sönüm yanlış: {hp}"
+    oi2 = np.array([100.0, 100.0, 100.0]); d2 = np.diff(oi2, prepend=oi2[0])
+    assert np.allclose(oi_sonum(oi2, d2), 1.0), "azalış yokken sönüm uygulanmamalı"
+    a2, an2, _, _ = _harita_kur(giris, notional, np.array([95.0, 95.0]),
+                                np.array([101.0, 101.0]), spot=100.0,
+                                kaldirac_dagilim={10: 1.0},
+                                hayatta_pay=np.array([0.5, 1.0]))
+    assert abs(an2.sum() - 1500.0) < 1e-6, f"sönüm notional'a uygulanmadı: {an2.sum()}"
+    print("[SELF-TEST] OI azalışı orantılı sönüm uyguluyor (yarıya inince pay 0.5) ✓")
 
     # ③ uçtan uca
     rng = np.random.default_rng(23)

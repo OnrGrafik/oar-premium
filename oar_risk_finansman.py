@@ -137,25 +137,38 @@ def en_kotu_funding_penceresi(kayitlar, tutma_gun):
 #  ÜÇ TEST
 # ═══════════════════════════════════════════════════════════════════════════════
 def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
-               ort_funding, kotu_funding, yukari, capraz=False, haircut=0.20):
+               ort_funding, kotu_funding, yukari, capraz=False, haircut=0.20,
+               borc_yillik=10.0):
     """
     Kerem'in üç testini sayıya döker. Saf fonksiyon → ağsız test edilebilir.
     ort_funding / kotu_funding: periyot başına ONDALIK oran (ör. 0.0001 = %0.01).
     yukari: en_kotu_yukari_hareket çıktısı (oran).
     """
     C = float(sermaye)
-    P = C * float(kaldirac)                      # pozisyon notional
+    P = C * float(kaldirac)                      # pozisyon notional (her iki bacak)
     R = C * float(rezerv_pay)                    # likit rezerv (transfer edilebilir)
     M = C - R                                    # perp bacak teminatı
     L = (P / M) if M > 0 else float("inf")       # perp bacak efektif kaldıracı
+
+    # ⚠️ DÜZELTME 3 — SERMAYE MUHASEBESİ.
+    # Önceki sürüm sermayenin TAMAMINI perp teminatı sayıyor, SPOT bacağın parasını
+    # hiç düşmüyordu → "2x → %20 ROE" gibi iyimser rakamlar çıkıyordu. Oysa delta-nötr
+    # farmda P kadar SPOT satın alınmak zorunda; o para sermayeden çıkar.
+    #   gereken sermaye = P (spot) + R (nakit rezerv)
+    #   borçsuz azami kaldıraç = 1 − rezerv_payı   (bunun üstü BORÇ ister)
+    gereken_sermaye = P + R
+    borc = max(0.0, gereken_sermaye - C)
+    borcsuz_azami_kaldirac = max(0.0, 1.0 - float(rezerv_pay))
+    borc_maliyet_usd = borc * float(borc_yillik) / 100.0
 
     # ── ① NORMAL: seçilen tutmada net carry ────────────────────────────────
     brut_yillik = ort_funding * YIL_PERIYOT * 100
     maliyet_yillik = (FEE_PCT + SLIP_PCT) * (365.0 / max(tutma_gun, 1e-9))
     net_yillik_pct = brut_yillik - maliyet_yillik
-    net_yillik_usd = P * net_yillik_pct / 100.0
+    # carry notional üzerinden kazanılır AMA borç maliyeti düşülür (gerçek net)
+    net_yillik_usd = P * net_yillik_pct / 100.0 - borc_maliyet_usd
     gunluk_carry_usd = P * ort_funding * 3.0
-    normal_gecti = net_yillik_pct > 0
+    normal_gecti = net_yillik_usd > 0
 
     # ── ② STRES: funding tersine dönerse kanama ve dayanma süresi ──────────
     stres = {"veri_yok": True}
@@ -229,7 +242,11 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
                   "tutma_gun": tutma_gun, "bakim_teminat": BAKIM_TEMINAT,
                   "capraz_teminat": capraz, "haircut": haircut},
         "pozisyon": {"notional": round(P, 2), "teminat": round(M, 2),
-                     "rezerv": round(R, 2), "perp_kaldirac": round(L, 2)},
+                     "rezerv": round(R, 2), "perp_kaldirac": round(L, 2),
+                     "gereken_sermaye": round(gereken_sermaye, 2),
+                     "borc": round(borc, 2),
+                     "borc_maliyet_yillik_usd": round(borc_maliyet_usd, 2),
+                     "borcsuz_azami_kaldirac": round(borcsuz_azami_kaldirac, 2)},
         "normal": {"sermaye_getiri_pct": round(net_yillik_usd / C * 100, 2) if C > 0 else None,
                    "brut_yillik_pct": round(brut_yillik, 2),
                    "maliyet_yillik_pct": round(maliyet_yillik, 2),
@@ -269,7 +286,7 @@ KALDIRAC_ADAYLAR = (1.0, 1.5, 2.0, 3.0, 5.0)
 
 def kaldirac_karsilastirma(sermaye, rezerv_pay, tutma_gun, ort_funding,
                            kotu_funding, yukari, capraz=False, haircut=0.20,
-                           adaylar=KALDIRAC_ADAYLAR):
+                           borc_yillik=10.0, adaylar=KALDIRAC_ADAYLAR):
     """
     TEK KOŞUDA KARAR TABLOSU: her kaldıraç için SERMAYE getirisi + kuyruk payı.
     "Azami kaldıraç" tek başına yetmiyor — kullanıcı getiriyi de görmeli ki
@@ -278,7 +295,8 @@ def kaldirac_karsilastirma(sermaye, rezerv_pay, tutma_gun, ort_funding,
     out = []
     for k in adaylar:
         r = risk_skoru(sermaye, k, rezerv_pay, tutma_gun, ort_funding,
-                       kotu_funding, yukari, capraz=capraz, haircut=haircut)
+                       kotu_funding, yukari, capraz=capraz, haircut=haircut,
+                       borc_yillik=borc_yillik)
         ky = r["kuyruk"]
         esik = None if ky.get("veri_yok") else (
             ky["likidasyon_esigi_capraz_pct"] if capraz else ky["likidasyon_esigi_rezervli_pct"])
@@ -287,6 +305,7 @@ def kaldirac_karsilastirma(sermaye, rezerv_pay, tutma_gun, ort_funding,
             pay = round(esik / (yukari["max"] * 100) - 1.0, 3)
         out.append({"kaldirac": k,
                     "sermaye_getiri_pct": r["normal"]["sermaye_getiri_pct"],
+                    "borc": r["pozisyon"]["borc"],
                     "kuyruk_esik_pct": esik,
                     "guvenlik_payi": pay,
                     "hukum": r.get("hukum")})
@@ -327,6 +346,13 @@ def rapor_metni(sonuc):
                    f" (${n['net_yillik_usd']:,.0f}) · günlük carry ${n['gunluk_carry_usd']:,.2f}")
         sat.append(f"           ⇒ SERMAYE GETİRİSİ %{n['sermaye_getiri_pct']}/yıl"
                    f" (${g['sermaye']:,.0f} sermayeye göre — notional'a göre DEĞİL)")
+        sat.append(f"           sermaye muhasebesi: gereken ${p['gereken_sermaye']:,.0f}"
+                   f" (spot ${p['notional']:,.0f} + rezerv ${p['rezerv']:,.0f})"
+                   f" · elde ${g['sermaye']:,.0f}")
+        if p["borc"] > 0:
+            sat.append(f"           ⚠ BORÇ GEREKİR ${p['borc']:,.0f}"
+                       f" → yıllık maliyet ${p['borc_maliyet_yillik_usd']:,.0f} (net'ten düşüldü)"
+                       f" · borçsuz azami kaldıraç {p['borcsuz_azami_kaldirac']}x")
         if st.get("veri_yok"):
             sat.append("  ② STRES  ⚠ funding verisi yok")
         else:
@@ -363,13 +389,14 @@ def rapor_metni(sonuc):
                        f"  (teminat modu: {mod_ad})")
         if s.get("karsilastirma"):
             sat.append("     KARAR TABLOSU (getiri ↔ güvenlik payı takası):")
-            sat.append("       kaldıraç | sermaye getirisi | kuyruk eşiği | güvenlik payı | hüküm")
+            sat.append("       kaldıraç | sermaye getirisi | gereken borç | kuyruk eşiği | güvenlik payı | hüküm")
             for kk in s["karsilastirma"]:
                 pay = kk["guvenlik_payi"]
                 pay_s = (f"{pay:+.0%}" if pay is not None else "—")
                 im = {"evet": "✅", "hayir": "❌"}.get(kk["hukum"], "?")
                 sat.append(f"        {kk['kaldirac']:>5}x | {kk['sermaye_getiri_pct']:>13}% |"
-                           f" {kk['kuyruk_esik_pct']:>10}% | {pay_s:>13} | {im}")
+                           f" ${kk['borc']:>10,.0f} | {kk['kuyruk_esik_pct']:>10}% |"
+                           f" {pay_s:>13} | {im}")
         if s.get("tarama"):
             sat.append("     HANGİ KALDIRAÇ TAŞIR (rezerv transfer edilmiş):")
             for t in s["tarama"]:
@@ -497,11 +524,27 @@ def kendi_test():
         "çapraz her hedefte daha yüksek kaldıraca izin vermeli"
     print(f"[SELF-TEST] azami kaldıraç taraması izole {izole_k} (monoton azalan) ✓")
 
+    # ⑦b SERMAYE MUHASEBESİ (düzeltme 3): spot bacak sermaye tüketir
+    b0 = risk_skoru(10000, 0.7, 0.30, 30, 0.0001064, kf, yk, capraz=True)
+    assert b0["pozisyon"]["borc"] == 0, "borçsuz kurulumda borç çıkmamalı"
+    assert b0["pozisyon"]["borcsuz_azami_kaldirac"] == 0.7, "borçsuz azami = 1 − rezerv_payı"
+    b3 = risk_skoru(10000, 3.0, 0.30, 30, 0.0001064, kf, yk, capraz=True)
+    assert abs(b3["pozisyon"]["borc"] - 23000) < 1, f"borç yanlış: {b3['pozisyon']['borc']}"
+    # borç maliyeti carry'ye yakınken kaldıraç ROE'yi PATLATMAMALI (eski hata buydu)
+    roe = [risk_skoru(10000, k, 0.30, 30, 0.0001064, kf, yk, capraz=True
+                      )["normal"]["sermaye_getiri_pct"] for k in (0.7, 1, 2, 3)]
+    assert max(roe) - min(roe) < 1.0, f"borç fiyatlanınca ROE düz olmalı, çıkan: {roe}"
+    print(f"[SELF-TEST] sermaye muhasebesi: borçsuz azami 0.7x · 3x'te borç $23.000"
+          f" · ROE {roe} (kaldıraçla PATLAMIYOR) ✓")
+
     # ⑧ karar tablosu: kaldıraç ↑ → getiri ↑, güvenlik payı ↓ (takas görünür olmalı)
-    kt = kaldirac_karsilastirma(10000, 0.30, 30, 0.0001, kf, yk, capraz=True, haircut=0.20)
+    # borç maliyeti 0 iken saf kaldıraç etkisi görünür (monotonluk kontrolü için)
+    kt = kaldirac_karsilastirma(10000, 0.30, 30, 0.0001, kf, yk, capraz=True,
+                                haircut=0.20, borc_yillik=0.0)
     getiri = [r["sermaye_getiri_pct"] for r in kt]
     paylar = [r["guvenlik_payi"] for r in kt]
-    assert getiri == sorted(getiri), f"kaldıraç↑ getiri↑ olmalı: {getiri}"
+    assert getiri == sorted(getiri), (
+        f"borçsuz getiri kaldıraçla artmalı: {getiri}")
     assert paylar == sorted(paylar, reverse=True), f"kaldıraç↑ pay↓ olmalı: {paylar}"
     print(f"[SELF-TEST] karar tablosu takası: getiri {getiri} ↑ · pay {paylar} ↓ ✓")
 
@@ -524,6 +567,8 @@ def main():
     ap.add_argument("--tutma-gun", dest="tutma", type=float, default=30.0)
     ap.add_argument("--capraz", action="store_true",
                     help="spot bacak teminata sayılsın (çapraz/portföy marjin)")
+    ap.add_argument("--borc-yillik", dest="borc", type=float, default=10.0,
+                    help="borclanma yillik maliyeti (spot bacak icin gereken borc)")
     ap.add_argument("--haircut", type=float, default=0.20,
                     # ⚠ argparse yardım metnini %-biçimlendirmeden geçirir → '%' KAÇIRILMALI
                     # ('%20' biçim belirteci sanılır; Python 3.14 bunu hata olarak yakalıyor).
@@ -551,11 +596,12 @@ def main():
         print("      · tarihsel en kötü yukarı hareket taranıyor…", flush=True)
         yukari = en_kotu_yukari_hareket(sym, args.bas, args.bit, args.tutma)
         out[sym] = risk_skoru(args.sermaye, args.kaldirac, args.rezerv, args.tutma,
-                              ort, kotu, yukari, capraz=args.capraz, haircut=args.haircut)
+                              ort, kotu, yukari, capraz=args.capraz, haircut=args.haircut,
+                              borc_yillik=args.borc)
         out[sym]["tarama"] = tarama(yukari, capraz=args.capraz, haircut=args.haircut)
         out[sym]["karsilastirma"] = kaldirac_karsilastirma(
             args.sermaye, args.rezerv, args.tutma, ort, kotu, yukari,
-            capraz=args.capraz, haircut=args.haircut)
+            capraz=args.capraz, haircut=args.haircut, borc_yillik=args.borc)
         print(f"      ✓ {sym}: finanse edilebilir = {out[sym]['finanse_edilebilir']}", flush=True)
 
     if not out:
