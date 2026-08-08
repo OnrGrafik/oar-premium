@@ -1,0 +1,2540 @@
+{
+  "tarih": "2026-08-05T23:56:31.540378+00:00",
+  "aralik": "2019-01..2025-06",
+  "parametreler": {
+    "karar_saat_utc": 4.0,
+    "tp_r": 3.0,
+    "tut_saat": 24,
+    "pct_pencere": 30,
+    "sigma_pencere": 20,
+    "n_deneme": 40
+  },
+  "portfoy": {
+    "TABAN_LONG": {
+      "ad": "TABAN_LONG",
+      "yon": "LONG",
+      "n": 2947,
+      "wr": 47.6,
+      "beklenti": -0.0671,
+      "toplam_net": -197.6,
+      "pf": 0.94,
+      "maxdd_1x_pct": 98.9,
+      "oos_beklenti": 0.0314,
+      "is_beklenti": -0.0917,
+      "sonuc_dagilim": {
+        "TP": 19,
+        "SL": 375,
+        "TIME": 2553
+      },
+      "rr": 1.04,
+      "serap": {
+        "ad": "TABAN_LONG",
+        "temel": {
+          "n": 2947,
+          "wr": 47.6,
+          "beklenti": -0.0671,
+          "toplam_net": -197.6,
+          "pf": 0.94,
+          "maxdd_1x_pct": 98.9
+        },
+        "sharpe_islem": -0.0209,
+        "sharpe_yillik": -0.536,
+        "islem_yil": 655.9,
+        "deflated_sharpe": {
+          "dsr": 0.0005,
+          "sr_islem": -0.0209,
+          "beklenen_maks_sr_gurultu": 0.0406,
+          "skew": 0.654,
+          "kurtosis": 5.743,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.87276,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.181,
+          "ust": 0.0481
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 98.5,
+            "maxdd_p95_pct": 99.9,
+            "final_medyan": 29.79,
+            "final_p05": 1.9
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.0,
+            "final_p05": 0.0
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.0,
+            "final_p05": 0.0
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "TABAN_SHORT": {
+      "ad": "TABAN_SHORT",
+      "yon": "SHORT",
+      "n": 2947,
+      "wr": 46.0,
+      "beklenti": -0.132,
+      "toplam_net": -388.9,
+      "pf": 0.89,
+      "maxdd_1x_pct": 99.7,
+      "oos_beklenti": -0.2231,
+      "is_beklenti": -0.1091,
+      "sonuc_dagilim": {
+        "TP": 18,
+        "SL": 360,
+        "TIME": 2569
+      },
+      "rr": 1.04,
+      "serap": {
+        "ad": "TABAN_SHORT",
+        "temel": {
+          "n": 2947,
+          "wr": 46.0,
+          "beklenti": -0.132,
+          "toplam_net": -388.9,
+          "pf": 0.89,
+          "maxdd_1x_pct": 99.7
+        },
+        "sharpe_islem": -0.0413,
+        "sharpe_yillik": -1.057,
+        "islem_yil": 655.9,
+        "deflated_sharpe": {
+          "dsr": 0.0,
+          "sr_islem": -0.0413,
+          "beklenen_maks_sr_gurultu": 0.0411,
+          "skew": 0.822,
+          "kurtosis": 6.858,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.98865,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.246,
+          "ust": -0.0176
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.7,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 4.68,
+            "final_p05": 0.28
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.0,
+            "final_p05": 0.0
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.0,
+            "final_p05": 0.0
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "WSD_ISARET_LONG": {
+      "ad": "WSD_ISARET_LONG",
+      "yon": "LONG",
+      "n": 730,
+      "wr": 47.3,
+      "beklenti": 0.1035,
+      "toplam_net": 75.5,
+      "pf": 1.11,
+      "maxdd_1x_pct": 56.2,
+      "oos_beklenti": -0.0916,
+      "is_beklenti": 0.1522,
+      "sonuc_dagilim": {
+        "TP": 9,
+        "SL": 85,
+        "TIME": 636
+      },
+      "rr": 1.24,
+      "serap": {
+        "ad": "WSD_ISARET_LONG",
+        "temel": {
+          "n": 730,
+          "wr": 47.3,
+          "beklenti": 0.1035,
+          "toplam_net": 75.5,
+          "pf": 1.11,
+          "maxdd_1x_pct": 56.2
+        },
+        "sharpe_islem": 0.0384,
+        "sharpe_yillik": 0.512,
+        "islem_yil": 177.8,
+        "deflated_sharpe": {
+          "dsr": 0.1278,
+          "sr_islem": 0.0384,
+          "beklenen_maks_sr_gurultu": 0.0799,
+          "skew": 0.773,
+          "kurtosis": 5.073,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.14769,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.0904,
+          "ust": 0.2964
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 46.5,
+            "maxdd_p95_pct": 70.3,
+            "final_medyan": 1636.71,
+            "final_p05": 514.49
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 90.5,
+            "maxdd_p95_pct": 99.0,
+            "final_medyan": 970.35,
+            "final_p05": 31.54
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.4,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 78.25,
+            "final_p05": 0.25
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "WSD_ISARET_SHORT": {
+      "ad": "WSD_ISARET_SHORT",
+      "yon": "SHORT",
+      "n": 1575,
+      "wr": 44.8,
+      "beklenti": -0.1079,
+      "toplam_net": -169.9,
+      "pf": 0.91,
+      "maxdd_1x_pct": 92.8,
+      "oos_beklenti": -0.1786,
+      "is_beklenti": -0.0902,
+      "sonuc_dagilim": {
+        "TP": 14,
+        "SL": 182,
+        "TIME": 1379
+      },
+      "rr": 1.12,
+      "serap": {
+        "ad": "WSD_ISARET_SHORT",
+        "temel": {
+          "n": 1575,
+          "wr": 44.8,
+          "beklenti": -0.1079,
+          "toplam_net": -169.9,
+          "pf": 0.91,
+          "maxdd_1x_pct": 92.8
+        },
+        "sharpe_islem": -0.0323,
+        "sharpe_yillik": -0.606,
+        "islem_yil": 352.1,
+        "deflated_sharpe": {
+          "dsr": 0.0003,
+          "sr_islem": -0.0323,
+          "beklenen_maks_sr_gurultu": 0.0562,
+          "skew": 1.079,
+          "kurtosis": 8.055,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.9016,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.2711,
+          "ust": 0.0576
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 95.5,
+            "maxdd_p95_pct": 99.3,
+            "final_medyan": 79.39,
+            "final_p05": 8.95
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.0,
+            "final_p05": 0.0
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.0,
+            "final_p05": 0.0
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "WSD_EKSTREM_LONG": {
+      "ad": "WSD_EKSTREM_LONG",
+      "yon": "LONG",
+      "n": 570,
+      "wr": 48.4,
+      "beklenti": 0.2174,
+      "toplam_net": 123.9,
+      "pf": 1.21,
+      "maxdd_1x_pct": 34.6,
+      "oos_beklenti": -0.1575,
+      "is_beklenti": 0.3111,
+      "sonuc_dagilim": {
+        "TP": 9,
+        "SL": 65,
+        "TIME": 496
+      },
+      "rr": 1.29,
+      "serap": {
+        "ad": "WSD_EKSTREM_LONG",
+        "temel": {
+          "n": 570,
+          "wr": 48.4,
+          "beklenti": 0.2174,
+          "toplam_net": 123.9,
+          "pf": 1.21,
+          "maxdd_1x_pct": 34.6
+        },
+        "sharpe_islem": 0.0682,
+        "sharpe_yillik": 0.775,
+        "islem_yil": 129.0,
+        "deflated_sharpe": {
+          "dsr": 0.2986,
+          "sr_islem": 0.0682,
+          "beklenen_maks_sr_gurultu": 0.0899,
+          "skew": 0.665,
+          "kurtosis": 5.513,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.05575,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.044,
+          "ust": 0.4805
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 42.3,
+            "maxdd_p95_pct": 65.1,
+            "final_medyan": 2595.79,
+            "final_p05": 761.31
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 87.0,
+            "maxdd_p95_pct": 98.3,
+            "final_medyan": 3349.21,
+            "final_p05": 83.8
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 98.9,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 438.07,
+            "final_p05": 0.84
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "WSD_EKSTREM_SHORT": {
+      "ad": "WSD_EKSTREM_SHORT",
+      "yon": "SHORT",
+      "n": 624,
+      "wr": 41.7,
+      "beklenti": -0.0959,
+      "toplam_net": -59.9,
+      "pf": 0.92,
+      "maxdd_1x_pct": 86.1,
+      "oos_beklenti": -0.537,
+      "is_beklenti": 0.0146,
+      "sonuc_dagilim": {
+        "TP": 10,
+        "SL": 82,
+        "TIME": 532
+      },
+      "rr": 1.29,
+      "serap": {
+        "ad": "WSD_EKSTREM_SHORT",
+        "temel": {
+          "n": 624,
+          "wr": 41.7,
+          "beklenti": -0.0959,
+          "toplam_net": -59.9,
+          "pf": 0.92,
+          "maxdd_1x_pct": 86.1
+        },
+        "sharpe_islem": -0.0287,
+        "sharpe_yillik": -0.341,
+        "islem_yil": 141.0,
+        "deflated_sharpe": {
+          "dsr": 0.0019,
+          "sr_islem": -0.0287,
+          "beklenen_maks_sr_gurultu": 0.0897,
+          "skew": 1.567,
+          "kurtosis": 9.702,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.76636,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.3541,
+          "ust": 0.1652
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 75.4,
+            "maxdd_p95_pct": 92.0,
+            "final_medyan": 395.71,
+            "final_p05": 103.1
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.6,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 9.01,
+            "final_p05": 0.18
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.02,
+            "final_p05": 0.0
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "KOHORT_EKSTREM_LONG": {
+      "ad": "KOHORT_EKSTREM_LONG",
+      "yon": "LONG",
+      "n": 592,
+      "wr": 48.0,
+      "beklenti": 0.188,
+      "toplam_net": 111.3,
+      "pf": 1.19,
+      "maxdd_1x_pct": 53.0,
+      "oos_beklenti": 0.1119,
+      "is_beklenti": 0.2072,
+      "sonuc_dagilim": {
+        "TP": 5,
+        "SL": 66,
+        "TIME": 521
+      },
+      "rr": 1.29,
+      "serap": {
+        "ad": "KOHORT_EKSTREM_LONG",
+        "temel": {
+          "n": 592,
+          "wr": 48.0,
+          "beklenti": 0.188,
+          "toplam_net": 111.3,
+          "pf": 1.19,
+          "maxdd_1x_pct": 53.0
+        },
+        "sharpe_islem": 0.0596,
+        "sharpe_yillik": 0.692,
+        "islem_yil": 134.6,
+        "deflated_sharpe": {
+          "dsr": 0.2441,
+          "sr_islem": 0.0596,
+          "beklenen_maks_sr_gurultu": 0.0872,
+          "skew": 1.138,
+          "kurtosis": 7.934,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.07445,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.0619,
+          "ust": 0.4473
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 43.4,
+            "maxdd_p95_pct": 68.2,
+            "final_medyan": 2246.31,
+            "final_p05": 661.26
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 88.0,
+            "maxdd_p95_pct": 98.7,
+            "final_medyan": 2187.72,
+            "final_p05": 59.39
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 254.79,
+            "final_p05": 0.6
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "KOHORT_EKSTREM_SHORT": {
+      "ad": "KOHORT_EKSTREM_SHORT",
+      "yon": "SHORT",
+      "n": 482,
+      "wr": 46.5,
+      "beklenti": 0.0484,
+      "toplam_net": 23.3,
+      "pf": 1.04,
+      "maxdd_1x_pct": 54.6,
+      "oos_beklenti": 0.0659,
+      "is_beklenti": 0.044,
+      "sonuc_dagilim": {
+        "TP": 6,
+        "SL": 55,
+        "TIME": 421
+      },
+      "rr": 1.2,
+      "serap": {
+        "ad": "KOHORT_EKSTREM_SHORT",
+        "temel": {
+          "n": 482,
+          "wr": 46.5,
+          "beklenti": 0.0484,
+          "toplam_net": 23.3,
+          "pf": 1.04,
+          "maxdd_1x_pct": 54.6
+        },
+        "sharpe_islem": 0.0147,
+        "sharpe_yillik": 0.154,
+        "islem_yil": 108.8,
+        "deflated_sharpe": {
+          "dsr": 0.0312,
+          "sr_islem": 0.0147,
+          "beklenen_maks_sr_gurultu": 0.0989,
+          "skew": 1.331,
+          "kurtosis": 7.898,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.37233,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.2481,
+          "ust": 0.3484
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 53.6,
+            "maxdd_p95_pct": 78.5,
+            "final_medyan": 993.98,
+            "final_p05": 312.37
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 94.9,
+            "maxdd_p95_pct": 99.7,
+            "final_medyan": 234.89,
+            "final_p05": 7.75
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.9,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 8.4,
+            "final_p05": 0.03
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "TAKER_EKSTREM_LONG": {
+      "ad": "TAKER_EKSTREM_LONG",
+      "yon": "LONG",
+      "n": 578,
+      "wr": 49.1,
+      "beklenti": -0.0109,
+      "toplam_net": -6.3,
+      "pf": 0.99,
+      "maxdd_1x_pct": 68.5,
+      "oos_beklenti": 0.269,
+      "is_beklenti": -0.0812,
+      "sonuc_dagilim": {
+        "TP": 6,
+        "SL": 64,
+        "TIME": 508
+      },
+      "rr": 1.02,
+      "serap": {
+        "ad": "TAKER_EKSTREM_LONG",
+        "temel": {
+          "n": 578,
+          "wr": 49.1,
+          "beklenti": -0.0109,
+          "toplam_net": -6.3,
+          "pf": 0.99,
+          "maxdd_1x_pct": 68.5
+        },
+        "sharpe_islem": -0.0036,
+        "sharpe_yillik": -0.041,
+        "islem_yil": 130.2,
+        "deflated_sharpe": {
+          "dsr": 0.0114,
+          "sr_islem": -0.0036,
+          "beklenen_maks_sr_gurultu": 0.0912,
+          "skew": 0.561,
+          "kurtosis": 4.941,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.53222,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.2543,
+          "ust": 0.2344
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 60.8,
+            "maxdd_p95_pct": 83.7,
+            "final_medyan": 720.17,
+            "final_p05": 224.68
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 97.6,
+            "maxdd_p95_pct": 99.9,
+            "final_medyan": 80.02,
+            "final_p05": 2.39
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 1.07,
+            "final_p05": 0.0
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "TAKER_EKSTREM_SHORT": {
+      "ad": "TAKER_EKSTREM_SHORT",
+      "yon": "SHORT",
+      "n": 583,
+      "wr": 48.5,
+      "beklenti": 0.0566,
+      "toplam_net": 33.0,
+      "pf": 1.05,
+      "maxdd_1x_pct": 51.6,
+      "oos_beklenti": -0.0711,
+      "is_beklenti": 0.0887,
+      "sonuc_dagilim": {
+        "TP": 9,
+        "SL": 51,
+        "TIME": 523
+      },
+      "rr": 1.12,
+      "serap": {
+        "ad": "TAKER_EKSTREM_SHORT",
+        "temel": {
+          "n": 583,
+          "wr": 48.5,
+          "beklenti": 0.0566,
+          "toplam_net": 33.0,
+          "pf": 1.05,
+          "maxdd_1x_pct": 51.6
+        },
+        "sharpe_islem": 0.0174,
+        "sharpe_yillik": 0.2,
+        "islem_yil": 131.2,
+        "deflated_sharpe": {
+          "dsr": 0.0389,
+          "sr_islem": 0.0174,
+          "beklenen_maks_sr_gurultu": 0.0897,
+          "skew": 1.375,
+          "kurtosis": 9.139,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.33678,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.2034,
+          "ust": 0.3229
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 55.9,
+            "maxdd_p95_pct": 80.8,
+            "final_medyan": 1031.42,
+            "final_p05": 284.53
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 96.2,
+            "maxdd_p95_pct": 99.8,
+            "final_medyan": 199.88,
+            "final_p05": 4.52
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.9,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 4.19,
+            "final_p05": 0.01
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "WRD_EKSTREM_LONG": {
+      "ad": "WRD_EKSTREM_LONG",
+      "yon": "LONG",
+      "n": 593,
+      "wr": 47.9,
+      "beklenti": 0.2156,
+      "toplam_net": 127.8,
+      "pf": 1.21,
+      "maxdd_1x_pct": 44.9,
+      "oos_beklenti": -0.2015,
+      "is_beklenti": 0.3203,
+      "sonuc_dagilim": {
+        "TP": 8,
+        "SL": 68,
+        "TIME": 517
+      },
+      "rr": 1.32,
+      "serap": {
+        "ad": "WRD_EKSTREM_LONG",
+        "temel": {
+          "n": 593,
+          "wr": 47.9,
+          "beklenti": 0.2156,
+          "toplam_net": 127.8,
+          "pf": 1.21,
+          "maxdd_1x_pct": 44.9
+        },
+        "sharpe_islem": 0.0679,
+        "sharpe_yillik": 0.787,
+        "islem_yil": 134.3,
+        "deflated_sharpe": {
+          "dsr": 0.309,
+          "sr_islem": 0.0679,
+          "beklenen_maks_sr_gurultu": 0.088,
+          "skew": 0.722,
+          "kurtosis": 5.385,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.05075,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.0456,
+          "ust": 0.47
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 42.5,
+            "maxdd_p95_pct": 65.4,
+            "final_medyan": 2699.43,
+            "final_p05": 773.71
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 87.1,
+            "maxdd_p95_pct": 98.4,
+            "final_medyan": 3510.01,
+            "final_p05": 87.74
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 98.9,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 469.67,
+            "final_p05": 0.85
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    },
+    "WRD_EKSTREM_SHORT": {
+      "ad": "WRD_EKSTREM_SHORT",
+      "yon": "SHORT",
+      "n": 606,
+      "wr": 42.4,
+      "beklenti": -0.0819,
+      "toplam_net": -49.6,
+      "pf": 0.93,
+      "maxdd_1x_pct": 80.9,
+      "oos_beklenti": -0.4775,
+      "is_beklenti": 0.0178,
+      "sonuc_dagilim": {
+        "TP": 8,
+        "SL": 78,
+        "TIME": 520
+      },
+      "rr": 1.26,
+      "serap": {
+        "ad": "WRD_EKSTREM_SHORT",
+        "temel": {
+          "n": 606,
+          "wr": 42.4,
+          "beklenti": -0.0819,
+          "toplam_net": -49.6,
+          "pf": 0.93,
+          "maxdd_1x_pct": 80.9
+        },
+        "sharpe_islem": -0.0247,
+        "sharpe_yillik": -0.288,
+        "islem_yil": 136.7,
+        "deflated_sharpe": {
+          "dsr": 0.0027,
+          "sr_islem": -0.0247,
+          "beklenen_maks_sr_gurultu": 0.0907,
+          "skew": 1.458,
+          "kurtosis": 9.53,
+          "n_deneme": 40
+        },
+        "permutasyon_p": 0.72386,
+        "bootstrap_beklenti_ci": {
+          "alt": -0.3465,
+          "ust": 0.1878
+        },
+        "mc_equity": {
+          "1x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 72.9,
+            "maxdd_p95_pct": 90.8,
+            "final_medyan": 444.8,
+            "final_p05": 121.0
+          },
+          "3x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 99.5,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 13.74,
+            "final_p05": 0.29
+          },
+          "5x": {
+            "likidasyon_orani": 0.0,
+            "maxdd_medyan_pct": 100.0,
+            "maxdd_p95_pct": 100.0,
+            "final_medyan": 0.04,
+            "final_p05": 0.0
+          }
+        }
+      },
+      "fdr_gecti": false,
+      "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+    }
+  },
+  "semboller": {
+    "BTCUSDT": {
+      "TABAN_LONG": {
+        "ad": "TABAN_LONG",
+        "yon": "LONG",
+        "n": 1639,
+        "wr": 46.9,
+        "beklenti": -0.0242,
+        "toplam_net": -39.6,
+        "pf": 0.98,
+        "maxdd_1x_pct": 86.6,
+        "oos_beklenti": 0.0558,
+        "is_beklenti": -0.0442,
+        "sonuc_dagilim": {
+          "TP": 11,
+          "SL": 197,
+          "TIME": 1431
+        },
+        "rr": 1.11,
+        "serap": {
+          "ad": "TABAN_LONG",
+          "temel": {
+            "n": 1639,
+            "wr": 46.9,
+            "beklenti": -0.0242,
+            "toplam_net": -39.6,
+            "pf": 0.98,
+            "maxdd_1x_pct": 86.6
+          },
+          "sharpe_islem": -0.008,
+          "sharpe_yillik": -0.152,
+          "islem_yil": 364.8,
+          "deflated_sharpe": {
+            "dsr": 0.006,
+            "sr_islem": -0.008,
+            "beklenen_maks_sr_gurultu": 0.0542,
+            "skew": 0.674,
+            "kurtosis": 6.499,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.62757,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.1716,
+            "ust": 0.1246
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 85.9,
+              "maxdd_p95_pct": 97.3,
+              "final_medyan": 321.17,
+              "final_p05": 41.83
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.39,
+              "final_p05": 0.0
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.0,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "TABAN_SHORT": {
+        "ad": "TABAN_SHORT",
+        "yon": "SHORT",
+        "n": 1639,
+        "wr": 46.1,
+        "beklenti": -0.1756,
+        "toplam_net": -287.8,
+        "pf": 0.85,
+        "maxdd_1x_pct": 97.4,
+        "oos_beklenti": -0.3161,
+        "is_beklenti": -0.1405,
+        "sonuc_dagilim": {
+          "TP": 12,
+          "SL": 204,
+          "TIME": 1423
+        },
+        "rr": 0.99,
+        "serap": {
+          "ad": "TABAN_SHORT",
+          "temel": {
+            "n": 1639,
+            "wr": 46.1,
+            "beklenti": -0.1756,
+            "toplam_net": -287.8,
+            "pf": 0.85,
+            "maxdd_1x_pct": 97.4
+          },
+          "sharpe_islem": -0.0575,
+          "sharpe_yillik": -1.098,
+          "islem_yil": 364.8,
+          "deflated_sharpe": {
+            "dsr": 0.0,
+            "sr_islem": -0.0575,
+            "beklenen_maks_sr_gurultu": 0.0556,
+            "skew": 0.861,
+            "kurtosis": 7.784,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.99075,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3238,
+            "ust": -0.0275
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.2,
+              "maxdd_p95_pct": 99.7,
+              "final_medyan": 25.51,
+              "final_p05": 3.53
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.0,
+              "final_p05": 0.0
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.0,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_ISARET_LONG": {
+        "ad": "WSD_ISARET_LONG",
+        "yon": "LONG",
+        "n": 506,
+        "wr": 48.4,
+        "beklenti": 0.1437,
+        "toplam_net": 72.7,
+        "pf": 1.17,
+        "maxdd_1x_pct": 46.1,
+        "oos_beklenti": -0.0364,
+        "is_beklenti": 0.1892,
+        "sonuc_dagilim": {
+          "TP": 7,
+          "SL": 55,
+          "TIME": 444
+        },
+        "rr": 1.25,
+        "serap": {
+          "ad": "WSD_ISARET_LONG",
+          "temel": {
+            "n": 506,
+            "wr": 48.4,
+            "beklenti": 0.1437,
+            "toplam_net": 72.7,
+            "pf": 1.17,
+            "maxdd_1x_pct": 46.1
+          },
+          "sharpe_islem": 0.0566,
+          "sharpe_yillik": 0.628,
+          "islem_yil": 123.2,
+          "deflated_sharpe": {
+            "dsr": 0.1888,
+            "sr_islem": 0.0566,
+            "beklenen_maks_sr_gurultu": 0.0948,
+            "skew": 1.013,
+            "kurtosis": 6.023,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.10244,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.074,
+            "ust": 0.3664
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 35.3,
+              "maxdd_p95_pct": 57.3,
+              "final_medyan": 1771.79,
+              "final_p05": 708.59
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 78.4,
+              "maxdd_p95_pct": 95.3,
+              "final_medyan": 2234.59,
+              "final_p05": 150.88
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 95.3,
+              "maxdd_p95_pct": 99.8,
+              "final_medyan": 861.65,
+              "final_p05": 9.86
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_ISARET_SHORT": {
+        "ad": "WSD_ISARET_SHORT",
+        "yon": "SHORT",
+        "n": 812,
+        "wr": 44.7,
+        "beklenti": -0.1726,
+        "toplam_net": -140.1,
+        "pf": 0.87,
+        "maxdd_1x_pct": 84.7,
+        "oos_beklenti": -0.3267,
+        "is_beklenti": -0.1338,
+        "sonuc_dagilim": {
+          "TP": 8,
+          "SL": 95,
+          "TIME": 709
+        },
+        "rr": 1.07,
+        "serap": {
+          "ad": "WSD_ISARET_SHORT",
+          "temel": {
+            "n": 812,
+            "wr": 44.7,
+            "beklenti": -0.1726,
+            "toplam_net": -140.1,
+            "pf": 0.87,
+            "maxdd_1x_pct": 84.7
+          },
+          "sharpe_islem": -0.05,
+          "sharpe_yillik": -0.678,
+          "islem_yil": 183.4,
+          "deflated_sharpe": {
+            "dsr": 0.0002,
+            "sr_islem": -0.05,
+            "beklenen_maks_sr_gurultu": 0.0789,
+            "skew": 0.959,
+            "kurtosis": 8.051,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.9227,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.4088,
+            "ust": 0.0698
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 89.9,
+              "maxdd_p95_pct": 97.7,
+              "final_medyan": 149.23,
+              "final_p05": 28.84
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.2,
+              "final_p05": 0.0
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.0,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_EKSTREM_LONG": {
+        "ad": "WSD_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 326,
+        "wr": 50.3,
+        "beklenti": 0.343,
+        "toplam_net": 111.8,
+        "pf": 1.38,
+        "maxdd_1x_pct": 18.8,
+        "oos_beklenti": 0.1437,
+        "is_beklenti": 0.3936,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 33,
+          "TIME": 289
+        },
+        "rr": 1.36,
+        "serap": {
+          "ad": "WSD_EKSTREM_LONG",
+          "temel": {
+            "n": 326,
+            "wr": 50.3,
+            "beklenti": 0.343,
+            "toplam_net": 111.8,
+            "pf": 1.38,
+            "maxdd_1x_pct": 18.8
+          },
+          "sharpe_islem": 0.1123,
+          "sharpe_yillik": 0.965,
+          "islem_yil": 73.8,
+          "deflated_sharpe": {
+            "dsr": 0.4533,
+            "sr_islem": 0.1123,
+            "beklenen_maks_sr_gurultu": 0.1187,
+            "skew": 0.537,
+            "kurtosis": 5.903,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.0221,
+          "bootstrap_beklenti_ci": {
+            "alt": 0.0139,
+            "ust": 0.6747
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 28.9,
+              "maxdd_p95_pct": 48.2,
+              "final_medyan": 2564.7,
+              "final_p05": 1059.85
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 69.4,
+              "maxdd_p95_pct": 90.4,
+              "final_medyan": 7027.53,
+              "final_p05": 498.89
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 90.7,
+              "maxdd_p95_pct": 99.2,
+              "final_medyan": 5890.63,
+              "final_p05": 60.18
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "⚠ MARJİNAL (anlamlı ama DSR/likidasyon zayıf)"
+      },
+      "WSD_EKSTREM_SHORT": {
+        "ad": "WSD_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 371,
+        "wr": 44.5,
+        "beklenti": 0.0838,
+        "toplam_net": 31.1,
+        "pf": 1.08,
+        "maxdd_1x_pct": 58.1,
+        "oos_beklenti": -0.3809,
+        "is_beklenti": 0.2016,
+        "sonuc_dagilim": {
+          "TP": 6,
+          "SL": 47,
+          "TIME": 318
+        },
+        "rr": 1.35,
+        "serap": {
+          "ad": "WSD_EKSTREM_SHORT",
+          "temel": {
+            "n": 371,
+            "wr": 44.5,
+            "beklenti": 0.0838,
+            "toplam_net": 31.1,
+            "pf": 1.08,
+            "maxdd_1x_pct": 58.1
+          },
+          "sharpe_islem": 0.0253,
+          "sharpe_yillik": 0.232,
+          "islem_yil": 83.9,
+          "deflated_sharpe": {
+            "dsr": 0.0454,
+            "sr_islem": 0.0253,
+            "beklenen_maks_sr_gurultu": 0.1114,
+            "skew": 1.744,
+            "kurtosis": 10.771,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.31568,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.2444,
+            "ust": 0.4281
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 46.2,
+              "maxdd_p95_pct": 70.3,
+              "final_medyan": 1117.77,
+              "final_p05": 414.71
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 90.0,
+              "maxdd_p95_pct": 98.7,
+              "final_medyan": 468.88,
+              "final_p05": 26.57
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 99.2,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 50.21,
+              "final_p05": 0.44
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "KOHORT_EKSTREM_LONG": {
+        "ad": "KOHORT_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 348,
+        "wr": 49.1,
+        "beklenti": 0.2818,
+        "toplam_net": 98.1,
+        "pf": 1.3,
+        "maxdd_1x_pct": 33.8,
+        "oos_beklenti": 0.0591,
+        "is_beklenti": 0.3379,
+        "sonuc_dagilim": {
+          "TP": 3,
+          "SL": 40,
+          "TIME": 305
+        },
+        "rr": 1.35,
+        "serap": {
+          "ad": "KOHORT_EKSTREM_LONG",
+          "temel": {
+            "n": 348,
+            "wr": 49.1,
+            "beklenti": 0.2818,
+            "toplam_net": 98.1,
+            "pf": 1.3,
+            "maxdd_1x_pct": 33.8
+          },
+          "sharpe_islem": 0.0915,
+          "sharpe_yillik": 0.814,
+          "islem_yil": 79.1,
+          "deflated_sharpe": {
+            "dsr": 0.3516,
+            "sr_islem": 0.0915,
+            "beklenen_maks_sr_gurultu": 0.1108,
+            "skew": 1.42,
+            "kurtosis": 9.953,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.0432,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.0336,
+            "ust": 0.6089
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 30.8,
+              "maxdd_p95_pct": 49.9,
+              "final_medyan": 2293.99,
+              "final_p05": 924.14
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 71.7,
+              "maxdd_p95_pct": 91.4,
+              "final_medyan": 4886.89,
+              "final_p05": 325.8
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 91.4,
+              "maxdd_p95_pct": 99.3,
+              "final_medyan": 3382.63,
+              "final_p05": 37.2
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "KOHORT_EKSTREM_SHORT": {
+        "ad": "KOHORT_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 286,
+        "wr": 47.6,
+        "beklenti": 0.034,
+        "toplam_net": 9.7,
+        "pf": 1.03,
+        "maxdd_1x_pct": 39.6,
+        "oos_beklenti": -0.3088,
+        "is_beklenti": 0.1211,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 30,
+          "TIME": 252
+        },
+        "rr": 1.14,
+        "serap": {
+          "ad": "KOHORT_EKSTREM_SHORT",
+          "temel": {
+            "n": 286,
+            "wr": 47.6,
+            "beklenti": 0.034,
+            "toplam_net": 9.7,
+            "pf": 1.03,
+            "maxdd_1x_pct": 39.6
+          },
+          "sharpe_islem": 0.0106,
+          "sharpe_yillik": 0.085,
+          "islem_yil": 64.6,
+          "deflated_sharpe": {
+            "dsr": 0.0222,
+            "sr_islem": 0.0106,
+            "beklenen_maks_sr_gurultu": 0.1286,
+            "skew": 1.575,
+            "kurtosis": 9.56,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.42848,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3297,
+            "ust": 0.4213
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 44.4,
+              "maxdd_p95_pct": 68.4,
+              "final_medyan": 933.01,
+              "final_p05": 400.05
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 88.1,
+              "maxdd_p95_pct": 98.3,
+              "final_medyan": 366.75,
+              "final_p05": 30.16
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.7,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 51.6,
+              "final_p05": 0.8
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "TAKER_EKSTREM_LONG": {
+        "ad": "TAKER_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 336,
+        "wr": 48.5,
+        "beklenti": -0.0647,
+        "toplam_net": -21.7,
+        "pf": 0.93,
+        "maxdd_1x_pct": 52.5,
+        "oos_beklenti": 0.026,
+        "is_beklenti": -0.0877,
+        "sonuc_dagilim": {
+          "TP": 3,
+          "SL": 37,
+          "TIME": 296
+        },
+        "rr": 0.99,
+        "serap": {
+          "ad": "TAKER_EKSTREM_LONG",
+          "temel": {
+            "n": 336,
+            "wr": 48.5,
+            "beklenti": -0.0647,
+            "toplam_net": -21.7,
+            "pf": 0.93,
+            "maxdd_1x_pct": 52.5
+          },
+          "sharpe_islem": -0.0245,
+          "sharpe_yillik": -0.213,
+          "islem_yil": 75.7,
+          "deflated_sharpe": {
+            "dsr": 0.0042,
+            "sr_islem": -0.0245,
+            "beklenen_maks_sr_gurultu": 0.1203,
+            "skew": 0.427,
+            "kurtosis": 4.42,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.67492,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.342,
+            "ust": 0.2143
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 49.4,
+              "maxdd_p95_pct": 73.0,
+              "final_medyan": 718.03,
+              "final_p05": 325.76
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 91.8,
+              "maxdd_p95_pct": 98.9,
+              "final_medyan": 183.84,
+              "final_p05": 16.91
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 99.4,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 17.9,
+              "final_p05": 0.32
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "TAKER_EKSTREM_SHORT": {
+        "ad": "TAKER_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 325,
+        "wr": 49.8,
+        "beklenti": 0.0754,
+        "toplam_net": 24.5,
+        "pf": 1.07,
+        "maxdd_1x_pct": 39.0,
+        "oos_beklenti": -0.1845,
+        "is_beklenti": 0.1403,
+        "sonuc_dagilim": {
+          "TP": 7,
+          "SL": 33,
+          "TIME": 285
+        },
+        "rr": 1.08,
+        "serap": {
+          "ad": "TAKER_EKSTREM_SHORT",
+          "temel": {
+            "n": 325,
+            "wr": 49.8,
+            "beklenti": 0.0754,
+            "toplam_net": 24.5,
+            "pf": 1.07,
+            "maxdd_1x_pct": 39.0
+          },
+          "sharpe_islem": 0.0236,
+          "sharpe_yillik": 0.202,
+          "islem_yil": 73.2,
+          "deflated_sharpe": {
+            "dsr": 0.0394,
+            "sr_islem": 0.0236,
+            "beklenen_maks_sr_gurultu": 0.1195,
+            "skew": 1.555,
+            "kurtosis": 10.032,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.33938,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.2636,
+            "ust": 0.4306
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 43.5,
+              "maxdd_p95_pct": 68.2,
+              "final_medyan": 1082.46,
+              "final_p05": 427.36
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 87.4,
+              "maxdd_p95_pct": 98.3,
+              "final_medyan": 511.4,
+              "final_p05": 33.47
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.7,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 75.4,
+              "final_p05": 0.82
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WRD_EKSTREM_LONG": {
+        "ad": "WRD_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 344,
+        "wr": 48.8,
+        "beklenti": 0.3758,
+        "toplam_net": 129.3,
+        "pf": 1.42,
+        "maxdd_1x_pct": 25.5,
+        "oos_beklenti": 0.0232,
+        "is_beklenti": 0.4643,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 34,
+          "TIME": 306
+        },
+        "rr": 1.48,
+        "serap": {
+          "ad": "WRD_EKSTREM_LONG",
+          "temel": {
+            "n": 344,
+            "wr": 48.8,
+            "beklenti": 0.3758,
+            "toplam_net": 129.3,
+            "pf": 1.42,
+            "maxdd_1x_pct": 25.5
+          },
+          "sharpe_islem": 0.1231,
+          "sharpe_yillik": 1.087,
+          "islem_yil": 77.9,
+          "deflated_sharpe": {
+            "dsr": 0.5735,
+            "sr_islem": 0.1231,
+            "beklenen_maks_sr_gurultu": 0.1135,
+            "skew": 0.78,
+            "kurtosis": 5.703,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.0112,
+          "bootstrap_beklenti_ci": {
+            "alt": 0.0575,
+            "ust": 0.7039
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 27.6,
+              "maxdd_p95_pct": 45.1,
+              "final_medyan": 3085.83,
+              "final_p05": 1274.81
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 66.9,
+              "maxdd_p95_pct": 88.1,
+              "final_medyan": 11972.85,
+              "final_p05": 841.54
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 88.4,
+              "maxdd_p95_pct": 98.7,
+              "final_medyan": 14614.58,
+              "final_p05": 164.26
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "⚠ MARJİNAL (anlamlı ama DSR/likidasyon zayıf)"
+      },
+      "WRD_EKSTREM_SHORT": {
+        "ad": "WRD_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 354,
+        "wr": 45.2,
+        "beklenti": 0.052,
+        "toplam_net": 18.4,
+        "pf": 1.05,
+        "maxdd_1x_pct": 53.9,
+        "oos_beklenti": -0.4203,
+        "is_beklenti": 0.1705,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 42,
+          "TIME": 308
+        },
+        "rr": 1.27,
+        "serap": {
+          "ad": "WRD_EKSTREM_SHORT",
+          "temel": {
+            "n": 354,
+            "wr": 45.2,
+            "beklenti": 0.052,
+            "toplam_net": 18.4,
+            "pf": 1.05,
+            "maxdd_1x_pct": 53.9
+          },
+          "sharpe_islem": 0.016,
+          "sharpe_yillik": 0.143,
+          "islem_yil": 79.9,
+          "deflated_sharpe": {
+            "dsr": 0.0297,
+            "sr_islem": 0.016,
+            "beklenen_maks_sr_gurultu": 0.1151,
+            "skew": 1.595,
+            "kurtosis": 10.943,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.38193,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.2811,
+            "ust": 0.398
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 46.8,
+              "maxdd_p95_pct": 71.6,
+              "final_medyan": 1003.53,
+              "final_p05": 391.42
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 90.5,
+              "maxdd_p95_pct": 98.9,
+              "final_medyan": 362.36,
+              "final_p05": 23.29
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 99.3,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 35.72,
+              "final_p05": 0.36
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      }
+    },
+    "ETHUSDT": {
+      "TABAN_LONG": {
+        "ad": "TABAN_LONG",
+        "yon": "LONG",
+        "n": 1308,
+        "wr": 48.5,
+        "beklenti": -0.1208,
+        "toplam_net": -158.0,
+        "pf": 0.91,
+        "maxdd_1x_pct": 93.5,
+        "oos_beklenti": -0.0283,
+        "is_beklenti": -0.144,
+        "sonuc_dagilim": {
+          "TP": 8,
+          "SL": 178,
+          "TIME": 1122
+        },
+        "rr": 0.96,
+        "serap": {
+          "ad": "TABAN_LONG",
+          "temel": {
+            "n": 1308,
+            "wr": 48.5,
+            "beklenti": -0.1208,
+            "toplam_net": -158.0,
+            "pf": 0.91,
+            "maxdd_1x_pct": 93.5
+          },
+          "sharpe_islem": -0.0355,
+          "sharpe_yillik": -0.678,
+          "islem_yil": 365.5,
+          "deflated_sharpe": {
+            "dsr": 0.0003,
+            "sr_islem": -0.0355,
+            "beklenen_maks_sr_gurultu": 0.0613,
+            "skew": 0.639,
+            "kurtosis": 5.017,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.89906,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3044,
+            "ust": 0.0671
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 94.2,
+              "maxdd_p95_pct": 99.0,
+              "final_medyan": 98.29,
+              "final_p05": 13.92
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.01,
+              "final_p05": 0.0
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.0,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "TABAN_SHORT": {
+        "ad": "TABAN_SHORT",
+        "yon": "SHORT",
+        "n": 1308,
+        "wr": 46.0,
+        "beklenti": -0.0773,
+        "toplam_net": -101.1,
+        "pf": 0.94,
+        "maxdd_1x_pct": 93.6,
+        "oos_beklenti": -0.0658,
+        "is_beklenti": -0.0801,
+        "sonuc_dagilim": {
+          "TP": 6,
+          "SL": 156,
+          "TIME": 1146
+        },
+        "rr": 1.1,
+        "serap": {
+          "ad": "TABAN_SHORT",
+          "temel": {
+            "n": 1308,
+            "wr": 46.0,
+            "beklenti": -0.0773,
+            "toplam_net": -101.1,
+            "pf": 0.94,
+            "maxdd_1x_pct": 93.6
+          },
+          "sharpe_islem": -0.0229,
+          "sharpe_yillik": -0.438,
+          "islem_yil": 365.5,
+          "deflated_sharpe": {
+            "dsr": 0.0013,
+            "sr_islem": -0.0229,
+            "beklenen_maks_sr_gurultu": 0.0611,
+            "skew": 0.771,
+            "kurtosis": 5.939,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.79676,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.2587,
+            "ust": 0.1038
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 90.7,
+              "maxdd_p95_pct": 98.4,
+              "final_medyan": 172.19,
+              "final_p05": 23.03
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.07,
+              "final_p05": 0.0
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.0,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_ISARET_LONG": {
+        "ad": "WSD_ISARET_LONG",
+        "yon": "LONG",
+        "n": 224,
+        "wr": 44.6,
+        "beklenti": 0.0125,
+        "toplam_net": 2.8,
+        "pf": 1.01,
+        "maxdd_1x_pct": 41.4,
+        "oos_beklenti": -0.2796,
+        "is_beklenti": 0.0859,
+        "sonuc_dagilim": {
+          "TP": 2,
+          "SL": 30,
+          "TIME": 192
+        },
+        "rr": 1.25,
+        "serap": {
+          "ad": "WSD_ISARET_LONG",
+          "temel": {
+            "n": 224,
+            "wr": 44.6,
+            "beklenti": 0.0125,
+            "toplam_net": 2.8,
+            "pf": 1.01,
+            "maxdd_1x_pct": 41.4
+          },
+          "sharpe_islem": 0.0041,
+          "sharpe_yillik": 0.036,
+          "islem_yil": 74.0,
+          "deflated_sharpe": {
+            "dsr": 0.0167,
+            "sr_islem": 0.0041,
+            "beklenen_maks_sr_gurultu": 0.1465,
+            "skew": 0.452,
+            "kurtosis": 3.645,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.47488,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3815,
+            "ust": 0.4102
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 40.3,
+              "maxdd_p95_pct": 64.6,
+              "final_medyan": 921.69,
+              "final_p05": 439.8
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 84.2,
+              "maxdd_p95_pct": 97.3,
+              "final_medyan": 429.69,
+              "final_p05": 46.83
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 97.6,
+              "maxdd_p95_pct": 99.9,
+              "final_medyan": 90.6,
+              "final_p05": 2.15
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_ISARET_SHORT": {
+        "ad": "WSD_ISARET_SHORT",
+        "yon": "SHORT",
+        "n": 763,
+        "wr": 44.8,
+        "beklenti": -0.0391,
+        "toplam_net": -29.8,
+        "pf": 0.97,
+        "maxdd_1x_pct": 77.3,
+        "oos_beklenti": 0.1244,
+        "is_beklenti": -0.0801,
+        "sonuc_dagilim": {
+          "TP": 6,
+          "SL": 87,
+          "TIME": 670
+        },
+        "rr": 1.19,
+        "serap": {
+          "ad": "WSD_ISARET_SHORT",
+          "temel": {
+            "n": 763,
+            "wr": 44.8,
+            "beklenti": -0.0391,
+            "toplam_net": -29.8,
+            "pf": 0.97,
+            "maxdd_1x_pct": 77.3
+          },
+          "sharpe_islem": -0.0121,
+          "sharpe_yillik": -0.178,
+          "islem_yil": 214.4,
+          "deflated_sharpe": {
+            "dsr": 0.0058,
+            "sr_islem": -0.0121,
+            "beklenen_maks_sr_gurultu": 0.0799,
+            "skew": 1.24,
+            "kurtosis": 7.953,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.63387,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.2646,
+            "ust": 0.1943
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 72.5,
+              "maxdd_p95_pct": 91.4,
+              "final_medyan": 514.99,
+              "final_p05": 123.44
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 99.6,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 14.56,
+              "final_p05": 0.21
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.02,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_EKSTREM_LONG": {
+        "ad": "WSD_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 244,
+        "wr": 45.9,
+        "beklenti": 0.0496,
+        "toplam_net": 12.1,
+        "pf": 1.04,
+        "maxdd_1x_pct": 28.7,
+        "oos_beklenti": -0.1179,
+        "is_beklenti": 0.0917,
+        "sonuc_dagilim": {
+          "TP": 5,
+          "SL": 32,
+          "TIME": 207
+        },
+        "rr": 1.23,
+        "serap": {
+          "ad": "WSD_EKSTREM_LONG",
+          "temel": {
+            "n": 244,
+            "wr": 45.9,
+            "beklenti": 0.0496,
+            "toplam_net": 12.1,
+            "pf": 1.04,
+            "maxdd_1x_pct": 28.7
+          },
+          "sharpe_islem": 0.0148,
+          "sharpe_yillik": 0.123,
+          "islem_yil": 69.2,
+          "deflated_sharpe": {
+            "dsr": 0.0251,
+            "sr_islem": 0.0148,
+            "beklenen_maks_sr_gurultu": 0.1396,
+            "skew": 0.816,
+            "kurtosis": 5.127,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.40443,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3621,
+            "ust": 0.4846
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 42.5,
+              "maxdd_p95_pct": 66.4,
+              "final_medyan": 996.98,
+              "final_p05": 440.07
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 86.5,
+              "maxdd_p95_pct": 97.9,
+              "final_medyan": 443.52,
+              "final_p05": 39.59
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.4,
+              "maxdd_p95_pct": 99.9,
+              "final_medyan": 69.72,
+              "final_p05": 1.22
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WSD_EKSTREM_SHORT": {
+        "ad": "WSD_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 253,
+        "wr": 37.5,
+        "beklenti": -0.3595,
+        "toplam_net": -91.0,
+        "pf": 0.73,
+        "maxdd_1x_pct": 69.2,
+        "oos_beklenti": -0.662,
+        "is_beklenti": -0.2832,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 35,
+          "TIME": 214
+        },
+        "rr": 1.21,
+        "serap": {
+          "ad": "WSD_EKSTREM_SHORT",
+          "temel": {
+            "n": 253,
+            "wr": 37.5,
+            "beklenti": -0.3595,
+            "toplam_net": -91.0,
+            "pf": 0.73,
+            "maxdd_1x_pct": 69.2
+          },
+          "sharpe_islem": -0.1063,
+          "sharpe_yillik": -0.905,
+          "islem_yil": 72.5,
+          "deflated_sharpe": {
+            "dsr": 0.0001,
+            "sr_islem": -0.1063,
+            "beklenen_maks_sr_gurultu": 0.1488,
+            "skew": 1.348,
+            "kurtosis": 8.227,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.95375,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.765,
+            "ust": 0.0682
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 71.5,
+              "maxdd_p95_pct": 86.7,
+              "final_medyan": 345.22,
+              "final_p05": 146.95
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.8,
+              "maxdd_p95_pct": 99.9,
+              "final_medyan": 18.2,
+              "final_p05": 1.42
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.3,
+              "final_p05": 0.0
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "KOHORT_EKSTREM_LONG": {
+        "ad": "KOHORT_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 244,
+        "wr": 46.3,
+        "beklenti": 0.0543,
+        "toplam_net": 13.2,
+        "pf": 1.05,
+        "maxdd_1x_pct": 29.0,
+        "oos_beklenti": -0.0661,
+        "is_beklenti": 0.0845,
+        "sonuc_dagilim": {
+          "TP": 2,
+          "SL": 26,
+          "TIME": 216
+        },
+        "rr": 1.22,
+        "serap": {
+          "ad": "KOHORT_EKSTREM_LONG",
+          "temel": {
+            "n": 244,
+            "wr": 46.3,
+            "beklenti": 0.0543,
+            "toplam_net": 13.2,
+            "pf": 1.05,
+            "maxdd_1x_pct": 29.0
+          },
+          "sharpe_islem": 0.0167,
+          "sharpe_yillik": 0.139,
+          "islem_yil": 69.3,
+          "deflated_sharpe": {
+            "dsr": 0.0269,
+            "sr_islem": 0.0167,
+            "beklenen_maks_sr_gurultu": 0.1395,
+            "skew": 0.807,
+            "kurtosis": 5.487,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.40008,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3465,
+            "ust": 0.4658
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 41.2,
+              "maxdd_p95_pct": 65.3,
+              "final_medyan": 1011.14,
+              "final_p05": 448.82
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 85.3,
+              "maxdd_p95_pct": 97.6,
+              "final_medyan": 500.74,
+              "final_p05": 44.01
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.1,
+              "maxdd_p95_pct": 99.9,
+              "final_medyan": 90.25,
+              "final_p05": 1.49
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "KOHORT_EKSTREM_SHORT": {
+        "ad": "KOHORT_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 196,
+        "wr": 44.9,
+        "beklenti": 0.0694,
+        "toplam_net": 13.6,
+        "pf": 1.06,
+        "maxdd_1x_pct": 37.1,
+        "oos_beklenti": 0.6511,
+        "is_beklenti": -0.0797,
+        "sonuc_dagilim": {
+          "TP": 2,
+          "SL": 25,
+          "TIME": 169
+        },
+        "rr": 1.3,
+        "serap": {
+          "ad": "KOHORT_EKSTREM_SHORT",
+          "temel": {
+            "n": 196,
+            "wr": 44.9,
+            "beklenti": 0.0694,
+            "toplam_net": 13.6,
+            "pf": 1.06,
+            "maxdd_1x_pct": 37.1
+          },
+          "sharpe_islem": 0.0205,
+          "sharpe_yillik": 0.154,
+          "islem_yil": 56.3,
+          "deflated_sharpe": {
+            "dsr": 0.0287,
+            "sr_islem": 0.0205,
+            "beklenen_maks_sr_gurultu": 0.1552,
+            "skew": 1.01,
+            "kurtosis": 5.81,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.38948,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.4016,
+            "ust": 0.5554
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 37.8,
+              "maxdd_p95_pct": 61.9,
+              "final_medyan": 1038.77,
+              "final_p05": 474.6
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 81.4,
+              "maxdd_p95_pct": 96.5,
+              "final_medyan": 603.02,
+              "final_p05": 57.6
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 96.7,
+              "maxdd_p95_pct": 99.8,
+              "final_medyan": 153.65,
+              "final_p05": 3.04
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "TAKER_EKSTREM_LONG": {
+        "ad": "TAKER_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 242,
+        "wr": 50.0,
+        "beklenti": 0.0638,
+        "toplam_net": 15.4,
+        "pf": 1.05,
+        "maxdd_1x_pct": 40.8,
+        "oos_beklenti": 0.7046,
+        "is_beklenti": -0.0989,
+        "sonuc_dagilim": {
+          "TP": 3,
+          "SL": 27,
+          "TIME": 212
+        },
+        "rr": 1.05,
+        "serap": {
+          "ad": "TAKER_EKSTREM_LONG",
+          "temel": {
+            "n": 242,
+            "wr": 50.0,
+            "beklenti": 0.0638,
+            "toplam_net": 15.4,
+            "pf": 1.05,
+            "maxdd_1x_pct": 40.8
+          },
+          "sharpe_islem": 0.0184,
+          "sharpe_yillik": 0.153,
+          "islem_yil": 69.3,
+          "deflated_sharpe": {
+            "dsr": 0.0285,
+            "sr_islem": 0.0184,
+            "beklenen_maks_sr_gurultu": 0.1403,
+            "skew": 0.589,
+            "kurtosis": 4.62,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.39048,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.373,
+            "ust": 0.4991
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 43.2,
+              "maxdd_p95_pct": 67.9,
+              "final_medyan": 1003.87,
+              "final_p05": 418.47
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 87.7,
+              "maxdd_p95_pct": 98.3,
+              "final_medyan": 433.39,
+              "final_p05": 31.23
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.8,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 58.19,
+              "final_p05": 0.71
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "TAKER_EKSTREM_SHORT": {
+        "ad": "TAKER_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 258,
+        "wr": 46.9,
+        "beklenti": 0.033,
+        "toplam_net": 8.5,
+        "pf": 1.03,
+        "maxdd_1x_pct": 31.6,
+        "oos_beklenti": -0.0957,
+        "is_beklenti": 0.0654,
+        "sonuc_dagilim": {
+          "TP": 2,
+          "SL": 18,
+          "TIME": 238
+        },
+        "rr": 1.17,
+        "serap": {
+          "ad": "TAKER_EKSTREM_SHORT",
+          "temel": {
+            "n": 258,
+            "wr": 46.9,
+            "beklenti": 0.033,
+            "toplam_net": 8.5,
+            "pf": 1.03,
+            "maxdd_1x_pct": 31.6
+          },
+          "sharpe_islem": 0.0099,
+          "sharpe_yillik": 0.085,
+          "islem_yil": 73.2,
+          "deflated_sharpe": {
+            "dsr": 0.0212,
+            "sr_islem": 0.0099,
+            "beklenen_maks_sr_gurultu": 0.1358,
+            "skew": 1.163,
+            "kurtosis": 8.067,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.43658,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.3567,
+            "ust": 0.4446
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 44.2,
+              "maxdd_p95_pct": 68.4,
+              "final_medyan": 936.55,
+              "final_p05": 403.96
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 88.4,
+              "maxdd_p95_pct": 98.3,
+              "final_medyan": 374.16,
+              "final_p05": 30.61
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 98.8,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 50.99,
+              "final_p05": 0.73
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WRD_EKSTREM_LONG": {
+        "ad": "WRD_EKSTREM_LONG",
+        "yon": "LONG",
+        "n": 249,
+        "wr": 46.6,
+        "beklenti": -0.0058,
+        "toplam_net": -1.4,
+        "pf": 1.0,
+        "maxdd_1x_pct": 39.4,
+        "oos_beklenti": -0.1282,
+        "is_beklenti": 0.025,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 34,
+          "TIME": 211
+        },
+        "rr": 1.14,
+        "serap": {
+          "ad": "WRD_EKSTREM_LONG",
+          "temel": {
+            "n": 249,
+            "wr": 46.6,
+            "beklenti": -0.0058,
+            "toplam_net": -1.4,
+            "pf": 1.0,
+            "maxdd_1x_pct": 39.4
+          },
+          "sharpe_islem": -0.0017,
+          "sharpe_yillik": -0.015,
+          "islem_yil": 70.7,
+          "deflated_sharpe": {
+            "dsr": 0.0133,
+            "sr_islem": -0.0017,
+            "beklenen_maks_sr_gurultu": 0.1391,
+            "skew": 0.692,
+            "kurtosis": 5.015,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.50967,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.4111,
+            "ust": 0.4123
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 46.2,
+              "maxdd_p95_pct": 71.0,
+              "final_medyan": 859.91,
+              "final_p05": 359.99
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 89.7,
+              "maxdd_p95_pct": 98.7,
+              "final_medyan": 288.06,
+              "final_p05": 21.35
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 99.1,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 33.15,
+              "final_p05": 0.41
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      },
+      "WRD_EKSTREM_SHORT": {
+        "ad": "WRD_EKSTREM_SHORT",
+        "yon": "SHORT",
+        "n": 252,
+        "wr": 38.5,
+        "beklenti": -0.2701,
+        "toplam_net": -68.1,
+        "pf": 0.8,
+        "maxdd_1x_pct": 62.2,
+        "oos_beklenti": -0.4149,
+        "is_beklenti": -0.2333,
+        "sonuc_dagilim": {
+          "TP": 4,
+          "SL": 36,
+          "TIME": 212
+        },
+        "rr": 1.27,
+        "serap": {
+          "ad": "WRD_EKSTREM_SHORT",
+          "temel": {
+            "n": 252,
+            "wr": 38.5,
+            "beklenti": -0.2701,
+            "toplam_net": -68.1,
+            "pf": 0.8,
+            "maxdd_1x_pct": 62.2
+          },
+          "sharpe_islem": -0.0792,
+          "sharpe_yillik": -0.673,
+          "islem_yil": 72.4,
+          "deflated_sharpe": {
+            "dsr": 0.0004,
+            "sr_islem": -0.0792,
+            "beklenen_maks_sr_gurultu": 0.1459,
+            "skew": 1.306,
+            "kurtosis": 7.826,
+            "n_deneme": 40
+          },
+          "permutasyon_p": 0.89136,
+          "bootstrap_beklenti_ci": {
+            "alt": -0.6862,
+            "ust": 0.1619
+          },
+          "mc_equity": {
+            "1x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 65.7,
+              "maxdd_p95_pct": 83.9,
+              "final_medyan": 438.47,
+              "final_p05": 184.22
+            },
+            "3x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 97.9,
+              "maxdd_p95_pct": 99.8,
+              "final_medyan": 36.5,
+              "final_p05": 2.74
+            },
+            "5x": {
+              "likidasyon_orani": 0.0,
+              "maxdd_medyan_pct": 100.0,
+              "maxdd_p95_pct": 100.0,
+              "final_medyan": 0.99,
+              "final_p05": 0.01
+            }
+          }
+        },
+        "fdr_gecti": false,
+        "karar": "❌ SERAP (şans/overfit — beklenti güvenilmez)"
+      }
+    }
+  }
+}
