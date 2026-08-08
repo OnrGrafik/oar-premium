@@ -230,7 +230,8 @@ def risk_skoru(sermaye, kaldirac, rezerv_pay, tutma_gun,
                   "capraz_teminat": capraz, "haircut": haircut},
         "pozisyon": {"notional": round(P, 2), "teminat": round(M, 2),
                      "rezerv": round(R, 2), "perp_kaldirac": round(L, 2)},
-        "normal": {"brut_yillik_pct": round(brut_yillik, 2),
+        "normal": {"sermaye_getiri_pct": round(net_yillik_usd / C * 100, 2) if C > 0 else None,
+                   "brut_yillik_pct": round(brut_yillik, 2),
                    "maliyet_yillik_pct": round(maliyet_yillik, 2),
                    "net_yillik_pct": round(net_yillik_pct, 2),
                    "net_yillik_usd": round(net_yillik_usd, 2),
@@ -261,6 +262,35 @@ def azami_kaldirac(yukari, hedef="max", capraz=False, haircut=0.20):
         return None
     payda = (r * haircut + BAKIM_TEMINAT) if capraz else (r + BAKIM_TEMINAT)
     return round(1.0 / payda, 2) if payda > 0 else None
+
+
+KALDIRAC_ADAYLAR = (1.0, 1.5, 2.0, 3.0, 5.0)
+
+
+def kaldirac_karsilastirma(sermaye, rezerv_pay, tutma_gun, ort_funding,
+                           kotu_funding, yukari, capraz=False, haircut=0.20,
+                           adaylar=KALDIRAC_ADAYLAR):
+    """
+    TEK KOŞUDA KARAR TABLOSU: her kaldıraç için SERMAYE getirisi + kuyruk payı.
+    "Azami kaldıraç" tek başına yetmiyor — kullanıcı getiriyi de görmeli ki
+    takası (getiri ↔ güvenlik payı) kendisi yapabilsin. Pay = eşik/en-kötü − 1.
+    """
+    out = []
+    for k in adaylar:
+        r = risk_skoru(sermaye, k, rezerv_pay, tutma_gun, ort_funding,
+                       kotu_funding, yukari, capraz=capraz, haircut=haircut)
+        ky = r["kuyruk"]
+        esik = None if ky.get("veri_yok") else (
+            ky["likidasyon_esigi_capraz_pct"] if capraz else ky["likidasyon_esigi_rezervli_pct"])
+        pay = None
+        if esik is not None and yukari and yukari.get("max"):
+            pay = round(esik / (yukari["max"] * 100) - 1.0, 3)
+        out.append({"kaldirac": k,
+                    "sermaye_getiri_pct": r["normal"]["sermaye_getiri_pct"],
+                    "kuyruk_esik_pct": esik,
+                    "guvenlik_payi": pay,
+                    "hukum": r.get("hukum")})
+    return out
 
 
 def tarama(yukari, capraz=False, haircut=0.20):
@@ -295,6 +325,8 @@ def rapor_metni(sonuc):
         sat.append(f"  ① NORMAL {_isaret(n['gecti'])}  brüt %{n['brut_yillik_pct']}"
                    f" − maliyet %{n['maliyet_yillik_pct']} = NET %{n['net_yillik_pct']}/yıl"
                    f" (${n['net_yillik_usd']:,.0f}) · günlük carry ${n['gunluk_carry_usd']:,.2f}")
+        sat.append(f"           ⇒ SERMAYE GETİRİSİ %{n['sermaye_getiri_pct']}/yıl"
+                   f" (${g['sermaye']:,.0f} sermayeye göre — notional'a göre DEĞİL)")
         if st.get("veri_yok"):
             sat.append("  ② STRES  ⚠ funding verisi yok")
         else:
@@ -329,6 +361,15 @@ def rapor_metni(sonuc):
         else:
             sat.append(f"  ⇒ RİSK FİNANSE EDİLEBİLİR: {_isaret(s['finanse_edilebilir'])}"
                        f"  (teminat modu: {mod_ad})")
+        if s.get("karsilastirma"):
+            sat.append("     KARAR TABLOSU (getiri ↔ güvenlik payı takası):")
+            sat.append("       kaldıraç | sermaye getirisi | kuyruk eşiği | güvenlik payı | hüküm")
+            for kk in s["karsilastirma"]:
+                pay = kk["guvenlik_payi"]
+                pay_s = (f"{pay:+.0%}" if pay is not None else "—")
+                im = {"evet": "✅", "hayir": "❌"}.get(kk["hukum"], "?")
+                sat.append(f"        {kk['kaldirac']:>5}x | {kk['sermaye_getiri_pct']:>13}% |"
+                           f" {kk['kuyruk_esik_pct']:>10}% | {pay_s:>13} | {im}")
         if s.get("tarama"):
             sat.append("     HANGİ KALDIRAÇ TAŞIR (rezerv transfer edilmiş):")
             for t in s["tarama"]:
@@ -456,6 +497,15 @@ def kendi_test():
         "çapraz her hedefte daha yüksek kaldıraca izin vermeli"
     print(f"[SELF-TEST] azami kaldıraç taraması izole {izole_k} (monoton azalan) ✓")
 
+    # ⑧ karar tablosu: kaldıraç ↑ → getiri ↑, güvenlik payı ↓ (takas görünür olmalı)
+    kt = kaldirac_karsilastirma(10000, 0.30, 30, 0.0001, kf, yk, capraz=True, haircut=0.20)
+    getiri = [r["sermaye_getiri_pct"] for r in kt]
+    paylar = [r["guvenlik_payi"] for r in kt]
+    assert getiri == sorted(getiri), f"kaldıraç↑ getiri↑ olmalı: {getiri}"
+    assert paylar == sorted(paylar, reverse=True), f"kaldıraç↑ pay↓ olmalı: {paylar}"
+    print(f"[SELF-TEST] karar tablosu takası: getiri {getiri} ↑ · pay {paylar} ↓ ✓")
+
+    s["karsilastirma"] = kt
     s["tarama"] = tarama(yk, capraz=False)
     print("\n" + rapor_metni({"aralik": "sentetik", "semboller": {"TESTUSDT": s}}))
     print("\n[SELF-TEST] ✓ boru hattı doğru")
@@ -503,6 +553,9 @@ def main():
         out[sym] = risk_skoru(args.sermaye, args.kaldirac, args.rezerv, args.tutma,
                               ort, kotu, yukari, capraz=args.capraz, haircut=args.haircut)
         out[sym]["tarama"] = tarama(yukari, capraz=args.capraz, haircut=args.haircut)
+        out[sym]["karsilastirma"] = kaldirac_karsilastirma(
+            args.sermaye, args.rezerv, args.tutma, ort, kotu, yukari,
+            capraz=args.capraz, haircut=args.haircut)
         print(f"      ✓ {sym}: finanse edilebilir = {out[sym]['finanse_edilebilir']}", flush=True)
 
     if not out:
