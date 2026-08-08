@@ -2416,6 +2416,16 @@ async def knowledge_kitap_ara(q: str, limit: int = 5):
     from kitap_db import ara
     return {"sonuclar": ara(q, limit)}
 
+@app.get("/api/oar-duvar")
+async def oar_duvar(symbol: str = "BTCUSDT", satir: int = 20):
+    """Zorunlu akış duvarları (perp likidasyon kümeleri) — GEX duvarlarının karşılığı."""
+    try:
+        from oar_duvar_canli import duvar
+        return await duvar(symbol.upper(), satir=satir)
+    except Exception as e:
+        return {"durum": "veri_yok", "not": str(e)[:120]}
+
+
 @app.get("/api/oar-fib")
 async def oar_fib(symbol: str = "BTCUSDT"):
     """Bugünkü Asia Range (TR 03-07 = UTC 00-04) fib seviyeleri."""
