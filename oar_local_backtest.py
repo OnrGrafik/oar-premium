@@ -925,15 +925,52 @@ def _aday_cache_yol(sym, y_bas, y_bit):
     return d / f"{sym}_{y_bas}_{y_bit}_aday.json"
 
 
+def metrics_var_mi(sembol, bas, bit, borsa="binance"):
+    """Bu aralıkta metrics parquet dosyası var mı (tek dosya yeter)."""
+    from data_ingest import _aylar
+    kok = _hist_dir() / borsa / sembol / "metrics"
+    for yil, ay in _aylar(bas, bit):
+        if (kok / f"{yil:04d}" / f"{sembol}-metrics-{yil:04d}-{ay:02d}.parquet").exists():
+            return True
+    return False
+
+
+def havuz_bayat_mi(adaylar, sembol, bas, bit):
+    """
+    ⚠️ BAYAT CACHE KORUMASI (metrics zaman-damgası düzeltmesinden sonra ŞART).
+    Düzeltme öncesi üretilmiş aday havuzları `oi_yuksek` / `whale_retail_zit`
+    alanlarını HİÇ taşımaz (metrics günleri eşleşmediği için hiç kurulmamıştı).
+    Böyle bir havuz sessizce yeniden kullanılırsa üç blok YİNE ölü kalır ve
+    "yeni şampiyon yok" sonucu SAHTE olur — tam da düzeltmeyi anlamsız kılar.
+
+    Karar: metrics parquet VARSA ama havuzdaki hiçbir aday metrics alanı
+    taşımıyorsa → havuz düzeltme ÖNCESİNDEN kalmadır → BAYAT (yeniden kur).
+    Metrics parquet yoksa alanların olmaması normaldir → bayat sayılmaz.
+    """
+    if not adaylar:
+        return False
+    if any(c.get("oi_yuksek") is not None for c in adaylar):
+        return False
+    if not metrics_var_mi(sembol, bas, bit):
+        return False
+    return True
+
+
 def _aday_cache_oku(sym, y_bas, y_bit):
     import json
     yol = _aday_cache_yol(sym, y_bas, y_bit)
     if yol.exists():
         try:
             with open(yol, encoding="utf-8") as f:
-                return json.load(f)
+                adaylar = json.load(f)
         except Exception:
             return None
+        if havuz_bayat_mi(adaylar, sym, y_bas, y_bit):
+            print(f"      ⚠ {sym} {y_bas}..{y_bit} aday cache'i metrics DÜZELTMESİ"
+                  f" ÖNCESİNDEN — yeniden kuruluyor (oi/whale blokları ölü kalmasın)",
+                  flush=True)
+            return None
+        return adaylar
     return None
 
 

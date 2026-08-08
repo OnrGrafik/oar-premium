@@ -274,6 +274,17 @@ def _sistemleri_topla(semboller, bas, bit, taze=False) -> dict:
     # ── ŞAMPİYONLAR (2) — aggTrades havuzu bir kez, iki blok kümesiyle _filtre ──
     ck = "sampiyon_havuz_" + "_".join(semboller) + f"_{bas}_{bit}"
     havuz = None if taze else _cache_oku(ck)
+    # ⚠ BAYAT CACHE: metrics düzeltmesinden ÖNCE kurulmuş havuz oi/whale alanlarını
+    # taşımaz → üç blok yine ölü kalır, sonuç sahte olur. Tespit edip yeniden kur.
+    if havuz:
+        try:
+            from oar_local_backtest import havuz_bayat_mi
+            if havuz_bayat_mi(havuz, semboller[0], bas, bit):
+                print("[Serap] ⚠ şampiyon havuz cache'i metrics DÜZELTMESİ ÖNCESİNDEN"
+                      " — yeniden kuruluyor", flush=True)
+                havuz = None
+        except Exception:
+            pass
     if havuz is None:
         try:
             from oar_sampiyon_confirm import _analiz as _sampiyon_analiz

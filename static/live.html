@@ -1991,7 +1991,7 @@ function scrOptions(){
       <div class="od-two" style="grid-template-columns:1.5fr 1fr;gap:28px">
         <div>
           <div class="od-head"><h2 class="od-h2"><span class="od-nbr">iv.</span>GEX Isı Haritası · strike × vade</h2><span class="od-meta">DEALER STOKU · ${(ST.optHeatmap&&ST.optHeatmap.birim)||'γ USD/%1'}</span></div>
-          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">${[['gamma','Γ'],['vega','VEGA'],['theta','Θ'],['vanna','VANNA'],['volga','VOLGA']].map(([g,l])=>`<button class="od-chip ${_optHeatGreek===g?'on':''}" onclick="optHeatGreekSec('${g}')">${l}</button>`).join('')}</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">${[['gamma','Γ'],['charm','CHARM'],['vega','VEGA'],['theta','Θ'],['vanna','VANNA'],['volga','VOLGA']].map(([g,l])=>`<button class="od-chip ${_optHeatGreek===g?'on':''}" onclick="optHeatGreekSec('${g}')">${l}</button>`).join('')}</div>
           <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">${[['kapali','Δ KAPALI'],['anlik','Δ ANLIK'],['gun_ici','Δ GÜN-İÇİ']].map(([m,l])=>`<button class="od-chip ${_optHeatMod===m?'on':''}" onclick="optHeatModSec('${m}')"${_optHeatGreek!=='gamma'?' disabled style="opacity:.4;cursor:default"':''}>${l}</button>`).join('')}<span style="font-size:9px;color:${OD.mute}">${_optHeatGreek!=='gamma'?'(Δ yalnız Γ)':'anlık≈22dk · gün-içi=açılış'}</span></div>
           ${odGexHeatmap(ST.optHeatmap)}
         </div>
