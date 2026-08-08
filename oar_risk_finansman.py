@@ -428,7 +428,9 @@ def main():
     ap.add_argument("--capraz", action="store_true",
                     help="spot bacak teminata sayılsın (çapraz/portföy marjin)")
     ap.add_argument("--haircut", type=float, default=0.20,
-                    help="çapraz modda spot teminat kesintisi (0.20 = %20)")
+                    # ⚠ argparse yardım metnini %-biçimlendirmeden geçirir → '%' KAÇIRILMALI
+                    # ('%20' biçim belirteci sanılır; Python 3.14 bunu hata olarak yakalıyor).
+                    help="çapraz modda spot teminat kesintisi (0.20 = %%20)")
     ap.add_argument("--telegram", action="store_true")
     ap.add_argument("--kendi-test", action="store_true")
     args = ap.parse_args()
