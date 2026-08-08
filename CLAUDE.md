@@ -349,6 +349,12 @@
   ② **Canlı site URL'si = `oar-premium-production.up.railway.app`** (`-production` VAR). `oar-premium.up.railway.app` (CLAUDE.md eski varsayılan) PROVISION EDİLMEMİŞ → "Not Found: train has not arrived" verir (uygulama down sanılır ama değil). hacim_indir.py varsayılan URL'si de bu yüzden yanlış (`-production`'a güncellenecek).
   ③ Teşhis öncesi mutlaka `git fetch origin main` + main'i temel al; feature dalın main'in gerisinde olabilir (footprint mimarisi main'de daha ileri — bu oturumda feature dalı merge etmeye çalışınca çakıştı, iptal edilip main'e cerrahi eklendi).
 
+## 6dX. ⛔ MUTLAK KURAL — FOOTPRINT GRAFİĞİNE İZİNSİZ DOKUNMA (kullanıcı emri, kalıcı, en üstün)
+- ⛔ KULLANICI AÇIKÇA "grafikte/footprint görselinde ŞUNU düzelt" DEMEDİKÇE footprint grafiğine / görsele / layout'a / renge / hücre çizimine / mum genişliğine / tick görünümüne **HİÇBİR ŞEKİLDE EL ATMA.**
+- Varsayılan iş alanı = **yalnız VERİ/backend** (sayının doğruluğu: gerçek BTC, doğru alış/satış, doğru kaynak/birim, kapsam denetimi). Görsel "iyileştirme" bile olsa DAVETSİZ YAPMA.
+- Kullanıcı bir veri sorunu bildirince: SADECE veriyi düzelt, aynı turda görsele "bonus" dokunma. Görsel değişiklik ancak kullanıcı KELİMESİYLE grafik/görsel isterse.
+- Bu kural §6dK ve §6d2'nin üstündedir: onlar "veri öncelikli" der; bu "izinsiz görsele SIFIR dokunuş" der.
+
 ## 6dK. KALICI KURAL — FOOTPRINT/GRAFİK ŞİKAYETİ = VERİ DOĞRULUĞU, TASARIM DEĞİL (kullanıcı emri, kalıcı)
 - ⚠️ KULLANICI EMRİ (defalarca, net): "veriler doğru değil / çubuklar dolmuyor / matematik yanlış" dediğinde sorun **TASARIM DEĞİL, VERİNİN DOĞRU GÖSTERİLMESİDİR**. Enerjiyi renk/layout/görsel yerine **SAYININ DOĞRULUĞUNA** ver (gerçek BTC, doğru alış/satış, doğru kaynak/birim). Kullanıcı açıkça "tasarım/görsel" demedikçe layout ile OYNAMA.
 - İLK ADIM her zaman OTORİTE KIYASI: aggTrades toplamı == klines hacmi (%). Kaynak seçerken birim/ölçek DOĞRULA (yüksek çözünürlük ≠ doğru birim — Kiyotaka dersi §6d3).
@@ -437,7 +443,20 @@
 - ⚠️ **SAAT TUZAĞI (düzeltildi)**: Japonya 08:30 JST = bir ÖNCEKİ günün 23:30 UTC'si. Yerel tarih + UTC saati yan yana yazılırsa YANILTIR → her olay `tarih_utc` taşır, kronolojik sıralama `utc` damgasına göre yapılır. Bölge saatleri yerel tutulup UTC'ye çevrilir (yaz saati kayması otomatik).
 - VERİ SINIRI (dürüst): AB gerçekleşen değerleri **ECB veri servisinden anahtarsız** (HICP, çekirdek, politika faizi, işsizlik; CSV kolonları TIME_PERIOD/OBS_VALUE ADIYLA bulunur, mevduat faizi gelmezse ana refinansman faizine düşer). **Japonya için anahtarsız güvenilir resmî kaynak YOK** → TÜFE ancak FRED anahtarıyla gelir, yoksa "veri yok" (uydurulmaz); BoJ faizi + USD/JPY carry panelinden yeniden kullanılır (tekrar istek yok). Takvim + senaryolar gerçekleşen değere bağlı DEĞİL → her hâlükârda çalışır.
 - ⚠️ ECB uç noktası bu oturumda **doğrulanamadı** (sandbox dış ağı kapalı, 403). Parse savunmacı yazıldı ve boşsa "veri yok" der; ilk canlı turda bölge şeridinde AB satırları boşsa seri anahtarları kontrol edilmeli.
-- Uçlar: `/api/makro/kuresel` (once/sonra/min_etki). Site: makro sayfasının EN ALTI — bölge özet şeridi + "sıradaki en kritik 3 olay" + kronolojik liste (satıra tıkla → 3 senaryo kartı açılır). Lider bağlamına (`_site_baglami`) kritik olaylar + kanal etiketiyle eklendi (§5k).
+- 🔬 **TEŞHİS UCU `/api/makro/teshis`** (makro sayfasında bir alan boşsa ÖNCE bunu aç): her kaynağı CANLI ve HAM istekle dener (BLS · Hazine getiri eğrisi · NY Fed faizi · FRED · ECB serileri TEK TEK) → durum(ok/bos/hata) + HTTP kodu + örnek değer + hangi seri anahtarının kullanıldığı. Site arayüzünde GÖSTERİLMEZ (§6c: kaynak adı ziyaretçiye sızmaz).
+  - ⚠️ ÖNEMLİ TASARIM: sondalar `bls_getir`/`hazine_egrisi` gibi SARMALAYICILARI KULLANMAZ — onlar hatayı yutup boş liste döndüğü için teşhis "ağ koptu"yu "kaynak boş yanıt verdi" diye yanlış raporluyordu. Ham istek → HTTP kodu ve istisna tipi olduğu gibi görünür. (İlk sürümde bu hata vardı, düzeltildi.)
+  - Parse'lar gerçek yanıt biçimleriyle test edildi (BLS v1 JSON `Results.series[].data`, Hazine CSV `Date,"2 Yr","10 Yr"` başlıkları, NY Fed `refRates[].percentRate`) → sahte-yanıt testinde 3/3 doğru çözüldü.
+- ✅ SÖZLEŞME BEKÇİSİNE EKLENDİ (`k_makro_akis`, §6g): ANA_GOSTERGELER'in kaçının canlı olduğunu **ek ağ isteği olmadan** (makro cache'inden) ölçer → 0 canlı = ⛔ kritik alarm, yarıdan az = 🟡 yedek, aksi sessiz. Kaynak uçları sessizce ölürse Telegram'dan haber gelir + teşhis ucuna yönlendirir.
+- Uçlar: `/api/makro/kuresel` (once/sonra/min_etki) · `/api/makro/teshis`. Site: makro sayfasının EN ALTI — bölge özet şeridi + "sıradaki en kritik 3 olay" + kronolojik liste (satıra tıkla → 3 senaryo kartı açılır). Lider bağlamına (`_site_baglami`) kritik olaylar + kanal etiketiyle eklendi (§5k).
+
+## 6j. ANALİZÖR KARNESİ (`hacim_haftalik_rapor.py`) — haftalık kanıt raporu (kalıcı)
+- KULLANICI (Kartal haftalık raporunu örnek göstererek): "Hacimlerde öne çıkan durumları haftalık rapor edip sisteme/şampiyonlara/agent kararlarına katkı sağlayabilir miyiz? YOLUMUZUN DOĞRU OLUP OLMADIĞINI da ölçüp, agent kodlarında düzenlemeye ve GEREKSİZ bakılan verilerde SADELEŞTİRMEYE gidebilir miyiz?"
+- YÖNTEM = Kartal raporunun disiplini hacim konseyine uygulanmış hali: ① **EŞİK TARAMASI** (güç ≥ 0.2/0.3/0.4… için beklenti/isabet/PF — Kartal'ın RVOL taraması) ② **MONOTONLUK** (güç kovası ↑ iken beklenti ↑ mı — ŞANS ile EDGE'i ayıran ASIL test; Kartal'ın "RVOL kova" testi) ③ **IS/OOS** (ilk %70 / son %30 zaman bölmesi) ④ **KARAR**: DEĞERLİ / GÜRÜLTÜ / TERS / YETERSİZ → doğrudan sadeleştirme önerisi. Ölçüm: yön-işaretli ileri getiri (LONG→+, SHORT→−), ufuk 4s.
+- VERİ: `hacim_konseyi.SKOR_LOG` (kompakt JSONL, satır ~200B, cap 40k ≈ 70 gün) — ham snapshot HAFTALIK SİLİNDİĞİ için ayrı ve KALICI tutulur. İleri getiri RAPOR ANINDA klines'tan hesaplanır → fiyat saklamaya gerek yok, sızıntı yok.
+- ✅ YÖNTEM DOĞRULANDI (kullanıcının "yolumuz doğru mu" sorusunun cevabı): sentetik testte BİLİNEN edge → "DEĞERLİ" (monotonluk 1.0, kovalar +0.018→+0.047→+0.059→+0.329, OOS pozitif); SAF GÜRÜLTÜ → "GÜRÜLTÜ" (beklenti ~0, kovalar rastgele). Yani karne gerçek sinyali yakalıyor, şansı eliyor.
+- ⚠️ RAPOR KENDİ SINIRINI YAZAR: (a) **ETKİN ÖRNEKLEM** — snapshot'lar 5dk arayla + ufuklar ÇAKIŞIR → ardışık kayıtlar bağımsız DEĞİL; etkin n ≈ süre/ufuk. Ham n'e aldanma (rapor etkin n'i hesaplayıp yazar, <20 ise "YETERSİZ" der). (b) **ÇOKLU KARŞILAŞTIRMA** — 7 analizör × 2 sembol × eşikler; savunma = monotonluk + OOS'un aynı yönde tutması.
+- ⚠️ CANLI KARARI DEĞİŞTİRMEZ: çıktı ADAY'dır. Şampiyona confirm bağlanması ancak serap testi (DSR≥0.95) + ANAYASA #8 onayı ile (§5e/§5p). Sadeleştirme (gürültü analizörü çıkarma) GÜVENLİ — şampiyona dokunmaz.
+- Haftalık Pazartesi 04:00 UTC Telegram (sayfalı) + git-senkron `hacim_karne_arsiv.json` (son 52 hafta) + lider bağlamı + `/api/hacim-karne?uret=true`.
 
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).

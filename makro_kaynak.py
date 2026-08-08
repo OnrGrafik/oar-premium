@@ -371,3 +371,109 @@ def durum() -> dict:
         "hazine_tarih": (hz.get("veri") or {}).get("tarih"),
         "fred_anahtar": bool(os.environ.get("FRED_API_KEY")),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  CANLI KAYNAK TESTİ — "hangi kaynak gerçekten çalışıyor?"
+# ═══════════════════════════════════════════════════════════════════
+# Bu modüldeki uç noktalar geliştirme ortamında (dış ağ kapalı) DOĞRULANAMADI.
+# Kod savunmacı yazıldı ve boş yanıtta 'veri yok' der — ama sessiz kalmasın diye
+# her kaynağı TEK TEK canlı deneyip sonucu raporlayan bir teşhis var.
+# Her kaynak: durum(ok|bos|hata) + kısa detay + örnek değer (doğrulanabilir olsun).
+async def _ham_dene(cl, ad: str, url: str, coz, yontem: str = "GET",
+                    govde=None, kabul: str = "application/json") -> dict:
+    """
+    Ham HTTP sondası. ÖNEMLİ: bls_getir/hazine_egrisi gibi sarmalayıcılar hatayı
+    YUTUP boş liste döner → teşhis "ağ koptu"yu "kaynak boş yanıt verdi" sanır.
+    Bu yüzden teşhis uçları SARMALAYICIYI KULLANMAZ, doğrudan istek atar:
+    HTTP kodu ve istisna tipi olduğu gibi görünsün.
+    """
+    t0 = time.time()
+    try:
+        if yontem == "POST":
+            r = await cl.post(url, json=govde,
+                              headers={**HDR, "Content-Type": "application/json"}, timeout=20)
+        else:
+            r = await cl.get(url, headers={**HDR, "Accept": kabul}, timeout=20)
+    except Exception as e:
+        return {"ad": ad, "durum": "hata", "ms": int((time.time() - t0) * 1000),
+                "detay": f"isteğe çıkılamadı — {type(e).__name__}: {str(e)[:90]}"}
+    ms = int((time.time() - t0) * 1000)
+    if r.status_code != 200:
+        return {"ad": ad, "durum": "hata", "ms": ms, "http": r.status_code,
+                "detay": f"HTTP {r.status_code} — uç nokta/seri anahtarı değişmiş olabilir"}
+    try:
+        rows = coz(r)
+    except Exception as e:
+        return {"ad": ad, "durum": "bos", "ms": ms, "http": 200,
+                "detay": f"200 döndü ama yanıt çözülemedi — {type(e).__name__}: {str(e)[:70]}"}
+    if not rows:
+        return {"ad": ad, "durum": "bos", "ms": ms, "http": 200,
+                "detay": "200 döndü ama gözlem yok — seri kimliği geçersiz ya da yayın durmuş"}
+    son = rows[-1]
+    return {"ad": ad, "durum": "ok", "ms": ms, "http": 200, "gozlem": len(rows),
+            "ornek": {"tarih": son.get("tarih"), "deger": son.get("deger")},
+            "detay": f"{len(rows)} gözlem, son: {son.get('tarih')} = {son.get('deger')}"}
+
+
+async def kaynak_testi(cl) -> list[dict]:
+    """BLS + Hazine + NY Fed + FRED uçlarını CANLI ve HAM olarak dener."""
+    sonuc = []
+
+    # 1) BLS — anahtarsız yolda günlük bütçeden 1 istek harcar
+    if BLS_KEY:
+        yil = datetime.now(timezone.utc).year
+        sonuc.append(await _ham_dene(
+            cl, "BLS API v2 — TÜFE serisi",
+            "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+            lambda r: _bls_parse(((r.json().get("Results") or {}).get("series") or [{}])[0]),
+            yontem="POST",
+            govde={"seriesid": [BLS_SERI["cpi"][0]], "startyear": str(yil - 1),
+                   "endyear": str(yil), "registrationkey": BLS_KEY}))
+    elif bls_kalan_istek() > 0:
+        _butce_harca(1)
+        sonuc.append(await _ham_dene(
+            cl, "BLS API v1 (anahtarsız) — TÜFE serisi",
+            f"https://api.bls.gov/publicAPI/v1/timeseries/data/{BLS_SERI['cpi'][0]}",
+            lambda r: _bls_parse(((r.json().get("Results") or {}).get("series") or [{}])[0])))
+    else:
+        sonuc.append({"ad": "BLS", "durum": "bos",
+                      "detay": "günlük anahtarsız istek hakkı bitti — BLS_API_KEY "
+                               "eklenirse sınır 500/gün olur"})
+
+    # 2) US Treasury günlük getiri eğrisi
+    yil = datetime.now(timezone.utc).year
+    sonuc.append(await _ham_dene(
+        cl, "US Treasury — günlük getiri eğrisi", _HAZINE_URL.format(yil=yil),
+        lambda r: [{"tarih": s["tarih"], "deger": s.get("y10")}
+                   for s in _hazine_csv_coz(r.text)],
+        kabul="text/csv"))
+
+    # 3) NY Fed efektif gecelik faiz (politika faizi yedeği)
+    def _effr_coz(r):
+        d = r.json()
+        return [{"tarih": str(o.get("effectiveDate") or o.get("date"))[:10],
+                 "deger": o.get("percentRate", o.get("rate"))}
+                for o in (d.get("refRates") or [])
+                if (o.get("percentRate", o.get("rate")) is not None)][::-1]
+    sonuc.append(await _ham_dene(
+        cl, "NY Fed — efektif gecelik faiz",
+        "https://markets.newyorkfed.org/api/rates/unsecured/effr/last/5.json", _effr_coz))
+
+    # 4) FRED (anahtar varsa)
+    fk = os.environ.get("FRED_API_KEY")
+    if fk:
+        def _fred_coz(r):
+            d = r.json()
+            return [{"tarih": o["date"], "deger": float(o["value"])}
+                    for o in (d.get("observations") or []) if o.get("value") != "."][::-1]
+        sonuc.append(await _ham_dene(
+            cl, "FRED — işsizlik serisi",
+            "https://api.stlouisfed.org/fred/series/observations"
+            f"?series_id=UNRATE&api_key={fk}&file_type=json&sort_order=desc&limit=3",
+            _fred_coz))
+    else:
+        sonuc.append({"ad": "FRED", "durum": "bos",
+                      "detay": "FRED_API_KEY tanımsız — GSYİH/PCE/perakende/sanayi/güven/"
+                               "haftalık başvuru ve Japonya TÜFE'si yalnız burada var"})
+    return sonuc

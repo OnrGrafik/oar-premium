@@ -35,7 +35,7 @@ VERİ: funding geçmişi (oar_funding_carry ile indirilen JSON) + 1m klines parq
       Uydurma senaryo YOK — stres ve kuyruk GERÇEKLEŞMİŞ tarihten alınır.
 
 DÜRÜST SINIRLAR (modelde YOK):
-  • spot bacağın borçlanma/stablecoin getirisi · borsa iflas/çekim riski
+  • borsa iflas/çekim riski · stablecoin depeg
   • kademeli bakım teminatı (sabit varsayılır) · funding tahsil edilemeyen kesintiler
   • likidite/slippage stres anında derinleşir — sabit alınır
   Bu yüzden çıkan "dayanır" hükmü GEREK ŞART'tır, yeter şart değil.
@@ -410,8 +410,10 @@ def rapor_metni(sonuc):
         "  (ör. carry pozitif) pozisyonun taşınabileceği anlamına GELMEZ.",
         "  Stres ve kuyruk girdileri UYDURMA DEĞİL — gerçekleşmiş tarihten alınır.",
         "",
-        "⚠️ MODELDE YOK: spot bacak borçlanma maliyeti · borsa/çekim riski · kademeli",
-        "   bakım teminatı · stres anında derinleşen slippage. Çıkan hüküm GEREK ŞART,",
+        "⚠️ MODELDE VAR: spot bacak sermaye tüketimi + borçlanma maliyeti (--borc-yillik),",
+        "   fee/slip amortismanı, çapraz teminat haircut'ı (--haircut).",
+        "⚠️ MODELDE YOK: borsa iflas/çekim riski · kademeli bakım teminatı (sabit alınır) ·",
+        "   stres anında derinleşen slippage · stablecoin depeg. Çıkan hüküm GEREK ŞART,",
         "   yeter şart değil.",
         "⚠️ Bu bir ALARM katmanıdır, işlem sinyali DEĞİL (ANAYASA #8/#9).",
     ]

@@ -457,7 +457,81 @@ function scrLeader(){
   ${oarSistemHtml}
 
   ${komutaGrafikKart('BTCUSDT','BTC')}
-  ${komutaGrafikKart('ETHUSDT','ETH')}`;
+  ${komutaGrafikKart('ETHUSDT','ETH')}
+
+  ${duvarPanel()}`;
+}
+
+// ── ZORUNLU AKIŞ DUVARLARI (perp) — opsiyon duvarlarının perp karşılığı ──────
+// satır = fiyat kovası · hücre = o fiyata gelinirse zorla kapanacak büyüklük
+// üst = zorunlu alış (Call Wall muadili) · alt = zorunlu satış (Put Wall muadili)
+function _duvarK(v){const a=Math.abs(v);
+  if(a>=1e9)return '$'+(v/1e9).toFixed(2)+'B';
+  if(a>=1e6)return '$'+(v/1e6).toFixed(1)+'M';
+  if(a>=1e3)return '$'+(v/1e3).toFixed(0)+'K';
+  return '$'+Math.round(v);}
+
+function duvarTablo(d){
+  if(!d||d.durum!=='ok'||!d.satirlar||!d.satirlar.length)
+    return `<div style="padding:14px;color:#5e716f;font-size:12px">${d&&d.not?esc(d.not):'Yükleniyor…'}</div>`;
+  const tepe=Math.max(...d.satirlar.map(r=>r.toplam))||1;
+  let spotBasildi=false, rows='';
+  for(const r of d.satirlar){
+    if(!spotBasildi && r.fiyat<d.spot){
+      rows+=`<tr><td colspan="4" style="padding:3px 8px;border-top:1px dashed #1ff0ad;color:#1ff0ad;font-size:11px">
+        ◀ spot $${fmtNum(Math.round(d.spot))}</td></tr>`;
+      spotBasildi=true;
+    }
+    const yuk=r.fiyat>d.spot, col=yuk?'#1ff0ad':'#ff5d6c';
+    const w=Math.max(2,Math.round(r.toplam/tepe*100));
+    const et=r.duvar==='UST'?' ⬅ ÜST DUVAR':(r.duvar==='ALT'?' ⬅ ALT DUVAR':'');
+    rows+=`<tr style="${r.duvar?'background:rgba(255,255,255,.04)':''}">
+      <td style="padding:3px 8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#cdd9d8">$${fmtNum(Math.round(r.fiyat))}</td>
+      <td style="padding:3px 8px;text-align:right;font-size:11px;color:#8a9c99">${r.mesafe_pct>0?'+':''}${r.mesafe_pct}%</td>
+      <td style="padding:3px 8px;text-align:right;font-size:11.5px;color:${col};font-weight:600">${_duvarK(r.deger)}</td>
+      <td style="padding:3px 8px;width:46%">
+        <div style="height:9px;border-radius:2px;background:${col};opacity:.75;width:${w}%"></div>
+        ${et?`<span style="font-size:10px;color:${col};font-weight:600">${et}</span>`:''}</td>
+    </tr>`;
+  }
+  if(!spotBasildi)rows+=`<tr><td colspan="4" style="padding:3px 8px;border-top:1px dashed #1ff0ad;color:#1ff0ad;font-size:11px">◀ spot $${fmtNum(Math.round(d.spot))}</td></tr>`;
+  const f=d.funding;
+  const fs=f?`<div style="font-size:11px;color:#8a9c99;margin-bottom:6px">Taşıma oranı %${f.oran_pct} /8s (yıllık %${f.yillik_pct}) →
+     <b style="color:${f.kalabalik==='LONG'?'#1ff0ad':'#ff5d6c'}">${f.kalabalik}</b> tarafı kalabalık
+     ${f.kalabalik==='LONG'?'· alt duvar daha tehlikeli':(f.kalabalik==='SHORT'?'· üst duvar daha tehlikeli':'')}</div>`:'';
+  return `${fs}
+    <div style="font-size:11px;color:#8a9c99;margin-bottom:8px">
+      Toplam zorunlu alış <b style="color:#1ff0ad">${_duvarK(d.toplam_alis)}</b> ·
+      zorunlu satış <b style="color:#ff5d6c">${_duvarK(d.toplam_satis)}</b> · pencere ${d.pencere_gun} gün</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">${rows}</table></div>`;
+}
+
+function duvarPanel(){
+  const b=ST.duvarBTC, e=ST.duvarETH;
+  const kutu=(ad,d)=>`<div style="flex:1;min-width:300px">
+      <div class="sg" style="font-size:11px;letter-spacing:.1em;color:#7af0c4;margin-bottom:8px">${ad}</div>
+      ${duvarTablo(d)}</div>`;
+  return `<div style="margin-top:22px;border:1px solid #1a2422;border-radius:10px;background:#0d1512;padding:16px 18px">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
+      <h2 class="sg" style="margin:0;font-size:14px;font-weight:600;color:#eaf4f2">🧱 ZORUNLU AKIŞ DUVARLARI</h2>
+      <span style="font-size:11px;color:#5e716f">fiyat × zorla kapanacak büyüklük</span>
+      <button onclick="loadDuvar().then(()=>render())" class="sg" style="margin-left:auto;background:#11201b;border:1px solid #1a3a30;color:#7af0c4;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">↻</button>
+    </div>
+    <div style="font-size:11px;color:#5e716f;margin-bottom:12px;line-height:1.5">
+      Üst seviyeler = yukarı gidilirse zorunlu <b style="color:#1ff0ad">alış</b> ·
+      alt seviyeler = aşağı gidilirse zorunlu <b style="color:#ff5d6c">satış</b>.
+      Tahmin modelidir: pozisyonların giriş fiyatı ve kaldıracı açık veri değildir, açık
+      pozisyon değişiminden türetilir → <b>duvarın yeri</b>, mutlak büyüklüğünden güvenilirdir.
+    </div>
+    <div style="display:flex;gap:26px;flex-wrap:wrap">${kutu('BTC',b)}${kutu('ETH',e)}</div>
+  </div>`;
+}
+
+async function loadDuvar(){
+  const [b,e]=await Promise.all([
+    jget('/api/oar-duvar?symbol=BTCUSDT&satir=20').catch(()=>null),
+    jget('/api/oar-duvar?symbol=ETHUSDT&satir=20').catch(()=>null)]);
+  if(b)ST.duvarBTC=b; if(e)ST.duvarETH=e;
 }
 
 // ─── KOMUTA MERKEZİ: BTC/ETH canlı grafik + lider yorumu (OAR indikatör görünümü) ───
@@ -1161,6 +1235,8 @@ function kFpCiz(g,c,ts,W,H,sym){
   // MOD her zaman rozette yazsın → hangi görünümde olduğun bir daha gizli kalmasın
   // (delta modu sessizce açık kalıp "alım/satım nerede?" karışıklığı yaratmıştı).
   rozet=(rozet||'FP')+(_kAyar.fpDelta?' · DELTA':' · ALIŞ/SATIŞ');
+  // KAPSAM: mum toplamı hacimle uyuşmuyorsa (eksik tick verisi) SESSİZ kalmasın.
+  if(fp&&fp.eksik_kapsam>0){rozet+=' · ⚠'+fp.eksik_kapsam+' mum kaba';rc='#b0851f';}
   if(bw<34)rozet=rozet+' · yakınlaş →';
   g.fillStyle='rgba(255,255,255,.78)';g.fillRect(4,H-16,g.measureText(rozet).width+8,13);
   g.fillStyle=rc;g.fillText(rozet,8,H-15);g.restore();
@@ -3202,7 +3278,7 @@ async function boot(){
   renderNav();render();
   // Non-blocking: her yükleyici bitince ANINDA yeniden çiz — yavaş AI
   // çağrıları (piyasa-durumu, grafik-yorum, karar) hızlıları bekletmesin.
-  const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin];
+  const _loaders=[loadOarSistem,loadSignals,loadReport,loadContext,loadTheories,loadFeed,loadIndicators,loadOptScore,loadOarFib,loadOpsiyonYorum,loadBasariSkoru,loadGrafikYorum,loadKarar,loadHipotez,loadBacktestOtonom,loadBacktestYerel,loadOarPaper,loadOarAltcoin,loadDuvar];
   _loaders.forEach(fn=>{try{fn().then(()=>render()).catch(()=>{});}catch(e){}});
   loadTicker();loadOptions();
   // sayfa yenilendiğinde son sekmede kal → o sekmenin verisini de yükle
@@ -3212,7 +3288,7 @@ async function boot(){
   setInterval(async()=>{await loadSignals();await loadContext();await loadIndicators();await loadOptScore();await loadOarFib();
     if(ST.tab==='live'){updateFeedOnly();}
     else if(['leader','live'].includes(ST.tab))render();},120000);
-  setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();
+  setInterval(async()=>{await loadOarSistem();await loadReport();await loadFeed();await loadOpsiyonYorum();await loadGrafikYorum();await loadKarar();await loadHipotez();await loadBacktestOtonom();await loadOarPaper();await loadOarAltcoin();await loadDuvar();
     if(ST.tab==='live'){updateFeedOnly();updateCioPaperOnly();}
     else if(ST.tab==='leader')render();},300000);
   setInterval(loadTicker,60000);
