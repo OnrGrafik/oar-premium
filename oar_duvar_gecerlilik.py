@@ -78,8 +78,12 @@ ANA_PENCERE = "f_3g"   # işlem katmanı için ÖNCEDEN seçilen pencere (orta v
 #    kendi son 30 gününe göre "normal" görünür, tam da görünmesi gereken yerde kaybolur.
 REJIM_SIRA = ["negatif", "notr", "pozitif", "asiri_poz"]
 
-# gerçek tarama genişliği = pencere × rejim × duvar (DSR cezası bunu görmeli)
-N_DENEME = len(PENCERELER) * len(REJIM_SIRA) * 2 * 2   # ×2 duvar ×2 kol = 80
+# Gerçek tarama genişliği = pencere × rejim × duvar × kol × UFUK. DSR cezası bunu
+# görmeli. ⚠️ UFUK boyutu dürüstlük gereği sayılır: ilk koşu 24s ile yapıldı, sonuç
+# n-açlığından ölünce 72s'e geçildi → AYNI veriye ikinci bakış. Araştırmacı serbestlik
+# derecesi cezasız bırakılırsa DSR seraba yeşil ışık yakar (§5m dersi).
+N_UFUK   = 2                                            # denenen ufuk sayısı (24s, 72s)
+N_DENEME = len(PENCERELER) * len(REJIM_SIRA) * 2 * 2 * N_UFUK   # = 160
 
 
 def _rejim(ort):
@@ -178,7 +182,7 @@ def _simule_duvar(yon, giris, sigma_px, j, i1, hi, lo, cl):
 #  GÜNLÜK TABLO (duvar seviyeleri + funding ortalamaları + olay sonuçları)
 # ═══════════════════════════════════════════════════════════════════════════════
 def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None, funding=None,
-                kaldirac_dagilim=None):
+                kaldirac_dagilim=None, ufuk_saat=TUT_SAAT):
     """
     Döner: (satirlar, hi, lo, cl)
     satirlar[] = {gun, ts, spot, sigma, i0, i1,
@@ -260,7 +264,7 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None, funding=None,
             red["giris_bari"] += 1
             continue
         i0 = gi + 1
-        i1 = int(np.searchsorted(ot, karar_ts + TUT_SAAT * SAAT_MS, side="right"))
+        i1 = int(np.searchsorted(ot, karar_ts + ufuk_saat * SAAT_MS, side="right"))
         if i1 - i0 < 60:
             red["ileri_pencere"] += 1
             continue
@@ -317,7 +321,9 @@ def gun_tablosu(sembol, bas, bit, k_df=None, m_df=None, funding=None,
         r = {"gun": g, "ts": karar_ts, "spot": spot, "sigma": sigma,
              "sigma_px": sigma_px, "i0": i0, "i1": i1,
              "ust_duvar": ust_duvar, "ust_pay": (ust_kume / toplam) if toplam else None,
+             "ust_mesafe": ust_mes,          # duvarın spot'a % uzaklığı (teşhis için)
              "alt_duvar": alt_duvar, "alt_pay": (alt_kume / toplam) if toplam else None,
+             "alt_mesafe": alt_mes,
              "toplam_notional": toplam}
 
         for ad, np_ in PENCERELER:
@@ -402,6 +408,55 @@ def olasilik_tablosu(satirlar):
                 "kararsiz": n_kararsiz,
                 "kararsiz_payi": round(n_kararsiz / n_temas, 4) if n_temas else None,
             }
+    return cikti
+
+
+def mesafe_tanisi(satirlar, ufuk_saat):
+    """
+    ⚠️ TEŞHİS (hipotez testi DEĞİL — betimleyici): duvar NE KADAR uzakta ve o mesafede
+    fiyat ufuk içinde oraya ULAŞABİLİYOR mu. Temas oranı düşükse ölçüm n-açlığından
+    ölür; sebebin mesafe/ufuk uyumsuzluğu olup olmadığını bu tablo gösterir.
+    σ_gün cinsinden mesafe asıl ölçüdür: 24 saatte fiyat tipik olarak ~1σ yol alır,
+    yani 4σ uzaktaki bir duvara 1 günde ulaşmak yapısal olarak beklenmez.
+    """
+    import numpy as np
+    cikti = {}
+    for duvar in ("ust", "alt"):
+        mes = [r[duvar + "_mesafe"] for r in satirlar if r.get(duvar + "_mesafe") is not None]
+        if not mes:
+            continue
+        a = np.asarray(mes, dtype=float)
+        # mesafeyi σ_gün cinsine çevir (ufukla kıyaslanabilir tek birim)
+        sig = np.asarray([r["sigma"] for r in satirlar
+                          if r.get(duvar + "_mesafe") is not None], dtype=float)
+        sigma_cinsi = np.divide(a, sig, out=np.full_like(a, np.nan), where=sig > 0)
+        kova_sinir = [0, 1, 2, 4, 8, 1e9]
+        kovalar = []
+        for i in range(len(kova_sinir) - 1):
+            m = (sigma_cinsi >= kova_sinir[i]) & (sigma_cinsi < kova_sinir[i + 1])
+            n = int(m.sum())
+            if not n:
+                continue
+            idx = [j for j, r in enumerate(satirlar)
+                   if r.get(duvar + "_mesafe") is not None]
+            secili = [satirlar[idx[j]] for j in np.flatnonzero(m)]
+            temas = sum(1 for r in secili
+                        if r.get(duvar + "_durum") in ("TUTTU", "KIRDI", "KARARSIZ"))
+            kovalar.append({
+                "aralik": f"{kova_sinir[i]}–{kova_sinir[i+1]:g}σ" if i < len(kova_sinir) - 2
+                          else f"≥{kova_sinir[i]}σ",
+                "gun": n, "temas": temas,
+                "temas_orani": round(temas / n, 4),
+            })
+        cikti[duvar] = {
+            "mesafe_pct_medyan": round(float(np.median(a)), 2),
+            "mesafe_sigma_medyan": round(float(np.nanmedian(sigma_cinsi)), 2),
+            "mesafe_sigma_p25": round(float(np.nanpercentile(sigma_cinsi, 25)), 2),
+            "mesafe_sigma_p75": round(float(np.nanpercentile(sigma_cinsi, 75)), 2),
+            "ufuk_saat": ufuk_saat,
+            "ufuk_sigma": round(ufuk_saat / 24.0, 2),   # 24s ≈ 1σ_gün yol
+            "kovalar": kovalar,
+        }
     return cikti
 
 
@@ -621,14 +676,41 @@ def _sat(k):
             f" CI-alt {_g(ci, 8)} 5xlik {_g(lik, 6)} {k.get('karar', '')}")
 
 
+def tani_metni(tani):
+    if not tani:
+        return ""
+    s = ["═══ ⓪ TEŞHİS — duvar ulaşılabilir mi (ölçüm n-açlığından ölüyor mu) ═══", ""]
+    for duvar in ("ust", "alt"):
+        t = tani.get(duvar)
+        if not t:
+            continue
+        ad = "ÜST DUVAR" if duvar == "ust" else "ALT DUVAR"
+        s.append(f"  {ad} · mesafe medyan %{t['mesafe_pct_medyan']} = "
+                 f"{t['mesafe_sigma_medyan']}σ_gün "
+                 f"(p25 {t['mesafe_sigma_p25']}σ · p75 {t['mesafe_sigma_p75']}σ)")
+        s.append(f"     ufuk {t['ufuk_saat']}s ≈ {t['ufuk_sigma']}σ_gün yol "
+                 f"→ duvar bundan uzaksa temas YAPISAL olarak beklenmez")
+        s.append(f"     {'mesafe':<10}{'gün':>7}{'temas':>8}{'oran':>8}")
+        for k in t["kovalar"]:
+            s.append(f"     {k['aralik']:<10}{k['gun']:>7}{k['temas']:>8}"
+                     f"{_o(k['temas_orani']):>8}")
+        s.append("")
+    return "\n".join(s)
+
+
 def rapor_metni(sonuc):
+    uf = (sonuc.get("parametreler") or {}).get("ufuk_saat", TUT_SAAT)
     s = [f"═══ DUVAR GEÇERLİLİĞİ — funding rejimi duvarı güvenilir kılıyor mu ═══",
-         f"{sonuc['sembol']} · {sonuc['bas']}..{sonuc['bit']} · {sonuc['gun_sayisi']} karar günü", ""]
+         f"{sonuc['sembol']} · {sonuc['bas']}..{sonuc['bit']} · {sonuc['gun_sayisi']} karar günü "
+         f"· ufuk {uf}s", ""]
+    tm = tani_metni(sonuc.get("mesafe_tanisi"))
+    if tm:
+        s.append(tm)
     s.append(olasilik_metni(sonuc["olasilik"], sonuc["hipotez_karnesi"]))
     s.append("")
     s.append("═══ ② İŞLEM KATMANI — vuruş oranı ≠ edge (§5d/§5g/§5m dersi) ═══")
     s.append(f"Giriş duvar fiyatından (limit) · SL {SL_SIGMA}σ ötede · TP {TP_R}R · "
-             f"time-stop {TUT_SAAT}s · fee+slip düşülü")
+             f"time-stop {uf}s · fee+slip düşülü")
     s.append("")
     kartlar = sonuc["kartlar"]
     for ad, k in sorted(kartlar.items(),
@@ -787,6 +869,10 @@ def main():
     ap.add_argument("--from", dest="bas", default="2021-01",
                     help="başlangıç ayı (metrics parquet 2021+ olduğu için varsayılan 2021-01)")
     ap.add_argument("--to", dest="bit", default="2025-06")
+    ap.add_argument("--ufuk-saat", type=int, default=72,
+                    help="duvara ulaşma/çözülme ufku (saat). Varsayılan 72: duvar ÇOK GÜNLÜK "
+                         "bir nesne (medyan mesafe birkaç sigma), 24 saat yapısal olarak kısa "
+                         "kalıp temas oranini eritir. Kıyas icin 24 verilebilir.")
     ap.add_argument("--telegram", action="store_true", help="raporu ajan kanalına gönder")
     ap.add_argument("--kendi-test", action="store_true",
                     help="parquet/ag gerektirmeyen mekanik dogrulama")
@@ -798,8 +884,9 @@ def main():
     semboller = [s.strip().upper() for s in a.symbol.split(",") if s.strip()]
     tum_satir, seri_liste = [], []
     for s in semboller:
-        print(f"[Duvar] {s} {a.bas}..{a.bit} — günlük tablo kuruluyor…", flush=True)
-        satirlar, hi, lo, cl = gun_tablosu(s, a.bas, a.bit)
+        print(f"[Duvar] {s} {a.bas}..{a.bit} · ufuk {a.ufuk_saat}s — günlük tablo kuruluyor…",
+              flush=True)
+        satirlar, hi, lo, cl = gun_tablosu(s, a.bas, a.bit, ufuk_saat=a.ufuk_saat)
         if not satirlar:
             print(f"   [{s}] ⚠ satır yok, atlanıyor", flush=True)
             continue
@@ -815,6 +902,7 @@ def main():
 
     olasilik = olasilik_tablosu(tum_satir)
     karne = hipotez_karnesi(olasilik)
+    tani = mesafe_tanisi(tum_satir, a.ufuk_saat)
     seriler = seriler_birlestir(seri_liste)
     yon_map = {ad: yon for ad, yon, _kol, _sec in _varyantlar()}
     print("[Duvar] serap bateri uygulanıyor…", flush=True)
@@ -828,7 +916,9 @@ def main():
             "sl_sigma": SL_SIGMA, "tp_r": TP_R, "tut_saat": TUT_SAAT,
             "ana_pencere": ANA_PENCERE, "n_deneme": N_DENEME,
             "taban_oran": TABAN_ORAN, "asiri_carpan": ASIRI_CARPAN,
+            "ufuk_saat": a.ufuk_saat,
         },
+        "mesafe_tanisi": tani,
         "olasilik": olasilik, "hipotez_karnesi": karne, "kartlar": kartlar,
     }
     sonuc["ters_kol_uyari"] = _ters_kontrol(kartlar)
@@ -840,9 +930,11 @@ def main():
 
     if a.telegram:
         try:
+            import asyncio                       # ⚠ bildir ASYNC — asyncio.run şart
             from ajan_merkez import bildir
-            bildir("DuvarGeçerlilik", "backtest",
-                   f"Duvar geçerliliği {sonuc['sembol']} — {sonuc['gun_sayisi']} gün", rapor)
+            asyncio.run(bildir("Duvar Geçerliliği", "backtest",
+                               f"Duvar geçerliliği {sonuc['sembol']} — "
+                               f"{sonuc['gun_sayisi']} karar günü", detay=rapor))
             print("[Telegram] gönderildi ✓", flush=True)
         except Exception as e:
             print(f"[Telegram] gönderilemedi: {e}", flush=True)
