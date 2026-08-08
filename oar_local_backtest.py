@@ -207,8 +207,32 @@ def _metrics_oku(sembol, bas, bit, borsa="binance"):
     if not parcalar:
         return None
     df = pd.concat(parcalar, ignore_index=True)
-    # create_time → epoch ms
-    df["ts_ms"] = pd.to_datetime(df["create_time"], errors="coerce").astype("int64") // 1_000_000
+    # create_time → epoch ms — pandas ÇÖZÜNÜRLÜĞÜNDEN BAĞIMSIZ.
+    # ⚠ ESKİ HAL (sessiz bozulma, yıllarca fark edilmedi):
+    #     pd.to_datetime(create_time).astype("int64") // 1_000_000
+    #   pandas 1.x'te to_datetime HEP datetime64[ns] verirdi → bölme ms üretirdi (DOĞRU).
+    #   pandas 2.0+ çözünürlüğü KORUYOR ("2023-01-01 00:00:00" → [s]/[us]) → aynı bölme
+    #   SANİYE üretiyordu (1000× küçük). `_ms_olcekle` yalnız AŞAĞI ölçekler (ns/µs→ms),
+    #   saniyeyi düzeltmez. Sonuç: `_gun_hazirla`'da metrics gün indeksi (≈19) klines gün
+    #   indeksiyle (≈19700) EŞLEŞMİYOR → gunler.get(gun) None → continue →
+    #   oi_map / whale_ls_map / retail_ls_map HİÇ KURULMUYOR → oi_yuksek,
+    #   whale_retail_zit, oi_tuzak blokları TÜM keşif koşularında sessizce None döndü
+    #   (kesfet onları pas geçti; "34 blok tarandı" koşuları fiilen 3 blok EKSİK taradı).
+    #   Kod yıllardır doğruydu, kütüphane güncellenince bozuldu.
+    # ⚠ ŞAMPİYON GÜVENLİĞİ (oar_metrics_etki ile ÖLÇÜLDÜ, iddia değil): aynı havuzda
+    #   metrics alanları VARKEN vs SİLİNMİŞKEN şampiyon işlem kümeleri BİREBİR AYNI
+    #   (FADE n1425 vs 1425 · TREND n897 vs 897) → bu düzeltme şampiyonları
+    #   DEĞİŞTİREMEZ; yalnız daha önce hiç ateşleyemeyen 3 bloğu sahaya çıkarır.
+    dt = pd.to_datetime(df["create_time"], errors="coerce", utc=True)
+    df["ts_ms"] = (dt - pd.Timestamp("1970-01-01", tz="UTC")) // pd.Timedelta("1ms")
+    # Ölçek denetimi: bir daha SESSİZ gün düşmesi olmasın (2014–2033 dışı = bozuk).
+    try:
+        orta = float(df["ts_ms"].median())
+        if not (1_400_000_000_000 <= orta < 2_000_000_000_000):
+            print(f"      ⚠⚠ {sembol} metrics zaman ölçeği BOZUK (medyan {orta:.0f}) —"
+                  f" OI/whale blokları ateşlemeyecek!", flush=True)
+    except Exception:
+        pass
     return df
 
 
