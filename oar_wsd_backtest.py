@@ -368,16 +368,21 @@ def seriler_birlestir(seri_listesi):
     return birlesik
 
 
-def degerlendir(seriler, yon_map=None):
+def degerlendir(seriler, yon_map=None, n_deneme=None):
     """
     Varyant serilerini yargıla: temel + OOS + serap bateri + BH-FDR.
     yon_map: {varyant_adı: "LONG"/"SHORT"} — verilmezse bu modülün varyantlarından
     kurulur. BAŞKA modüller (ör. oar_funding_carry) kendi varyant setini geçirir →
     işlem motoru + yargı bateri tek yerde kalır, kopyalanmaz.
+    n_deneme: DSR çoklu-karşılaştırma cezası. Verilmezse bu modülün N_DENEME'si
+    kullanılır. Daha GENİŞ bir uzay tarayan modüller (ör. oar_duvar_gecerlilik
+    pencere×rejim×duvar taraması) kendi gerçek deneme sayısını geçirmelidir —
+    ceza küçük kalırsa DSR seraba yeşil ışık yakar.
     """
     import numpy as np
     from oar_serap_testi import _temel, _bh_fdr, _karar, serap_karnesi
 
+    N_DEN = int(n_deneme) if n_deneme else N_DENEME
     yon_map = yon_map or {ad: yon for ad, yon, _ in _varyantlar()}
     sonuc = {}
     for ad, (pcts, tsler, turler) in seriler.items():
@@ -396,7 +401,7 @@ def degerlendir(seriler, yon_map=None):
         kart["sonuc_dagilim"] = {t: turler.count(t) for t in ("TP", "SL", "TIME")}
         kaz = arr[arr > 0]; kay = arr[arr <= 0]
         kart["rr"] = round(float(kaz.mean() / abs(kay.mean())), 2) if len(kaz) and len(kay) else None
-        kart["serap"] = serap_karnesi(ad, pcts, tsler, N_DENEME)
+        kart["serap"] = serap_karnesi(ad, pcts, tsler, N_DEN)
         sonuc[ad] = kart
 
     # BH-FDR: yalnız serap karnesi olan varyantlar üzerinden

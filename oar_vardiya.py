@@ -23,6 +23,8 @@ from datetime import datetime, timezone
 
 SEMBOL = "BTCUSDT,ETHUSDT"
 BAS, BIT = "2019-01", "2025-06"
+# ⚠️ metrics parquet (OI) 2021 öncesi YOK (§5aa) → OI'ye dayanan işler 2021'den başlar
+METRICS_BAS = "2021-01"
 ARALIK_SAAT = 6            # tur arası uyku
 AGIR_IS_SAAT = 24          # çoklu-şampiyon (aggTrades ağır) en fazla günde 1 kez
 
@@ -64,6 +66,14 @@ def main():
         _calistir("FİB PASLAŞMA SCALP (koridor + hacim)",
                   ["oar_fib_paslasma.py", "--symbol", SEMBOL,
                    "--from", BAS, "--to", BIT, "--telegram"])
+        # 2d) Duvar geçerliliği: funding rejimi duvarı güvenilir kılıyor mu
+        #     (hızlı — klines+metrics+funding, aggTrades GEREKMEZ). Duvar paneli canlı
+        #     olduğu için bu ölçüm periyodik tazelenmeli; piyasa yapısı kayarsa görülür.
+        #     ⚠ funding geçmişi yoksa modül ne yapılacağını yazıp çıkar:
+        #       python oar_funding_carry.py --indir --symbol BTCUSDT,ETHUSDT
+        _calistir("DUVAR GEÇERLİLİĞİ (funding rejimi × duvar tutuyor mu)",
+                  ["oar_duvar_gecerlilik.py", "--symbol", SEMBOL,
+                   "--from", METRICS_BAS, "--to", BIT, "--telegram"])
         # 3) Çoklu şampiyon (AĞIR — aggTrades; günde en fazla 1)
         if time.time() - son_agir >= AGIR_IS_SAAT * 3600:
             _calistir("ÇOKLU ŞAMPİYON KEŞFİ (ağır, günde 1)",
