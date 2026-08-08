@@ -207,8 +207,32 @@ def _metrics_oku(sembol, bas, bit, borsa="binance"):
     if not parcalar:
         return None
     df = pd.concat(parcalar, ignore_index=True)
-    # create_time → epoch ms
-    df["ts_ms"] = pd.to_datetime(df["create_time"], errors="coerce").astype("int64") // 1_000_000
+    # create_time → epoch ms — pandas ÇÖZÜNÜRLÜĞÜNDEN BAĞIMSIZ.
+    # ⚠ ESKİ HAL (sessiz bozulma, yıllarca fark edilmedi):
+    #     pd.to_datetime(create_time).astype("int64") // 1_000_000
+    #   pandas 1.x'te to_datetime HEP datetime64[ns] verirdi → bölme ms üretirdi (DOĞRU).
+    #   pandas 2.0+ çözünürlüğü KORUYOR ("2023-01-01 00:00:00" → [s]/[us]) → aynı bölme
+    #   SANİYE üretiyordu (1000× küçük). `_ms_olcekle` yalnız AŞAĞI ölçekler (ns/µs→ms),
+    #   saniyeyi düzeltmez. Sonuç: `_gun_hazirla`'da metrics gün indeksi (≈19) klines gün
+    #   indeksiyle (≈19700) EŞLEŞMİYOR → gunler.get(gun) None → continue →
+    #   oi_map / whale_ls_map / retail_ls_map HİÇ KURULMUYOR → oi_yuksek,
+    #   whale_retail_zit, oi_tuzak blokları TÜM keşif koşularında sessizce None döndü
+    #   (kesfet onları pas geçti; "34 blok tarandı" koşuları fiilen 3 blok EKSİK taradı).
+    #   Kod yıllardır doğruydu, kütüphane güncellenince bozuldu.
+    # ⚠ ŞAMPİYON GÜVENLİĞİ (oar_metrics_etki ile ÖLÇÜLDÜ, iddia değil): aynı havuzda
+    #   metrics alanları VARKEN vs SİLİNMİŞKEN şampiyon işlem kümeleri BİREBİR AYNI
+    #   (FADE n1425 vs 1425 · TREND n897 vs 897) → bu düzeltme şampiyonları
+    #   DEĞİŞTİREMEZ; yalnız daha önce hiç ateşleyemeyen 3 bloğu sahaya çıkarır.
+    dt = pd.to_datetime(df["create_time"], errors="coerce", utc=True)
+    df["ts_ms"] = (dt - pd.Timestamp("1970-01-01", tz="UTC")) // pd.Timedelta("1ms")
+    # Ölçek denetimi: bir daha SESSİZ gün düşmesi olmasın (2014–2033 dışı = bozuk).
+    try:
+        orta = float(df["ts_ms"].median())
+        if not (1_400_000_000_000 <= orta < 2_000_000_000_000):
+            print(f"      ⚠⚠ {sembol} metrics zaman ölçeği BOZUK (medyan {orta:.0f}) —"
+                  f" OI/whale blokları ateşlemeyecek!", flush=True)
+    except Exception:
+        pass
     return df
 
 
@@ -901,15 +925,52 @@ def _aday_cache_yol(sym, y_bas, y_bit):
     return d / f"{sym}_{y_bas}_{y_bit}_aday.json"
 
 
+def metrics_var_mi(sembol, bas, bit, borsa="binance"):
+    """Bu aralıkta metrics parquet dosyası var mı (tek dosya yeter)."""
+    from data_ingest import _aylar
+    kok = _hist_dir() / borsa / sembol / "metrics"
+    for yil, ay in _aylar(bas, bit):
+        if (kok / f"{yil:04d}" / f"{sembol}-metrics-{yil:04d}-{ay:02d}.parquet").exists():
+            return True
+    return False
+
+
+def havuz_bayat_mi(adaylar, sembol, bas, bit):
+    """
+    ⚠️ BAYAT CACHE KORUMASI (metrics zaman-damgası düzeltmesinden sonra ŞART).
+    Düzeltme öncesi üretilmiş aday havuzları `oi_yuksek` / `whale_retail_zit`
+    alanlarını HİÇ taşımaz (metrics günleri eşleşmediği için hiç kurulmamıştı).
+    Böyle bir havuz sessizce yeniden kullanılırsa üç blok YİNE ölü kalır ve
+    "yeni şampiyon yok" sonucu SAHTE olur — tam da düzeltmeyi anlamsız kılar.
+
+    Karar: metrics parquet VARSA ama havuzdaki hiçbir aday metrics alanı
+    taşımıyorsa → havuz düzeltme ÖNCESİNDEN kalmadır → BAYAT (yeniden kur).
+    Metrics parquet yoksa alanların olmaması normaldir → bayat sayılmaz.
+    """
+    if not adaylar:
+        return False
+    if any(c.get("oi_yuksek") is not None for c in adaylar):
+        return False
+    if not metrics_var_mi(sembol, bas, bit):
+        return False
+    return True
+
+
 def _aday_cache_oku(sym, y_bas, y_bit):
     import json
     yol = _aday_cache_yol(sym, y_bas, y_bit)
     if yol.exists():
         try:
             with open(yol, encoding="utf-8") as f:
-                return json.load(f)
+                adaylar = json.load(f)
         except Exception:
             return None
+        if havuz_bayat_mi(adaylar, sym, y_bas, y_bit):
+            print(f"      ⚠ {sym} {y_bas}..{y_bit} aday cache'i metrics DÜZELTMESİ"
+                  f" ÖNCESİNDEN — yeniden kuruluyor (oi/whale blokları ölü kalmasın)",
+                  flush=True)
+            return None
+        return adaylar
     return None
 
 

@@ -373,8 +373,22 @@ def kendi_test():
     alan = lambda g: sorted(x for x in g[sorted(g)[len(g) // 2]] if "oi_" in x or "ls_map" in x)
     print(f"[SELF-TEST] MEVCUT  _metrics_oku → {alan(bozuk) or 'HİÇ METRİK ALANI YOK'}")
     print(f"[SELF-TEST] YAMALI  sürüm       → {alan(duz)}")
-    assert not alan(bozuk), "mevcut sürüm beklenmedik şekilde metrik üretti"
     assert "oi_map" in alan(duz), "yama metrics alanlarını açamadı"
+    # ⚠ BU TEST DÜZELTMEDEN SONRA ANLAM DEĞİŞTİRDİ:
+    # Eskiden "mevcut okuyucu metrik ÜRETMEMELİ" (hatanın kanıtı) diye kontrol
+    # ediyordu. `oar_local_backtest._metrics_oku` kalıcı düzeltildikten sonra o
+    # iddia GEÇERSİZ. Artık doğru kontrol: iki sürüm AYNI şeyi üretmeli —
+    # yani araç bundan sonra "düzeltme yerinde mi" doğrulayıcısı olarak çalışır.
+    if alan(bozuk):
+        assert alan(bozuk) == alan(duz), (
+            f"mevcut ve yamalı sürüm AYRIŞTI: {alan(bozuk)} vs {alan(duz)}")
+        b = olb._metrics_oku("BTCUSDT", "2023-01", "2023-03")["ts_ms"]
+        d = _metrics_oku_duzeltilmis("BTCUSDT", "2023-01", "2023-03")["ts_ms"]
+        assert int(b.iloc[0]) == int(d.iloc[0]), "zaman damgaları ayrıştı"
+        print("[SELF-TEST] ✓ kalıcı düzeltme YERİNDE — yama artık fark üretmiyor"
+              " (araç doğrulayıcı moda geçti)")
+    else:
+        print("[SELF-TEST] ⚠ mevcut okuyucu hâlâ BOZUK — kalıcı düzeltme uygulanmamış!")
 
     geri = yama_uygula()
     try:
