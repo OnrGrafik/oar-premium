@@ -197,7 +197,7 @@ async def k_makro_akis():
     Ekstra ağ isteği YOK — makro_yenile_loop'un zaten tazelediği cache okunur.
     """
     try:
-        from macro_engine import makro_veri, ANA_GOSTERGELER
+        from macro_engine import makro_veri, ANA_GOSTERGELER, GOSTERGE_META
         mk = await makro_veri()
     except Exception as e:
         return _sonuc("makro_akis", "erisilemedi", f"makro okunamadı: {str(e)[:60]}")
@@ -205,20 +205,28 @@ async def k_makro_akis():
     canli = [k for k in ANA_GOSTERGELER
              if (g.get(k) or {}).get("guncel") is not None and not (g[k] or {}).get("veri_yok")]
     bayat = [k for k in canli if (g.get(k) or {}).get("bayat")]
+    # "8/9" deyip hangisinin eksik olduğunu yazmamak teşhis ettirmiyordu → isimle yaz
+    _ad = lambda k: (GOSTERGE_META.get(k) or (k,))[0]
+    eksik_ad = ", ".join(_ad(k) for k in ANA_GOSTERGELER if k not in canli)
+    bayat_ad = ", ".join(_ad(k) for k in bayat)
     n, toplam = len(canli), len(ANA_GOSTERGELER)
-    imza = f"canli{n}"
+    # ⚠ İMZA KABA TUTULUYOR (durumun kendisi): sayıyı imzaya koymak 8/9 ↔ 9/9 gibi
+    # normal dalgalanmayı "değişim" sayıp her turda bildirim üretirdi (§6b gürültü
+    # yasağı). Yalnız SAĞLIK SINIFI değişince konuşur: ok ↔ yedek ↔ kirik.
     if n == 0:
         return _sonuc("makro_akis", "kirik",
                       "⛔ HİÇBİR makro göstergesi okunamıyor → makro sayfası, sentez ve "
                       "lider bağlamı boş. Teşhis için /api/makro/teshis aç (hangi uç kırık yazar).",
-                      imza=imza, kritik=True)
+                      kritik=True)
     if n < toplam // 2:
         return _sonuc("makro_akis", "yedek",
-                      f"Makro göstergelerin yalnız {n}/{toplam}'i canlı"
-                      + (f" ({len(bayat)} tanesi ayrıca eski dönem)" if bayat else "")
-                      + ". Kaynak uçlarından biri düşmüş olabilir → /api/makro/teshis.",
-                      imza=imza)
-    return _sonuc("makro_akis", "ok", f"{n}/{toplam} makro göstergesi canlı", imza=imza)
+                      f"Makro göstergelerin yalnız {n}/{toplam}'i canlı. "
+                      f"Okunamayan: {eksik_ad}."
+                      + (f" Eski dönem: {bayat_ad}." if bayat else "")
+                      + " Kaynak uçlarından biri düşmüş olabilir → /api/makro/teshis.")
+    return _sonuc("makro_akis", "ok", f"{n}/{toplam} makro göstergesi canlı"
+                  + (f" · okunamayan: {eksik_ad}" if eksik_ad else "")
+                  + (f" · eski dönem: {bayat_ad}" if bayat else ""))
 
 
 KONTROLLER_ASYNC = [k_binance_ls, k_binance_taker, k_makro_akis]
@@ -284,18 +292,40 @@ async def bekci_turu() -> dict:
     if not (bozulan or duzelen):
         return {"degisim": False, "sonuclar": sonuclar}
 
-    satir = ["🔧 *SÖZLEŞME BEKÇİSİ — BAĞIMLILIK DEĞİŞİMİ*"]
+    # Başlık ve tür İÇERİĞE göre seçilir. ÖNCE: tur her zaman "eksik" idi →
+    # yalnız DÜZELME olan turda bile başlık "⚠️ EKSIK" yazıyordu (içerikle çelişki).
+    if bozulan:
+        baslik = "🔧 *SÖZLEŞME BEKÇİSİ — BAĞIMLILIK DEĞİŞİMİ*"
+        tur = "eksik"
+    else:
+        baslik = "🔧 *SÖZLEŞME BEKÇİSİ — DÜZELME*"
+        tur = "durum"
+    satir = [baslik]
     for s in bozulan:
         ikon = "⛔" if s["kritik"] else ("🟡" if s["durum"] == "yedek" else "⚠️")
         satir.append(f"{ikon} *{s['ad']}* → {s['detay']}")
     for s in duzelen:
         satir.append(f"✅ *{s['ad']}* düzeldi → {s['detay']}")
-    satir.append("_Ajanlar otomatik UYUM SAĞLAMAZ (canlı sistemde sessiz değişim yasak, "
-                 "ANAYASA #8). Gereken güncelleme yukarıda; onayınla uygulanır._")
+    if bozulan:
+        satir.append("_Ajanlar otomatik UYUM SAĞLAMAZ (canlı sistemde sessiz değişim "
+                     "yasak, ANAYASA #8). Gereken güncelleme yukarıda; onayınla uygulanır._")
     metin = "\n".join(satir)
+
+    # ozet = düz metin tek satır (log + 24s dedup anahtarı). Markdown İÇERMEZ ve
+    # mesaj gövdesiyle ÇAKIŞMAZ — eskiden ozet olarak ilk madde veriliyor, detay
+    # olarak da tüm mesaj geçiliyordu → aynı satır iki kez görünüyordu.
+    if bozulan and duzelen:
+        ozet = (f"{len(bozulan)} bozulma ({', '.join(s['ad'] for s in bozulan)}) · "
+                f"{len(duzelen)} düzelme ({', '.join(s['ad'] for s in duzelen)})")
+    elif bozulan:
+        ozet = f"{len(bozulan)} bağımlılık bozuldu: " + ", ".join(s["ad"] for s in bozulan)
+    else:
+        ozet = f"{len(duzelen)} bağımlılık düzeldi: " + ", ".join(s["ad"] for s in duzelen)
     try:
         from ajan_merkez import bildir
-        await bildir("Sözleşme Bekçisi", "eksik", metin.split("\n")[1][:120], detay=metin)
+        # ham_metin: mesajı biz kurduk (çok satırlı + *kalın*) → aynen gitsin,
+        # `_italik_` sarmalayıcısına girip markdown'ı kırmasın.
+        await bildir("Sözleşme Bekçisi", tur, ozet[:200], detay=metin[:500], ham_metin=metin)
     except Exception as e:
         print(f"[sozlesme_bekci] telegram hata: {e}", flush=True)
     print(f"[sozlesme_bekci] {len(bozulan)} bozulma / {len(duzelen)} düzelme bildirildi", flush=True)

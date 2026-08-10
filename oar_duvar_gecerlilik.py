@@ -460,6 +460,38 @@ def mesafe_tanisi(satirlar, ufuk_saat):
     return cikti
 
 
+def coklu_karsilastirma(olasilik, alfa=0.05):
+    """
+    ⚠️⚠️ EN KRİTİK MUHASEBE (§5m dersi: 97 "kazanan"ın hepsi seraptı).
+    Olasılık katmanı ONLARCA hücre test eder; her ★ %95 güvenle işaretlenir. Yani
+    SAF ŞANSLA bile ~alfa×hücre kadar ★ ÇIKAR. Tek bir ★ görüp "doğrulandı" demek
+    tam olarak bu deponun defalarca düştüğü tuzaktır.
+    Döner: test edilen hücre sayısı, şansla BEKLENEN ★, GÖZLENEN ★ ve yargı.
+    """
+    test, yildiz = 0, []
+    for pen_ad, blok in olasilik.items():
+        for duvar, b in (blok or {}).items():
+            for rej, k in (b.get("kovalar") or {}).items():
+                if k.get("yetersiz"):
+                    continue
+                test += 1
+                if k.get("tabandan_ayrik"):
+                    yildiz.append(f"{pen_ad}·{duvar}·{rej}")
+    beklenen = round(test * alfa, 2)
+    if not test:
+        yargi = "hücre yok"
+    elif len(yildiz) <= beklenen:
+        yargi = ("❌ ŞANS SEVİYESİNDE — gözlenen ★ sayısı şansla beklenenin ALTINDA/eşit. "
+                 "Tek tek ★'lara bakıp 'doğrulandı' DENMEZ.")
+    elif len(yildiz) >= 3 * beklenen:
+        yargi = ("✅ ŞANSTAN FAZLA — ★ sayısı beklenenin belirgin üstünde; hangi hücrelerin "
+                 "tutarlı olduğuna bakmaya değer (yine de işlem katmanı şart).")
+    else:
+        yargi = ("⚠ BELİRSİZ — ★ sayısı şans beklentisine yakın; tek başına kanıt değil.")
+    return {"test_edilen_hucre": test, "alfa": alfa, "sansla_beklenen_yildiz": beklenen,
+            "gozlenen_yildiz": len(yildiz), "yildizlar": yildiz, "yargi": yargi}
+
+
 def hipotez_karnesi(olasilik):
     """
     ÖNCEDEN KAYDEDİLEN H1/H2 doğrulandı mı — her pencere için ayrı.
@@ -612,7 +644,7 @@ def _o(v):
     return "—" if v is None else f"{v*100:5.1f}%"
 
 
-def olasilik_metni(olasilik, karne):
+def olasilik_metni(olasilik, karne, ck=None):
     s = ["═══ ① OLASILIK KATMANI — duvara dokununca ne oldu ═══", ""]
     s.append(f"Duvar TUTTU = temas sonrası {TEPKI_SIGMA}σ geri çekildi · "
              f"KIRDI = duvarı {KIRILIM_SIGMA}σ aştı (eşitlikte KIRILIM = kötümser)")
@@ -649,9 +681,21 @@ def olasilik_metni(olasilik, karne):
                 s.append(f"     {rej:<11}{k['n']:>5}{_o(k['tutma_orani']):>8}"
                          f"{_o(k['kirilma_orani']):>8}{k['lift']:>+7.1f}p  {w}{ayr}")
         s.append("")
-    s.append("★ = Wilson aralığı tabanı içermiyor (şansla açıklanması zor)")
+    s.append("★ = Wilson aralığı tabanı içermiyor (TEK BAŞINA şansla açıklanması zor)")
+    if ck:
+        s.append("")
+        s.append("── ⚠️ ÇOKLU KARŞILAŞTIRMA MUHASEBESİ (★'ları okumadan ÖNCE) ──")
+        s.append(f"  test edilen hücre: {ck['test_edilen_hucre']} · "
+                 f"şansla BEKLENEN ★: ~{ck['sansla_beklenen_yildiz']} "
+                 f"(α={ck['alfa']}) · GÖZLENEN ★: {ck['gozlenen_yildiz']}")
+        if ck["yildizlar"]:
+            s.append(f"  ★ hücreler: {', '.join(ck['yildizlar'])}")
+        s.append(f"  → {ck['yargi']}")
     s.append("")
     s.append("── ÖN-KAYITLI HİPOTEZ KARNESİ ──")
+    s.append(f"⚠️ Aşağıdaki '✅ DOĞRULANDI' etiketi TEK HÜCRE yargısıdır; yukarıdaki çoklu-"
+             f"karşılaştırma satırıyla BİRLİKTE okunur. ÖN-KAYITLI BİRİNCİL pencere = "
+             f"{ANA_PENCERE}; diğer pencereler KEŞİFSEL (aynı veriye ek bakış).")
     s.append("H1: aşırı-pozitif funding → ALT duvar kırılır, ÜST duvar tutar")
     s.append("H2: negatif funding      → ÜST duvar kırılır, ALT duvar tutar")
     for pen_ad, _ in PENCERELER:
@@ -706,7 +750,8 @@ def rapor_metni(sonuc):
     tm = tani_metni(sonuc.get("mesafe_tanisi"))
     if tm:
         s.append(tm)
-    s.append(olasilik_metni(sonuc["olasilik"], sonuc["hipotez_karnesi"]))
+    s.append(olasilik_metni(sonuc["olasilik"], sonuc["hipotez_karnesi"],
+                            sonuc.get("coklu_karsilastirma")))
     s.append("")
     s.append("═══ ② İŞLEM KATMANI — vuruş oranı ≠ edge (§5d/§5g/§5m dersi) ═══")
     s.append(f"Giriş duvar fiyatından (limit) · SL {SL_SIGMA}σ ötede · TP {TP_R}R · "
@@ -846,6 +891,26 @@ def kendi_test():
     kontrol("saf gürültü: tüm hücreler 'AYRIŞMADI' (LIFT işaretine aldanmıyor)",
             all("AYRIŞMADI" in v["durum"] for v in karne[ANA_PENCERE].values()),
             str({k: round(v["lift"], 1) for k, v in karne[ANA_PENCERE].items()}))
+    ck = coklu_karsilastirma(ol)
+    kontrol("saf gürültü: çoklu-karşılaştırma 'ŞANS SEVİYESİNDE' der",
+            "ŞANS SEVİYESİNDE" in ck["yargi"],
+            f"{ck['gozlenen_yildiz']} ★ / {ck['test_edilen_hucre']} hücre "
+            f"(beklenen ~{ck['sansla_beklenen_yildiz']})")
+
+    # ── 5b) çoklu-karşılaştırma muhasebesi TEK ★'ı kanıt saymamalı ──
+    sahte = {"p1": {"ust": {"kovalar": {
+        "a": {"tabandan_ayrik": True}, **{f"k{i}": {"tabandan_ayrik": False} for i in range(36)}}}}}
+    ck2 = coklu_karsilastirma(sahte)
+    kontrol("37 hücrede 1 ★ → 'ŞANS SEVİYESİNDE'",
+            "ŞANS SEVİYESİNDE" in ck2["yargi"],
+            f"beklenen ~{ck2['sansla_beklenen_yildiz']} · gözlenen {ck2['gozlenen_yildiz']}")
+    sahte2 = {"p1": {"ust": {"kovalar": {
+        **{f"a{i}": {"tabandan_ayrik": True} for i in range(8)},
+        **{f"k{i}": {"tabandan_ayrik": False} for i in range(29)}}}}}
+    ck3 = coklu_karsilastirma(sahte2)
+    kontrol("37 hücrede 8 ★ → 'ŞANSTAN FAZLA'",
+            "ŞANSTAN FAZLA" in ck3["yargi"],
+            f"beklenen ~{ck3['sansla_beklenen_yildiz']} · gözlenen {ck3['gozlenen_yildiz']}")
 
     # ── 6) no-lookahead: duvar seviyesi karar anından SONRAKİ veriyi kullanmıyor ──
     # duvar_olayi yalnız [i0,i1) penceresine bakar; i0 öncesi bar sonucu değiştirmemeli
@@ -918,7 +983,7 @@ def main():
             "taban_oran": TABAN_ORAN, "asiri_carpan": ASIRI_CARPAN,
             "ufuk_saat": a.ufuk_saat,
         },
-        "mesafe_tanisi": tani,
+        "mesafe_tanisi": tani, "coklu_karsilastirma": coklu_karsilastirma(olasilik),
         "olasilik": olasilik, "hipotez_karnesi": karne, "kartlar": kartlar,
     }
     sonuc["ters_kol_uyari"] = _ters_kontrol(kartlar)

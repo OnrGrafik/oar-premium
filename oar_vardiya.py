@@ -74,6 +74,11 @@ def main():
         _calistir("DUVAR GEÇERLİLİĞİ (funding rejimi × duvar tutuyor mu)",
                   ["oar_duvar_gecerlilik.py", "--symbol", SEMBOL,
                    "--from", METRICS_BAS, "--to", BIT, "--telegram"])
+        # 2e) Kaskad testi: likidasyon seviyesi TETİKLEYİCİ mi (seviye aşılınca devam)
+        #     Kullanıcı düzeltmesi: küme bariyer değil tetikleyici → 2d'nin sorusu yanlıştı.
+        _calistir("KASKAD TESTİ (seviye aşılınca devam eder mi)",
+                  ["oar_duvar_kaskad.py", "--symbol", SEMBOL,
+                   "--from", METRICS_BAS, "--to", BIT, "--telegram"])
         # 3) Çoklu şampiyon (AĞIR — aggTrades; günde en fazla 1)
         if time.time() - son_agir >= AGIR_IS_SAAT * 3600:
             _calistir("ÇOKLU ŞAMPİYON KEŞFİ (ağır, günde 1)",
