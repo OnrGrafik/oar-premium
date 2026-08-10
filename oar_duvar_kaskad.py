@@ -424,7 +424,15 @@ def kartil_tablosu(olaylar, alan="devam_net"):
             mono = ("artan" if all(gecerli[i] <= gecerli[i + 1] for i in range(len(gecerli) - 1))
                     else "azalan" if all(gecerli[i] >= gecerli[i + 1] for i in range(len(gecerli) - 1))
                     else "yok")
-        out[yon] = {"kartiller": blok, "monotonluk": mono}
+        # ⚠️ KONFAUND OTOMATİK TESPİTİ: kartillerin ortalama mesafesi belirgin farklıysa
+        #    ham monotonluk notional'ın DEĞİL mesafenin eseri olabilir. Bunu göz kararı
+        #    bırakma — araç söylesin (gerçek koşuda Q1 0.57σ vs Q4 0.92σ çıktı).
+        mesafeler = [blok[q]["mesafe_ort"] for q in (1, 2, 3, 4)
+                     if not blok.get(q, {}).get("yetersiz")]
+        yayilim = (max(mesafeler) - min(mesafeler)) if len(mesafeler) >= 2 else 0.0
+        out[yon] = {"kartiller": blok, "monotonluk": mono,
+                    "mesafe_yayilimi": round(yayilim, 3),
+                    "mesafe_dengeli": bool(yayilim < 0.15)}
     return out
 
 
@@ -568,8 +576,11 @@ def seriler_birlestir(liste):
 
 def plasebo_kontrol(kartlar):
     """
-    ⚠️ ASIL YARGI: büyük küme kolu plasebodan (küçük küme) BELİRGİN iyi mi?
-    Değilse kaskad diye bir şey yok — kesişim sonrası hareket sadece momentum.
+    ⚠️⚠️ BU KIYAS MESAFE-EŞLEŞTİRMESİZDİR → KONFAUNDLUDUR. ASIL YARGI DEĞİLDİR.
+    Q4 ve Q1 kolları TÜM mesafelerden işlem toplar; kartiller farklı ortalama mesafede
+    durduğu için (gerçek koşuda Q1 0.57σ vs Q4 0.92σ) bu kıyas ① ham tablonun taşıdığı
+    aynı artefaktı taşır. ASIL YARGI ② eşleştirilmiş testtedir (aynı gün+yön+mesafe).
+    Aşağıdaki `plasebo_bantli` mesafe bandı içinde kıyas yapar — okunması gereken odur.
     """
     out = []
     for buyuk, kucuk, ad in (("UP_Q4_BUYUK", "UP_Q1_PLASEBO", "YUKARI"),
@@ -579,13 +590,32 @@ def plasebo_kontrol(kartlar):
             out.append(f"{ad}: kıyas yapılamadı (n yetersiz)")
             continue
         fark = kb["beklenti"] - kk["beklenti"]
-        if fark > 0 and kb["beklenti"] > 0:
-            yargi = f"büyük küme plasebodan {fark:+.3f} puan iyi"
-        elif fark > 0:
-            yargi = f"büyük küme plasebodan {fark:+.3f} iyi ama İKİSİ DE zararlı"
-        else:
-            yargi = f"büyük küme plasebodan {fark:+.3f} → KASKAD KANITI YOK"
-        out.append(f"{ad}: büyük {kb['beklenti']:+.3f} vs plasebo {kk['beklenti']:+.3f} → {yargi}")
+        out.append(f"{ad}: büyük {kb['beklenti']:+.3f} vs plasebo {kk['beklenti']:+.3f} "
+                   f"→ fark {fark:+.3f} ⚠ MESAFE-EŞLEŞTİRMESİZ (konfaundlu)")
+    return out
+
+
+def plasebo_bantli(olaylar):
+    """
+    MESAFE BANDI İÇİNDE plasebo kıyası — ① ham tablodaki mesafe artefaktı burada YOK.
+    Her (yön × mesafe bandı) için Q4 ve Q1 işlem beklentisi ayrı ayrı.
+    """
+    import numpy as np
+    out = {}
+    for yon in ("UP", "DOWN"):
+        blok = {}
+        for bant in [f"{a:g}-{b:g}σ" for a, b in MESAFE_BANT]:
+            satir = {}
+            for q in (1, 4):
+                v = [o["islem_net"] for o in olaylar
+                     if o["yon"] == yon and o.get("mesafe_bandi") == bant
+                     and o.get("kartil") == q and o.get("islem_net") is not None]
+                satir[q] = {"n": len(v),
+                            "beklenti": round(float(np.mean(v)), 4) if len(v) >= MIN_N else None}
+            b4, b1 = satir[4]["beklenti"], satir[1]["beklenti"]
+            satir["fark"] = round(b4 - b1, 4) if (b4 is not None and b1 is not None) else None
+            blok[bant] = satir
+        out[yon] = blok
     return out
 
 
@@ -617,7 +647,10 @@ def rapor_metni(sonuc):
     for yon, blok in (sonuc.get("kartil") or {}).items():
         ok = "YUKARI kesişim (short likidasyonu → zorunlu ALIŞ)" if yon == "UP" \
              else "AŞAĞI kesişim (long likidasyonu → zorunlu SATIŞ)"
-        s.append(f"  {ok} · monotonluk: {blok['monotonluk'] or '—'}")
+        uyari = ("" if blok.get("mesafe_dengeli", True) else
+                 f"   ⚠ KONFAUND: kartiller arası mesafe farkı {blok['mesafe_yayilimi']}σ "
+                 f"→ bu monotonluk MESAFE eseri olabilir, ②'ye bak")
+        s.append(f"  {ok} · monotonluk: {blok['monotonluk'] or '—'}{uyari}")
         s.append(f"     {'kartil':<8}{'n':>7}{'gün':>7}{'devam_ort':>11}{'medyan':>9}"
                  f"{'poz%':>7}{'mesafe_ort':>12}")
         for q in (1, 2, 3, 4):
@@ -632,7 +665,10 @@ def rapor_metni(sonuc):
                      f"{k['mesafe_ort']:>11.2f}σ")
         s.append("")
 
-    s.append("═══ ② EŞLEŞTİRİLMİŞ TEST (ASIL KANIT) — Q4 − Q1, aynı gün/yön/mesafe ═══")
+    s.append("═══ ② EŞLEŞTİRİLMİŞ TEST (⭐ ASIL KANIT) — Q4 − Q1, aynı gün/yön/mesafe ═══")
+    s.append("⚠️ ① ham tabloda mesafe kartillere DENGESİZ dağılıyorsa (mesafe_ort sütunu),")
+    s.append("   oradaki monotonluk notional'ın değil MESAFENİN eseridir. Uzak seviye ancak")
+    s.append("   güçlü hareket olduğunda kesilir → seçim etkisi. Burada mesafe SABİTLENİR.")
     for yon, e in (sonuc.get("eslesme") or {}).items():
         ok = "YUKARI" if yon == "UP" else "AŞAĞI"
         if "ort_fark" not in e:
@@ -655,9 +691,24 @@ def rapor_metni(sonuc):
                         key=lambda x: -(x[1].get("beklenti") or -9e9)):
         s.append(_sat(k))
     s.append("")
-    s.append("── ⚠️ PLASEBO KIYASI (asıl yargı) ──")
+    s.append("── PLASEBO KIYASI (ham — ⚠ mesafe-eşleştirmesiz, KONFAUNDLU) ──")
     for r in sonuc.get("plasebo") or []:
         s.append(f"   • {r}")
+    pb = sonuc.get("plasebo_bantli") or {}
+    if pb:
+        s.append("")
+        s.append("── ⭐ PLASEBO KIYASI — MESAFE BANDI İÇİNDE (okunacak olan bu) ──")
+        for yon, blok in pb.items():
+            ok = "YUKARI" if yon == "UP" else "AŞAĞI"
+            for bant, sat in blok.items():
+                b4, b1, f = sat[4]["beklenti"], sat[1]["beklenti"], sat["fark"]
+                if b4 is None or b1 is None:
+                    s.append(f"   • {ok} {bant}: yetersiz n "
+                             f"(Q4 {sat[4]['n']} · Q1 {sat[1]['n']})")
+                    continue
+                yargi = ("büyük küme İYİ" if f > 0 else "KASKAD KANITI YOK")
+                s.append(f"   • {ok} {bant}: Q4 {b4:+.3f} (n{sat[4]['n']}) vs "
+                         f"Q1 {b1:+.3f} (n{sat[1]['n']}) → fark {f:+.3f} · {yargi}")
     s.append("")
     s.append(f"DSR cezası n_deneme={N_DENEME}. ✅ GERÇEK EDGE = DSR≥0.95 ∧ CI-alt>0 "
              f"∧ perm-p<0.05 (FDR) ∧ 5x-likidasyon=0 — VE plasebodan belirgin iyi.")
@@ -859,6 +910,7 @@ def main():
         "kartil": kartil, "eslesme": eslesme, "kartlar": kartlar,
     }
     sonuc["plasebo"] = plasebo_kontrol(kartlar)
+    sonuc["plasebo_bantli"] = plasebo_bantli(tum)
 
     rapor = rapor_metni(sonuc)
     print("\n" + rapor, flush=True)
