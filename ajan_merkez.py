@@ -84,23 +84,34 @@ def _dedup_gecti(ajan: str, tur: str, ozet: str) -> bool:
     return False
 
 
-async def bildir(ajan: str, tur: str, ozet: str, detay: str = "") -> bool:
+async def bildir(ajan: str, tur: str, ozet: str, detay: str = "",
+                 ham_metin: str = "") -> bool:
     """
     Bir agent aktivitesini merkezi kanala gönder + diske logla.
     ajan: agent adı · tur: görüş/research/backtest/çıktı/öneri/eksik/istek/durum
     ozet: tek satır · detay: opsiyonel açıklama.
     Aynı (ajan+özet) 24 saat içinde İKİNCİ kez Telegram'a GİTMEZ (kalıcı disk dedup —
     redeploy/restart döngüsünde aynı mesajın tekrar tekrar atılmasını keser).
+
+    ham_metin: KENDİ biçimini kuran ajanlar için (çok satırlı, *kalın* içeren mesaj).
+    Verilirse Telegram'a AYNEN o gider; başlık eklenmez, `_..._` ile sarılmaz.
+    Gerekçe: detay `_italik_` içine alınıyordu; içinde *kalın* ve satır sonu olan
+    mesajlarda markdown kırılıp ekranda başıboş `_` karakterleri kalıyordu. Ayrıca
+    ozet+detay birlikte verilince aynı satır İKİ KEZ görünüyordu.
+    Log kaydı her hâlükârda ozet/detay üzerinden tutulur (arşiv bozulmaz).
     """
     emoji = TUR_EMOJI.get(tur.lower(), "ℹ️")
     kayit = {"tarih": _now(), "ajan": ajan, "tur": tur, "ozet": ozet, "detay": detay[:500]}
     _log_kaydet(kayit)
     if _dedup_gecti(ajan, tur, ozet):
         return False
-    satirlar = [f"{emoji} *{ajan}* — {tur.upper()}", ozet]
-    if detay:
-        satirlar.append(f"_{detay[:600]}_")
-    metin = "\n".join(satirlar)
+    if ham_metin:
+        metin = ham_metin
+    else:
+        satirlar = [f"{emoji} *{ajan}* — {tur.upper()}", ozet]
+        if detay:
+            satirlar.append(f"_{detay[:600]}_")
+        metin = "\n".join(satirlar)
     try:
         from main import _telegram_gonder
         return await _telegram_gonder(metin, thread_id=AJAN_THREAD, chat_id=AJAN_CHAT)
