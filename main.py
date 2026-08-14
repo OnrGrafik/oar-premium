@@ -2274,13 +2274,22 @@ async def lider_gozlem_yayinla(tam: bool = False) -> bool:
         ctx = f"[bağlam toplanamadı: {str(e)[:80]}]"
     zaman = f"{_dt.now(_tz.utc):%Y-%m-%d %H:%M} UTC"
     degisen, ayni, onceki_vardi = _gozlem_degisim(ctx)
+    # TEK GÖZLEM: konsey gün-sonu özeti ayrı mesaj değil, bu gözleme BÖLÜM olarak girer
+    ek = ""
+    try:
+        from hacim_konseyi import gun_ozet_metni_son
+        _g = gun_ozet_metni_son()
+        if _g:
+            ek = "\n\n━━━━━━━━━━━━━━━━\n" + _g
+    except Exception:
+        pass
 
     if tam or not onceki_vardi:
         # İlk gözlem (veya elle tam istek): tam tablo — referans noktası oluşsun.
         baslik = (f"🧭 *LİDER GÖZLEMİ (TAM)* · {zaman}\n"
                   "Liderin canlı tüm-sistem gözlemi. Bundan sonraki gözlemler yalnız "
                   "DEĞİŞENLERİ gönderir.\n")
-        return await _uzun_telegram(baslik + ctx, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
+        return await _uzun_telegram(baslik + ctx + ek, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
 
     if not degisen:
         # Hiçbir şey değişmediyse SESSİZ kal (§6b: "her şey aynı" = gürültü).
@@ -2290,7 +2299,7 @@ async def lider_gozlem_yayinla(tam: bool = False) -> bool:
     metin = (f"🧭 *LİDER GÖZLEMİ · DEĞİŞENLER* · {zaman}\n"
              f"(önceki gözleme göre {len(degisen)} değişiklik · {ayni} alan aynı: "
              f"şampiyonlar/backtest defteri/kanıtlı bulgular sabit)\n\n"
-             + "\n".join(degisen))
+             + "\n".join(degisen) + ek)
     return await _uzun_telegram(metin, LIDER_GOZLEM_THREAD, LIDER_GOZLEM_CHAT)
 
 async def lider_gozlem_loop():
