@@ -370,7 +370,9 @@ def _snapshot_ekle(snap):
 #  düşük gürültü: yalnız DURUM DEĞİŞTİĞİNDE tetiklenir (§6b), tekrarlamaz.
 # ═══════════════════════════════════════════════════════════════════════════════
 OLAY_FILE = _DATA_DIR / "hacim_konsey_olay.json"
-MUTABAKAT_OLAY_ESIK = 0.60      # bu mutabakatın üstündeki yön dönüşü bildirilir
+MUTABAKAT_OLAY_ESIK = 0.60      # bu mutabakatın üstündeki yön dönüşü kaydedilir
+_GAMMA_BANT = 0.0015            # ZG'ye %0.15'ten yakınsa rejim BELİRSİZ (flip-flop önleme)
+_OLAY_TEYIT = 2                 # yeni durum ARKA ARKAYA bu kadar tur görülmeli      # bu mutabakatın üstündeki yön dönüşü bildirilir
 
 
 def _olay_durum_yukle():
@@ -382,14 +384,21 @@ def _olay_durum_yaz(d):
 
 
 def _gamma_rejim(snap):
-    """Snapshot'taki opsiyon üyesinden gamma rejimini çıkar (NEGATİF/POZİTİF/—)."""
+    """
+    Gamma rejimi HİSTEREZİSLİ (kullanıcı kanıtı: aynı 'NEGATİF → POZİTİF' olayı 18:55 ve
+    19:05'te İKİ KEZ düştü). Sebep: spot ZG'ye %0.07 uzaklıktaydı → her turda sınırın bir
+    yanına geçip flip-flop üretiyordu. §6b ⑥ ile yasaklanan "CVD yön değişti" gürültüsünün
+    aynısı. Çözüm: ZG'ye _GAMMA_BANT'tan yakınsa rejim İDDİA EDİLMEZ (boş döner).
+    """
     for u in snap.get("uyeler", []):
         if u.get("ad") == "opsiyon":
-            r = str((u.get("ham") or {}).get("gamma_rejim") or "")
-            if "NEGAT" in r.upper():
-                return "NEGATİF"
-            if "POZİT" in r.upper() or "POZIT" in r.upper():
-                return "POZİTİF"
+            h = u.get("ham") or {}
+            spot, zg = h.get("spot"), h.get("zero_gamma")
+            if spot and zg and spot > 0:
+                sap = (spot - zg) / spot
+                if abs(sap) < _GAMMA_BANT:
+                    return ""                       # sınır bölgesi → rejim iddiası YOK
+                return "POZİTİF" if sap > 0 else "NEGATİF"
     return ""
 
 
@@ -414,28 +423,36 @@ async def olay_tara(snap: dict):
         olaylar.append(f"🔄 *{sembol}* hacim konsensüsü *{o_yon} → {yon}* "
                        f"(mutabakat %{mut*100:.0f}, net {kon.get('net',0):+.2f})")
 
-    # ② Gamma rejim dönüşü (opsiyon üyesi artık bunu YÖNE de katıyor)
+    # ② Gamma rejim dönüşü — TEYİT ŞARTI: yeni rejim ARKA ARKAYA _OLAY_TEYIT tur
+    #    görülmeli (tek turluk sıçrama olay sayılmaz → flip-flop biter).
     o_gam = onceki.get("gamma")
-    if o_gam and gam and gam != o_gam:
-        olaylar.append(f"⚡ *{sembol}* gamma rejimi *{o_gam} → {gam}* "
-                       f"({'hareket hızlanır' if gam=='NEGATİF' else 'hareket bastırılır/pinleme'})")
+    bekleyen = onceki.get("gamma_bekleyen")
+    teyit = int(onceki.get("gamma_teyit") or 0)
+    if gam and o_gam and gam != o_gam:
+        if bekleyen == gam:
+            teyit += 1
+        else:
+            bekleyen, teyit = gam, 1
+        if teyit >= _OLAY_TEYIT:
+            olaylar.append(f"⚡ *{sembol}* gamma rejimi *{o_gam} → {gam}* "
+                           f"({'hareket hızlanır' if gam=='NEGATİF' else 'hareket bastırılır/pinleme'})")
+            o_gam = gam; bekleyen, teyit = None, 0
+    else:
+        bekleyen, teyit = None, 0
 
     # durum güncelle (ilk turda yalnız taban kurulur → sahte 'dönüş' bildirimi olmaz)
-    durum[sembol] = {"yon": yon, "gamma": gam, "ts": _now().isoformat()}
+    durum[sembol] = {"yon": yon, "gamma": (o_gam or gam), "gamma_bekleyen": bekleyen,
+                     "gamma_teyit": teyit, "ts": _now().isoformat()}
     if olaylar and onceki:
-        # BÜTÜNLEŞİKLİK: olayları sakla → lider gözlemi de bunları görsün (konsey_baglami)
+        # TEK GÖZLEM (kullanıcı: "3 farklı gözlem var, birleştir demiştim"): olaylar artık
+        # ANINDA Telegram'a GİTMEZ — biriktirilir, GÜNLÜK LİDER GÖZLEMİNDE tek mesajda çıkar.
         gecmis = durum.get("son_olaylar") or []
         for o in olaylar:
             gecmis.append({"ts": _now().isoformat(), "metin": o.replace("*", "")})
-        durum["son_olaylar"] = gecmis[-20:]
+        durum["son_olaylar"] = gecmis[-40:]
+        print(f"[hacim_konseyi] {len(olaylar)} olay kaydedildi (günlük gözlemde raporlanır)",
+              flush=True)
     _olay_durum_yaz(durum)
-
-    if olaylar and onceki:
-        uyeler = ", ".join(f"{u['ad']}={u['yon']}" for u in snap.get("uyeler", []) if u.get("aktif"))
-        metin = ("⚠️ *HACİM KONSEYİ — ANLIK OLAY*\n" + "\n".join(olaylar)
-                 + f"\n_üyeler: {uyeler}_")
-        await _uzun_gonder(metin)
-        print(f"[hacim_konseyi] olay bildirildi: {sembol} {olaylar}", flush=True)
 
 
 async def konsey_loop():
@@ -448,7 +465,7 @@ async def konsey_loop():
                 _snapshot_ekle(snap)
                 _skor_kaydet(snap)          # KARNE için kalıcı kompakt kayıt
                 try:
-                    await olay_tara(snap)      # gün sonunu bekleme — anlamlı değişimi anında bildir
+                    await olay_tara(snap)   # olayı KAYDET (günlük tek gözlemde raporlanır)
                 except Exception as e:
                     print(f"[hacim_konseyi] olay tarama hata: {e}", flush=True)
                 await asyncio.sleep(2)
@@ -664,8 +681,13 @@ async def gunluk_ozeti_yayinla():
     snaps = _son_gun_snapshotlari()
     gun_ozeti = _gun_ozeti_hesapla(snaps)
     den = denetim(gun_ozeti)
+    # TEK GÖZLEM (kullanıcı isteği): konsey gün-sonu özeti ARTIK AYRI Telegram mesajı
+    # DEĞİL — metin diske yazılır, LİDER GÖZLEMİ onu kendi mesajına bölüm olarak alır.
     metin = _gun_ozet_metni(gun_ozeti, den)
-    await _uzun_gonder(metin)
+    try:
+        (_DATA_DIR / "hacim_gun_ozet_metin.txt").write_text(metin, encoding="utf-8")
+    except Exception:
+        pass
     # Anlamlı+kalıcı gün konsensüsü → worker'a ADAY backtest görevi (PC'de test edilir).
     try:
         from hacim_gorev import konsey_gorev_uret
@@ -706,6 +728,14 @@ async def gunluk_ozet_loop():
 # ═══════════════════════════════════════════════════════════════════════════════
 #  LİDER BAĞLAMI — lider her soruda konseyin son durumunu görür (_site_baglami'ya girer).
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def gun_ozet_metni_son() -> str:
+    """Son gün-sonu konsey özeti (lider gözlemi bunu kendi mesajına bölüm olarak alır)."""
+    try:
+        return (_DATA_DIR / "hacim_gun_ozet_metin.txt").read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
 
 def konsey_baglami() -> str:
     """
@@ -750,12 +780,17 @@ def konsey_baglami() -> str:
         L.append(f"  {sembol}: konsensüs {yon_txt} (net {net:+.2f}, "
                  f"mutabakat %{k.get('mutabakat',0)*100:.0f}{yas}) · {uye_txt}")
     # ③ anlık olay hattıyla bütünleşme
+    # ③ TEK GÖZLEM: gün içi olaylar ARTIK ayrı Telegram mesajı DEĞİL — burada raporlanır.
     try:
-        olaylar = (_load(OLAY_FILE, {}) or {}).get("son_olaylar", [])[-3:]
-        if olaylar:
-            L.append("  Son anlık olaylar (aynı konseyin canlı bildirimleri):")
-            for o in olaylar:
+        olaylar = (_load(OLAY_FILE, {}) or {}).get("son_olaylar", [])
+        sinir = (_now() - timedelta(hours=26)).isoformat()
+        son = [o for o in olaylar if o.get("ts", "") >= sinir][-8:]
+        if son:
+            L.append(f"  Gün içi olaylar ({len(son)}):")
+            for o in son:
                 L.append(f"    · {o.get('ts','')[11:16]} — {o.get('metin','')}")
+        else:
+            L.append("  Gün içi olay: yok (konsensüs/gamma rejimi dönmedi)")
     except Exception:
         pass
     return "\n".join(L)

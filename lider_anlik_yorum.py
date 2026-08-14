@@ -657,7 +657,17 @@ async def lider_anlik_yorum_loop():
                 # = gürültü, gönderilMEZ. Sadece OAR sinyali kanala düşer.
                 karar_simdi = (yeni.get("supervisor", {}).get("karar") or "").upper()
                 islem_var = karar_simdi in ("LONG", "SHORT", "TRADE_LONG", "TRADE_SHORT")
-                if tetikler and islem_var and _son_gonderi_gecti_mi(durum, kok):
+                # MARKET KAPISI ŞARTI (kullanıcı kanıtı): kapı KAPALIYKEN (Asia genlik
+                # %0.01, eşik %1) "TRADE_SHORT güven %85" mesajı düşmüştü — şampiyonlar o
+                # gün İŞLEM YAPMIYOR, supervisor ise ayrı bir motor. Kapı kapalıyken trade
+                # yorumu göndermek yanıltıcı → yalnız kapı AÇIKKEN gönderilir (§6b ⑧ ruhu).
+                kapi_acik = True
+                try:
+                    from oar_session_agent import _sembol_fade_gunu
+                    kapi_acik = bool(await _sembol_fade_gunu(f"{kok}USDT"))
+                except Exception:
+                    kapi_acik = True          # kapı okunamadıysa engelleme (fail-open)
+                if tetikler and islem_var and kapi_acik and _son_gonderi_gecti_mi(durum, kok):
                     ai = await _ai_yorum(yeni, tetikler)
                     mesaj = _telegram_mesaj_olustur(yeni, tetikler, ai)
                     from main import _telegram_gonder  # type: ignore
@@ -665,7 +675,10 @@ async def lider_anlik_yorum_loop():
                     durum[f"son_gonderi_{kok}"] = _simdi().isoformat()
                     print(f"[LiderYorum] {kok} OAR işlem yorumu gönderildi: {karar_simdi}")
                 else:
-                    if tetikler:
+                    if tetikler and islem_var and not kapi_acik:
+                        print(f"[LiderYorum] {kok} trade kararı var ama MARKET KAPISI KAPALI "
+                              f"→ gönderilmedi (şampiyon o gün işlem yapmıyor)")
+                    elif tetikler:
                         print(f"[LiderYorum] {kok} tetik var ama işlem yok (NO_TRADE) → gönderilmedi")
 
                 # Her durumda mevcut durumu kaydet

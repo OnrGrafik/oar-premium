@@ -524,6 +524,17 @@
 - ⚠️ CANLI KARARI DEĞİŞTİRMEZ: çıktı ADAY'dır. Şampiyona confirm bağlanması ancak serap testi (DSR≥0.95) + ANAYASA #8 onayı ile (§5e/§5p). Sadeleştirme (gürültü analizörü çıkarma) GÜVENLİ — şampiyona dokunmaz.
 - Haftalık Pazartesi 04:00 UTC Telegram (sayfalı) + git-senkron `hacim_karne_arsiv.json` (son 52 hafta) + lider bağlamı + `/api/hacim-karne?uret=true`.
 
+## 6k. TEK GÖZLEM (kullanıcı: "3 farklı gözlem var, birleştir demiştim") — kalıcı
+- ŞİKÂYET: aynı anda 3 ayrı mesaj düşüyordu — ① OAR Anlık Yorum ② Hacim Konseyi ANLIK OLAY ③ Lider Gözlemi DEĞİŞENLER (+ makro bildirimleri). "Tek gözlem olarak birleştir."
+- 🐞 KANITTA 2 GERÇEK HATA BULUNDU (birleştirmeden önce düzeltildi):
+  ① **GAMMA FLIP-FLOP**: aynı "NEGATİF → POZİTİF" olayı **18:55 ve 19:05'te İKİ KEZ** düşmüş. Sebep: spot ZG'ye **%0.07** uzaktaydı (63.323 vs 63.277) → her turda sınırın bir yanına geçip olay üretiyordu. §6b ⑥'da yasaklanan "CVD yön değişti" gürültüsünün aynısı. DÜZELTME: `_GAMMA_BANT=0.0015` (ZG'ye %0.15'ten yakınsa rejim İDDİA EDİLMEZ) + `_OLAY_TEYIT=2` (yeni rejim arka arkaya 2 tur görülmeli). Kullanıcının gerçek verisiyle test: 5 turluk salınımda **0 olay**; bant dışı gerçek dönüşte olay üretiliyor ✓.
+  ② **KAPI KAPALIYKEN TRADE SİNYALİ**: `[MARKET KAPISI] KAPALI — BTC %0.01 / ETH %0.03` iken anlık yorum "KARAR: TRADE_SHORT güven %85" göndermiş. Şampiyonlar o gün İŞLEM YAPMIYOR; `trading_supervisor` AYRI bir motor. DÜZELTME: `lider_anlik_yorum` artık `_sembol_fade_gunu` ile kapıyı kontrol eder — kapı KAPALIYSA trade yorumu GÖNDERMEZ (fail-open: kapı okunamazsa engellemez).
+- ✅ BİRLEŞTİRME MİMARİSİ: **1 periyodik gözlem + yalnız gerçek işlem uyarısı.**
+  • `hacim_konseyi.olay_tara` artık ANINDA Telegram'a ATMAZ → olayları `son_olaylar`a biriktirir; **LİDER GÖZLEMİ** "Gün içi olaylar (N)" bölümünde raporlar.
+  • Konsey **gün-sonu özeti** de ayrı mesaj değil: `hacim_gun_ozet_metin.txt`'e yazılır, lider gözlemi kendi mesajına **bölüm** olarak ekler (`gun_ozet_metni_son`).
+  • `lider_anlik_yorum` yalnız **market kapısı AÇIKKEN** ve gerçek işlem kararında konuşur (nadir, aksiyon gerektiren).
+  → Sonuç: rutin her şey TEK mesajda (konsey + gamma + olaylar + grafik + makro + görev + karne); anlık mesaj yalnız gerçek OAR işlemi olduğunda.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
