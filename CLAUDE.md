@@ -535,6 +535,15 @@
   • `lider_anlik_yorum` yalnız **market kapısı AÇIKKEN** ve gerçek işlem kararında konuşur (nadir, aksiyon gerektiren).
   → Sonuç: rutin her şey TEK mesajda (konsey + gamma + olaylar + grafik + makro + görev + karne); anlık mesaj yalnız gerçek OAR işlemi olduğunda.
 
+## 6l. KARNE KENDİ KUSURUNU GÖSTERDİ — SE KAPISI (ilk gerçek koşu, kalıcı ders)
+- İLK GERÇEK KARNE (2026-08-17, 5168 kayıt) "DEĞERLİ: —, SADELEŞTİRME adayı: 6 analizör" dedi. **BU KARAR YANLIŞTI.**
+- 🔍 KUSUR: ham n 4000+ görünüyordu ama **ETKİN n = 54** (217 saat / 4s ufuk). Etkin n=54'te 4s getiri std'si ~%0.8 → beklenti standart hatası **±%0.109**. Rapordaki TÜM beklentiler (+0.018 … +0.048, vp_poc −0.183 dahil) **2 SE'nin İÇİNDE** → hiçbiri sıfırdan ayırt edilemez. Yani araç GÜRÜLTÜYE bakıp "6 analizörü sadeleştir" dedi — bu projenin kaçındığı SERAP hatasının ta kendisi, üstelik serap avlamak için yazılmış araçta.
+- ✅ DÜZELTME (`_analizor_karne`): karar artık **SE KAPISINDAN** geçer. `se = σ/√etkin_n`, `z = beklenti/se`. |z|<2 → **"AYIRT EDİLEMEZ"** + kaç gün gerektiği yazılır (σ=%0.8, hedef %0.05 → ~43-55 gün). DEĞERLİ ancak z≥2 ∧ OOS>0 ∧ monotonluk≥0.6; TERS ancak z≤−2 ∧ OOS<0.
+- ✅ **KOVA DEJENERASYONU** tespiti: güç dağılımı tek kovada toplanmışsa (makro 5010/5072 tek kovada, order_book 3548/4547 doygun, likidite yalnız 2 kova) monotonluk ÖLÇÜLEMEZ → karar "ÖLÇÜLEMEZ", öneri "ÖNCE `guc` formülünü düzelt" (analizörü silme).
+- Rapor artık her satırda `beklenti ± SE → z` yazar ve özet bölümünde "⏳ HENÜZ ÖLÇÜLEMEYEN (N)" + "Sadeleştirme YAPMA" uyarısı verir.
+- 📌 GEÇERLİ KALAN GÖZLEM (SE'den bağımsız, yapısal): `makro` gücü fiilen SABİT (5010/5072 tek kovada) — §6j'deki 279/279 bulgusuyla aynı yöne işaret ediyor; bu bir DAĞILIM olgusu, beklenti tahmini değil. Yine de silme kararı ölçüm tamamlanınca verilir.
+- KURAL: **etkin örneklem ölçüm hassasiyetini belirler; ham n aldatır.** Karar vermeden önce daima |beklenti| > 2·SE(etkin n) kontrol et.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).

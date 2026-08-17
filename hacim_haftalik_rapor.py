@@ -226,21 +226,51 @@ def _analizor_karne(kayitlar: list, seriler: dict, ad: str) -> dict:
     etkin_n = max(1, int(sure_saat / UFUK_SAAT))
 
     tum0 = esikler[0]["tum"]; oos0 = esikler[0]["oos"]
-    # KARAR: beklenti pozitif + OOS aynı yönde + monotonluk destekliyor
-    if (tum0["beklenti"] > 0.02 and oos0["beklenti"] > 0 and mono_skor >= 0.6
-            and etkin_n >= 20):
+
+    # ⚠️ İSTATİSTİKSEL AYIRT EDİLEBİLİRLİK (ilk gerçek raporun ortaya çıkardığı KUSUR):
+    # Ham n 4000+ görünüyordu ama ETKİN n=54 idi; buna rağmen araç "GÜRÜLTÜ → sadeleştir"
+    # diye KESİN karar veriyordu. Oysa etkin n=54'te beklentinin standart hatası ±%0.109 →
+    # gözlenen tüm beklentiler (±%0.05) sıfırdan AYIRT EDİLEMEZ. Kararı gürültüye dayandırmak
+    # bu projenin kaçındığı SERAP hatasının ta kendisi. Artık karar SE kapısından geçer.
+    import statistics as _st
+    getiriler = [g for _, _, g in ham]
+    try:
+        sigma = _st.pstdev(getiriler) or 1.0
+    except Exception:
+        sigma = 1.0
+    se = sigma / max(etkin_n, 1) ** 0.5           # ETKİN n ile (ham n ile DEĞİL)
+    z = (tum0["beklenti"] / se) if se > 0 else 0.0
+    # hedef %0.05 beklentiyi ayırt etmek için gereken etkin n ve süre
+    gerek_n = (sigma / 0.05) ** 2
+    gerek_gun = gerek_n * UFUK_SAAT / 24.0
+
+    # KOVA DEJENERASYONU: güç dağılımı tek kovada toplanmışsa monotonluk ÖLÇÜLEMEZ
+    dolu = [k for k in kovalar if k["n"] >= 10]
+    en_buyuk_pay = (max((k["n"] for k in dolu), default=0) / max(len(ham), 1)) if dolu else 1.0
+    dejenere = len(dolu) < 3 or en_buyuk_pay > 0.85
+
+    if abs(z) < 2.0:
+        karar = "AYIRT EDİLEMEZ"
+        oneri = (f"veri YETERSİZ: beklenti {tum0['beklenti']:+.3f}% ama SE ±{se:.3f}% "
+                 f"({z:+.1f} SE) → sıfırdan ayrılamıyor. ~{gerek_gun:.0f} gün gerekir "
+                 f"(şu an {sure_saat/24:.1f} gün). KARAR VERME, sadeleştirme YAPMA.")
+    elif dejenere:
+        karar = "ÖLÇÜLEMEZ"
+        oneri = ("güç dağılımı tek kovada toplanmış (sabit/doygun güç) → monotonluk "
+                 "ölçülemiyor. Analizörün 'guc' formülü yayılım üretmiyor — ÖNCE onu düzelt.")
+    elif z >= 2.0 and oos0["beklenti"] > 0 and mono_skor >= 0.6:
         karar, oneri = "DEĞERLİ", "koru; şampiyon-confirm ADAYI (serap testi şart)"
-    elif tum0["beklenti"] < -0.02 and mono_skor <= -0.6 and etkin_n >= 20:
-        karar, oneri = "TERS", "sinyal ters çalışıyor olabilir — yön tanımını gözden geçir"
-    elif abs(tum0["beklenti"]) <= 0.02 or abs(mono_skor) < 0.6:
-        karar, oneri = "GÜRÜLTÜ", "konsensüse katkısı ölçülemiyor → SADELEŞTİRME adayı"
+    elif z <= -2.0 and oos0["beklenti"] < 0:
+        karar = "TERS"
+        oneri = ("sinyal İSTATİSTİKSEL OLARAK ters çalışıyor (IS+OOS aynı yönde negatif) → "
+                 "yön tanımını gözden geçir; silme, ÇEVİRMEYİ değerlendir.")
     else:
-        karar, oneri = "BELİRSİZ", "veri birikmeli"
-    if etkin_n < 20:
-        karar, oneri = "YETERSİZ", f"etkin örneklem {etkin_n} (<20) → karar erken"
+        karar, oneri = "KARARSIZ", "işaret var ama monotonluk/OOS desteklemiyor — veri birikmeli"
 
     return {"ad": ad, "durum": "ok", "karar": karar, "oneri": oneri,
             "n": len(ham), "etkin_n": etkin_n, "sure_saat": round(sure_saat, 1),
+            "se": round(se, 4), "z": round(z, 2), "gerek_gun": round(gerek_gun, 0),
+            "dejenere": bool(dejenere),
             "esikler": esikler, "kovalar": kovalar,
             "mono_skor": round(mono_skor, 2), "mono": mono_txt}
 
@@ -295,7 +325,9 @@ def rapor_metni(k: dict) -> str:
         if a.get("durum") != "ok":
             return [f"● *{a['ad']}* — {a.get('not','')}"]
         s = [f"● *{a['ad']}* → {a['karar']}",
-             f"   n={a['n']} (etkin {a['etkin_n']}, {a['sure_saat']}s) · {a['mono']}"]
+             f"   n={a['n']} (etkin {a['etkin_n']}, {a['sure_saat']}s) · {a['mono']}",
+             f"   beklenti {a['esikler'][0]['tum']['beklenti']:+.3f}% ± SE {a.get('se',0):.3f}% "
+             f"→ {a.get('z',0):+.1f} SE {'(sıfırdan AYIRT EDİLEMEZ)' if abs(a.get('z',0))<2 else '(anlamlı)'}"]
         for e in a["esikler"][:4]:
             t, o = e["tum"], e["oos"]
             s.append(f"   güç≥{e['esik']:<4} TÜM n={t['n']:<4} isabet%{t['isabet']:<5} "
@@ -315,9 +347,18 @@ def rapor_metni(k: dict) -> str:
 
     degerli = [a["ad"] for a in k["analizorler"] if a.get("karar") == "DEĞERLİ"]
     gurultu = [a["ad"] for a in k["analizorler"] if a.get("karar") == "GÜRÜLTÜ"]
+    ters = [a["ad"] for a in k["analizorler"] if a.get("karar") == "TERS"]
+    olcumsuz = [a["ad"] for a in k["analizorler"]
+                if a.get("karar") in ("AYIRT EDİLEMEZ", "ÖLÇÜLEMEZ", "YETERSİZ")]
+    gerek = max((a.get("gerek_gun", 0) or 0) for a in k["analizorler"]) if k["analizorler"] else 0
     L.append("━━━ *KARAR ÖZETİ* ━━━")
     L.append(f"DEĞERLİ: {', '.join(degerli) or '—'}")
-    L.append(f"SADELEŞTİRME adayı (gürültü): {', '.join(gurultu) or '—'}")
+    L.append(f"TERS (yönü çevrilmeli?): {', '.join(ters) or '—'}")
+    L.append(f"SADELEŞTİRME adayı (kanıtlı gürültü): {', '.join(gurultu) or '—'}")
+    if olcumsuz:
+        L.append(f"⏳ HENÜZ ÖLÇÜLEMEYEN ({len(olcumsuz)}): {', '.join(olcumsuz)}")
+        L.append(f"   → bu analizörler hakkında KARAR VERİLMEDİ; ~{gerek:.0f} gün veri gerekir. "
+                 f"Sadeleştirme YAPMA.")
     L.append("")
     L.append("_Sınır: snapshot'lar 5dk arayla + ufuklar çakışır → ardışık kayıtlar bağımsız "
              "DEĞİL; ETKİN örnekleme bak, ham n'e aldanma. 7 analizör × eşikler = çoklu "
