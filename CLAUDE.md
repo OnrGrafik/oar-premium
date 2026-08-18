@@ -544,6 +544,20 @@
 - 📌 GEÇERLİ KALAN GÖZLEM (SE'den bağımsız, yapısal): `makro` gücü fiilen SABİT (5010/5072 tek kovada) — §6j'deki 279/279 bulgusuyla aynı yöne işaret ediyor; bu bir DAĞILIM olgusu, beklenti tahmini değil. Yine de silme kararı ölçüm tamamlanınca verilir.
 - KURAL: **etkin örneklem ölçüm hassasiyetini belirler; ham n aldatır.** Karar vermeden önce daima |beklenti| > 2·SE(etkin n) kontrol et.
 
+## 6m. 🔴 LOOKAHEAD BULGUSU — ŞAMPİYON GİRİŞ FİLTRESİ GELECEĞE BAKIYOR (EN KRİTİK, kalıcı)
+- KULLANICI HEDEFİ: "geçmiş VE GELECEKTE çalışacak en iyi OAR'ı kuralım." Ön şart: şampiyonun edge'i NEDENSEL mi?
+- 🔴 BULGU (`oar_local_backtest.py:711-731`, koddan doğrulandı): aday döngüsünde giriş barı `j`, giriş fiyatı `fiyat=close_list[j]`, PnL `close_list[j+1:]`'den ölçülüyor. AMA iki giriş bloğu SONRAKİ barlara bakıyor:
+  • `ilk5 = close_list[j+1:j+6]` → `absorp = (vol_z>=1) and (max(ilk5) <= fiyat*1.001)` → **footprint_absorpsiyon** (FADE bloğu)
+  • `ileri15 = close_list[j+1:j+16]` → `reclaim = any(c < seviye*0.997 for c in ileri15)` → **footprint_trapped** (TREND bloğu)
+  Yani SHORT'u "önümüzdeki 5 dk fiyat yükselmeyecek" bilgisiyle SEÇİP girişi o anki fiyattan sayıyoruz. FADE ve TREND'in BİRER bloğu LOOKAHEAD taşıyor. (`poc_taraf` ve `footprint_kalicilik` TEMİZ — yalnız [0..j].)
+- 📊 MEKANİZMA KANITI (sentetik, HİÇ EDGE OLMAYAN saf rastgele fiyat): filtresiz beklenti −0.094/PF 0.67 · aynı lookahead filtresiyle **+0.071/PF 1.34**. Bu filtre YOKTAN edge üretebiliyor.
+- ⚠️ **NEDEN HİÇBİR SERAP TESTİ YAKALAMADI**: DSR / permütasyon / bootstrap / Monte-Carlo / walk-forward hepsi İŞLEM KÜMESİ üzerinde çalışır. Küme zaten gelecek bilgisiyle seçildiyse hepsi YANLI örneği doğrular. **Lookahead istatistiksel değil VERİ KURGUSU hatasıdır — istatistikle yakalanmaz.** DSR 1.0, WF %89, permütasyon p=5e-05 → hepsi bu yüzden yanıltıcı olabilir.
+- 🔗 CANLI KANIT (§5x/§5z ile TUTARLI): canlı FADE $907, TREND $831 (ikisi de $1000'in ALTINDA) iken backtest +273% diyor. §5z: canlı TREND proxy'si $1000→$1. Canlı SİSTEM geleceğe bakamadığı için edge'i yok — teşhis bununla birebir örtüşüyor.
+- ✅ ÖLÇÜM ARACI `oar_nedensel_denetim.py` (ANAYASA #8 GÜVENLİ — şampiyon koduna DOKUNMAZ, yalnız okur): aynı günlerde aynı adayları İKİ tanımla üretir → A) MEVCUT (ileri-bar) B) NEDENSEL (yalnız [0..j]) → şampiyon bloklarıyla filtreleyip n/WR/PF/beklenti/maxDD/OOS + serap bateri kıyaslar. Veri yolu GERÇEK (`_klines_oku`+`_aggt_ay_yollari`+`_gun_hazirla`). `--kendi-test` parquet gerektirmez (mekanizma kanıtı).
+- 📌 KULLANICI KOŞMALI (PC, parquet orada): `python oar_nedensel_denetim.py --symbol BTCUSDT,ETHUSDT --from 2019-01 --to 2025-06 --telegram` → çıktı `nedensel_denetim_sonuc.json`.
+- KARAR KURALI: B(nedensel) sürümde PF<1 veya beklenti≤0 → geçmiş başarı büyük ölçüde gelecek-bilgisidir, o şampiyon canlıda çalışmaz; **yeni OAR nedensel bloklarla SIFIRDAN keşfedilmeli**. B'de edge kalıyorsa serap testinden geçirilip GERÇEK şampiyon o olur.
+- ⚠️ ŞAMPİYONA/CANLIYA DOKUNULMADI. Bu bir ölçüm; sonuca göre #8 onayıyla hareket edilir.
+
 ## 7. Kullanıcı hakkında
 - Manuel trade yapmıyor (sinyal-bot'tan Bybit trading stack kaldırıldı).
 - Açıklama Türkçe, kısa/öz, sayfa sayfa (ANAYASA #7).
